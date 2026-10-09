@@ -6,7 +6,7 @@ import type { RankCandidate } from '@maengo/core/feed';
 // - short: 목록에 보이는 요약. body: 상세 화면의 전체 글(문단 단위, 우리 말로 다시 쓴 글).
 // - 공식 문서는 실제 문서 주소와 발행처를 썼다. 그 밖의 블로그·채널·작성자는 데모용 예시이고 링크는 example.com이다.
 // - DEMO_CLUSTERS는 오늘 피드 후보, ARCHIVE_CLUSTERS는 지난 피드(보관함)다.
-// - why는 "직업 앞머리"를 뺀 본문만 둔다. 앞머리는 유저 직업에 따라 붙는다.
+// - why는 앞머리("RAG에 관심 있다면")를 뺀 본문만 둔다. 앞머리는 그 소식을 고른 토픽 이름으로 붙는다.
 
 export interface DemoCluster {
   id: number;

@@ -34,7 +34,7 @@ const MAX_EPISODES = 6;
 
 async function segmentFor(item: FeedItem, persona: Persona, voice: Voice): Promise<Segment> {
   const vk = voiceKey(persona, voice);
-  // 대본에 순서 문장("세 번째 소식")과 직업별 why가 들어가므로 둘 다 키에 넣는다.
+  // 대본에 순서 문장("세 번째 소식")과 토픽별 why가 들어가므로 둘 다 키에 넣는다.
   const key = `${item.clusterId}|${persona}|${vk}|${item.rank}|${item.why}`;
   const hit = segments.get(key);
   if (hit) return hit;

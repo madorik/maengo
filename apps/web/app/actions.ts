@@ -4,7 +4,7 @@ import type { Persona, Plan, Voice } from "@maengo/core/types";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { SESSION_COOKIE } from "@/lib/session-cookie";
+import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { rebuildFeed } from "@/lib/server/feed";
 import { currentProfile, requireProfile, sessionValue } from "@/lib/server/session";
 import { createDemoProfile, resetUser, store } from "@/lib/server/store";
@@ -14,20 +14,19 @@ import type { TopicResult } from "@/lib/types";
 /** 데모 로그인: 애플·구글 버튼을 누르면 OAuth 없이 바로 들어간다. Supabase Auth가 붙으면 signInWithOAuth로 바뀐다. */
 export async function signIn(formData: FormData) {
   const provider = formData.get("provider") === "apple" ? "apple" : "google";
-  (await cookies()).set(SESSION_COOKIE, sessionValue(provider), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  const jar = await cookies();
+  const opts = { sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 } as const;
+  jar.set(SESSION_COOKIE, sessionValue(provider), { ...opts, httpOnly: true });
+  jar.set(SIGNED_IN_HINT, "1", opts);
   if (!store.profiles.has("demo")) createDemoProfile("demo", provider);
   else store.profiles.get("demo")!.provider = provider;
   redirect("/today");
 }
 
 export async function signOut() {
-  (await cookies()).delete(SESSION_COOKIE);
+  const jar = await cookies();
+  jar.delete(SESSION_COOKIE);
+  jar.delete(SIGNED_IN_HINT);
   redirect("/login");
 }
 

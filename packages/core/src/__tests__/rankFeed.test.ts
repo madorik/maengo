@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { feedbackDelta, rankFeed, type RankCandidate } from '../feed/rankFeed';
-import { initialTopicWeights, JOB_PRIOR_WEIGHT } from '../topics/dictionary';
+import { initialTopicWeights, POPULAR_TOPICS, TOPICS, whyLead } from '../topics/dictionary';
 
 const c = (id: number, topicId: string, extra: Partial<RankCandidate> = {}): RankCandidate => ({
   id,
@@ -49,10 +49,14 @@ test('피드백 가중치는 0.1~1.5 사이에 머문다', () => {
   assert.equal(feedbackDelta('known', 1), 0);
 });
 
-test('콜드 스타트: 고른 토픽은 1.0, 직업 추천 중 안 고른 토픽은 0.3', () => {
-  const w = initialTopicWeights('backend', ['rag', 'react', 'nope']);
-  assert.equal(w.rag, 1);
-  assert.equal(w.react, 1);
-  assert.equal(w['llm-agent'], JOB_PRIOR_WEIGHT);
-  assert.equal(w.nope, undefined);
+test('처음 토픽: 고른 것만 1.0, 사전에 없는 id는 버린다', () => {
+  assert.deepEqual(initialTopicWeights(['rag', 'react', 'nope']), { rag: 1, react: 1 });
+});
+
+test('인기 토픽 목록은 사전의 모든 토픽을 한 번씩 담는다', () => {
+  assert.deepEqual([...POPULAR_TOPICS].sort(), TOPICS.map((t) => t.id).sort());
+});
+
+test('why 앞머리는 직업이 아니라 관심 토픽으로', () => {
+  assert.equal(whyLead('RAG'), 'RAG에 관심 있다면');
 });

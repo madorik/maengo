@@ -23,7 +23,7 @@ export function TodayList() {
           </h1>
           {game.total > 0 && (
             <p className="mt-1 text-[14px] font-semibold leading-snug text-ink/80">
-              {data.jobLabel}에게 맞춰 {data.topicNames.join(", ")}에서 골랐어요
+              관심 토픽 {data.topicNames.join(", ")}에서 골랐어요
             </p>
           )}
           {game.total > 0 && (
