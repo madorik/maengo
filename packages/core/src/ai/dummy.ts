@@ -1,0 +1,116 @@
+import { estimateTimeline } from '../audio/personas';
+import { classifyByKeywords } from '../categories';
+import { matchTopics } from '../topics/match';
+import type { ScriptLine } from '../types';
+import type { AiClient, ClassifyInput, MapTopicsInput, ScriptInput, SpeakInput, SpeakOutput, WhyInput } from './types';
+
+// API 키 없이 화면과 흐름을 끝까지 돌려 보기 위한 더미. 같은 입력이면 늘 같은 결과를 낸다.
+// 음성은 실제 말 대신 항목 시작에 차임, 문장마다 짧은 신호음을 넣고 나머지는 무음으로 채운다.
+// 문장 길이로 재생 시간을 어림하므로 챕터·진행 막대·대본 하이라이트는 실제와 같은 방식으로 움직인다.
+
+export interface DummyCanned {
+  /** 파이프라인이 미리 만들어 둔 why 본문(직업 앞머리 제외)이 있으면 그것을 쓴다 */
+  whyBody?: (clusterId: number, topicId: string) => string | undefined;
+}
+
+const ORDINALS = ['첫 번째', '두 번째', '세 번째', '네 번째', '다섯 번째'];
+
+export function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.?!])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** 'OO라면: 본문' → 'OO라면, 본문' (말로 읽을 때) */
+function spokenWhy(why: string): string {
+  return why.replace(/:\s*/, ', ');
+}
+
+function withPeriod(s: string): string {
+  return /[.?!]$/.test(s) ? s : `${s}.`;
+}
+
+/** 본문을 문장 단위 줄로 나누고, 각 줄에 문단 번호를 단다 */
+function bodyLines(body: string[]): ScriptLine[] {
+  return body.flatMap((p, para) => splitSentences(p).map((text) => ({ text, para })));
+}
+
+export function dummyScript(input: ScriptInput): ScriptLine[] {
+  const ord = ORDINALS[input.rank - 1] ?? `${input.rank}번째`;
+  const why = spokenWhy(input.why);
+  switch (input.persona) {
+    case 'announcer':
+      return [{ text: `${ord} 소식입니다. ${withPeriod(input.title)}` }, ...bodyLines(input.body), { text: why }];
+    case 'teacher':
+      return [
+        { text: `${ord}는 ${input.topicName} 이야기예요.` },
+        { text: withPeriod(input.title) },
+        ...bodyLines(input.body),
+        { text: `정리하면, ${why}` },
+      ];
+    case 'dialogue': {
+      const asks = ['조금 더 풀어 주세요.', '그다음은요?', '마지막으로 하나만 더요.'];
+      const lines: ScriptLine[] = [{ who: '진행자', text: `${ord} 소식은 뭔가요?` }];
+      input.body.forEach((p, para) => {
+        if (para > 0) lines.push({ who: '진행자', text: asks[Math.min(para - 1, asks.length - 1)]! });
+        lines.push({ who: '해설자', text: p, para });
+      });
+      lines.push({ who: '진행자', text: '그래서 왜 중요한 거예요?' }, { who: '해설자', text: why });
+      return lines;
+    }
+  }
+}
+
+const SAMPLE_RATE = 8000;
+
+const PITCH: Record<string, number> = { f: 880, m: 587, 진행자: 784, 해설자: 523 };
+
+function tone(pcm: Uint8Array, atMs: number, ms: number, freq: number, amp: number) {
+  const start = Math.floor((atMs / 1000) * SAMPLE_RATE);
+  const n = Math.floor((ms / 1000) * SAMPLE_RATE);
+  for (let i = 0; i < n && start + i < pcm.length; i++) {
+    const t = i / SAMPLE_RATE;
+    const v = (pcm[start + i] ?? 128) + amp * Math.sin(2 * Math.PI * freq * t) * Math.exp(-t * 18);
+    pcm[start + i] = Math.max(0, Math.min(255, Math.round(v)));
+  }
+}
+
+export function dummySpeak(input: SpeakInput): SpeakOutput {
+  const { lineTimesMs, durationMs } = estimateTimeline(input.lines, input.persona);
+  const pcm = new Uint8Array(Math.ceil((durationMs / 1000) * SAMPLE_RATE)).fill(128);
+
+  const base = PITCH[input.voice === 'pair' ? '진행자' : input.voice] ?? 880;
+  tone(pcm, 0, 160, base, 46);
+  tone(pcm, 170, 220, base * 1.5, 46);
+  input.lines.forEach((line, i) => {
+    const pitch = (line.who && PITCH[line.who]) || base;
+    tone(pcm, lineTimesMs[i]!.startMs, 70, pitch * 0.75, 20);
+  });
+
+  return { pcm, sampleRate: SAMPLE_RATE, bitsPerSample: 8, lineTimesMs, durationMs };
+}
+
+export function createDummyAi(canned: DummyCanned = {}): AiClient {
+  return {
+    provider: 'dummy',
+    async why(input: WhyInput) {
+      const body =
+        canned.whyBody?.(input.clusterId, input.topicId) ??
+        `${input.topicName} 쪽에서 지금 하는 일과 바로 비교해 볼 만해요.`;
+      return `${input.jobLead}: ${body}`;
+    },
+    async classify(input: ClassifyInput) {
+      return classifyByKeywords(input);
+    },
+    async mapTopics(input: MapTopicsInput) {
+      return matchTopics(input.text, input.dictionary);
+    },
+    async script(input: ScriptInput) {
+      return dummyScript(input);
+    },
+    async speak(input: SpeakInput) {
+      return dummySpeak(input);
+    },
+  };
+}

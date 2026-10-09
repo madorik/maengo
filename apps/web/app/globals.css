@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+/*
+  맹고 2차 디자인: 듀오링고식. 흰 바탕 + 두툼한 3D 버튼 + 망고 캐릭터.
+  망고 노랑 = 주 행동(계속·시작), 잎 초록 = 완료, 하늘 파랑 = 듣기.
+  버튼 글자 대비를 지키려고 노랑 위에는 남색 글자, 초록·파랑은 진한 톤을 쓴다.
+*/
+@theme {
+  --color-ink: #1F2340;
+  --color-sub: #6B7089;
+  --color-faint: #A3A8BC;
+  --color-line: #E4E6EE;
+  --color-line-dark: #CDD1DC;
+  --color-snow: #F6F7FB;
+
+  --color-mango: #FFC23D;
+  --color-mango-dark: #E09A12;
+  --color-mango-deep: #A86A00;
+  --color-mango-tint: #FFF4D6;
+  --color-orange: #FF8A1F;
+
+  --color-leaf: #23914F;
+  --color-leaf-dark: #17683A;
+  --color-leaf-bright: #34B36A;
+  --color-leaf-tint: #DDF7E5;
+
+  --color-sky: #1A8FE0;
+  --color-sky-dark: #1270B3;
+  --color-sky-tint: #E1F2FF;
+
+  --color-focus: #1A8FE0;
+}
+
+@theme inline {
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  /* 숫자(연속 일수·XP)만 둥근 라틴 글꼴로 */
+  --font-round: var(--font-nunito), "Pretendard Variable", sans-serif;
+}
+
+@layer base {
+  html {
+    background: #fff;
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    margin: 0;
+    background: #fff;
+    font-family: var(--font-sans);
+    word-break: keep-all;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  dialog::backdrop {
+    background: rgb(31 35 64 / 0.55);
+  }
+}
+
+@layer components {
+  /* 눌리는 3D 버튼. 아래 그림자만큼 내려앉는다 */
+  .btn {
+    --btn-face: var(--color-mango);
+    --btn-edge: var(--color-mango-dark);
+    --btn-text: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 52px;
+    padding: 0 22px;
+    border: 2px solid transparent;
+    border-radius: 16px;
+    background: var(--btn-face);
+    color: var(--btn-text);
+    font-weight: 800;
+    font-size: 16px;
+    text-decoration: none;
+    box-shadow: 0 4px 0 var(--btn-edge);
+    transform: translateY(0);
+    transition: transform 80ms ease-out, box-shadow 80ms ease-out, filter 150ms;
+  }
+  .btn:hover:not(:disabled) {
+    filter: brightness(1.04);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 var(--btn-edge);
+  }
+  .btn:disabled {
+    --btn-face: var(--color-line);
+    --btn-edge: var(--color-line-dark);
+    --btn-text: var(--color-faint);
+  }
+  .btn-leaf {
+    --btn-face: var(--color-leaf);
+    --btn-edge: var(--color-leaf-dark);
+    --btn-text: #fff;
+  }
+  .btn-sky {
+    --btn-face: var(--color-sky);
+    --btn-edge: var(--color-sky-dark);
+    --btn-text: #fff;
+  }
+  .btn-ink {
+    --btn-face: #111;
+    --btn-edge: #000;
+    --btn-text: #fff;
+  }
+  .btn-ghost {
+    --btn-face: #fff;
+    --btn-edge: var(--color-line);
+    --btn-text: var(--color-ink);
+    border-color: var(--color-line);
+  }
+
+  /* 선택지·카드: 두꺼운 테두리, 아래가 더 두껍다 */
+  .tile {
+    border: 2px solid var(--color-line);
+    border-bottom-width: 4px;
+    border-radius: 16px;
+    background: #fff;
+  }
+
+  /* 형광펜이 줄마다 끊기지 않게 */
+  .hl {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  .bob {
+    animation: bob 1.6s ease-in-out infinite;
+  }
+  .pop {
+    animation: pop 600ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  }
+  .rise {
+    animation: rise 500ms ease-out both;
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes rise {
+  0% {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
