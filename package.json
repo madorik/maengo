@@ -1,0 +1,20 @@
+{
+  "name": "maengo",
+  "private": true,
+  "version": "0.0.1",
+  "description": "맹고 — 매일 아침 나에게 맞는 기술 소식 5개를 읽고 듣는 웹앱",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.15.1",
+  "scripts": {
+    "dev": "pnpm --filter @maengo/web dev",
+    "build": "pnpm --filter @maengo/web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "tsx --test 'packages/core/src/**/__tests__/*.test.ts' 'apps/web/lib/**/__tests__/*.test.ts'"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}
