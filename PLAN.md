@@ -13,7 +13,7 @@
 
 1. 애플 또는 구글로 로그인한다.
 2. 관심사(추천 토픽 + 문장) → 알림 시간 순서로 온보딩을 마치면, 10초 안에 첫 피드가 뜬다. **직업은 받지 않는다**(2026-10-09 결정). 어떤 직업이든 관심 있는 분야 소식만 고른다.
-3. 매일 04:00 KST 배치가 수집·요약·랭킹·오디오를 끝내고, 유저가 고른 시각(06:30/07:00/08:00)에 웹 푸시나 이메일을 보낸다.
+3. 매일 04:00 KST 배치가 수집·요약·랭킹·오디오를 끝내고, 유저가 고른 시각(06:30/07:00/08:00)에 FCM 푸시(Android·iOS 앱, 웹)나 이메일을 보낸다.
 4. 무료 유저는 텍스트 카드를 읽고 피드백(더 보고 싶어요 / 이미 알아요 / 관심 없어요)을 남긴다.
 5. 플러스(체험 포함) 유저는 "오늘 5개 이어 듣기"로 페르소나 오디오를 끝까지 듣고, 개인 팟캐스트 RSS와 주간 스터디 팩(PPTX·PDF)을 받는다.
 6. 포트원 정기결제로 플러스에 가입하고 해지한다.
@@ -32,13 +32,13 @@
 
 ```
                          ┌──────────────────────────── Vercel (Next.js 16) ───────────────────────────┐
-[브라우저 PWA] ────────▶ │ 페이지 · Server Actions · Route Handlers                                    │
+[앱·웹·PWA] ──────────▶ │ 페이지 · Server Actions · Route Handlers                                    │
   웹 플레이어 ──┐        │ Vercel Cron: /api/cron/notify(30분마다) · /api/cron/billing(하루 1번)        │
                │        │ /podcast/[token] (개인 RSS)                                                  │
 [팟캐스트 앱] ─┼──────▶ └───────┬───────────────┬────────────────┬───────────────┬──────────────────┘
                │                │               │                │               │
                │                ▼               ▼                ▼               ▼
-               │        [Supabase]        [Web Push/Resend]   [PortOne]   [GitHub dispatch]
+               │        [Supabase]        [FCM/Resend]        [PortOne]   [GitHub dispatch]
                │        Postgres+pgvector                                       │
                │        Auth(Apple·Google)                                      ▼
                │                ▲                               ┌────── GitHub Actions ──────┐
@@ -78,7 +78,7 @@ maengo/
 │  ├─ components/                FeedCard, ProgressSlots, FinishLine, ListenPanel, Queue,
 │  │                             PersonaPicker, Switch, PlayAllCTA, OnboardingSteps …
 │  ├─ lib/player/                플레이어 상태 머신(순수 함수) + <audio> 바인딩
-│  ├─ public/sw.js, manifest.webmanifest
+│  ├─ public/firebase-messaging-sw.js(웹 FCM), manifest
 │  └─ vercel.json                크론 정의
 ├─ pipeline/                     tsx로 도는 배치 (GitHub Actions에서 실행)
 │  └─ src/
@@ -92,11 +92,12 @@ maengo/
 │     ├─ audio/                  personas, pronunciations.json, tts, encode, chapters
 │     ├─ storage/r2.ts
 │     └─ util/                   canonicalUrl, kst
+├─ apps/mobile/                  Capacitor(iOS·Android) 껍데기. 배포된 웹을 띄우고 푸시·백그라운드 재생·애플 로그인을 붙인다(9.3)
 ├─ packages/db/                  supabase gen types 결과, zod 스키마
 ├─ supabase/
-│  ├─ migrations/0001_init.sql
-│  └─ seed.sql                   토픽 50개, sources
-├─ scripts/apple-client-secret.ts
+│  ├─ config.toml
+│  └─ migrations/                20261009150000_init.sql(스키마·RLS), …_topics.sql(토픽 사전), …_lock_trigger_fn.sql — 적용됨
+├─ scripts/                      supabase-auth.mjs(로그인 설정), apple-client-secret.mjs(6개월 시크릿)
 └─ .github/workflows/ daily.yml assemble.yml ci.yml
 ```
 
@@ -106,208 +107,30 @@ maengo/
 
 ## 4. 데이터베이스 스키마
 
-```sql
--- supabase/migrations/0001_init.sql
-create extension if not exists vector;
+**기준은 `supabase/migrations/`다(2026-10-09 Supabase 프로젝트 `maengo`, 서울 리전에 적용).** 표 요약:
 
--- 사용자 ------------------------------------------------------------
-create table profiles (
-  id             uuid primary key references auth.users on delete cascade,
-  display_name   text,
-  notify_at      time not null default '07:00',
-  plan           text not null default 'trial' check (plan in ('free','trial','plus')),
-  trial_ends_at  timestamptz,
-  persona        text not null default 'teacher' check (persona in ('announcer','teacher','dialogue')),
-  voice          text not null default 'f' check (voice in ('f','m')),
-  auto_next      boolean not null default true,
-  skip_read      boolean not null default false,
-  podcast_token  text not null unique default replace(gen_random_uuid()::text, '-', ''),
-  created_at     timestamptz not null default now()
-);
-
--- 토픽 --------------------------------------------------------------
-create table topics (
-  id         text primary key,                 -- 'rag', 'llm-agent'
-  name       text not null,                    -- 'RAG'
-  aliases    text[] not null default '{}',
-  embedding  vector(768)
-);
-create table user_topics (
-  user_id   uuid not null references profiles on delete cascade,
-  topic_id  text not null references topics,
-  weight    real not null default 1.0,
-  source    text not null default 'onboarding', -- onboarding | text | settings | feedback
-  primary key (user_id, topic_id)
-);
-
--- 수집 --------------------------------------------------------------
-create table sources (
-  id          serial primary key,
-  kind        text not null check (kind in ('rss','youtube','hn','devto','search')),
-  url         text not null unique,
-  name        text not null,
-  weight      real not null default 1.0,
-  active      boolean not null default true,
-  last_ok_at  timestamptz,
-  fail_count  int not null default 0
-);
-create table clusters (
-  id             bigserial primary key,
-  first_seen_at  timestamptz not null default now(),
-  size           int  not null default 1,
-  score          real not null default 0,
-  is_video       boolean not null default false
-);
-create table items (
-  id             bigserial primary key,
-  source_id      int references sources,
-  canonical_url  text not null unique,
-  title          text not null,
-  kind           text not null check (kind in ('article','video')),
-  published_at   timestamptz,
-  fetched_at     timestamptz not null default now(),
-  embedding      vector(768),
-  cluster_id     bigint references clusters
-);
-create index items_embedding_idx on items using hnsw (embedding vector_cosine_ops);
-create index items_fetched_idx   on items (fetched_at);
-create table cluster_topics (
-  cluster_id  bigint not null references clusters on delete cascade,
-  topic_id    text   not null references topics,
-  relevance   real   not null,
-  primary key (cluster_id, topic_id)
-);
-
--- 요약 캐시 ---------------------------------------------------------
-create table summaries (
-  cluster_id  bigint not null references clusters on delete cascade,
-  tier        text   not null check (tier in ('basic','pro')), -- basic=무료(Flash), pro=플러스(상위 모델)
-  title       text not null,                   -- 카드 제목(한국어)
-  short       text not null,                   -- 목록에 보이는 요약
-  body        jsonb not null,                  -- 상세 화면의 전체 글(문단 배열). 원문을 옮기지 않고 우리 말로 다시 쓴 글
-  author      text,                            -- 글쓴이·채널(RSS author, 유튜브 채널명)
-  category    text not null default 'etc',     -- ai | tech | design | business | marketing | career | finance | science | travel | life | etc
-  published_at timestamptz,
-  evidence    text,                            -- 원문 근거 문장 1개
-  scenes      jsonb,                           -- 유튜브: [{"t":"4:10","label":"…"}]
-  model       text not null,
-  version     int  not null default 1,
-  created_at  timestamptz not null default now(),
-  primary key (cluster_id, tier)
-);
-create table cluster_why (
-  cluster_id  bigint not null references clusters on delete cascade,
-  topic_id    text   not null references topics,
-  tier        text   not null,
-  why         text   not null,                 -- "LLM 에이전트에 관심 있다면: …"(앞머리는 토픽 이름으로)
-  primary key (cluster_id, topic_id, tier)
-);
-
--- 유저별 결과 -------------------------------------------------------
-create table feeds (
-  user_id     uuid   not null references profiles on delete cascade,
-  date        date   not null,
-  rank        int    not null check (rank between 1 and 5),
-  cluster_id  bigint not null references clusters,
-  topic_id    text   not null references topics, -- why 문구를 고를 토픽
-  primary key (user_id, date, rank)
-);
-create table feedback (
-  user_id     uuid   not null references profiles on delete cascade,
-  cluster_id  bigint not null references clusters on delete cascade,
-  kind        text   not null check (kind in ('more','known','skip')),
-  created_at  timestamptz not null default now(),
-  primary key (user_id, cluster_id)
-);
-create table reads (
-  user_id      uuid   not null references profiles on delete cascade,
-  cluster_id   bigint not null references clusters on delete cascade,
-  read_at      timestamptz,
-  listened_at  timestamptz,
-  starred      boolean not null default false,
-  primary key (user_id, cluster_id)
-);
-
--- 오디오·스터디 팩 --------------------------------------------------
-create table audio_segments (
-  cluster_id      bigint not null references clusters on delete cascade,
-  persona         text   not null,
-  voice           text   not null,             -- f | m | pair(대담)
-  script_version  int    not null,
-  script          text   not null,
-  r2_key          text   not null,
-  duration_ms     int    not null,
-  primary key (cluster_id, persona, voice, script_version)
-);
-create table episodes (
-  user_id      uuid   not null references profiles on delete cascade,
-  date         date   not null,
-  persona      text   not null,
-  voice        text   not null,
-  r2_key       text   not null,
-  bytes        bigint not null,
-  duration_ms  int    not null,
-  chapters     jsonb  not null,                -- [{rank, clusterId, startMs, endMs, title}]
-  primary key (user_id, date, persona, voice)
-);
-create table packs (
-  user_id     uuid not null references profiles on delete cascade,
-  week_start  date not null,
-  pptx_key    text,
-  pdf_key     text,
-  primary key (user_id, week_start)
-);
-
--- 알림·결제·운영 ----------------------------------------------------
-create table push_subscriptions (
-  endpoint    text primary key,
-  user_id     uuid not null references profiles on delete cascade,
-  p256dh      text not null,
-  auth        text not null,
-  created_at  timestamptz not null default now()
-);
-create table notifications_log (
-  user_id  uuid not null references profiles on delete cascade,
-  date     date not null,
-  channel  text not null,                      -- push | email
-  sent_at  timestamptz not null default now(),
-  primary key (user_id, date, channel)
-);
-create table subscriptions (
-  user_id               uuid primary key references profiles on delete cascade,
-  billing_key           text not null,
-  status                text not null check (status in ('active','past_due','canceled')),
-  current_period_end    timestamptz not null,
-  cancel_at_period_end  boolean not null default false,
-  retry_count           int not null default 0
-);
-create table payments (
-  id        text primary key,                  -- 우리가 만든 paymentId = 멱등 키
-  user_id   uuid not null references profiles on delete cascade,
-  amount    int  not null,
-  status    text not null,
-  paid_at   timestamptz,
-  raw       jsonb
-);
-create table usage_log (
-  id        bigserial primary key,
-  at        timestamptz not null default now(),
-  provider  text not null,                     -- anthropic | gemini | search
-  kind      text not null,                     -- summary | why | script | tts | embed | video | topic_map
-  units     bigint not null,                   -- 토큰 수 또는 오디오 초
-  est_usd   numeric(10,4) not null
-);
-```
+| 묶음 | 표 | 메모 |
+| --- | --- | --- |
+| 사용자 | profiles, user_topics, unmatched_interests | 가입하면 트리거가 profiles를 만든다(체험 7일). onboarded_at이 null이면 온보딩으로. 직업 칸은 없다 |
+| 토픽 | topics(popularity = 추천 순서, embedding 768) | 사전 22개를 마이그레이션으로 넣었다 |
+| 수집 | sources, clusters, items(hnsw 인덱스), cluster_topics | |
+| 요약 캐시 | summaries(cluster, tier: 요약·전체 글·작성자·카테고리), cluster_why(cluster, topic, tier) | |
+| 유저별 결과 | feeds(rank 1~10), feed_days(그날 보여 준 개수), feedback(바꾼 토픽·양), reads | 무료는 1개, 플러스는 10개를 보여 준다 |
+| 오디오 | audio_segments(대본 jsonb: 줄·문단 번호), episodes(챕터 jsonb), packs | |
+| 알림 | device_tokens(FCM 토큰, platform: android·ios·web), notifications_log | |
+| 결제·운영 | subscriptions(store: portone·app_store·play), payments, usage_log | 앱 안 결제는 스토어 결제(9.3) |
 
 **RLS 규칙**
 
 | 테이블 | 클라이언트(로그인 유저) | 쓰는 쪽 |
 | --- | --- | --- |
-| profiles | 본인 행 select·update | 온보딩 서버 액션이 insert |
-| user_topics, feedback, reads, push_subscriptions | 본인 행 select·insert·update·delete | 웹 |
-| feeds, episodes, packs | 본인 행 select | 파이프라인, 첫 피드 생성(service role) |
+| profiles | 본인 행 select, update는 설정 칸(이름·알림 시각·말투·목소리·자동 재생·건너뛰기)만 | 가입 트리거가 insert. plan·trial은 서버만 |
+| user_topics, feedback, reads, device_tokens | 본인 행 select·insert·update·delete | 웹·앱 |
+| feeds, feed_days, episodes, packs | 본인 행 select | 파이프라인, 첫 피드 생성(service role) |
 | topics, clusters, items, cluster_topics, summaries, cluster_why | 로그인 유저 전체 select | 파이프라인 |
-| sources, audio_segments, subscriptions, payments, notifications_log, usage_log | 정책 없음(접근 불가) | service role 전용 |
+| sources, unmatched_interests, audio_segments, subscriptions, payments, notifications_log, usage_log | 정책 없음(접근 불가) | service role 전용 |
+
+Supabase 보안 점검(advisors): 경고 0건. INFO 7건은 위 마지막 줄 표들이 의도대로 정책이 없다는 안내다.
 
 ---
 
@@ -348,7 +171,7 @@ completeOnboarding({
 1. profiles upsert: notify_at, plan='trial', trial_ends_at=now()+7일
 2. user_topics: 고른 토픽은 weight 1.0. 추천 토픽은 인기 순서(POPULAR_TOPICS)로 보여 주고, 최소 1개를 고르게 한다. 관심사가 좁아 피드가 모자라면 그날은 받은 만큼만 보여 준다.
 3. `buildFeedForUser(userId, todayKst, { coldStart: true })`로 오늘 피드를 바로 만든다(5.4).
-4. `/today`로 보낸다. 웹 푸시 구독은 3단계의 "웹 알림 받기" 버튼에서 별도로 처리한다(9.2).
+4. `/today`로 보낸다. 푸시 권한과 FCM 토큰 등록은 알림 단계의 "알림 받기" 버튼에서 따로 처리한다(9.2).
 
 ### 5.3 문장 → 토픽 매핑 (`POST /api/topics/map`)
 
@@ -445,7 +268,7 @@ score(u, c)     = relevance(u, c) · base(c)
 | `/article/[id]` | 상세: 전체 글, 원문 링크, 유튜브 썸네일, "이 글 듣기"(읽는 문단 표시), 의견 3종 | 로그인 |
 | `/listen` | 이어 듣기(대본 말풍선) | 플러스·체험 |
 | `/library` | 보관함: 지금까지 받은 피드 전체를 날짜별로, 카테고리 필터, 10개씩 페이지(`?page=&category=`). 스터디 팩은 Day 12 | 로그인 |
-| `/settings` | 관심 토픽·알림 시간·말투·푸시·팟캐스트 주소·구독 | 로그인 |
+| `/settings` | 관심 토픽·알림 시간·말투·알림 받기·팟캐스트 주소·구독 | 로그인 |
 | `/plus` | 플러스 가입·결제 | 로그인 |
 | `/podcast/[token]` | 개인 팟캐스트 RSS(XML) | 토큰 |
 
@@ -456,7 +279,7 @@ score(u, c)     = relevance(u, c) · base(c)
 | `POST /api/topics/map` | 문장 → 토픽 id | 온보딩 2단계, 설정 |
 | `POST /api/feedback` | `{clusterId, kind}` 저장, 토픽 가중치 갱신 | 카드 버튼 |
 | `POST /api/reads` | `{clusterId, read?, listened?, starred?}` | 카드 펼치기, 플레이어 챕터 진입, 별표 |
-| `POST /api/push/subscribe` · `DELETE` | 웹 푸시 구독 저장·삭제 | 온보딩 3단계, 설정 |
+| `POST /api/devices` · `DELETE` | FCM 토큰 등록·삭제 `{token, platform, appVersion}` | 앱 시작, 온보딩 알림 단계, 설정 |
 | `GET /api/episode/today` | `{url, chapters}` 또는 에피소드가 없을 때 `{segments[]}` | 플레이어 |
 | `POST /api/audio/request` | 말투·목소리 변경 시 assemble.yml 트리거 | 설정, 듣기 화면 |
 | `POST /api/billing/issue` | 빌링키로 첫 결제, 구독 생성 | `/plus` |
@@ -528,18 +351,37 @@ score(u, c)     = relevance(u, c) · base(c)
 
 포트원 V2 API의 정확한 엔드포인트와 SDK 함수 이름은 Day 13에 공식 문서로 확인한 뒤 쓴다.
 
-### 9.2 알림
+### 9.2 알림 — Firebase Cloud Messaging
 
-**웹 푸시**
-- `public/sw.js`: `push` 이벤트가 오면 알림을 띄운다(제목 "오늘의 맹고 5개", 본문은 1번 카드 제목). `notificationclick`이면 `/today?from=push`를 연다.
-- 구독은 온보딩 3단계의 "웹 알림 받기" 버튼(사용자 제스처)에서 `PushManager.subscribe`를 호출하고, 결과를 `/api/push/subscribe`로 보낸다.
-- iOS는 홈 화면에 설치한 PWA에서만 푸시가 된다. `display-mode: standalone`이 아니면 설치 안내를 보여주고 이메일을 기본으로 쓴다.
+Android·iOS 앱과 웹(PWA)을 모두 FCM 하나로 보낸다. 서버는 `firebase-admin`(서비스 계정)으로 토큰에 보낸다.
+
+**토큰 받기**
+- Android 앱: Capacitor + `@capacitor-firebase/messaging`. 권한을 받으면 FCM 토큰을 `/api/devices`에 `platform: 'android'`로 등록한다.
+- iOS 앱: 같은 플러그인. 애플 개발자 계정의 APNs 인증 키(.p8)를 Firebase에 올려야 FCM이 iOS로 전달한다. `platform: 'ios'`.
+- 웹: Firebase JS SDK `getToken(messaging, { vapidKey })` + `public/firebase-messaging-sw.js`. iOS 사파리는 홈 화면에 설치한 PWA에서만 된다. 앱을 쓰는 사람에게는 웹 토큰을 받지 않는다.
+- 권한 요청은 온보딩 알림 단계의 "알림 받기" 버튼(사용자 동작)에서만 한다. 거절하면 이메일로 보낸다.
+- 앱을 열 때마다 토큰을 다시 등록해 `last_seen_at`을 갱신한다(토큰은 바뀔 수 있다).
+
+**보내는 내용**
+- 제목 "오늘의 맹고가 도착했어요", 본문은 1번 소식 제목. 데이터 `{ url: '/today?from=push' }`로 누르면 오늘 화면을 연다.
+- 플러스는 "오늘 10개, 선생님 말투로 약 11분" 같은 듣기 안내를 붙인다.
 
 **발송 (`/api/cron/notify`, 30분마다)**
 1. 지금 KST 슬롯(06:30/07:00/08:00)과 notify_at이 같고, `notifications_log`에 오늘 기록이 없는 유저를 고른다.
 2. 오늘 feeds가 있으면 보낸다. 배치가 실패해 없으면, 전날 노출되지 않은 클러스터로 대체 피드를 만든 뒤 보낸다.
-3. 푸시가 410·404로 돌아오면 그 구독을 지운다. 푸시 구독이 없는 유저에게는 Resend로 메일을 보낸다.
+3. 유저의 모든 `device_tokens`로 `sendEachForMulticast`. `registration-token-not-registered`·`invalid-argument`로 돌아온 토큰은 지운다. 토큰이 하나도 없으면 Resend로 메일을 보낸다.
 4. 보낸 기록을 `notifications_log`에 남겨 같은 날 두 번 보내지 않게 한다.
+
+### 9.3 앱(Android·iOS)
+
+- **방식**: Capacitor 껍데기 앱이 배포된 웹(`server.url`)을 띄운다. 서버 컴포넌트·Server Actions를 쓰므로 정적 export로 앱에 넣지 않는다.
+- **앱에서만 붙이는 것**: FCM 푸시, 백그라운드 오디오(iOS `UIBackgroundModes: audio`, 잠금 화면 조작), 애플·구글 로그인 네이티브 창(Supabase `signInWithIdToken`), 딥링크(`APP_URL_SCHEME://auth/callback`, 푸시 눌렀을 때).
+- **번들 ID·패키지명**: 기본안 `kr.maengo.app`(13장 10번). 애플 App ID, Firebase 앱, 플레이 콘솔에 같은 값을 쓴다. 정하면 못 바꾸니 등록 전에 확정한다.
+- **스토어 정책**
+  - 애플 4.2(최소 기능): 웹을 감싸기만 한 앱은 거절될 수 있다. 푸시, 백그라운드 이어 듣기, 오프라인 에피소드 저장으로 앱다운 기능을 갖춘다.
+  - 애플 4.8: 구글 로그인을 넣으면 애플 로그인도 있어야 한다(이미 있음).
+  - 앱 안에서 플러스(디지털 구독)를 팔면 애플 인앱 결제·구글 플레이 결제를 써야 한다. 한국에서는 두 스토어 모두 대체 결제를 허용하지만 수수료가 붙는다. 웹 결제(포트원)와 같은 계정 권한을 공유하도록 `subscriptions.store`로 구분한다(13장 9번).
+- **음성**: 앱에서는 백그라운드 재생이 안정적이라 웹 PWA보다 이어 듣기 경험이 좋다. 팟캐스트 RSS는 그대로 둔다.
 
 ---
 
@@ -554,24 +396,30 @@ score(u, c)     = relevance(u, c) · base(c)
 | `GEMINI_EMBED_MODEL`, `GEMINI_TTS_MODEL` | pipeline | 임베딩·TTS |
 | `SEARCH_API_KEY` | pipeline | 오픈 웹 검색 |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BUCKET`, `R2_PRIVATE_BUCKET`, `R2_PUBLIC_BASE_URL` | web, pipeline | 파일 |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | web | 웹 푸시 |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`, `…_AUTH_DOMAIN`, `…_PROJECT_ID`, `…_MESSAGING_SENDER_ID`, `…_APP_ID`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | web(브라우저) | 웹 FCM 토큰 받기 |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` 또는 `FIREBASE_SERVICE_ACCOUNT_JSON` | web(서버) | 푸시 보내기(firebase-admin) |
+| `APP_URL_SCHEME`, `APPLE_BUNDLE_ID`, `ANDROID_PACKAGE` | web, mobile | 앱 딥링크·네이티브 로그인 |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_SERVICES_ID`, `APPLE_PRIVATE_KEY_PATH` | scripts | `pnpm setup:auth`가 Supabase 로그인 설정에 넣는다(앱 런타임에는 안 쓴다) |
 | `RESEND_API_KEY`, `MAIL_FROM` | web | 이메일 |
 | `PORTONE_STORE_ID`, `NEXT_PUBLIC_PORTONE_CHANNEL_KEY`, `PORTONE_API_SECRET`, `PORTONE_WEBHOOK_SECRET` | web | 결제 |
 | `CRON_SECRET` | web | Vercel Cron 인증 |
 | `GITHUB_DISPATCH_TOKEN` | web | assemble.yml 트리거(fine-grained PAT, actions 쓰기만) |
 | `ALERT_WEBHOOK_URL`, `DAILY_USD_CAP` | pipeline | 실패·리포트 알림, 일일 비용 상한 |
 
-애플·구글 OAuth 시크릿은 앱 환경 변수가 아니라 Supabase 대시보드에만 둔다.
+애플·구글 OAuth 값은 `.env.local`에만 두고 `pnpm setup:auth`로 Supabase에 넣는다. 애플 시크릿은 6개월마다 이 명령으로 다시 만든다.
 
 **외부 계정 (Day 1에 한꺼번에 신청. 오래 걸리는 것부터)**
 
 | 계정 | 걸리는 시간 | 메모 |
 | --- | --- | --- |
 | 포트원 + PG 심사 | 1~2주 | 사업자등록·통신판매업 신고가 먼저 필요 |
-| Apple 개발자 멤버십 | 개인은 수일. 법인은 D-U-N-S 번호부터 | 연 $99 |
+| Apple 개발자 멤버십 | 개인은 수일. 법인은 D-U-N-S 번호부터 | 연 $99. 애플 로그인, APNs 키(푸시), 앱스토어 배포에 모두 필요 |
+| Google Play 콘솔 | 즉시~수일(신원 확인) | 1회 $25. 개인 계정은 출시 전 테스터 비공개 테스트 조건이 있다 |
+| Firebase | 즉시 | 무료(Spark). FCM만 쓴다 |
 | 도메인 maengo.kr (maengo.com은 이미 등록됨) | 즉시 | 상표(KIPRIS)도 같이 확인 |
 | Google Cloud OAuth | 즉시. 동의 화면 검수는 별도 | 기본 스코프(email·profile)만 |
-| Supabase, Vercel Pro, Cloudflare R2, Resend(도메인 DNS) | 즉시 | |
+| Supabase | 완료(2026-10-09) | 프로젝트 `maengo`(ref dplqcugmgrugfrzjylqw, 서울, 무료), 스키마·RLS·토픽 적용, 로그인 주소 설정 |
+| Vercel Pro, Cloudflare R2, Resend(도메인 DNS) | 즉시 | |
 | Google AI Studio 유료 결제, 검색 API | 즉시 | Gemini 유료 티어여야 유튜브 길이 제한이 없고, 입력이 제품 개선에 쓰이지 않음 |
 | 텔레그램 봇 또는 슬랙 웹훅 | 즉시 | 실패·리포트 알림 |
 
@@ -620,7 +468,7 @@ score(u, c)     = relevance(u, c) · base(c)
 
 **Day 7 보관함·알림·배치**
 - [x] `/library`(날짜별, 카테고리 필터, 페이지) — 데모 데이터로 구현됨. 남은 것: 별표, Supabase 조회
-- [ ] PWA manifest·sw.js, 웹 푸시 구독, Resend 메일, `/api/cron/notify`, vercel.json 크론
+- [ ] FCM: `/api/devices`, 웹 `firebase-messaging-sw.js`·토큰 등록, firebase-admin 발송, Resend 메일, `/api/cron/notify`, vercel.json 크론
 - [ ] daily.yml과 실패 알림
 - 완료 기준: 다음 날 아침 설정한 시각에 푸시나 메일이 온다. 이날부터 직접 써 본다
 
@@ -638,7 +486,7 @@ score(u, c)     = relevance(u, c) · base(c)
 **Day 10 이어 듣기 플레이어**
 - [ ] 플레이어 상태 머신과 단위 테스트(챕터 이동, 자동 재생 끔, 읽은 항목 건너뛰기)
 - [ ] `/today` 듣기 패널, `/listen`, Media Session, 스위치 2개, 재생 목록, 끝 화면
-- [ ] 아이폰 홈 화면 PWA 실기기 확인
+- [ ] Capacitor 앱(iOS·Android) 껍데기: FCM 토큰, 백그라운드 오디오, 딥링크, 네이티브 애플·구글 로그인. 실기기 확인
 - 완료 기준: 버튼 한 번으로 잠금 상태에서도 5개가 끝까지 재생된다
 
 **Day 11 팟캐스트·설정**
@@ -670,7 +518,7 @@ PG 심사가 Day 13까지 안 끝나면 결제 없이 무료로 먼저 공개하
 - 단위(node:test + tsx, `pnpm test`): canonicalUrl, clusterAssign, rankFeed(다양성·피드백·콜드스타트), 처음 토픽 가중치, 챕터 계산, 플레이어 상태 머신, RSS XML 스냅샷, entitlements, 크론의 KST 슬롯 계산.
 - 프롬프트 점검: `pipeline/fixtures/`에 고정 샘플 30건을 둔다. 요약·why·대본을 사실 오류, 길이, 말투, 원문 근거 기준으로 사람이 본다. 모델이나 프롬프트를 바꿀 때마다 다시 돌린다.
 - E2E(Playwright, 선택): Supabase 테스트 유저 → 온보딩 → `/today` 카드 5개 → 이어 듣기(오디오 fixture).
-- 실기기: 아이폰 홈 화면 PWA(푸시, 백그라운드 재생), 안드로이드 Chrome, 카플레이·안드로이드 오토(팟캐스트 앱).
+- 실기기: iOS·Android 앱(FCM 푸시, 잠금 화면 이어 듣기, 딥링크), 아이폰 홈 화면 PWA·안드로이드 Chrome(웹 FCM), 카플레이·안드로이드 오토(팟캐스트 앱).
 
 **모니터링**
 - report 단계가 매일 보낸다: 수집 건수, 새 클러스터, 요약 실패·refusal 수, 피드 생성 유저 수, 오디오 생성 분, 추정 비용, 실패 소스.
@@ -702,7 +550,9 @@ Supabase 일일 백업이 켜져 있는지 확인한다(Pro).
 | 2 | 검색 API | Exa · Tavily | Day 3 |
 | 3 | Gemini TTS 모델 ID·단가·한국어 품질 | 실측 | Day 8 |
 | 4 | 임베딩 차원 | 768 · 1536 | Day 4 |
-| 5 | iOS PWA 백그라운드 재생 | 단일 파일로 되는지 실기기 확인. 안 되면 팟캐스트 RSS를 우선 안내 | Day 10 |
+| 5 | iOS 백그라운드 재생 | 앱(Capacitor)은 UIBackgroundModes로 해결. 웹 PWA는 단일 파일로 되는지 실기기 확인 | Day 10 |
 | 6 | PG사 | 토스페이먼츠 · KG이니시스 | Day 1 신청 때 |
 | 7 | 카카오 로그인 | 런칭 후 가입 이탈을 보고 결정 | 런칭 후 |
 | 8 | 상표·도메인 | KIPRIS 9류·42류 확인 | Day 1 |
+| 9 | 앱 안 결제 | 애플 인앱 결제·플레이 결제(수수료 15~30%) · 한국 대체 결제(스토어 수수료가 약 4%p 낮아지고 PG 수수료는 따로) · 앱에서는 결제를 빼고 웹에서만 가입(스토어 정책상 안내 문구 제한) | 앱 제출 전 |
+| 10 | 번들 ID·패키지명 | 기본안 `kr.maengo.app`. 애플 App ID·Firebase·플레이 콘솔에 같은 값. 등록하면 못 바꾼다 | Firebase·애플 등록 전 |

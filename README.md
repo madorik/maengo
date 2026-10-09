@@ -43,6 +43,11 @@ pnpm build
 - 플랜별 AI 모델: 무료는 `GEMINI_MODEL_FREE`(Gemini Flash), 플러스·체험은 `GEMINI_MODEL_PLUS`(상위 모델). "왜 중요한가" 캐시도 등급별로 따로 둔다. 무료는 듣기가 잠긴다.
 - 설정(`/settings`): 데모용 플랜 전환, 지금 쓰는 모델, 토픽 가중치, 피드 다시 고르기, 로그아웃.
 
+**외부 서비스**(자세한 건 [API_KEYS.md](./API_KEYS.md))
+- Supabase 프로젝트 `maengo`(서울)를 만들고 스키마·RLS·토픽 사전을 적용했다(`supabase/migrations/`, `pnpm db:push`). 키는 `apps/web/.env.local`에 있다. 앱 코드는 아직 메모리 저장소를 쓴다.
+- 로그인 설정: `pnpm setup:auth`가 `.env.local`의 구글·애플 값으로 Supabase 로그인을 켠다. 애플 시크릿(6개월)은 `pnpm apple:secret`로도 만들 수 있다.
+- 푸시는 Firebase Cloud Messaging(Android·iOS 앱, 웹), 앱은 Capacitor로 감싼다(PLAN.md 9.2·9.3). Firebase·구글·애플·Gemini는 직접 만들어야 한다.
+
 **더미로 돌아가는 것**
 - AI: `packages/core/src/ai/dummy.ts`. 문구는 미리 만든 데모 데이터, 음성은 실제 목소리 대신 항목마다 차임과 문장마다 짧은 신호음(WAV). 챕터·진행 막대·대본 하이라이트는 실제와 같은 방식으로 움직인다.
 - 데이터: `apps/web/lib/server/store.ts` 메모리 저장소와 `demo-clusters.ts`의 소식 18개. 공식 문서 글은 실제 문서 주소와 발행처를 썼고, 나머지 블로그·채널·작성자는 예시(링크는 example.com)다. 개발 서버를 다시 켜면 처음 상태로 돌아간다.

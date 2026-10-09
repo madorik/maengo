@@ -1,0 +1,25 @@
+-- 토픽 사전 v0(packages/core/src/topics/dictionary.ts와 같다). 사전을 늘리면 새 마이그레이션으로 upsert 한다.
+insert into public.topics (id, name, aliases, popularity) values
+  ('llm-agent', 'LLM 에이전트', array['에이전트', 'agent', 'AI 에이전트', '멀티 에이전트']::text[], 1),
+  ('rag', 'RAG', array['검색 증강', '벡터 검색']::text[], 4),
+  ('llm-dev', 'LLM 개발', array['LLM', 'LLM API', '생성형 AI', 'Gemini', 'GPT', '언어 모델']::text[], 2),
+  ('prompt', '프롬프트 설계', array['프롬프트 엔지니어링', 'prompt']::text[], 5),
+  ('ai-tools', 'AI 도구', array['AI 툴', '코딩 어시스턴트', 'AI 코딩', '코파일럿']::text[], 3),
+  ('speech-ai', '음성 AI', array['TTS', 'STT', '음성 합성']::text[], 17),
+  ('backend-perf', '백엔드 성능', array['성능 튜닝', '레이턴시', '서버 성능', '캐시', '트래픽']::text[], 6),
+  ('database', '데이터베이스', array['DB', 'SQL']::text[], 9),
+  ('postgres', 'PostgreSQL', array['포스트그레스', 'postgres']::text[], 18),
+  ('observability', '관측성', array['모니터링', '트레이싱', 'observability', '로그']::text[], 16),
+  ('kubernetes', '쿠버네티스', array['k8s', 'kubernetes', '컨테이너', '도커', '인프라']::text[], 10),
+  ('security', '보안', array['공급망 보안', '취약점']::text[], 11),
+  ('react', 'React', array['리액트', '서버 컴포넌트', 'Next.js', '프론트엔드']::text[], 7),
+  ('web-perf', '웹 성능', array['Core Web Vitals', '로딩 속도', '프론트엔드 성능', '렌더링']::text[], 8),
+  ('mobile-app', '모바일 앱', array['iOS', 'Android', '앱 성능', '안드로이드', '모바일']::text[], 15),
+  ('data-eng', '데이터 엔지니어링', array['데이터 파이프라인', 'ETL']::text[], 14),
+  ('design-system', '디자인 시스템', array['디자인 토큰', '컴포넌트 라이브러리', 'UI 디자인', '피그마']::text[], 12),
+  ('product', '프로덕트 관리', array['PM', '우선순위', '기획', '프로덕트']::text[], 13),
+  ('growth', '그로스', array['그로스 마케팅', '퍼널', '마케팅', '전환율']::text[], 19),
+  ('career', '개발자 커리어', array['이직', '면접', '연봉']::text[], 20),
+  ('remote-work', '원격 근무', array['워케이션', '디지털 노마드']::text[], 21),
+  ('tech-biz', '테크 비즈니스', array['AI 비즈니스', '클라우드 비용', '가격 정책']::text[], 22)
+on conflict (id) do update set name = excluded.name, aliases = excluded.aliases, popularity = excluded.popularity;
