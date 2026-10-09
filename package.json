@@ -12,7 +12,10 @@
     "build": "pnpm --filter @maengo/web build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "test": "tsx --test 'packages/core/src/**/__tests__/*.test.ts' 'apps/web/lib/**/__tests__/*.test.ts'"
+    "test": "tsx --test 'packages/core/src/**/__tests__/*.test.ts' 'apps/web/lib/**/__tests__/*.test.ts'",
+    "setup:auth": "node --env-file=apps/web/.env.local scripts/supabase-auth.mjs",
+    "apple:secret": "node --env-file=apps/web/.env.local scripts/apple-client-secret.mjs",
+    "db:push": "supabase db push"
   },
   "devDependencies": {
     "tsx": "^4.19.2"
