@@ -2,7 +2,7 @@ import 'server-only';
 import { addDays, kstDate } from '@maengo/core/kst';
 import { initialTopicWeights } from '@maengo/core/topics';
 import type { CategoryId } from '@maengo/core/categories';
-import type { FeedbackKind, Job, Persona, Plan, Voice } from '@maengo/core/types';
+import type { FeedbackKind, Persona, Plan, Voice } from '@maengo/core/types';
 import { ARCHIVE_CLUSTERS } from './demo-clusters';
 
 // 메모리 저장소. Supabase가 붙기 전까지 PLAN.md 4장 테이블을 같은 모양으로 흉내 낸다.
@@ -12,7 +12,6 @@ export interface Profile {
   id: string;
   displayName: string | null;
   provider: 'apple' | 'google';
-  job: Job;
   notifyAt: string;
   plan: Plan;
   trialEndsAt: number | null;
@@ -53,7 +52,7 @@ interface Store {
   feeds: Map<string, FeedRecord>;
   feedback: Map<string, Map<number, FeedbackRow>>;
   reads: Map<string, Map<number, ReadRow>>;
-  /** cluster_why 캐시. 키: cluster|topic|job|tier */
+  /** cluster_why 캐시. 키: cluster|topic|tier */
   why: Map<string, { text: string; model: string }>;
   /** 클러스터 카테고리 캐시(요약 단계에서 한 번 분류) */
   categories: Map<number, CategoryId>;
@@ -79,9 +78,8 @@ export const store: Store = (g.__maengoStore ??= {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// 온보딩이 붙기 전까지 쓰는 데모 프로필: 백엔드 개발자, LLM 에이전트·RAG·백엔드 성능·LLM 개발 선택.
-const DEMO_JOB: Job = 'backend';
-const DEMO_TOPICS = ['llm-agent', 'rag', 'backend-perf', 'llm-dev'];
+// 온보딩이 붙기 전까지 쓰는 데모 프로필. 직업은 받지 않고 관심 토픽 5개만 골랐다.
+const DEMO_TOPICS = ['llm-agent', 'rag', 'llm-dev', 'backend-perf', 'database'];
 
 export function createDemoProfile(id: string, provider: 'apple' | 'google'): Profile {
   // 데모: 어제까지 무료로 14일을 썼고(하루 1개), 오늘 플러스 체험을 시작했다. 지난 피드는 보관함에 쌓여 있다.
@@ -97,7 +95,6 @@ export function createDemoProfile(id: string, provider: 'apple' | 'google'): Pro
     id,
     displayName: null,
     provider,
-    job: DEMO_JOB,
     notifyAt: '07:00',
     plan: 'trial',
     trialEndsAt: Date.now() + 7 * DAY_MS,
@@ -107,7 +104,7 @@ export function createDemoProfile(id: string, provider: 'apple' | 'google'): Pro
     skipRead: false,
   };
   store.profiles.set(id, profile);
-  store.topicWeights.set(id, initialTopicWeights(DEMO_JOB, DEMO_TOPICS));
+  store.topicWeights.set(id, initialTopicWeights(DEMO_TOPICS));
   return profile;
 }
 

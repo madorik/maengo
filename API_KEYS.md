@@ -32,7 +32,15 @@ Google·Apple 로그인 키는 앱 환경 변수가 아니라 **Supabase 대시�
 - **Google**: Google Cloud Console에서 OAuth 클라이언트(웹)를 만들고 클라이언트 ID·시크릿을 Supabase에 넣는다. 리디렉션 URI는 `https://<프로젝트>.supabase.co/auth/v1/callback`.
 - **Apple**(개발자 멤버십 연 $99): Team ID, Services ID, Key ID, `.p8` 키 파일이 필요하다. 이걸로 만든 client secret(JWT)을 Supabase에 넣는데, **최대 6개월마다 다시 만들어야 한다.** 만드는 스크립트는 로그인 단계에서 같이 만든다.
 
-## 3. 나중 단계
+## 3. 배포할 때 — SEO
+
+| 변수 | 받는 곳 | 메모 |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | 직접 정한다(예: `https://maengo.kr`) | 공유 카드, 사이트맵, canonical 주소에 쓴다. 비우면 Vercel 운영 주소를 쓴다 |
+| `GOOGLE_SITE_VERIFICATION` | [Google Search Console](https://search.google.com/search-console) → 속성 추가 → HTML 태그 방식의 content 값 | 넣으면 `google-site-verification` 메타가 붙는다 |
+| `NAVER_SITE_VERIFICATION` | [네이버 서치어드바이저](https://searchadvisor.naver.com) → 사이트 등록 → HTML 태그 방식의 content 값 | 한국 검색은 네이버 등록이 중요하다. 등록 뒤 사이트맵(`/sitemap.xml`)도 제출한다 |
+
+## 4. 나중 단계
 
 | 변수 | 받는 곳 | 단계 |
 | --- | --- | --- |

@@ -1,4 +1,4 @@
-import type { Job, Topic } from '../types';
+import type { Topic } from '../types';
 
 // 토픽 사전 v0. 런칭 전에 50개로 늘리고 supabase/seed.sql로 옮긴다(PLAN.md 11장 Day 2).
 export const TOPICS: Topic[] = [
@@ -28,45 +28,21 @@ export const TOPICS: Topic[] = [
 
 export const TOPIC_BY_ID: ReadonlyMap<string, Topic> = new Map(TOPICS.map((t) => [t.id, t]));
 
-export interface JobInfo {
-  label: string;
-  /** "왜 중요한가" 문구의 앞머리. 받침에 따라 '라면'/'이라면'이 달라서 직접 적는다. */
-  whyLead: string;
-}
+/** 처음 고를 때와 설정의 추천 토픽 순서. 많이 고르는 분야를 앞에 둔다 */
+export const POPULAR_TOPICS: string[] = [
+  'llm-agent', 'llm-dev', 'ai-tools', 'rag', 'prompt', 'backend-perf', 'react', 'web-perf', 'database',
+  'kubernetes', 'security', 'design-system', 'product', 'data-eng', 'mobile-app', 'observability',
+  'speech-ai', 'postgres', 'growth', 'career', 'remote-work', 'tech-biz',
+];
 
-export const JOB_INFO: Record<Job, JobInfo> = {
-  backend: { label: '백엔드 개발자', whyLead: '백엔드 개발자라면' },
-  frontend: { label: '프론트엔드 개발자', whyLead: '프론트엔드 개발자라면' },
-  mobile: { label: '모바일 개발자', whyLead: '모바일 개발자라면' },
-  data: { label: '데이터 엔지니어', whyLead: '데이터 엔지니어라면' },
-  infra: { label: '인프라 엔지니어', whyLead: '인프라 엔지니어라면' },
-  pm: { label: 'PM', whyLead: 'PM이라면' },
-  design: { label: '디자이너', whyLead: '디자이너라면' },
-  marketing: { label: '마케터', whyLead: '마케터라면' },
-  student: { label: '학생', whyLead: '공부하는 중이라면' },
-  other: { label: '직장인', whyLead: '이 분야에 관심이 있다면' },
-};
-
-/** 직업별 추천 토픽. 1~3위는 온보딩에서 기본 선택된다. */
-export const JOB_TOPICS: Record<Job, string[]> = {
-  backend: ['llm-agent', 'rag', 'backend-perf', 'database', 'observability'],
-  frontend: ['react', 'web-perf', 'ai-tools', 'design-system', 'llm-dev'],
-  mobile: ['mobile-app', 'ai-tools', 'llm-dev', 'web-perf', 'security'],
-  data: ['data-eng', 'database', 'rag', 'llm-dev', 'postgres'],
-  infra: ['kubernetes', 'observability', 'security', 'backend-perf', 'ai-tools'],
-  pm: ['product', 'ai-tools', 'llm-agent', 'growth', 'design-system'],
-  design: ['design-system', 'ai-tools', 'product', 'web-perf', 'speech-ai'],
-  marketing: ['growth', 'ai-tools', 'product', 'speech-ai', 'llm-agent'],
-  student: ['llm-dev', 'ai-tools', 'react', 'backend-perf', 'database'],
-  other: ['ai-tools', 'llm-agent', 'product', 'speech-ai', 'growth'],
-};
-
-/** 직업 추천 토픽 중 고르지 않은 것에 주는 가중치(PLAN.md 5.2). 관심사가 좁아도 첫 피드 5개를 채운다. */
-export const JOB_PRIOR_WEIGHT = 0.3;
-
-export function initialTopicWeights(job: Job, picked: string[]): Record<string, number> {
+/** 고른 토픽은 가중치 1.0. 사전에 없는 id는 버린다 */
+export function initialTopicWeights(picked: string[]): Record<string, number> {
   const weights: Record<string, number> = {};
-  for (const id of JOB_TOPICS[job]) weights[id] = JOB_PRIOR_WEIGHT;
   for (const id of picked) if (TOPIC_BY_ID.has(id)) weights[id] = 1;
   return weights;
+}
+
+/** "왜 중요한가" 문구의 앞머리. 직업 대신 관심 토픽으로 말한다: 'RAG에 관심 있다면' */
+export function whyLead(topicName: string): string {
+  return `${topicName}에 관심 있다면`;
 }

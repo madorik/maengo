@@ -1,10 +1,5 @@
 // 웹과 파이프라인이 같이 쓰는 도메인 타입. DB 스키마(PLAN.md 4장)의 체크 제약과 값이 같다.
-
-export const JOBS = [
-  'backend', 'frontend', 'mobile', 'data', 'infra',
-  'pm', 'design', 'marketing', 'student', 'other',
-] as const;
-export type Job = (typeof JOBS)[number];
+// 직업은 받지 않는다. 개인화는 관심 토픽만으로 한다(2026-10-09 결정).
 
 /** trial은 플러스 체험이다. 권한과 AI 등급은 plus와 같다. */
 export type Plan = 'free' | 'trial' | 'plus';

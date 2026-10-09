@@ -1,6 +1,6 @@
 # 맹고 개발 플랜
 
-작성 2026-10-09. 2주 안에 "로그인 → 직업·관심사 온보딩 → 매일 5개 피드 → 페르소나 오디오 이어 듣기 → 정기결제"까지 혼자 만들어 런칭하기 위한 구현 계획이다.
+작성 2026-10-09. 2주 안에 "로그인 → 관심사 온보딩 → 매일 피드 → 페르소나 오디오 이어 듣기 → 정기결제"까지 혼자 만들어 런칭하기 위한 구현 계획이다.
 
 - 기획: [2주 MVP 플랜](https://claude.ai/code/artifact/8f8c6640-8a73-47ec-aa74-f0c68dc4b3cd)
 - 디자인: [맹고 웹앱 디자인 캔버스](https://claude.ai/artifact/NriZMyFA4XR2KWSxriD7Di)
@@ -12,7 +12,7 @@
 2주 뒤 이 흐름이 사람 손 없이 매일 돌아야 한다.
 
 1. 애플 또는 구글로 로그인한다.
-2. 직업 → 추천 토픽 → 알림 시간 순서로 온보딩을 마치면, 10초 안에 첫 피드 5개가 뜬다.
+2. 관심사(추천 토픽 + 문장) → 알림 시간 순서로 온보딩을 마치면, 10초 안에 첫 피드가 뜬다. **직업은 받지 않는다**(2026-10-09 결정). 어떤 직업이든 관심 있는 분야 소식만 고른다.
 3. 매일 04:00 KST 배치가 수집·요약·랭킹·오디오를 끝내고, 유저가 고른 시각(06:30/07:00/08:00)에 웹 푸시나 이메일을 보낸다.
 4. 무료 유저는 텍스트 카드를 읽고 피드백(더 보고 싶어요 / 이미 알아요 / 관심 없어요)을 남긴다.
 5. 플러스(체험 포함) 유저는 "오늘 5개 이어 듣기"로 페르소나 오디오를 끝까지 듣고, 개인 팟캐스트 RSS와 주간 스터디 팩(PPTX·PDF)을 받는다.
@@ -71,7 +71,7 @@ maengo/
 │  ├─ app/
 │  │  ├─ (public)/page.tsx       랜딩
 │  │  ├─ login/ auth/callback/
-│  │  ├─ onboarding/             3단계 (직업 → 관심사 → 알림)
+│  │  ├─ onboarding/             2단계 (관심사 → 알림)
 │  │  ├─ today/ listen/ library/ settings/ plus/
 │  │  ├─ podcast/[token]/route.ts
 │  │  └─ api/…                   7장 표 참고
@@ -86,7 +86,7 @@ maengo/
 │     └─ jobs/ collect extract embed cluster tag score summarize rank why audio episode pack report
 ├─ packages/core/                웹과 파이프라인이 같이 쓰는 로직
 │  └─ src/
-│     ├─ topics/                 토픽 사전, jobTopics, mapTextToTopics
+│     ├─ topics/                 토픽 사전, 인기 토픽 순서, matchTopics(문장→토픽)
 │     ├─ feed/                   rankFeed, buildFeedForUser
 │     ├─ ai/                     models.ts(등급→모델), gemini.ts, dummy.ts, prompts/*.md, usage 기록
 │     ├─ audio/                  personas, pronunciations.json, tts, encode, chapters
@@ -95,7 +95,7 @@ maengo/
 ├─ packages/db/                  supabase gen types 결과, zod 스키마
 ├─ supabase/
 │  ├─ migrations/0001_init.sql
-│  └─ seed.sql                   토픽 50개, job_topics, sources
+│  └─ seed.sql                   토픽 50개, sources
 ├─ scripts/apple-client-secret.ts
 └─ .github/workflows/ daily.yml assemble.yml ci.yml
 ```
@@ -114,8 +114,6 @@ create extension if not exists vector;
 create table profiles (
   id             uuid primary key references auth.users on delete cascade,
   display_name   text,
-  job            text not null check (job in ('backend','frontend','mobile','data','infra',
-                                               'pm','design','marketing','student','other')),
   notify_at      time not null default '07:00',
   plan           text not null default 'trial' check (plan in ('free','trial','plus')),
   trial_ends_at  timestamptz,
@@ -134,17 +132,11 @@ create table topics (
   aliases    text[] not null default '{}',
   embedding  vector(768)
 );
-create table job_topics (
-  job       text not null,
-  topic_id  text not null references topics,
-  rank      int  not null,                     -- 1~5. 1~3은 온보딩 기본 선택
-  primary key (job, topic_id)
-);
 create table user_topics (
   user_id   uuid not null references profiles on delete cascade,
   topic_id  text not null references topics,
   weight    real not null default 1.0,
-  source    text not null default 'onboarding', -- onboarding | job_prior | text | feedback
+  source    text not null default 'onboarding', -- onboarding | text | settings | feedback
   primary key (user_id, topic_id)
 );
 
@@ -206,10 +198,9 @@ create table summaries (
 create table cluster_why (
   cluster_id  bigint not null references clusters on delete cascade,
   topic_id    text   not null references topics,
-  job         text   not null,
   tier        text   not null,
-  why         text   not null,                 -- "LLM을 붙이는 백엔드 개발자라면: …"
-  primary key (cluster_id, topic_id, job, tier)
+  why         text   not null,                 -- "LLM 에이전트에 관심 있다면: …"(앞머리는 토픽 이름으로)
+  primary key (cluster_id, topic_id, tier)
 );
 
 -- 유저별 결과 -------------------------------------------------------
@@ -315,7 +306,7 @@ create table usage_log (
 | profiles | 본인 행 select·update | 온보딩 서버 액션이 insert |
 | user_topics, feedback, reads, push_subscriptions | 본인 행 select·insert·update·delete | 웹 |
 | feeds, episodes, packs | 본인 행 select | 파이프라인, 첫 피드 생성(service role) |
-| topics, job_topics, clusters, items, cluster_topics, summaries, cluster_why | 로그인 유저 전체 select | 파이프라인 |
+| topics, clusters, items, cluster_topics, summaries, cluster_why | 로그인 유저 전체 select | 파이프라인 |
 | sources, audio_segments, subscriptions, payments, notifications_log, usage_log | 정책 없음(접근 불가) | service role 전용 |
 
 ---
@@ -344,19 +335,18 @@ create table usage_log (
 
 ### 5.2 온보딩 저장
 
-디자인 캔버스의 3단계를 그대로 만든다. 상태는 클라이언트에 두고, 마지막에 서버 액션 한 번으로 저장한다.
+관심사 → 알림 2단계다(디자인 캔버스의 직업 단계는 뺀다). 상태는 클라이언트에 두고, 마지막에 서버 액션 한 번으로 저장한다.
 
 ```ts
 completeOnboarding({
-  job,             // 'backend' …
   topicIds,        // 고른 토픽(1개 이상)
   extraTopicIds,   // 문장에서 찾은 토픽
   notifyAt,        // '06:30' | '07:00' | '08:00'
 }): Promise<{ redirect: '/today' }>
 ```
 
-1. profiles upsert: job, notify_at, plan='trial', trial_ends_at=now()+7일
-2. user_topics: 고른 토픽은 weight 1.0, 직업 추천 토픽 중 안 고른 것은 0.3(`source='job_prior'`). 이렇게 해야 관심사가 좁아도 첫 피드 5개가 채워진다.
+1. profiles upsert: notify_at, plan='trial', trial_ends_at=now()+7일
+2. user_topics: 고른 토픽은 weight 1.0. 추천 토픽은 인기 순서(POPULAR_TOPICS)로 보여 주고, 최소 1개를 고르게 한다. 관심사가 좁아 피드가 모자라면 그날은 받은 만큼만 보여 준다.
 3. `buildFeedForUser(userId, todayKst, { coldStart: true })`로 오늘 피드를 바로 만든다(5.4).
 4. `/today`로 보낸다. 웹 푸시 구독은 3단계의 "웹 알림 받기" 버튼에서 별도로 처리한다(9.2).
 
@@ -366,13 +356,13 @@ completeOnboarding({
 - 유저 등급 모델의 structured output(JSON 스키마)으로 `{ topicIds: string[] }`(최대 3개, 사전에 있는 id만)를 받는다.
 - 사전에 없는 관심사는 버리지 않고 `unmatched_interests` 로그로 남긴다. 토픽 사전을 늘릴 근거가 된다.
 - 유저당 하루 10회로 제한한다.
-- 설정의 관심 토픽 화면(구현됨, 데모): 내 토픽 빼기(×, 하나는 남김), 문장으로 추가(이 API), 추천 토픽 추가(직업 추천 먼저). 고른 토픽 가중치는 1.0, 토픽 수는 entitlements.topicLimit(무료 5, 플러스 20)까지.
+- 설정의 관심 토픽 화면(구현됨, 데모): 내 토픽 빼기(×, 하나는 남김), 문장으로 추가(이 API), 추천 토픽 추가(인기 순서). 고른 토픽 가중치는 1.0, 토픽 수는 entitlements.topicLimit(무료 5, 플러스 20)까지.
 
 ### 5.4 첫 피드 즉시 생성
 
 - 후보: 최근 48시간 안에 요약이 끝난 클러스터. 서비스 첫 주처럼 부족하면 7일까지 넓힌다.
 - 랭킹은 6.3의 `rankFeed`를 그대로 쓴다.
-- "왜 중요한가" 문구는 (cluster, topic, job, tier) 캐시에서 찾는다. 없는 것만 모아 유저 등급 모델 호출 한 번으로 만든다(동기 호출, 목표 5초).
+- "왜 중요한가" 문구는 (cluster, topic, tier) 캐시에서 찾는다. 직업을 받지 않으니 같은 소식·토픽이면 모두가 같은 문구를 쓴다. 없는 것만 모아 유저 등급 모델 호출 한 번으로 만든다(동기 호출, 목표 5초).
 - 그동안 `/onboarding`은 "첫 피드 고르는 중" 화면을 보여준다. 10초가 넘으면 why 없이 카드부터 보여주고, 문구는 나중에 채운다.
 
 ---
@@ -399,7 +389,7 @@ completeOnboarding({
 | 6 | score | 신선도·출처 가중치·클러스터 크기 → clusters.score | — | — |
 | 7 | summarize | basic: 점수 상위 200개 / pro: 플러스·체험 유저 후보 상위분 → summaries. 같은 호출에서 카테고리(AI·테크·여행 등 11종 중 하나)도 고른다 | Gemini Batch(기사), Gemini 유튜브 URL(영상). 등급별 모델, 카테고리는 enum structured output | (cluster, tier) 요약이 이미 있음 |
 | 8 | rank | 모든 유저 → feeds(오늘). 하루 소식 수는 무료 1개, 플러스·체험 최대 10개 | — | (user, date)가 이미 있음 |
-| 9 | why | 오늘 feeds의 (cluster, topic, job, tier) 중 캐시 없는 것 → cluster_why | Gemini Batch, 유저 등급 모델 | 캐시 있음 |
+| 9 | why | 오늘 feeds의 (cluster, topic, tier) 중 캐시 없는 것 → cluster_why | Gemini Batch, 유저 등급 모델 | 캐시 있음 |
 | 10 | audio | 플러스·체험 유저 피드의 (cluster, persona, voice) 중 없는 것 → 대본 → TTS → MP3 → R2 | Gemini 상위 모델(대본), Gemini TTS, ffmpeg | 세그먼트 있음 |
 | 11 | episode | 플러스·체험 유저별 오늘 에피소드 1개 | ffmpeg | 에피소드 있음 |
 | 12 | pack | (일요일만) 별표 항목 → Marp → PPTX·PDF → R2 | Marp CLI | 이번 주 팩 있음 |
@@ -448,14 +438,14 @@ score(u, c)     = relevance(u, c) · base(c)
 
 | 경로 | 화면 (디자인 캔버스) | 접근 |
 | --- | --- | --- |
-| `/` | 랜딩 | 누구나. 로그인 상태면 `/today`로 |
+| `/` | 소개 페이지: 첫 화면, 기능 4가지(실제 화면 조각), 시작 3단계, 요금, 시작 버튼 | 누구나. 로그인 상태면 버튼이 "오늘 맹고 열기"로 바뀐다 |
 | `/login` | 로그인 · 모바일 | 비로그인 |
 | `/onboarding` | 시작하기 1·2·3 | 로그인, 프로필 없음 |
 | `/today` | 오늘 목록: 카테고리·제목·요약·출처·작성자·작성일, 카드별 듣기. 전체 듣기는 오른쪽 아래 떠 있는 버튼 | 로그인 |
 | `/article/[id]` | 상세: 전체 글, 원문 링크, 유튜브 썸네일, "이 글 듣기"(읽는 문단 표시), 의견 3종 | 로그인 |
 | `/listen` | 이어 듣기(대본 말풍선) | 플러스·체험 |
 | `/library` | 보관함: 지금까지 받은 피드 전체를 날짜별로, 카테고리 필터, 10개씩 페이지(`?page=&category=`). 스터디 팩은 Day 12 | 로그인 |
-| `/settings` | 직업·토픽·알림 시간·말투·푸시·팟캐스트 주소·구독 | 로그인 |
+| `/settings` | 관심 토픽·알림 시간·말투·푸시·팟캐스트 주소·구독 | 로그인 |
 | `/plus` | 플러스 가입·결제 | 로그인 |
 | `/podcast/[token]` | 개인 팟캐스트 RSS(XML) | 토큰 |
 
@@ -603,7 +593,7 @@ score(u, c)     = relevance(u, c) · base(c)
 **Day 2 로그인**
 - [ ] Google OAuth, Apple Services ID·키, `scripts/apple-client-secret.ts`
 - [ ] Supabase Auth 공급자 설정, `/login`, `/auth/callback`, middleware 가드
-- [ ] 토픽 50개·job_topics 시드, 토픽 임베딩 스크립트
+- [ ] 토픽 50개 시드(인기 순서 포함), 토픽 임베딩 스크립트
 - 완료 기준: 애플·구글 계정으로 각각 로그인하면 `/onboarding`으로 간다
 
 **Day 3 온보딩·수집**
@@ -653,7 +643,7 @@ score(u, c)     = relevance(u, c) · base(c)
 
 **Day 11 팟캐스트·설정**
 - [ ] `/podcast/[token]` RSS, 주소 복사·재발급
-- [ ] `/settings`: 직업·토픽·알림 시간·말투 변경, 말투를 바꾸면 `/api/audio/request`
+- [ ] `/settings`: 토픽(구현됨)·알림 시간·말투 변경, 말투를 바꾸면 `/api/audio/request`
 - 완료 기준: 애플 팟캐스트와 Pocket Casts에 등록해 재생되고, 카플레이에서도 나온다
 
 **Day 12 스터디 팩**
@@ -662,7 +652,7 @@ score(u, c)     = relevance(u, c) · base(c)
 
 **Day 13 결제**
 - [ ] `/plus`, 빌링키 발급, `/api/billing/issue`·`cancel`·`webhook`, `/api/cron/billing`, `entitlements`
-- [ ] 랜딩 페이지
+- [x] 랜딩 페이지(소개 `/`) — 이용약관·개인정보 처리방침 페이지는 남음
 - 완료 기준: 테스트 결제를 하면 plus로 바뀌어 오디오가 열린다. 해지하면 기간이 끝날 때 free로 돌아간다
 
 **Day 14 운영·런칭**
@@ -677,7 +667,7 @@ PG 심사가 Day 13까지 안 끝나면 결제 없이 무료로 먼저 공개하
 ## 12. 테스트와 운영
 
 **테스트**
-- 단위(node:test + tsx, `pnpm test`): canonicalUrl, clusterAssign, rankFeed(다양성·피드백·콜드스타트), 직업 기본 가중치, 챕터 계산, 플레이어 상태 머신, RSS XML 스냅샷, entitlements, 크론의 KST 슬롯 계산.
+- 단위(node:test + tsx, `pnpm test`): canonicalUrl, clusterAssign, rankFeed(다양성·피드백·콜드스타트), 처음 토픽 가중치, 챕터 계산, 플레이어 상태 머신, RSS XML 스냅샷, entitlements, 크론의 KST 슬롯 계산.
 - 프롬프트 점검: `pipeline/fixtures/`에 고정 샘플 30건을 둔다. 요약·why·대본을 사실 오류, 길이, 말투, 원문 근거 기준으로 사람이 본다. 모델이나 프롬프트를 바꿀 때마다 다시 돌린다.
 - E2E(Playwright, 선택): Supabase 테스트 유저 → 온보딩 → `/today` 카드 5개 → 이어 듣기(오디오 fixture).
 - 실기기: 아이폰 홈 화면 PWA(푸시, 백그라운드 재생), 안드로이드 Chrome, 카플레이·안드로이드 오토(팟캐스트 앱).

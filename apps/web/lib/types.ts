@@ -36,7 +36,6 @@ export interface TodayData {
   /** 피드가 바뀌면 클라이언트 상태를 새로 시작하기 위한 키 */
   signature: string;
   greetingDate: string;
-  jobLabel: string;
   topicNames: string[];
   readMinutes: number;
   notifyLabel: string;

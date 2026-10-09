@@ -11,7 +11,7 @@ export function SideNav() {
   const pathname = usePathname();
   return (
     <div className="sticky top-0 hidden h-dvh border-r-2 border-line px-4 py-7 lg:block">
-      <Link href="/today" className="flex items-center gap-2 px-3 no-underline">
+      <Link href="/" aria-label="맹고 소개" className="flex items-center gap-2 px-3 no-underline">
         <MangoIcon className="size-9" />
         <span className="text-[28px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
       </Link>

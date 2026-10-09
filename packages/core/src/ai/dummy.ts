@@ -9,7 +9,7 @@ import type { AiClient, ClassifyInput, MapTopicsInput, ScriptInput, SpeakInput, 
 // 문장 길이로 재생 시간을 어림하므로 챕터·진행 막대·대본 하이라이트는 실제와 같은 방식으로 움직인다.
 
 export interface DummyCanned {
-  /** 파이프라인이 미리 만들어 둔 why 본문(직업 앞머리 제외)이 있으면 그것을 쓴다 */
+  /** 파이프라인이 미리 만들어 둔 why 본문(앞머리 제외)이 있으면 그것을 쓴다 */
   whyBody?: (clusterId: number, topicId: string) => string | undefined;
 }
 
@@ -98,7 +98,7 @@ export function createDummyAi(canned: DummyCanned = {}): AiClient {
       const body =
         canned.whyBody?.(input.clusterId, input.topicId) ??
         `${input.topicName} 쪽에서 지금 하는 일과 바로 비교해 볼 만해요.`;
-      return `${input.jobLead}: ${body}`;
+      return `${input.lead}: ${body}`;
     },
     async classify(input: ClassifyInput) {
       return classifyByKeywords(input);

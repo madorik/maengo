@@ -3,7 +3,7 @@ import { modelFor, tierOf } from '@maengo/core/ai';
 import { CATEGORIES, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, rankFeed, WEIGHT_MAX, WEIGHT_MIN } from '@maengo/core/feed';
 import { kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
-import { JOB_INFO, TOPIC_BY_ID } from '@maengo/core/topics';
+import { TOPIC_BY_ID, whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import type { FeedbackKind, Tier } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, ProfileView, TodayData } from '../types';
@@ -77,9 +77,12 @@ export function isInUserFeed(profile: Profile, clusterId: number): boolean {
   return findRow(profile, clusterId) !== null;
 }
 
-/** cluster_why 캐시를 먼저 보고, 없을 때만 AI를 부른다. 등급마다 모델이 달라 캐시도 따로 둔다. */
-async function resolveWhy(c: DemoCluster, topicId: string, profile: Profile, tier: Tier): Promise<string> {
-  const key = `${c.id}|${topicId}|${profile.job}|${tier}`;
+/**
+ * cluster_why 캐시를 먼저 보고, 없을 때만 AI를 부른다. 등급마다 모델이 달라 캐시도 따로 둔다.
+ * 직업을 받지 않으므로 같은 소식·토픽·등급이면 모두가 같은 문구를 쓴다.
+ */
+async function resolveWhy(c: DemoCluster, topicId: string, tier: Tier): Promise<string> {
+  const key = `${c.id}|${topicId}|${tier}`;
   const hit = store.why.get(key);
   if (hit) return hit.text;
   const model = modelFor(tier);
@@ -91,7 +94,7 @@ async function resolveWhy(c: DemoCluster, topicId: string, profile: Profile, tie
     body: c.body,
     topicId,
     topicName: TOPIC_BY_ID.get(topicId)?.name ?? topicId,
-    jobLead: JOB_INFO[profile.job].whyLead,
+    lead: whyLead(TOPIC_BY_ID.get(topicId)?.name ?? topicId),
   });
   store.why.set(key, { text, model });
   return text;
@@ -129,7 +132,7 @@ async function toItem(profile: Profile, row: FeedRow, date: string, now: Date): 
     scenes: c.scenes,
     topicId: row.topicId,
     topicName: TOPIC_BY_ID.get(row.topicId)?.name ?? row.topicId,
-    why: await resolveWhy(c, row.topicId, profile, tierOf(profile.plan)),
+    why: await resolveWhy(c, row.topicId, tierOf(profile.plan)),
   };
 }
 
@@ -163,7 +166,6 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     date,
     signature: `${date}:${items.map((i) => i.clusterId).join(',')}`,
     greetingDate: kstGreetingDate(),
-    jobLabel: JOB_INFO[profile.job].label,
     topicNames,
     readMinutes: readMinutes(items),
     notifyLabel: notifyTimeLabel(profile.notifyAt),

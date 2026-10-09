@@ -21,7 +21,7 @@ const item = {
   title: '에이전트 평가, 정답셋 없이 시작하는 법',
   short: '실패한 대화를 모아 평가셋의 씨앗으로 씁니다.',
   body: ['실패한 대화를 모읍니다. 사람이 고친 답이 곧 정답이에요.', '처음부터 완벽한 정답셋을 만들 필요는 없어요.'],
-  why: '백엔드 개발자라면: RAG 챗봇 회귀 테스트에 바로 쓸 수 있어요.',
+  why: 'LLM 에이전트에 관심 있다면: RAG 챗봇 회귀 테스트에 바로 쓸 수 있어요.',
 };
 
 test('더미 대본: 대담은 진행자·해설자가 번갈아 말하고, 해설자가 문단을 읽는다', () => {
@@ -29,7 +29,7 @@ test('더미 대본: 대담은 진행자·해설자가 번갈아 말하고, 해�
   assert.deepEqual(lines.map((l) => l.who), ['진행자', '해설자', '진행자', '해설자', '진행자', '해설자']);
   assert.deepEqual(lines.map((l) => l.para), [undefined, 0, undefined, 1, undefined, undefined]);
   assert.match(lines[0]!.text, /세 번째/);
-  assert.match(lines.at(-1)!.text, /백엔드 개발자라면, /);
+  assert.match(lines.at(-1)!.text, /관심 있다면, /);
 });
 
 test('더미 대본: 본문을 문장 단위로 읽고 문단 번호를 단다', () => {
@@ -54,9 +54,9 @@ test('더미 음성: 줄 시각이 겹치지 않고 길이와 PCM 크기가 맞�
 
 test('더미 why: 미리 만든 본문이 있으면 그것을, 없으면 기본 문장을 쓴다', async () => {
   const ai = createDummyAi({ whyBody: (id) => (id === 1 ? '바로 써 보세요.' : undefined) });
-  const base = { model: 'm', title: '', short: '', body: [], topicId: 'rag', topicName: 'RAG', jobLead: 'PM이라면' };
-  assert.equal(await ai.why({ ...base, clusterId: 1 }), 'PM이라면: 바로 써 보세요.');
-  assert.match(await ai.why({ ...base, clusterId: 2 }), /^PM이라면: RAG/);
+  const base = { model: 'm', title: '', short: '', body: [], topicId: 'rag', topicName: 'RAG', lead: 'RAG에 관심 있다면' };
+  assert.equal(await ai.why({ ...base, clusterId: 1 }), 'RAG에 관심 있다면: 바로 써 보세요.');
+  assert.match(await ai.why({ ...base, clusterId: 2 }), /^RAG에 관심 있다면: RAG/);
 });
 
 test('챕터는 세그먼트를 이어 붙인 위치를 가리킨다', () => {

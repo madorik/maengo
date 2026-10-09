@@ -9,8 +9,8 @@ export interface WhyInput {
   body: string[];
   topicId: string;
   topicName: string;
-  /** '백엔드 개발자라면' */
-  jobLead: string;
+  /** 'RAG에 관심 있다면' (whyLead) */
+  lead: string;
 }
 
 export interface ScriptInput {

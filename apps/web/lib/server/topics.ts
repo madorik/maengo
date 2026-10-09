@@ -2,7 +2,7 @@ import 'server-only';
 import { modelForPlan } from '@maengo/core/ai';
 import { josa } from '@maengo/core/josa';
 import { kstDate } from '@maengo/core/kst';
-import { JOB_TOPICS, TOPIC_BY_ID, TOPICS } from '@maengo/core/topics';
+import { POPULAR_TOPICS, TOPIC_BY_ID, TOPICS } from '@maengo/core/topics';
 import { ai } from './ai';
 import type { TopicResult, UserTopic } from '../types';
 import { entitlements, store, weightsOf, type Profile } from './store';
@@ -19,18 +19,17 @@ export function userTopics(profile: Profile): UserTopic[] {
     .map(([id]) => ({ id, name: TOPIC_BY_ID.get(id)?.name ?? id }));
 }
 
-/** 아직 안 고른 토픽. 직업 추천 토픽을 앞에 둔다 */
+/** 아직 안 고른 토픽. 많이 고르는 분야를 앞에 둔다 */
 export function suggestedTopics(profile: Profile): UserTopic[] {
   const mine = new Set(userTopics(profile).map((t) => t.id));
-  const jobFirst = [...JOB_TOPICS[profile.job], ...TOPICS.map((t) => t.id)];
-  return [...new Set(jobFirst)].filter((id) => !mine.has(id)).map((id) => ({ id, name: TOPIC_BY_ID.get(id)!.name }));
+  return POPULAR_TOPICS.filter((id) => !mine.has(id)).map((id) => ({ id, name: TOPIC_BY_ID.get(id)!.name }));
 }
 
 const names = (ids: string[]) => ids.map((id) => TOPIC_BY_ID.get(id)?.name ?? id).join(', ');
 const obj = (ids: string[]) => josa(names(ids), '을', '를');
 const topicOf = (ids: string[]) => josa(names(ids), '은', '는');
 
-/** 고른 토픽은 가중치 1.0. 직업 추천(0.3)으로만 있던 토픽도 1.0으로 올린다 */
+/** 고른 토픽은 가중치 1.0. 피드백으로 낮아진 토픽도 다시 고르면 1.0으로 올린다 */
 export function addTopics(profile: Profile, ids: string[]): TopicResult {
   const weights = weightsOf(profile.id);
   const limit = entitlements(profile).topicLimit;
