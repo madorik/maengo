@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <!-- 웹이 밝은 화면만 있어서 기기가 다크 모드여도 밝은 테마로 둔다(iOS는 UIUserInterfaceStyle Light).
+         옛 웹뷰(Chromium 140 미만)는 상태 표시줄·내비게이션 바 자리를 여백으로 비우는데, 그 자리가 웹과 같은 흰색이 되게 창 바탕을 흰색으로 -->
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+
+
+    <!-- 안드로이드 12+ 시스템 스플래시: 망고색 바탕에 앱 아이콘. 11 이하는 android:background의 splash.png -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">#FFC23D</item>
+    </style>
+</resources>

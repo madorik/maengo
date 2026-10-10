@@ -1,0 +1,26 @@
+{
+  "name": "@maengo/mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "맹고 iOS·Android 앱(Capacitor). 운영 웹을 띄우고 앱에서만 되는 기능을 붙인다",
+  "scripts": {
+    "sync": "cap sync",
+    "ios": "cap run ios",
+    "android": "cap run android",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/splash-screen": "8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "sharp": "^0.35.5",
+    "typescript": "^5"
+  }
+}
