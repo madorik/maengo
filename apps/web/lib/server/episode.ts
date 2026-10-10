@@ -7,7 +7,7 @@ import { GeminiQuotaError } from '@maengo/core/gemini';
 import { estimateTimeline, layoutChapters, PERSONAS, voiceKey } from '@maengo/core/audio';
 import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
 import type { FeedItem } from '../types';
-import { tts, ttsModel } from './ai';
+import { tts, ttsModel, ttsVoiceId } from './ai';
 import { TtsQuotaError } from './google-tts';
 import { audioStore } from './audio-store';
 import { db, must } from './db';
@@ -69,7 +69,8 @@ function scriptOf(item: FeedItem, persona: Persona): ScriptLine[] {
 
 function segmentKey(lines: ScriptLine[], persona: Persona, voice: Voice): string {
   const vk = voiceKey(persona, voice);
-  return `${persona}-${vk}-${sha(JSON.stringify({ v: SCRIPT_VERSION, model: ttsModel(), persona, vk, lines }))}`;
+  // 목소리 이름(Chirp 3 HD)도 넣어 목소리를 바꾸면 새로 만든다. Gemini일 때는 undefined라 키에서 빠진다
+  return `${persona}-${vk}-${sha(JSON.stringify({ v: SCRIPT_VERSION, model: ttsModel(), voiceId: ttsVoiceId(persona, vk), persona, vk, lines }))}`;
 }
 
 async function findSegments(keys: string[]): Promise<Map<string, SegmentRow>> {
