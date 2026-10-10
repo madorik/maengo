@@ -1,7 +1,10 @@
 // 수집 출처. collect 단계가 시작할 때 sources 테이블에 upsert 한다(url 기준, active·실패 횟수는 건드리지 않는다).
-// 2026-10-09(개발)·10-10(주식, 코인·반도체·로봇·K-Pop·K-뷰티·K-푸드)에 모두 열어 보고 넣었다. 봇을 막는 곳(우아한형제들·allkpop 403)은 넣지 않았다.
+// 2026-10-09(개발)·10-10(주식, 코인·반도체·로봇)·10-11(뉴스 분야)에 모두 열어 보고 넣었다. 봇을 막는 곳(우아한형제들 403)은 넣지 않았다.
 // 목록에서 빼도 DB sources 행은 남는다. 그만 받을 출처는 마이그레이션에서 active = false로 끈다(부동산: …_topics_v2.sql).
 // weight: 출처 가중치(랭킹의 sourceWeight). 공식·큐레이션은 높게, 기사량이 많은 매체는 낮게.
+// section: 뉴스 분야(core NEWS_SECTIONS의 id). 이 피드의 글이 여러 언론사가 같이 다룬 소식에 끼면 그 분야 헤드라인이 된다(tag.ts의 tagHeadlines).
+//   DB에는 넣지 않고 코드에서 url로 찾는다.
+// 2026-10-11: K-Pop·K-뷰티·K-푸드 출처는 뺐다(DB에서는 …_news_sections.sql이 끈다).
 
 export interface SourceSeed {
   kind: 'rss' | 'youtube' | 'hn';
@@ -9,17 +12,20 @@ export interface SourceSeed {
   name: string;
   weight: number;
   lang: 'ko' | 'en';
+  section?: NewsSectionId;
 }
+
+export type NewsSectionId = 'politics' | 'economy' | 'society' | 'life-culture' | 'it-science' | 'world';
 
 const yt = (channelId: string) => `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
 
 export const SOURCES: SourceSeed[] = [
   // 국내 큐레이션·매체
   { kind: 'rss', url: 'https://news.hada.io/rss/news', name: '긱뉴스', weight: 1.2, lang: 'ko' },
-  { kind: 'rss', url: 'https://byline.network/feed/', name: '바이라인네트워크', weight: 0.9, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.aitimes.com/rss/allArticle.xml', name: 'AI타임스', weight: 0.8, lang: 'ko' },
-  { kind: 'rss', url: 'https://feeds.feedburner.com/zdkorea', name: 'ZDNet Korea', weight: 0.8, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.bloter.net/rss/allArticle.xml', name: '블로터', weight: 0.8, lang: 'ko' },
+  { kind: 'rss', url: 'https://byline.network/feed/', name: '바이라인네트워크', weight: 0.9, lang: 'ko', section: 'it-science' },
+  { kind: 'rss', url: 'https://www.aitimes.com/rss/allArticle.xml', name: 'AI타임스', weight: 0.8, lang: 'ko', section: 'it-science' },
+  { kind: 'rss', url: 'https://feeds.feedburner.com/zdkorea', name: 'ZDNet Korea', weight: 0.8, lang: 'ko', section: 'it-science' },
+  { kind: 'rss', url: 'https://www.bloter.net/rss/allArticle.xml', name: '블로터', weight: 0.8, lang: 'ko', section: 'it-science' },
   // 국내 기술 블로그
   { kind: 'rss', url: 'https://toss.tech/rss.xml', name: '토스 기술 블로그', weight: 1.1, lang: 'ko' },
   { kind: 'rss', url: 'https://tech.kakao.com/feed/', name: '카카오 기술 블로그', weight: 1.1, lang: 'ko' },
@@ -77,7 +83,7 @@ export const SOURCES: SourceSeed[] = [
   { kind: 'rss', url: 'https://www.hankyung.com/feed/finance', name: '한국경제 증권', weight: 1.0, lang: 'ko' },
   { kind: 'rss', url: 'https://www.mk.co.kr/rss/50200011/', name: '매일경제 증권', weight: 0.9, lang: 'ko' },
   { kind: 'rss', url: 'https://www.yna.co.kr/rss/market.xml', name: '연합뉴스 마켓', weight: 1.0, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.yna.co.kr/rss/economy.xml', name: '연합뉴스 경제', weight: 0.9, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/economy.xml', name: '연합뉴스 경제', weight: 0.9, lang: 'ko', section: 'economy' },
   { kind: 'rss', url: 'https://kr.investing.com/rss/news.rss', name: '인베스팅닷컴', weight: 0.8, lang: 'ko' },
   { kind: 'rss', url: 'https://www.cnbc.com/id/15839069/device/rss/rss.html', name: 'CNBC', weight: 1.0, lang: 'en' },
   // 코인(2026-10-10 추가)
@@ -86,22 +92,59 @@ export const SOURCES: SourceSeed[] = [
   { kind: 'rss', url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', name: 'CoinDesk', weight: 1.0, lang: 'en' },
   { kind: 'rss', url: 'https://cointelegraph.com/rss', name: 'Cointelegraph', weight: 0.8, lang: 'en' },
   // 반도체·로봇·전기차(2026-10-10 추가)
-  { kind: 'rss', url: 'https://www.thelec.kr/rss/allArticle.xml', name: '디일렉', weight: 1.0, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.thelec.kr/rss/allArticle.xml', name: '디일렉', weight: 1.0, lang: 'ko', section: 'it-science' },
   { kind: 'rss', url: 'https://www.irobotnews.com/rss/allArticle.xml', name: '로봇신문', weight: 1.0, lang: 'ko' },
   { kind: 'rss', url: 'https://www.therobotreport.com/feed/', name: 'The Robot Report', weight: 0.9, lang: 'en' },
   { kind: 'rss', url: 'https://spectrum.ieee.org/feeds/topic/robotics.rss', name: 'IEEE Spectrum 로봇', weight: 0.9, lang: 'en' },
   { kind: 'rss', url: 'https://www.eetimes.com/feed/', name: 'EE Times', weight: 0.8, lang: 'en' },
   { kind: 'rss', url: 'https://electrek.co/feed/', name: 'Electrek', weight: 0.8, lang: 'en' },
-  // K-Pop(2026-10-10 추가). 연합뉴스·한경 연예는 드라마·배우 소식도 섞여 있어 가중치를 낮춘다
-  { kind: 'rss', url: 'https://www.soompi.com/feed', name: 'Soompi', weight: 1.0, lang: 'en' },
-  { kind: 'rss', url: 'https://www.yna.co.kr/rss/entertainment.xml', name: '연합뉴스 연예', weight: 0.8, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.hankyung.com/feed/entertainment', name: '한국경제 연예', weight: 0.7, lang: 'ko' },
-  // K-뷰티·K-푸드(2026-10-10 추가). 업계지라 주말에는 글이 거의 없다
-  { kind: 'rss', url: 'https://www.jangup.com/rss/allArticle.xml', name: '장업신문', weight: 1.0, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.thebk.co.kr/rss/allArticle.xml', name: '뷰티경제', weight: 0.9, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.thinkfood.co.kr/rss/allArticle.xml', name: '식품음료신문', weight: 1.0, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.foodnews.co.kr/rss/allArticle.xml', name: '식품저널', weight: 0.9, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.foodbank.co.kr/rss/allArticle.xml', name: '식품외식경제', weight: 0.9, lang: 'ko' },
+  // 뉴스 분야 헤드라인(2026-10-11). 네이버 뉴스처럼 여러 언론사가 같이 다룬 소식만 헤드라인으로 고른다(tag.ts의 tagHeadlines).
+  // 네이버 뉴스는 robots.txt로 모든 봇을 막고 AI·RAG 수집을 금지해서, 언론사가 직접 내는 섹션 RSS를 받는다.
+  // 2026-10-11에 모두 열어 보고 넣었다(JTBC RSS는 2024년에 멈춰 뺐다. 조선일보 경제·문화 RSS는 하루 1~2개라 뺐다).
+  // 정치
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/politics.xml', name: '연합뉴스 정치', weight: 1.0, lang: 'ko', section: 'politics' },
+  { kind: 'rss', url: 'https://rss.donga.com/politics.xml', name: '동아일보 정치', weight: 0.9, lang: 'ko', section: 'politics' },
+  { kind: 'rss', url: 'https://www.khan.co.kr/rss/rssdata/politic_news.xml', name: '경향신문 정치', weight: 0.9, lang: 'ko', section: 'politics' },
+  { kind: 'rss', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml', name: '조선일보 정치', weight: 0.9, lang: 'ko', section: 'politics' },
+  { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=01', name: 'SBS 정치', weight: 0.9, lang: 'ko', section: 'politics' },
+  { kind: 'rss', url: 'https://www.hankyung.com/feed/politics', name: '한국경제 정치', weight: 0.8, lang: 'ko', section: 'politics' },
+  { kind: 'rss', url: 'https://www.newsis.com/RSS/politics.xml', name: '뉴시스 정치', weight: 0.8, lang: 'ko', section: 'politics' },
+  // 경제(연합뉴스 경제는 위 주식·금리에 있다)
+  { kind: 'rss', url: 'https://rss.donga.com/economy.xml', name: '동아일보 경제', weight: 0.9, lang: 'ko', section: 'economy' },
+  { kind: 'rss', url: 'https://www.khan.co.kr/rss/rssdata/economy_news.xml', name: '경향신문 경제', weight: 0.9, lang: 'ko', section: 'economy' },
+  { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=02', name: 'SBS 경제', weight: 0.9, lang: 'ko', section: 'economy' },
+  { kind: 'rss', url: 'https://www.hankyung.com/feed/economy', name: '한국경제 경제', weight: 0.9, lang: 'ko', section: 'economy' },
+  { kind: 'rss', url: 'https://www.newsis.com/RSS/economy.xml', name: '뉴시스 경제', weight: 0.8, lang: 'ko', section: 'economy' },
+  // 사회
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/society.xml', name: '연합뉴스 사회', weight: 1.0, lang: 'ko', section: 'society' },
+  { kind: 'rss', url: 'https://rss.donga.com/national.xml', name: '동아일보 사회', weight: 0.9, lang: 'ko', section: 'society' },
+  { kind: 'rss', url: 'https://www.khan.co.kr/rss/rssdata/society_news.xml', name: '경향신문 사회', weight: 0.9, lang: 'ko', section: 'society' },
+  { kind: 'rss', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/national/?outputType=xml', name: '조선일보 사회', weight: 0.9, lang: 'ko', section: 'society' },
+  { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=03', name: 'SBS 사회', weight: 0.9, lang: 'ko', section: 'society' },
+  { kind: 'rss', url: 'https://www.hankyung.com/feed/society', name: '한국경제 사회', weight: 0.8, lang: 'ko', section: 'society' },
+  { kind: 'rss', url: 'https://www.newsis.com/RSS/society.xml', name: '뉴시스 사회', weight: 0.8, lang: 'ko', section: 'society' },
+  // 생활/문화(네이버 생활/문화처럼 건강도 여기에)
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/culture.xml', name: '연합뉴스 문화', weight: 1.0, lang: 'ko', section: 'life-culture' },
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/health.xml', name: '연합뉴스 건강', weight: 1.0, lang: 'ko', section: 'life-culture' },
+  { kind: 'rss', url: 'https://rss.donga.com/culture.xml', name: '동아일보 문화', weight: 0.9, lang: 'ko', section: 'life-culture' },
+  { kind: 'rss', url: 'https://www.khan.co.kr/rss/rssdata/culture_news.xml', name: '경향신문 문화', weight: 0.9, lang: 'ko', section: 'life-culture' },
+  { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=08', name: 'SBS 문화/라이프', weight: 0.9, lang: 'ko', section: 'life-culture' },
+  { kind: 'rss', url: 'https://www.hankyung.com/feed/life', name: '한국경제 생활', weight: 0.8, lang: 'ko', section: 'life-culture' },
+  { kind: 'rss', url: 'https://www.newsis.com/RSS/culture.xml', name: '뉴시스 문화', weight: 0.8, lang: 'ko', section: 'life-culture' },
+  // IT/과학(ZDNet Korea·블로터·바이라인네트워크·AI타임스·디일렉도 이 분야로 센다)
+  { kind: 'rss', url: 'https://rss.donga.com/science.xml', name: '동아일보 IT/의학', weight: 0.9, lang: 'ko', section: 'it-science' },
+  { kind: 'rss', url: 'https://www.khan.co.kr/rss/rssdata/science_news.xml', name: '경향신문 과학·환경', weight: 0.9, lang: 'ko', section: 'it-science' },
+  { kind: 'rss', url: 'https://www.hankyung.com/feed/it', name: '한국경제 IT·과학', weight: 0.9, lang: 'ko', section: 'it-science' },
+  { kind: 'rss', url: 'https://www.newsis.com/RSS/health.xml', name: '뉴시스 IT·바이오', weight: 0.8, lang: 'ko', section: 'it-science' },
+  { kind: 'rss', url: 'https://rss.etnews.com/Section901.xml', name: '전자신문', weight: 0.9, lang: 'ko', section: 'it-science' },
+  // 세계
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/international.xml', name: '연합뉴스 세계', weight: 1.0, lang: 'ko', section: 'world' },
+  { kind: 'rss', url: 'https://rss.donga.com/international.xml', name: '동아일보 국제', weight: 0.9, lang: 'ko', section: 'world' },
+  { kind: 'rss', url: 'https://www.khan.co.kr/rss/rssdata/kh_world.xml', name: '경향신문 국제', weight: 0.9, lang: 'ko', section: 'world' },
+  { kind: 'rss', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/international/?outputType=xml', name: '조선일보 국제', weight: 0.9, lang: 'ko', section: 'world' },
+  { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=07', name: 'SBS 국제', weight: 0.9, lang: 'ko', section: 'world' },
+  { kind: 'rss', url: 'https://www.hankyung.com/feed/international', name: '한국경제 국제', weight: 0.8, lang: 'ko', section: 'world' },
+  { kind: 'rss', url: 'https://www.newsis.com/RSS/international.xml', name: '뉴시스 국제', weight: 0.8, lang: 'ko', section: 'world' },
   // 유튜브 채널(채널 RSS는 가끔 500·404를 내서 몇 번 다시 시도한다). 쇼츠는 수집할 때 거른다(lib/feed.ts의 isShort).
   // 2026-10-11: 분야별로 채널 검색 + 알려진 채널 약 700곳의 RSS를 열어, 30일 안에 올렸고 쇼츠가 70% 미만이며
   // 뉴스·해설·공식인 곳만 넣었다(가격 예측·매매 신호·먹방·리액션은 뺐다). 줄 끝은 채널 핸들.
@@ -211,42 +254,4 @@ export const SOURCES: SourceSeed[] = [
   { kind: 'youtube', url: yt('UCaYhcUwRBNscFNUKTjgPFiA'), name: 'Rust 유튜브', weight: 1.1, lang: 'en' }, // @RustVideos
   { kind: 'youtube', url: yt('UCwNwSGlLJNZTatOnE2t33tg'), name: '당근 팀', weight: 1.1, lang: 'ko' }, // @daangnteam
   { kind: 'youtube', url: yt('UC-mOekGSesms0agFntnQang'), name: '우아한테크', weight: 1.1, lang: 'ko' }, // @woowatech
-  // 유튜브 K-Pop
-  { kind: 'youtube', url: yt('UC3IZKseVpdzPSBaWxBxundA'), name: 'HYBE LABELS', weight: 1.1, lang: 'ko' }, // @HYBELABELS
-  { kind: 'youtube', url: yt('UCaO6TYtlC8U5ttz62hTrZgg'), name: 'JYP Entertainment', weight: 1.1, lang: 'ko' }, // @jypentertainment
-  { kind: 'youtube', url: yt('UCtCiO5t2voB14CmZKTkIzPQ'), name: '딩고 뮤직', weight: 0.9, lang: 'ko' }, // @dingomusic
-  { kind: 'youtube', url: yt('UCEf_Bc-KVd7onSeifS3py9g'), name: 'SMTOWN', weight: 1.1, lang: 'ko' }, // @SMTOWN
-  { kind: 'youtube', url: yt('UCvwmF24IxoxOhmYOYHvDHXg'), name: '케이팝 쇼크', weight: 0.8, lang: 'ko' }, // @kpop-shock
-  { kind: 'youtube', url: yt('UCweOkPb1wVVH0Q0Tlj4a5Pw'), name: '1theK 원더케이', weight: 1.0, lang: 'ko' }, // @1theK
-  { kind: 'youtube', url: yt('UCS_hnpJLQTvBkqALgapi_4g'), name: 'SBS KPOP 인기가요', weight: 0.9, lang: 'ko' }, // @SBSKPOP
-  { kind: 'youtube', url: yt('UCEIi7zFR_wE23jFncVtd6-A'), name: 'STUDIO CHOOM', weight: 0.9, lang: 'ko' }, // @STUDIOCHOOM
-  { kind: 'youtube', url: yt('UCd7yIRGoYvi1DUKIGTYvwFg'), name: 'KOOKIELIT', weight: 0.8, lang: 'en' }, // @kookielit
-  { kind: 'youtube', url: yt('UCVEzR8VHu0JC5xlTr53cMwQ'), name: 'DKDKTV', weight: 0.8, lang: 'en' }, // @DKDKTV
-  { kind: 'youtube', url: yt('UC1OG_VAvw6yQuvZ1c8y9cLg'), name: 'GUMIHO', weight: 0.8, lang: 'en' }, // @gumihoi
-  // 유튜브 K-뷰티
-  { kind: 'youtube', url: yt('UCpSa5CzQedAxXFGfmeeFdIw'), name: '박비비', weight: 0.9, lang: 'ko' }, // @vivi.
-  { kind: 'youtube', url: yt('UCW67yGQxNNMnLqRHyaTjygA'), name: '홍이모', weight: 0.9, lang: 'ko' }, // @hongsmakeup
-  { kind: 'youtube', url: yt('UC9kmlDcqksaOnCkC_qzGacA'), name: 'RISABAE', weight: 0.9, lang: 'ko' }, // @risabae
-  { kind: 'youtube', url: yt('UCnxmUrGMtpQT844Yd_l7Zyg'), name: 'Dr Dray', weight: 1.0, lang: 'en' }, // @DrDrayzday
-  { kind: 'youtube', url: yt('UCrlUlicedicJ5mlibqC62Eg'), name: '뷰드름 유튜버 인씨', weight: 0.9, lang: 'ko' }, // @beautyacne_inssi
-  { kind: 'youtube', url: yt('UCTQGAYPtbnCEfW9IGx65kiw'), name: '민스코', weight: 0.9, lang: 'ko' }, // @minsco_
-  { kind: 'youtube', url: yt('UCd7icqUv7f8k2E6n4WOCIQg'), name: '피부결', weight: 0.9, lang: 'ko' }, // @Pibukyurl
-  { kind: 'youtube', url: yt('UCPP291gN79qI1QZY1znOscg'), name: 'James Welsh', weight: 0.9, lang: 'en' }, // @JamesWelsh
-  { kind: 'youtube', url: yt('UCxthUNFu-GWQZ0YE9AnIetg'), name: '집 팔아 화장품 사는 깡나', weight: 0.8, lang: 'ko' }, // @깡나채널
-  { kind: 'youtube', url: yt('UCYfAankzCbhjIV4EsU4Vzdw'), name: '한별두별', weight: 0.8, lang: 'ko' }, // @1star2star
-  { kind: 'youtube', url: yt('UCFdi3igjh6--YqjX17M1lhA'), name: 'CYoung', weight: 0.8, lang: 'en' }, // @CYounginyou
-  { kind: 'youtube', url: yt('UC-X4BAoKxwGYIKrKfqk7yug'), name: 'Gothamista', weight: 0.8, lang: 'en' }, // @gothamista
-  { kind: 'youtube', url: yt('UCYsv-IHC-B-DiVMmJuqibcg'), name: '제이나', weight: 0.9, lang: 'ko' }, // @Jaina0
-  { kind: 'youtube', url: yt('UC8rSUAeRrATc2xGh-EMPOGw'), name: '엠브레인TV', weight: 1.0, lang: 'ko' }, // @trendjoob
-  { kind: 'youtube', url: yt('UCBlIcpkzSdcmp5G0XS7UsZA'), name: '담쓰', weight: 0.8, lang: 'ko' }, // @DamsBeauty
-  { kind: 'youtube', url: yt('UCCuXPHou1JQfRKM40q5tG8w'), name: '화장품은 과학이다(안언니)', weight: 0.9, lang: 'ko' }, // @ahnunnie
-  { kind: 'youtube', url: yt('UC9qWVhCE-zIChRJpfRPVqOg'), name: '화장품비평가 최지현', weight: 1.0, lang: 'ko' }, // @Cosmetics-Critic
-  // 유튜브 K-푸드
-  { kind: 'youtube', url: yt('UCBMBPRnwRgl3aJZDEpTu65Q'), name: '장사의 신', weight: 0.7, lang: 'ko' }, // @jangsin
-  { kind: 'youtube', url: yt('UC4BfinFCS1o6t1tAsl0RVWQ'), name: '푸드킹덤', weight: 0.8, lang: 'ko' }, // @Food-Kingdom
-  { kind: 'youtube', url: yt('UCi_Zqq2zOwXLBVWi6VlMPdA'), name: '찌콩먹콩', weight: 0.8, lang: 'ko' }, // @zzicong
-  { kind: 'youtube', url: yt('UCj8Ig9hXDEgWbZZ8cavr4lg'), name: "Chung's K Food", weight: 0.8, lang: 'en' }, // @chungskfood
-  { kind: 'youtube', url: yt('UCt24PsusUxDWPCyflGQficw'), name: 'Crazy Korean Cooking', weight: 0.7, lang: 'en' }, // @crazykoreancooking
-  { kind: 'youtube', url: yt('UCkW3qWVwgkI7mL0eFPVOlPA'), name: 'KBS 한국맛집K', weight: 0.9, lang: 'ko' }, // @KBS_FOOD
-  { kind: 'youtube', url: yt('UCDejdFmuh4NDWVvakJVcpdA'), name: '창플TV', weight: 0.8, lang: 'ko' }, // @TV-ib4ns
 ];

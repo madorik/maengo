@@ -1,10 +1,10 @@
 import 'server-only';
 import {
-  childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS,
+  childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, isNewsSection, NEWS_SECTIONS, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS, TOPICS,
 } from '@maengo/core/topics';
 import { screener, screenModel } from './ai';
 import { db, must } from './db';
-import type { TopicGroupView, TopicResult, UserTopic } from '../types';
+import type { TopicGroupView, TopicResult, TopicSuggestion, UserTopic } from '../types';
 import { entitlements, type Profile } from './profile';
 
 // 관심사 고치기(설정). user_topics에 바로 쓰고, 다음 피드 고르기부터 반영된다.
@@ -37,7 +37,7 @@ export async function userTopics(profile: Profile): Promise<UserTopic[]> {
   return entries.map(([id]) => ({ id, name: names.get(id) ?? id, custom: isCustomTopicId(id) }));
 }
 
-/** 큰 분류 5개와 그 아래 상세 관심사. 고른 것은 표시만 하고 더하기 버튼을 숨긴다 */
+/** 관심 분야 5개와 그 아래 상세 관심사. 고른 것은 표시만 하고 더하기 버튼을 숨긴다 */
 export function topicGroups(mine: UserTopic[]): TopicGroupView[] {
   const picked = new Set(mine.map((t) => t.id));
   return TOPIC_GROUPS.map((g) => ({
@@ -46,6 +46,12 @@ export function topicGroups(mine: UserTopic[]): TopicGroupView[] {
     picked: picked.has(g.id),
     details: childrenOf(g.id).map((c) => ({ id: c.id, name: c.name, picked: picked.has(c.id) })),
   }));
+}
+
+/** 뉴스 분야 6개(상세 관심사 없음) */
+export function newsSections(mine: UserTopic[]): { id: string; name: string; picked: boolean }[] {
+  const picked = new Set(mine.map((t) => t.id));
+  return NEWS_SECTIONS.map((n) => ({ id: n.id, name: n.name, picked: picked.has(n.id) }));
 }
 
 /**
@@ -79,29 +85,47 @@ async function addTopicIds(profile: Profile, ids: string[], source: 'settings' |
 }
 
 /**
- * 설정의 분류별 더하기 버튼. 사전에 있는 id만 받는다.
- * 분야 전체를 넣으면 그 아래 상세 관심사는 분야 전체에 들어가므로(분야 태그가 상세 소식도 받는다, withParents) 내 목록에서 뺀다.
- * 상세를 먼저 빼서 관심사 개수 한도에도 걸리지 않게 한다.
+ * 설정의 더하기·켜기 버튼(분야 전체, 상세 관심사, 뉴스 분야). 사전에 있는 id만 받는다.
+ * 분야 전체와 상세 관심사는 따로 켜고 끈다. 둘 다 켜면 상세 관심사 소식을 더 자주 고른다(랭킹에서 관련도가 더해진다).
  */
 export async function addTopics(profile: Profile, ids: string[]): Promise<TopicResult> {
   const valid = ids.filter((id) => TOPIC_BY_ID.has(id));
   if (!valid.length) return { tone: 'warn', message: '없는 관심사예요.' };
-  const groups = valid.filter((id) => !TOPIC_BY_ID.get(id)!.parent);
-  const children = new Set(groups.flatMap((g) => childrenOf(g).map((c) => c.id)));
-  const weights = await weightsOf(profile.id);
-  const covered = Object.keys(weights).filter((id) => children.has(id));
-  if (covered.length) must(await db.from('user_topics').delete().eq('user_id', profile.id).in('topic_id', covered), 'user_topics covered');
   return addTopicIds(profile, valid, 'settings');
 }
+
+const LAST: TopicResult = { tone: 'warn', message: '관심사가 하나는 있어야 소식을 골라 드릴 수 있어요.' };
 
 export async function removeTopic(profile: Profile, id: string): Promise<TopicResult> {
   const mine = await userTopics(profile);
   const hit = mine.find((t) => t.id === id);
   if (!hit) return { tone: 'ok', message: '' };
   // 기타까지 합쳐 하나는 남겨야 소식을 고를 수 있다(온보딩에서 기타만 고르면 기타만 있다)
-  if (mine.length <= 1) return { tone: 'warn', message: '관심사가 하나는 있어야 소식을 골라 드릴 수 있어요.' };
+  if (mine.length <= 1) return LAST;
   must(await db.from('user_topics').delete().eq('user_id', profile.id).eq('topic_id', id), 'user_topics delete');
   return { tone: 'ok', message: '' };
+}
+
+/** 설정 카드의 ×: 분야 하나(분야 전체 + 그 상세 관심사), 뉴스 헤드라인 전부, 기타 전부를 한 번에 뺀다 */
+export async function removeCard(profile: Profile, card: string): Promise<TopicResult> {
+  const mine = await userTopics(profile);
+  const inCard = (t: UserTopic) =>
+    card === 'etc' ? !!t.custom : card === 'news' ? isNewsSection(t.id) : t.id === card || TOPIC_BY_ID.get(t.id)?.parent === card;
+  const ids = mine.filter(inCard).map((t) => t.id);
+  if (!ids.length) return { tone: 'ok', message: '' };
+  if (ids.length >= mine.length) return LAST;
+  must(await db.from('user_topics').delete().eq('user_id', profile.id).in('topic_id', ids), 'user_topics card delete');
+  return { tone: 'ok', message: '' };
+}
+
+/** 설정 > 관심사 찾기 칸의 자동 완성 후보: 사전 전체(이름·별칭으로 찾는다). hint는 어느 분야인지 */
+export function topicSuggestions(): TopicSuggestion[] {
+  return TOPICS.map((t) => ({
+    id: t.id,
+    name: t.name,
+    hint: t.parent ? TOPIC_BY_ID.get(t.parent)!.name : isNewsSection(t.id) ? '뉴스 헤드라인' : '분야 전체',
+    terms: [t.name, ...t.aliases],
+  }));
 }
 
 const ADULT: TopicResult = { tone: 'warn', code: 'adult', message: '성인 관련 관심사는 넣을 수 없어요.' };

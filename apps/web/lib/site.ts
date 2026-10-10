@@ -3,7 +3,7 @@
 export const SITE_NAME = "맹고";
 export const SITE_TITLE = "맹고 - 관심 분야 소식, 매일 아침 요약하고 읽어 드려요";
 export const SITE_DESCRIPTION =
-  "관심 있는 분야만 고르면 끝. AI, 주식, 코인, K-Pop처럼 고른 분야의 국내외 매체와 공식 블로그를 AI가 매일 아침 훑어 그 분야 소식만 골라 요약하고, 오디오로 읽어 드려요.";
+  "관심 있는 분야만 고르면 끝. AI, 주식, 코인, 정치·경제 뉴스처럼 고른 분야의 국내외 매체와 공식 블로그를 AI가 매일 아침 훑어 그 분야 소식만 골라 요약하고, 오디오로 읽어 드려요.";
 export const SITE_KEYWORDS = [
   "맹고",
   "뉴스 요약",
@@ -11,7 +11,7 @@ export const SITE_KEYWORDS = [
   "주식 뉴스",
   "코인 뉴스",
   "반도체 뉴스",
-  "K-Pop 뉴스",
+  "헤드라인 뉴스 요약",
   "IT 뉴스 요약",
   "개발 트렌드",
   "오디오 브리핑",

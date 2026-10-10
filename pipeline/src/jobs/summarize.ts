@@ -1,7 +1,7 @@
 import { modelFor } from '@maengo/core/ai';
 import { credibilityLabel, itemQuality, rankFeed } from '@maengo/core/feed';
 import { GeminiQuotaError, PROMPT_VERSION } from '@maengo/core/gemini';
-import { TOPIC_BY_ID, whyLead, withParents } from '@maengo/core/topics';
+import { isNewsSection, NEWS_SECTIONS, TOPIC_BY_ID, whyLead, withParents } from '@maengo/core/topics';
 import type { SummarizeSource } from '@maengo/core/ai';
 import type { Tier } from '@maengo/core/types';
 import { db, check } from '../lib/db';
@@ -34,7 +34,11 @@ interface MemberRow {
 
 export type SummaryResult = 'ok' | 'skipped' | 'deferred' | 'failed';
 
-/** 묶음 하나를 요약해 summaries·cluster_topics·cluster_why에 넣는다. pro 등급은 토픽을 바꾸지 않는다 */
+/**
+ * 묶음 하나를 요약해 summaries·cluster_topics·cluster_why에 넣는다. pro 등급은 토픽을 바꾸지 않는다.
+ * 뉴스 분야(정치·경제 등) 태그는 tag 단계(tagHeadlines)가 정하고 여기서는 건드리지 않는다.
+ * 헤드라인 묶음이면 그 분야만 사전에 넣어 AI가 그 분야의 why를 쓰게 한다.
+ */
 export async function summarizeCluster(
   ctx: Ctx,
   clusterId: number,
@@ -93,7 +97,12 @@ export async function summarizeCluster(
     }),
   );
 
-  const topicDict = await dictionary(ctx);
+  const headline = check(
+    await db.from('cluster_topics').select('topic_id').eq('cluster_id', clusterId).in('topic_id', NEWS_SECTIONS.map((t) => t.id)),
+    'cluster_topics news',
+  ) as { topic_id: string }[];
+  const sections = new Set(headline.map((r) => r.topic_id));
+  const topicDict = (await dictionary(ctx)).filter((t) => !isNewsSection(t.id) || sections.has(t.id));
   const nameOf = new Map(topicDict.map((t) => [t.id, t.name]));
   const out = await ctx.ai.summarize({ model: modelFor(tier), kind: rep.kind, sources, videoUrl, dictionary: topicDict });
   if (out.skip || !out.title || !out.body.length) {
@@ -121,7 +130,7 @@ export async function summarizeCluster(
     'summaries upsert',
   );
   // 상세 관심사 태그에 큰 분류를 더한다. 큰 분류의 why는 가장 관련 높은 자식의 문구를 쓴다
-  const topics = withParents(out.topics);
+  const topics = withParents(out.topics).filter((t) => !isNewsSection(t.topicId));
   const whyByTopic = new Map(out.why.map((w) => [w.topicId, w.text]));
   for (const t of [...out.topics].sort((a, b) => b.relevance - a.relevance)) {
     const parent = TOPIC_BY_ID.get(t.topicId)?.parent;
@@ -130,7 +139,10 @@ export async function summarizeCluster(
   }
   const whys = [...whyByTopic].map(([topicId, text]) => ({ topicId, text }));
   if (tier === 'basic') {
-    check(await db.from('cluster_topics').delete().eq('cluster_id', clusterId), 'cluster_topics delete');
+    check(
+      await db.from('cluster_topics').delete().eq('cluster_id', clusterId).not('topic_id', 'in', `(${NEWS_SECTIONS.map((t) => t.id).join(',')})`),
+      'cluster_topics delete',
+    );
     if (topics.length) {
       check(
         await db.from('cluster_topics').insert(topics.map((t) => ({ cluster_id: clusterId, topic_id: t.topicId, relevance: t.relevance }))),

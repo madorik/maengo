@@ -3,12 +3,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Crown } from "@/components/icons";
 import Link from "next/link";
-import { CustomTopicEditor } from "@/components/settings/CustomTopicEditor";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { PushToggle } from "@/components/settings/PushToggle";
-import { TopicEditor } from "@/components/settings/TopicEditor";
+import { TopicSettings } from "@/components/settings/TopicSettings";
 import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
 import { isAppUserAgent } from "@/lib/app-client";
 import { toProfileView } from "@/lib/server/feed";
@@ -16,7 +15,7 @@ import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements, webPushTokens } from "@/lib/server/profile";
 import { BETA, PREMIUM_PRICE } from "@/lib/site";
-import { topicGroups, userTopics } from "@/lib/server/topics";
+import { newsSections, topicGroups, topicSuggestions, userTopics } from "@/lib/server/topics";
 
 export const metadata: Metadata = { title: "설정" };
 
@@ -89,8 +88,14 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="topics" title="관심사">
-          <TopicEditor topics={topics.filter((t) => !t.custom)} groups={topicGroups(topics)} limit={e.topicLimit} last={topics.length <= 1} />
-          <CustomTopicEditor items={topics.filter((t) => t.custom)} limit={e.customLimit} last={topics.length <= 1} />
+          <TopicSettings
+            groups={topicGroups(topics)}
+            news={newsSections(topics)}
+            custom={topics.filter((t) => t.custom)}
+            limit={e.topicLimit}
+            customLimit={e.customLimit}
+            suggestions={topicSuggestions()}
+          />
         </Section>
 
         <Section id="listen" title="듣기 모드">

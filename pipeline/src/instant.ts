@@ -1,13 +1,14 @@
 import { createGeminiAi } from '@maengo/core/gemini';
 import { rankFeed } from '@maengo/core/feed';
 import { kstDate } from '@maengo/core/kst';
-import { groupOf } from '@maengo/core/topics';
+import { groupOf, isNewsSection } from '@maengo/core/topics';
 import { db, check } from './lib/db';
 import { tryLock, unlock, waitUnlock } from './lib/lock';
 import { env } from './lib/env';
 import { mapLimit } from './lib/limit';
 import { dictionary, loadAudience, loadCandidates, withSimilarExcluded, type Audience } from './lib/audience';
 import { flushUsage, recordUsage } from './lib/usage';
+import { SECTION_BY_SOURCE_URL } from './lib/headline';
 import { HOUR, type Ctx } from './lib/ctx';
 import { cluster } from './jobs/cluster';
 import { collect } from './jobs/collect';
@@ -113,7 +114,7 @@ const COLLECT_AFTER = 3 * HOUR;
 const FRESH_MAX_ITEMS = 50;
 
 /**
- * 이 사람 관심사에 맞을 최근 글을 지금 처리한다: (오래됐으면) 수집 → 관심사 이름·별칭이 들어간 글만 임베딩 → 묶기 → 태그.
+ * 이 사람 관심사에 맞을 최근 글을 지금 처리한다: (오래됐으면) 수집 → 관심사 이름·별칭이 들어간 글(뉴스 분야는 그 분야 섹션 피드 글)만 임베딩 → 묶기 → 태그.
  * 처리 안 된 글 전체는 새벽 배치가 한다(무료 등급 임베딩 한도 때문에 화면에서 기다릴 수 없다). LLM 요약은 여기서 하지 않는다.
  * 여러 사람이 동시에 누르면 한 서버만 하고 나머지는 끝나기를 기다렸다 고른다.
  */
@@ -132,16 +133,26 @@ export async function prepareFresh(base: Ctx, a: Audience, { collectAfter = COLL
 
     const mine = new Set(Object.keys(a.weights));
     const words = (await dictionary(ctx))
-      .filter((t) => mine.has(t.id) || (t.parent && mine.has(t.parent)))
+      .filter((t) => !isNewsSection(t.id) && (mine.has(t.id) || (t.parent && mine.has(t.parent))))
       .flatMap((t) => [t.name, ...t.aliases]);
     const hits = matcher(words);
+    // 뉴스 분야는 낱말 대신 그 분야 섹션 피드의 글을 처리한다(헤드라인은 언론사 여럿의 기사가 한 묶음에 모여야 한다)
+    const sections = new Set([...mine].filter(isNewsSection));
+    const sectionSources = new Set<number>();
+    if (sections.size) {
+      const rows = check(await db.from('sources').select('id,url'), 'sources') as { id: number; url: string }[];
+      for (const r of rows) if (sections.has(SECTION_BY_SOURCE_URL.get(r.url) ?? '')) sectionSources.add(r.id);
+    }
     const since = new Date(ctx.now.getTime() - ctx.windowHours * HOUR).toISOString();
     const fresh = check(
-      await db.from('items').select('id,title,excerpt').is('embedding', null).gte('fetched_at', since).order('published_at', { ascending: false }).limit(2000),
+      await db.from('items').select('id,title,excerpt,source_id').is('embedding', null).gte('fetched_at', since).order('published_at', { ascending: false }).limit(2000),
       'items fresh',
-    ) as { id: number; title: string; excerpt: string | null }[];
-    const todo = fresh.filter((i) => hits(`${i.title} ${i.excerpt ?? ''}`)).slice(0, FRESH_MAX_ITEMS);
-    ctx.log(`최근 글 ${fresh.length}개 중 관심사 단어가 든 글 ${todo.length}개를 먼저 처리`);
+    ) as { id: number; title: string; excerpt: string | null; source_id: number | null }[];
+    const todo = fresh
+      .filter((i) => hits(`${i.title} ${i.excerpt ?? ''}`) || sectionSources.has(i.source_id ?? -1))
+      .slice(0, FRESH_MAX_ITEMS)
+      .map(({ id, title, excerpt }) => ({ id, title, excerpt }));
+    ctx.log(`최근 글 ${fresh.length}개 중 관심사 단어가 들었거나 고른 뉴스 분야의 글 ${todo.length}개를 먼저 처리`);
     if (todo.length) await embedItems(ctx, todo);
     await cluster(ctx);
     await tag(ctx);
