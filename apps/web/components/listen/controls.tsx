@@ -13,11 +13,13 @@ export function Queue({ onPick }: { onPick?: () => void }) {
   const p = usePlayer();
   const { data, read, consumed } = useToday();
   const playing = p.status === "playing";
+  // 플레이리스트면 고른 소식(챕터 표), 아니면 오늘 피드. 순번은 플레이리스트 안의 순서다
+  const rows = p.playlist ? p.chapters.map((ch) => ({ clusterId: ch.clusterId, title: ch.title, rank: ch.rank })) : data.items;
   return (
     <ol className="mt-3 flex flex-col gap-2">
-      {data.items.map((item, i) => {
+      {rows.map((item, i) => {
         const ch = p.chapters[i];
-        const skipped = !!ch && isSkipped(ch, read, p.skipRead);
+        const skipped = !!ch && !p.playlist && isSkipped(ch, read, p.skipRead);
         const current = i === p.cur;
         const done = consumed(item.clusterId);
         const note = current ? (playing ? "듣는 중" : "멈춤") : skipped ? "건너뜀" : ch ? formatClock(ch.endMs - ch.startMs) : "";

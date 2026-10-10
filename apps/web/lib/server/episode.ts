@@ -11,7 +11,7 @@ import { tts, ttsModel, ttsVoiceId } from './ai';
 import { TtsQuotaError } from './google-tts';
 import { audioStore } from './audio-store';
 import { db, must } from './db';
-import { feedItems, findFeedItem } from './feed';
+import { feedItems, findFeedItem, playlistItems } from './feed';
 import { concatBytes, encodeMp3, mp3DurationMs } from './mp3';
 import { blockTts, recordUse, TtsBusyError, ttsBlockedUntil } from './limits';
 import type { Profile } from './profile';
@@ -269,7 +269,10 @@ export async function episodeFileUrl(ep: Episode): Promise<string | null> {
 
 /** 아직 만들지 않은 말투의 길이 어림값. 대본 글자 수로 계산한다. */
 export async function estimateDurations(profile: Profile, date: string): Promise<Record<Persona, number[]>> {
-  const items = await feedItems(profile, date);
+  return estimateItems(await feedItems(profile, date));
+}
+
+export function estimateItems(items: FeedItem[]): Record<Persona, number[]> {
   const out = {} as Record<Persona, number[]>;
   for (const p of PERSONAS) out[p.id] = items.map((item) => estimateTimeline(scriptOf(item, p.id), p.id).durationMs);
   return out;
@@ -280,4 +283,19 @@ export async function getItemEpisode(profile: Profile, clusterId: number, person
   const found = await findFeedItem(profile, clusterId);
   if (!found) return null;
   return assemble([found.item], persona, voice, generate ? requester(profile) : null);
+}
+
+/**
+ * 보관함 플레이리스트(Premium). 고른 소식을 고른 순서대로 이어 붙인다. 받은 피드에 없는 소식은 뺀다.
+ * 순번은 플레이리스트 안의 순서(1부터)로 바꾼다(원래 순번은 그날 피드의 순번이라)
+ */
+export async function getPlaylistEpisode(
+  profile: Profile,
+  ids: number[],
+  persona: Persona,
+  voice: Voice,
+  { generate }: { generate: boolean },
+): Promise<{ items: FeedItem[]; episode: Episode }> {
+  const items = (await playlistItems(profile, ids)).map((item, i) => ({ ...item, rank: i + 1 }));
+  return { items, episode: await assemble(items, persona, voice, generate ? requester(profile) : null) };
 }
