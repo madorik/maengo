@@ -12,6 +12,8 @@ import { useToday } from "./TodayProvider";
 // "오늘 소식 이어 듣기"(PLAN.md 8.3). <audio> 하나에 에피소드 파일 하나만 튼다.
 // 파일을 바꿔 끼우지 않으니 첫 탭 이후 잠금 화면·백그라운드에서도 끝까지 이어진다.
 // 이 Provider는 (app) 레이아웃에 있어서 /today ↔ /listen을 오가도 재생이 끊기지 않는다.
+// 음성은 재생을 누를 때 만든다(Gemini TTS, 소식당 수십 초). 페이지를 열 때는 이미 만든 음성만 미리 받는다.
+// 아직 없으면 탭하는 순간 파일 주소를 걸고 play()를 불러 두고(iOS 자동 재생 정책), 서버가 음성을 다 만들면 그대로 재생이 시작된다.
 
 type Status = "idle" | "playing" | "paused" | "done";
 
@@ -20,6 +22,10 @@ export interface PlayerApi {
   enabled: boolean;
   /** 에피소드 정보를 받아 왔는지 */
   ready: boolean;
+  /** 음성을 만드는 중(처음 듣는 말투·소식) */
+  preparing: boolean;
+  /** 오늘 소식 전부의 음성이 이미 있는지(지금 말투·목소리) */
+  audioReady: boolean;
   error: string | null;
   status: Status;
   chapters: Chapter[];
@@ -55,20 +61,24 @@ export interface PlayerApi {
 const RATES = [1, 1.2, 1.5, 0.8];
 const LOAD_ERROR = "오늘 브리핑을 불러오지 못했어요. 새로고침한 뒤 다시 눌러 주세요.";
 const PLAY_ERROR = "재생을 시작하지 못했어요. 재생 버튼을 한 번 더 눌러 주세요.";
+const TTS_ERROR = "음성을 만들지 못했어요. 오늘 무료 한도를 다 썼을 수 있어요. 잠시 뒤 다시 눌러 주세요.";
 
 const PlayerContext = createContext<PlayerApi | null>(null);
 
 export function PlayerProvider({ profile, children }: { profile: ProfileView; children: React.ReactNode }) {
   const { data, read, markListened } = useToday();
   const audioRef = useRef<HTMLAudioElement>(null);
-  /** 메타데이터가 오기 전에 요청된 이동. loadedmetadata에서 적용한다 */
-  const pendingRef = useRef<{ ms: number; play: boolean } | null>(null);
+  /** 메타데이터가 오기 전에 요청된 이동(항목 번호). loadedmetadata에서 그때의 챕터 표로 적용한다 */
+  const pendingRef = useRef<{ index: number; play: boolean } | null>(null);
+  /** 음성을 만들며 연 파일이면, 다 받은 뒤 실제 길이로 챕터 표를 다시 받는다 */
+  const refreshRef = useRef<{ persona: Persona; voice: Voice } | null>(null);
   const loadSeq = useRef(0);
   /** playOne으로 시작한 항목. 이 항목이 끝나면 자동 재생 설정과 관계없이 멈춘다 */
   const onceRef = useRef<number | null>(null);
 
   const [episode, setEpisode] = useState<EpisodeData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [cur, setCur] = useState(-1);
   const [posMs, setPosMs] = useState(0);
@@ -82,15 +92,33 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const chapters = episode?.chapters ?? [];
   const contentKey = data.items.map((i) => `${i.clusterId}:${i.why}`).join("|");
 
+  const fetchEpisode = useCallback(async (p: Persona, v: Voice): Promise<EpisodeData> => {
+    const res = await fetch(`/api/episode/today?persona=${p}&voice=${v}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(String(res.status));
+    return res.json();
+  }, []);
+
+  /** 파일을 걸고 재생을 건다. 음성이 아직 없으면 이 요청에서 서버가 만든다 */
+  const openFile = useCallback((ep: EpisodeData, index: number, play: boolean) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    pendingRef.current = index >= 0 ? { index, play } : null;
+    refreshRef.current = ep.ready ? null : { persona: ep.persona, voice: ep.voice };
+    if (!ep.ready) setPreparing(true);
+    audio.src = ep.audioUrl;
+    audio.load();
+    // 탭 안에서 play()를 불러 둔다. 음성을 만드는 동안 기다렸다가 시작된다
+    if (play && !ep.ready) audio.play().catch(() => {});
+  }, []);
+
   const load = useCallback(async (p: Persona, v: Voice, keep: { index: number; resume: boolean }) => {
     const seq = ++loadSeq.current;
     try {
-      const res = await fetch(`/api/episode/today?persona=${p}&voice=${v}`, { cache: "no-store" });
-      if (!res.ok) throw new Error(String(res.status));
-      const ep: EpisodeData = await res.json();
+      const ep = await fetchEpisode(p, v);
       const audio = audioRef.current;
       if (seq !== loadSeq.current || !audio) return;
       setError(null);
+      setPreparing(false);
       setEpisode(ep);
       const index = Math.min(keep.index, ep.chapters.length - 1);
       if (index < 0) {
@@ -98,13 +126,19 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         setCur(-1);
         setPosMs(0);
       }
-      pendingRef.current = index >= 0 ? { ms: ep.chapters[index]!.startMs, play: keep.resume } : null;
-      audio.src = ep.audioUrl;
-      audio.load();
+      if (ep.ready || keep.resume) {
+        openFile(ep, index, keep.resume);
+      } else {
+        // 아직 음성이 없다. 재생을 누를 때 만든다(지금 만들면 듣지 않을 음성에 비용이 든다)
+        pendingRef.current = null;
+        refreshRef.current = null;
+        audio.removeAttribute("src");
+        audio.load();
+      }
     } catch {
       if (seq === loadSeq.current) setError(LOAD_ERROR);
     }
-  }, []);
+  }, [fetchEpisode, openFile]);
 
   // 말투·목소리의 최신 값. 피드 내용이 바뀌어 다시 불러올 때만 읽는다.
   const prefsRef = useRef({ persona, voice });
@@ -124,13 +158,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     void load(prefsRef.current.persona, prefsRef.current.voice, { index: -1, resume: false });
   }, [enabled, contentKey, load]);
 
-  const seek = (ms: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.readyState >= 1) audio.currentTime = ms / 1000;
-    else pendingRef.current = { ms, play: false };
-    setPosMs(ms);
-  };
+  /** 음성 파일이 아직 안 걸려 있으면(만들기 전) 재생을 누를 때 건다 */
+  const needsFile = () => !!episode && audioRef.current?.getAttribute("src") !== episode.audioUrl;
 
   const startPlayback = () => {
     audioRef.current?.play().catch(() => setError(PLAY_ERROR));
@@ -144,14 +173,31 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const goTo = (index: number) => {
     const ch = chapters[index];
-    if (!ch) return;
+    const audio = audioRef.current;
+    if (!ch || !audio || !episode) return;
     onceRef.current = null;
-    seek(ch.startMs);
+    setError(null);
     enter(index);
-    if (audioRef.current?.paused) startPlayback();
+    if (needsFile()) return openFile(episode, index, true);
+    if (preparing || audio.readyState < 1) {
+      // 음성을 만드는 중이면 다 받은 뒤 이 항목으로 간다
+      pendingRef.current = { index, play: true };
+      return;
+    }
+    audio.currentTime = ch.startMs / 1000;
+    setPosMs(ch.startMs);
+    if (audio.paused) startPlayback();
   };
 
   const playOne = (index: number) => {
+    // 이 소식을 듣다 멈춘 거면 멈춘 자리부터 이어서 튼다(처음으로 돌아가지 않게).
+    // 전체 듣기 중에 멈췄다면 이어서 튼 뒤에도 다음 소식으로 계속 간다
+    const ch = chapters[index];
+    if (cur === index && status === "paused" && ch && posMs >= ch.startMs && posMs < ch.endMs && !needsFile() && !preparing) {
+      setError(null);
+      startPlayback();
+      return;
+    }
     goTo(index);
     onceRef.current = index;
   };
@@ -159,8 +205,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const play = () => {
     if (!episode || !chapters.length) return;
     onceRef.current = null;
-    if (status === "done" || cur < 0) {
-      goTo(startIndex(chapters, read, skipRead));
+    if (status === "done" || cur < 0 || needsFile()) {
+      goTo(status === "done" || cur < 0 ? startIndex(chapters, read, skipRead) : cur);
       return;
     }
     enter(cur);
@@ -245,17 +291,35 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const onLoadedMetadata = (e: React.SyntheticEvent<HTMLAudioElement>) => {
     const audio = e.currentTarget;
     audio.playbackRate = rate;
-    const pending = pendingRef.current;
-    pendingRef.current = null;
-    if (!pending) return;
-    audio.currentTime = pending.ms / 1000;
-    setPosMs(pending.ms);
-    if (pending.play) startPlayback();
+    const refresh = refreshRef.current;
+    refreshRef.current = null;
+    setPreparing(false);
+    const apply = (chs: Chapter[]) => {
+      const pending = pendingRef.current;
+      pendingRef.current = null;
+      if (!pending) return;
+      const ms = chs[pending.index]?.startMs ?? 0;
+      audio.currentTime = ms / 1000;
+      setPosMs(ms);
+      if (pending.play) startPlayback();
+    };
+    if (!refresh) return apply(chapters);
+    // 방금 만든 음성의 실제 길이로 챕터 표를 다시 받는다(만들기 전에는 글자 수로 어림했다)
+    const seq = loadSeq.current;
+    fetchEpisode(refresh.persona, refresh.voice)
+      .then((ep) => {
+        if (seq !== loadSeq.current) return;
+        setEpisode(ep);
+        apply(ep.chapters);
+      })
+      .catch(() => apply(chapters));
   };
 
   const api: PlayerApi = {
     enabled,
     ready: !!episode,
+    preparing,
+    audioReady: !!episode?.ready,
     error,
     status,
     chapters,
@@ -352,7 +416,13 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           setCur(-1);
         }}
         onError={() => {
-          if (audioRef.current?.getAttribute("src")) setError(LOAD_ERROR);
+          if (!audioRef.current?.getAttribute("src")) return;
+          setError(preparing ? TTS_ERROR : LOAD_ERROR);
+          setPreparing(false);
+          // 실패한 파일은 떼어 내서 다음 재생 때 다시 만들게 한다
+          audioRef.current.removeAttribute("src");
+          pendingRef.current = null;
+          refreshRef.current = null;
         }}
         hidden
       />

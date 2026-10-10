@@ -1,113 +1,209 @@
 import 'server-only';
-import { dummyScript, modelFor } from '@maengo/core/ai';
-import { concatWav, estimateTimeline, layoutChapters, PERSONAS, voiceKey } from '@maengo/core/audio';
-import type { Chapter, Persona, Voice } from '@maengo/core/types';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { templateScript } from '@maengo/core/ai';
+import { estimateTimeline, layoutChapters, PERSONAS, voiceKey } from '@maengo/core/audio';
+import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
 import type { FeedItem } from '../types';
-import { ai, ttsModel } from './ai';
+import { tts, ttsModel } from './ai';
+import { audioStore } from './audio-store';
+import { db, must } from './db';
 import { feedItems, findFeedItem } from './feed';
-import type { Profile } from './store';
+import { concatBytes, encodeMp3, mp3DurationMs } from './mp3';
+import type { Profile } from './profile';
 
-// 에피소드 = 오늘 소식들의 음성 세그먼트를 이어 붙인 파일 하나 + 챕터 표(PLAN.md 8.2).
-// 지금은 더미 TTS가 만든 WAV를 메모리에 둔다. 실제로는 파이프라인이 MP3를 R2에 올린다.
+// 듣기(PLAN.md 8장). 음성은 사용자가 재생을 누를 때만 만든다. 페이지를 열 때는 이미 만든 음성이 있는지만 본다.
+// 세그먼트 = 소식 하나 × 말투 × 목소리. 대본 내용 해시로 키를 만들어 같은 대본이면 누가 듣든 다시 만들지 않는다.
+// 파일은 MP3로 R2(audio/seg/<key>.mp3)에, 줄별 시각은 audio_segments에 둔다.
+// 오늘 전체 듣기는 세그먼트 MP3를 이어 붙인 파일(audio/ep/<hash>.mp3)을 처음 열 때 만든다.
 
-interface Segment {
-  pcm: Uint8Array;
-  sampleRate: number;
-  bitsPerSample: 8 | 16;
-  durationMs: number;
-  lines: { who?: string; text: string; startMs: number; endMs: number }[];
+interface SegmentLine {
+  who?: string;
+  text: string;
+  para?: number;
+  startMs: number;
+  endMs: number;
+}
+
+interface SegmentRow {
+  key: string;
+  r2_key: string;
+  duration_ms: number;
+  lines: SegmentLine[];
 }
 
 export interface Episode {
-  wav: Uint8Array;
+  /** 음성이 다 있으면 저장소 키(소식 하나면 세그먼트, 여럿이면 이어 붙인 파일), 아니면 null(챕터는 어림값) */
+  objectKey: string | null;
+  /** 이어 붙인 파일을 아직 안 만들었으면 만들 재료 */
+  parts: string[];
   durationMs: number;
   chapters: Chapter[];
 }
 
-const g = globalThis as typeof globalThis & {
-  __maengoSegments?: Map<string, Segment>;
-  __maengoEpisodes?: Map<string, Episode>;
-};
-const segments = (g.__maengoSegments ??= new Map());
-const episodes = (g.__maengoEpisodes ??= new Map());
-const MAX_EPISODES = 6;
+/** 대본 형식을 바꾸면 올린다(예전 음성을 다시 쓰지 않게) */
+const SCRIPT_VERSION = 1;
+/** 무료 등급 TTS 분당 한도를 넘지 않게 한 번에 세 개까지만 만든다 */
+const TTS_CONCURRENCY = 3;
+/** R2 전에 로컬에 WAV(PCM)로 만들어 둔 음성. 있으면 TTS를 다시 부르지 않고 MP3로 옮긴다 */
+const LEGACY_DIR = path.join(process.cwd(), '.cache', 'audio');
 
-async function segmentFor(item: FeedItem, persona: Persona, voice: Voice): Promise<Segment> {
-  const vk = voiceKey(persona, voice);
-  // 대본에 순서 문장("세 번째 소식")과 토픽별 why가 들어가므로 둘 다 키에 넣는다.
-  const key = `${item.clusterId}|${persona}|${vk}|${item.rank}|${item.why}`;
-  const hit = segments.get(key);
-  if (hit) return hit;
-  const lines = await ai.script({
-    model: modelFor('pro'),
-    persona,
-    rank: item.rank,
-    topicName: item.topicName,
-    title: item.title,
-    short: item.short,
-    body: item.body,
-    why: item.why,
-  });
-  const speech = await ai.speak({ model: ttsModel(), persona, voice: vk, lines });
-  const seg: Segment = {
-    pcm: speech.pcm,
-    sampleRate: speech.sampleRate,
-    bitsPerSample: speech.bitsPerSample,
-    durationMs: speech.durationMs,
-    lines: lines.map((l, i) => ({ ...l, ...speech.lineTimesMs[i]! })),
-  };
-  segments.set(key, seg);
-  return seg;
+const g = globalThis as typeof globalThis & {
+  __maengoInflight?: Map<string, Promise<SegmentRow>>;
+  __maengoTtsQueue?: { running: number; waiting: (() => void)[] };
+  __maengoEpisodeBuilds?: Map<string, Promise<void>>;
+};
+const inflight = (g.__maengoInflight ??= new Map());
+const queue = (g.__maengoTtsQueue ??= { running: 0, waiting: [] });
+const episodeBuilds = (g.__maengoEpisodeBuilds ??= new Map());
+
+const sha = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 24);
+
+function scriptOf(item: FeedItem, persona: Persona): ScriptLine[] {
+  return templateScript({ model: '', persona, topicName: item.topicName, title: item.title, short: item.short, body: item.body, why: item.why });
 }
 
-export async function getEpisode(profile: Profile, date: string, persona: Persona, voice: Voice): Promise<Episode> {
-  const items = await feedItems(profile, date);
-  const key = `${profile.id}|${date}|${persona}|${voiceKey(persona, voice)}|${items.map((i) => `${i.clusterId}:${i.why}`).join(',')}`;
-  const hit = episodes.get(key);
-  if (hit) return hit;
+function segmentKey(lines: ScriptLine[], persona: Persona, voice: Voice): string {
+  const vk = voiceKey(persona, voice);
+  return `${persona}-${vk}-${sha(JSON.stringify({ v: SCRIPT_VERSION, model: ttsModel(), persona, vk, lines }))}`;
+}
 
-  const segs = await Promise.all(items.map((item) => segmentFor(item, persona, voice)));
-  const chapters = layoutChapters(
-    items.map((item, i) => ({
-      rank: item.rank,
-      clusterId: item.clusterId,
-      title: item.title,
-      durationMs: segs[i]!.durationMs,
-      lines: segs[i]!.lines,
-    })),
+async function findSegments(keys: string[]): Promise<Map<string, SegmentRow>> {
+  if (!keys.length) return new Map();
+  const rows = must(await db.from('audio_segments').select('key,r2_key,duration_ms,lines').in('key', keys), 'audio_segments') as SegmentRow[];
+  return new Map(rows.map((r) => [r.key, r]));
+}
+
+async function withTtsSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (queue.running >= TTS_CONCURRENCY) await new Promise<void>((r) => queue.waiting.push(r));
+  queue.running++;
+  try {
+    return await fn();
+  } finally {
+    queue.running--;
+    queue.waiting.shift()?.();
+  }
+}
+
+/** 예전 로컬 WAV 캐시가 있으면 꺼낸다(TTS 비용 0) */
+async function legacyPcm(key: string): Promise<{ pcm: Uint8Array; sampleRate: number; lines: SegmentLine[] } | null> {
+  try {
+    const [meta, pcm] = await Promise.all([readFile(path.join(LEGACY_DIR, `${key}.json`), 'utf8'), readFile(path.join(LEGACY_DIR, `${key}.pcm`))]);
+    const m = JSON.parse(meta) as { sampleRate: number; lines: SegmentLine[] };
+    return { pcm: new Uint8Array(pcm), sampleRate: m.sampleRate, lines: m.lines };
+  } catch {
+    return null;
+  }
+}
+
+/** TTS로 만들어(또는 예전 캐시에서 옮겨) MP3로 올리고 행을 남긴다. 같은 키를 동시에 요청하면 한 번만 만든다 */
+function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: string, lines: ScriptLine[]): Promise<SegmentRow> {
+  const running = inflight.get(key);
+  if (running) return running;
+  const job = (async () => {
+    const t0 = Date.now();
+    const vk = voiceKey(persona, voice);
+    let pcm: Uint8Array;
+    let sampleRate: number;
+    let timed: SegmentLine[];
+    let source: string;
+    const legacy = await legacyPcm(key);
+    if (legacy) {
+      ({ pcm, sampleRate } = legacy);
+      timed = legacy.lines;
+      source = '예전 캐시에서 옮김';
+    } else {
+      const speech = await withTtsSlot(() => tts.speak({ model: ttsModel(), persona, voice: vk, lines }));
+      if (speech.bitsPerSample !== 16) throw new Error('16비트 PCM만 MP3로 바꿀 수 있어요');
+      pcm = speech.pcm;
+      sampleRate = speech.sampleRate;
+      timed = lines.map((l, i) => ({ ...l, ...speech.lineTimesMs[i]! }));
+      source = 'TTS';
+    }
+    const mp3 = encodeMp3(pcm, sampleRate);
+    const r2Key = `audio/seg/${key}.mp3`;
+    await audioStore.put(r2Key, mp3, 'audio/mpeg');
+    const row: SegmentRow = { key, r2_key: r2Key, duration_ms: mp3DurationMs(mp3.length), lines: timed };
+    must(
+      await db.from('audio_segments').upsert(
+        { ...row, cluster_id: item.clusterId, persona, voice: vk, model: ttsModel(), bytes: mp3.length },
+        { onConflict: 'key' },
+      ),
+      'audio_segments upsert',
+    );
+    console.log(`[tts] #${item.clusterId} ${persona}/${vk} ${(row.duration_ms / 1000).toFixed(1)}초 · ${Math.round(mp3.length / 1024)}KB · ${source} · ${((Date.now() - t0) / 1000).toFixed(1)}초 걸림`);
+    return row;
+  })().finally(() => inflight.delete(key));
+  inflight.set(key, job);
+  return job;
+}
+
+async function assemble(items: FeedItem[], persona: Persona, voice: Voice, generate: boolean): Promise<Episode> {
+  const scripts = items.map((item) => {
+    const lines = scriptOf(item, persona);
+    return { item, lines, key: segmentKey(lines, persona, voice) };
+  });
+  const found = await findSegments(scripts.map((s) => s.key));
+  const segs = await Promise.all(
+    scripts.map(async (s) => found.get(s.key) ?? (generate ? generateSegment(s.item, persona, voice, s.key, s.lines) : null)),
   );
-  const first = segs[0];
-  const wav = concatWav(segs.map((s) => s.pcm), first?.sampleRate ?? 8000, first?.bitsPerSample ?? 8);
+  const parts = scripts.map((s, i) => {
+    const seg = segs[i];
+    if (seg) return { durationMs: seg.duration_ms, lines: seg.lines };
+    const { lineTimesMs, durationMs } = estimateTimeline(s.lines, persona);
+    return { durationMs, lines: s.lines.map((l, j) => ({ ...l, ...lineTimesMs[j]! })) };
+  });
+  const chapters = layoutChapters(
+    items.map((item, i) => ({ rank: item.rank, clusterId: item.clusterId, title: item.title, durationMs: parts[i]!.durationMs, lines: parts[i]!.lines })),
+  );
   const durationMs = chapters.at(-1)?.endMs ?? 0;
-  const episode = { wav, durationMs, chapters };
+  const ready = segs.length > 0 && segs.every((s) => s !== null);
+  if (!ready) return { objectKey: null, parts: [], durationMs, chapters };
+  const keys = (segs as SegmentRow[]).map((s) => s.r2_key);
+  const objectKey = keys.length === 1 ? keys[0]! : `audio/ep/${sha(keys.join('|'))}.mp3`;
+  return { objectKey, parts: keys, durationMs, chapters };
+}
 
-  episodes.set(key, episode);
-  while (episodes.size > MAX_EPISODES) episodes.delete(episodes.keys().next().value!);
-  return episode;
+/** 이어 붙인 파일이 없으면 만든다(세그먼트 MP3를 바이트 그대로 이어 붙임, 재인코딩 없음) */
+async function ensureObject(ep: Episode): Promise<string> {
+  const key = ep.objectKey!;
+  if (ep.parts.length <= 1 || (await audioStore.exists(key))) return key;
+  let build = episodeBuilds.get(key);
+  if (!build) {
+    build = (async () => {
+      const files = await Promise.all(ep.parts.map((k) => audioStore.get(k)));
+      if (files.some((f) => !f)) throw new Error('세그먼트 파일이 없어요');
+      await audioStore.put(key, concatBytes(files as Uint8Array[]), 'audio/mpeg');
+    })().finally(() => episodeBuilds.delete(key));
+    episodeBuilds.set(key, build);
+  }
+  await build;
+  return key;
+}
+
+/** 오늘 에피소드. generate가 false면 이미 만든 음성만 본다(페이지를 열 때) */
+export async function getEpisode(profile: Profile, date: string, persona: Persona, voice: Voice, { generate }: { generate: boolean }): Promise<Episode> {
+  return assemble(await feedItems(profile, date), persona, voice, generate);
+}
+
+/** 음성 파일 주소(없는 소식은 만든 뒤). R2면 서명 URL */
+export async function episodeFileUrl(ep: Episode): Promise<string | null> {
+  if (!ep.objectKey) return null;
+  return audioStore.url(await ensureObject(ep));
 }
 
 /** 아직 만들지 않은 말투의 길이 어림값. 대본 글자 수로 계산한다. */
 export async function estimateDurations(profile: Profile, date: string): Promise<Record<Persona, number[]>> {
   const items = await feedItems(profile, date);
   const out = {} as Record<Persona, number[]>;
-  for (const p of PERSONAS) {
-    out[p.id] = items.map((item) => estimateTimeline(dummyScript({ model: '', persona: p.id, ...item }), p.id).durationMs);
-  }
+  for (const p of PERSONAS) out[p.id] = items.map((item) => estimateTimeline(scriptOf(item, p.id), p.id).durationMs);
   return out;
 }
 
-/** 소식 하나만 담은 에피소드. 보관함의 지난 글을 들을 때 쓴다 */
-export async function getItemEpisode(profile: Profile, clusterId: number, persona: Persona, voice: Voice): Promise<Episode | null> {
+/** 소식 하나짜리 에피소드. 목록 카드·상세의 "듣기"가 쓴다 */
+export async function getItemEpisode(profile: Profile, clusterId: number, persona: Persona, voice: Voice, { generate }: { generate: boolean }): Promise<Episode | null> {
   const found = await findFeedItem(profile, clusterId);
   if (!found) return null;
-  const { item } = found;
-  const key = `item|${profile.id}|${clusterId}|${persona}|${voiceKey(persona, voice)}|${item.why}`;
-  const hit = episodes.get(key);
-  if (hit) return hit;
-  const seg = await segmentFor(item, persona, voice);
-  const chapters = layoutChapters([{ rank: item.rank, clusterId, title: item.title, durationMs: seg.durationMs, lines: seg.lines }]);
-  const episode = { wav: concatWav([seg.pcm], seg.sampleRate, seg.bitsPerSample), durationMs: seg.durationMs, chapters };
-  episodes.set(key, episode);
-  while (episodes.size > MAX_EPISODES) episodes.delete(episodes.keys().next().value!);
-  return episode;
+  return assemble([found.item], persona, voice, generate);
 }

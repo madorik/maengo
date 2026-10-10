@@ -11,6 +11,7 @@ import { SourceChip } from "@/components/today/TodayList";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { FeedItem } from "@/lib/types";
+import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ListenBar } from "./ListenBar";
 import { useItemAudio } from "./useItemAudio";
 import { useTodayAudio } from "./useTodayAudio";
@@ -32,7 +33,8 @@ function host(url: string): string {
 
 /**
  * 상세: 전체 글, 출처 링크, 영상이면 썸네일. 듣는 동안 지금 읽는 문단을 짚어 준다.
- * 오늘 글은 오늘 브리핑 플레이어로, 보관함의 지난 글은 그 글 하나짜리 파일로 듣는다.
+ * 오늘 글은 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 오늘 브리핑 플레이어로 듣는다.
+ * 그 밖(지난 글, 아직 전체 음성이 없는 오늘 글)은 그 글 하나짜리 파일로 듣는다. 글 하나 들으려고 오늘 소식 전부의 음성을 만들지 않게.
  */
 export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isToday: boolean }) {
   const { data, feedback, markRead, setFeedback } = useToday();
@@ -42,10 +44,12 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
   const item = data.items[index] ?? fromServer;
   const next = index >= 0 ? data.items[index + 1] : undefined;
 
+  const p = usePlayer();
+  const viaPlayer = index >= 0 && (p.audioReady || p.preparing || p.status !== "idle");
   const today = useTodayAudio(index, next);
-  const past = useItemAudio(item.clusterId, profile.audio && index < 0);
+  const single = useItemAudio(item.clusterId, profile.audio && !viaPlayer);
   // 무료면 오늘 쪽 막대가 잠금 안내를 보여 준다
-  const audio = index >= 0 || !profile.audio ? today : past;
+  const audio = viaPlayer || !profile.audio ? today : single;
   const activePara = audio.activePara;
   const playing = audio.ctl.state === "playing";
 

@@ -108,6 +108,11 @@ export function ListenScreen() {
               {p.error}
             </p>
           )}
+          {p.preparing && (
+            <p role="status" className="pb-3 text-center text-[14px] font-bold text-sky-dark">
+              음성을 만드는 중이에요. 처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요.
+            </p>
+          )}
           <div className="flex items-center justify-center gap-6">
             <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-14 min-h-0 rounded-full p-0">
               <IconPrev className="size-6" />

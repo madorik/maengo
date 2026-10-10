@@ -1,27 +1,24 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 import { SESSION_COOKIE } from '../session-cookie';
-import { createDemoProfile, store, type Profile } from './store';
+import { readSession } from '../session-token';
+import { loadProfile, type Profile } from './profile';
 
-// 데모 세션 쿠키 값: 'demo:google' | 'demo:apple'. 유저는 하나(demo)다.
-const DEMO_USER_ID = 'demo';
-
-function parse(value: string | undefined): { userId: string; provider: 'apple' | 'google' } | null {
-  const m = value?.match(/^demo:(apple|google)$/);
-  return m ? { userId: DEMO_USER_ID, provider: m[1] as 'apple' | 'google' } : null;
+/** 지금은 애플·구글 버튼 모두 Supabase 데모 계정(DEMO_USER_ID)으로 들어간다 */
+export function demoUserId(): string {
+  const id = process.env.DEMO_USER_ID?.trim();
+  if (!id) throw new Error('DEMO_USER_ID가 없어요(pnpm --filter @maengo/pipeline seed:demo)');
+  return id;
 }
 
-export function sessionValue(provider: 'apple' | 'google'): string {
-  return `demo:${provider}`;
-}
-
-/** 로그인 안 했으면 null. 개발 서버 재시작으로 메모리가 비었으면 데모 프로필을 다시 만든다. */
-export async function currentProfile(): Promise<Profile | null> {
-  const session = parse((await cookies()).get(SESSION_COOKIE)?.value);
+/** 로그인 안 했으면 null. 한 요청 안에서는 한 번만 읽는다 */
+export const currentProfile = cache(async (): Promise<Profile | null> => {
+  const session = await readSession((await cookies()).get(SESSION_COOKIE)?.value);
   if (!session) return null;
-  return store.profiles.get(session.userId) ?? createDemoProfile(session.userId, session.provider);
-}
+  return loadProfile(session.userId, session.provider);
+});
 
 export async function requireProfile(): Promise<Profile> {
   const profile = await currentProfile();

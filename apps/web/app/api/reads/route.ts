@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const clusterId = Number(body?.clusterId);
   if (!Number.isInteger(clusterId)) return NextResponse.json({ error: "bad_request" }, { status: 400 });
-  if (!isInUserFeed(profile, clusterId)) return NextResponse.json({ error: "not_in_feed" }, { status: 404 });
-  markRead(profile, clusterId, { read: body.read === true, listened: body.listened === true });
+  if (!(await isInUserFeed(profile, clusterId))) return NextResponse.json({ error: "not_in_feed" }, { status: 404 });
+  await markRead(profile, clusterId, { read: body.read === true, listened: body.listened === true });
   return NextResponse.json({ ok: true });
 }

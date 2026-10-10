@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   if (!Number.isInteger(clusterId) || (kind !== null && !KINDS.includes(kind))) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
-  if (!isInUserFeed(profile, clusterId)) return NextResponse.json({ error: "not_in_feed" }, { status: 404 });
-  setFeedback(profile, clusterId, kind);
+  if (!(await isInUserFeed(profile, clusterId))) return NextResponse.json({ error: "not_in_feed" }, { status: 404 });
+  await setFeedback(profile, clusterId, kind);
   return NextResponse.json({ ok: true });
 }

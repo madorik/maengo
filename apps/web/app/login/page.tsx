@@ -33,7 +33,7 @@ export default function LoginPage() {
         <p className="mt-2 text-center text-[12px] font-medium leading-relaxed text-sub">
           계속하면 이용약관과 개인정보 처리방침에 동의하게 돼요.
           <br />
-          지금은 데모 로그인이라 버튼을 누르면 바로 들어가요.
+          지금은 데모 계정으로 들어가요. Apple·Google 연동은 곧 붙여요.
         </p>
       </form>
     </div>
