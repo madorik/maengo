@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
 import { NativeShell } from "@/components/NativeShell";
+import { NavProgress } from "@/components/NavProgress";
 import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, siteUrl } from "@/lib/site";
 
 // 한글은 Pretendard(글자 범위별로 필요한 조각만 받는다), 숫자는 둥근 Nunito.
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="ko" className={nunito.variable}>
       <body>
+        <NavProgress />
         {children}
         <NativeShell />
       </body>
