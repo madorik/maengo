@@ -114,6 +114,7 @@ export interface LibraryData {
 }
 
 /** 관심 토픽 고치기 결과(설정 화면 안내 문구) */
+/** 관심사 고치기 결과. ok는 들어감(message는 한도로 일부만 들어갔을 때만), warn은 막힘. 성공 안내 문구는 없다(목록에 보인다) */
 export type TopicResult = { tone: 'ok' | 'warn'; message: string; /** 막힌 까닭(온보딩이 알맞은 안내를 고른다) */ code?: 'adult' };
 
 export interface UserTopic {
