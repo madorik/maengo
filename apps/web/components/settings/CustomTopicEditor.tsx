@@ -46,7 +46,7 @@ export function CustomTopicEditor({ items, limit, last }: { items: UserTopic[]; 
           </button>
         </div>
       </form>
-      <p aria-live="polite" className={`mt-3 min-h-5 text-[14px] font-bold ${state?.tone === "warn" ? "text-mango-deep" : "text-leaf"}`}>
+      <p aria-live="polite" className="mt-3 text-[14px] font-bold text-mango-deep empty:hidden">
         {state?.message}
       </p>
     </section>

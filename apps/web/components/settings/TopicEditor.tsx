@@ -62,7 +62,7 @@ export function TopicEditor({ topics, groups, limit, last }: { topics: UserTopic
       ) : (
         <p className="mt-1 text-[14px] font-semibold text-faint">아직 고른 관심사가 없어요. 아래에서 더해 보세요.</p>
       )}
-      <p aria-live="polite" className={`mt-3 min-h-5 text-[14px] font-bold ${state?.tone === "warn" ? "text-mango-deep" : "text-leaf"}`}>
+      <p aria-live="polite" className="mt-3 text-[14px] font-bold text-mango-deep empty:hidden">
         {state?.message}
       </p>
 
