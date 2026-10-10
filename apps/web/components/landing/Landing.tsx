@@ -289,7 +289,15 @@ export function Landing() {
             <MangoIcon className="size-6" />
             관심사에 맞춘 오늘의 소식, 맹고
           </span>
-          <span>© 2026 맹고</span>
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link href="/terms" className="text-sub no-underline hover:text-ink hover:underline">
+              이용약관
+            </Link>
+            <Link href="/privacy" className="font-extrabold text-sub no-underline hover:text-ink hover:underline">
+              개인정보 처리방침
+            </Link>
+            <span>© 2026 맹고</span>
+          </span>
         </div>
       </footer>
     </div>

@@ -5,3 +5,5 @@ import 'server-only';
 export const demoLoginEnabled = () => !!process.env.DEMO_USER_ID?.trim();
 /** 설정의 플랜 전환·피드 다시 고르기·처음 상태로. DEMO_TOOLS=1일 때만 */
 export const demoToolsEnabled = () => process.env.DEMO_TOOLS === '1';
+/** 공용 데모 계정인지(지우면 안 된다). 운영에는 DEMO_USER_ID가 없어 늘 false */
+export const isDemoAccount = (userId: string) => userId === process.env.DEMO_USER_ID?.trim();

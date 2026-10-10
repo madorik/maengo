@@ -18,6 +18,23 @@ export const SITE_KEYWORDS = [
   "출근길 팟캐스트",
 ];
 
+// ---- 약관·개인정보 처리방침 ----
+/** 운영자이자 개인정보 보호책임자. 사업자등록 전이라 개인 이름으로 적는다 */
+export const OPERATOR_NAME = "정민균";
+/** 문의·개인정보 요청 메일(문의 전용으로 새로 만든 주소). 비어 있으면 운영에서 약관·개인정보 처리방침 페이지를 숨긴다(404) */
+export const SUPPORT_EMAIL = "";
+/** 이용약관·개인정보 처리방침 시행일. 내용을 바꾸면 날짜도 바꾸고 변경 공지를 한다 */
+export const LEGAL_EFFECTIVE_DATE = "2026년 10월 10일";
+
+/**
+ * 문의 메일. 빈 메일로 문서를 공개하지 않도록 운영에서는 비어 있으면 null(문서 페이지가 404로 숨는다).
+ * 빌드는 막지 않는다(다른 작업의 배포까지 멈추지 않게). 로컬에서는 자리만 보여 준다.
+ */
+export function supportEmail(): string | null {
+  if (SUPPORT_EMAIL) return SUPPORT_EMAIL;
+  return process.env.NODE_ENV === "production" ? null : "문의 메일(준비 중)";
+}
+
 /** 정식 주소. NEXT_PUBLIC_SITE_URL을 먼저 쓰고, 없으면 Vercel 운영 주소, 그것도 없으면 로컬 */
 export function siteUrl(): URL {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim();
