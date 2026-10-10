@@ -19,6 +19,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 로그인에서 돌아오는 딥링크 kr.maengo.app://auth/callback?code=… (apps/web/lib/native/auth.ts) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kr.maengo.app" android:host="auth" />
+            </intent-filter>
         </activity>
 
         <provider
