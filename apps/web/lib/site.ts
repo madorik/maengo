@@ -22,7 +22,7 @@ export const SITE_KEYWORDS = [
 /** 운영자이자 개인정보 보호책임자. 사업자등록 전이라 개인 이름으로 적는다 */
 export const OPERATOR_NAME = "정민균";
 /** 문의·개인정보 요청 메일(문의 전용으로 새로 만든 주소). 비어 있으면 운영에서 약관·개인정보 처리방침 페이지를 숨긴다(404) */
-export const SUPPORT_EMAIL = "";
+export const SUPPORT_EMAIL = "maengo.help@gmail.com";
 /** 이용약관·개인정보 처리방침 시행일. 내용을 바꾸면 날짜도 바꾸고 변경 공지를 한다 */
 export const LEGAL_EFFECTIVE_DATE = "2026년 10월 10일";
 
