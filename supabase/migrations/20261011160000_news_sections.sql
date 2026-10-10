@@ -37,6 +37,11 @@ delete from public.user_topics where topic_id in (select id from k_topics);
 delete from public.topics where id in (select id from k_topics);
 drop table k_topics;
 
+-- 2-1) 분야 전체를 고른 사람의 그 분야 상세 관심사는 지운다(설정에서 분야 전체를 고르면 상세가 빠지는 것과 같게)
+delete from public.user_topics u using public.topics t
+where t.id = u.topic_id and t.parent is not null
+  and exists (select 1 from public.user_topics g where g.user_id = u.user_id and g.topic_id = t.parent);
+
 -- 3) K-Pop·K-뷰티·K-푸드 출처(RSS 8곳 + 유튜브 35곳)는 그만 받는다(collect는 active인 출처만 읽는다)
 update public.sources set active = false where url in (
   'https://www.soompi.com/feed',

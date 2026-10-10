@@ -1,60 +1,29 @@
 "use client";
 
-import { normalizeInterest } from "@maengo/core/topics";
 import { startTransition, useActionState, useEffect, useId, useMemo, useOptimistic, useRef, useState } from "react";
 import { editTopics } from "@/app/actions";
-import { IconCheck, IconChevronDown, IconClose, IconPlus } from "@/components/icons";
+import { IconCheck, IconChevronDown, IconClose } from "@/components/icons";
 import { TopicGroupIcon, topicTone } from "@/components/TopicGroupIcon";
-import type { TopicGroupView, TopicResult, TopicSuggestion, UserTopic } from "@/lib/types";
+import type { TopicGroupView, TopicResult, UserTopic } from "@/lib/types";
 
 type Section = { id: string; name: string; picked: boolean };
-type Option = { id: string; label: string; chip: string };
-type Op = { kind: "add" | "remove"; id: string };
+type Op = { drop: string[]; add: string[] };
+type Send = { fields: Record<string, string>; op?: Op };
+type Chip = { id: string; name: string; tone: string; remove: () => void };
 
 /**
- * 설정 > 관심사(2026-10-11 개편). 고른 관심사만 분야 색 라벨로 보여 주고, 고르기는 드롭다운 하나로 한다.
- * - 라벨: 분야 전체는 분야 이름('AI'), 상세 관심사·뉴스 분야·기타는 그 이름. ✕로 뺀다.
- * - 드롭다운: 분야별 묶음 목록(분야 전체 → 상세 관심사, 마지막에 뉴스 헤드라인). 체크해도 닫히지 않아 여러 개를 연달아 고른다.
- *   적으면 이름·별칭으로 거르고, 목록에 없는 말은 '넣기'로 기타에 넣는다(서버가 사전 이름과 같으면 그 관심사로 넣는다).
+ * 설정 > 관심사(2026-10-11 개편). 고른 관심사만 분야 색 라벨로 보여 주고, 고르기는 분야별 드롭다운으로 한다.
+ * - 라벨: 분야 전체를 고르면 분야 이름('AI') 하나만, 아니면 고른 상세 관심사들. 뉴스 분야·기타는 그 이름. ✕로 뺀다.
+ * - 드롭다운(분야마다 하나 + 뉴스 + 기타): 누르면 아래에 체크 목록이 열리고, 체크해도 닫히지 않는다. 바깥을 누르거나 Esc면 닫힌다.
+ *   분야는 트리 선택처럼 움직인다: 전체를 켜면 상세가 모두 켜진 것으로 보이고(라벨은 분야 하나), 그 상태에서 상세 하나를 끄면 나머지 상세만 남고,
+ *   상세를 다 켜면 전체로 합친다. 서버도 같은 규칙으로 저장한다(setGroupPicks).
  * - 누르는 즉시 라벨·체크가 바뀐다(useOptimistic). 서버가 막으면(한도 등) 되돌아가고 까닭을 보여 준다.
  */
-export function TopicSettings({
-  groups,
-  news,
-  custom,
-  suggestions,
-}: {
-  groups: TopicGroupView[];
-  news: Section[];
-  custom: UserTopic[];
-  suggestions: TopicSuggestion[];
-}) {
-  const listId = useId();
+export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView[]; news: Section[]; custom: UserTopic[] }) {
+  const panelId = useId();
   const boxRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
-
-  const sections = useMemo(
-    () => [
-      ...groups.map((g) => ({
-        id: g.id,
-        title: g.name,
-        options: [{ id: g.id, label: `${g.name} 전체`, chip: g.name }, ...g.details.map((d) => ({ id: d.id, label: d.name, chip: d.name }))] as Option[],
-      })),
-      { id: "news", title: "뉴스 헤드라인", options: news.map((n) => ({ id: n.id, label: n.name, chip: n.name })) as Option[] },
-    ],
-    [groups, news],
-  );
-  // 라벨 색: 상세 관심사는 분야 색, 뉴스 분야는 그 분야 색, 기타는 회색
-  const toneOf = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const g of groups) for (const id of [g.id, ...g.details.map((d) => d.id)]) m.set(id, g.id);
-    for (const n of news) m.set(n.id, n.id);
-    return m;
-  }, [groups, news]);
-  const terms = useMemo(() => new Map(suggestions.map((s) => [s.id, s.terms.map(normalizeInterest)])), [suggestions]);
+  const [open, setOpen] = useState<string | null>(null);
+  const [text, setText] = useState("");
 
   const serverPicked = useMemo(
     () =>
@@ -65,91 +34,88 @@ export function TopicSettings({
       ]),
     [groups, news, custom],
   );
-  const [picked, applyOp] = useOptimistic(serverPicked, (cur: Set<string>, op: Op) => {
+  const [picked, apply] = useOptimistic(serverPicked, (cur: Set<string>, op: Op) => {
     const next = new Set(cur);
-    if (op.kind === "add") next.add(op.id);
-    else next.delete(op.id);
+    for (const id of op.drop) next.delete(id);
+    for (const id of op.add) next.add(id);
     return next;
   });
 
-  const [state, dispatch] = useActionState<TopicResult | null, FormData>(async (prev, formData) => {
-    const add = formData.get("add");
-    const remove = formData.get("remove");
-    if (typeof add === "string") applyOp({ kind: "add", id: add });
-    if (typeof remove === "string") applyOp({ kind: "remove", id: remove });
+  const [state, dispatch] = useActionState<TopicResult | null, Send>(async (prev, { fields, op }) => {
+    if (op) apply(op);
+    const formData = new FormData();
+    for (const [k, v] of Object.entries(fields)) formData.set(k, v);
     const r = await editTopics(prev, formData);
-    if (formData.has("text") && r?.tone !== "warn") setQuery("");
+    if ("text" in fields && r?.tone !== "warn") setText("");
     return r;
   }, null);
-  const send = (key: "add" | "remove" | "text", value: string) => {
-    const formData = new FormData();
-    formData.set(key, value);
-    startTransition(() => dispatch(formData));
+  const send = (fields: Record<string, string>, op?: Op) => startTransition(() => dispatch({ fields, op }));
+
+  /** 분야 하나에서 고른 것을 통째로 정한다. 상세를 다 고르면 전체로 */
+  const setGroup = (g: TopicGroupView, next: "all" | string[]) => {
+    const children = g.details.map((d) => d.id);
+    const desired = next === "all" || next.length === children.length ? [g.id] : next;
+    const drop = [g.id, ...children].filter((id) => picked.has(id) && !desired.includes(id));
+    const add = desired.filter((id) => !picked.has(id));
+    if (picked.size - drop.length + add.length < 1) return;
+    send({ group: g.id, pick: desired.includes(g.id) ? "all" : desired.join(",") }, { drop, add });
+  };
+  const clickWhole = (g: TopicGroupView) => setGroup(g, picked.has(g.id) ? [] : "all");
+  const clickDetail = (g: TopicGroupView, id: string) => {
+    const ids = g.details.map((d) => d.id);
+    if (picked.has(g.id)) return setGroup(g, ids.filter((x) => x !== id));
+    const some = ids.filter((x) => picked.has(x));
+    setGroup(g, some.includes(id) ? some.filter((x) => x !== id) : [...some, id]);
+  };
+  /** 뉴스 분야·기타 하나 켜고 끄기 */
+  const toggleOne = (id: string) => {
+    if (picked.has(id)) {
+      if (picked.size <= 1) return;
+      send({ remove: id }, { drop: [id], add: [] });
+    } else send({ add: id }, { drop: [], add: [id] });
   };
 
-  const chips = [
-    ...sections.flatMap((s) => s.options.filter((o) => picked.has(o.id)).map((o) => ({ id: o.id, name: o.chip, tone: toneOf.get(o.id) ?? "etc" }))),
-    ...custom.filter((c) => picked.has(c.id)).map((c) => ({ id: c.id, name: c.name, tone: "etc" })),
+  const chips: Chip[] = [
+    ...groups.flatMap((g): Chip[] =>
+      picked.has(g.id)
+        ? [{ id: g.id, name: g.name, tone: g.id, remove: () => setGroup(g, []) }]
+        : g.details.filter((d) => picked.has(d.id)).map((d) => ({ id: d.id, name: d.name, tone: g.id, remove: () => clickDetail(g, d.id) })),
+    ),
+    ...news.filter((n) => picked.has(n.id)).map((n) => ({ id: n.id, name: n.name, tone: n.id, remove: () => toggleOne(n.id) })),
+    ...custom.filter((c) => picked.has(c.id)).map((c) => ({ id: c.id, name: c.name, tone: "etc", remove: () => toggleOne(c.id) })),
   ];
   const only = chips.length <= 1;
-
-  const key = normalizeInterest(query);
-  const visible = key
-    ? sections
-        .map((s) => ({ ...s, options: s.options.filter((o) => [normalizeInterest(o.label), ...(terms.get(o.id) ?? [])].some((t) => t.includes(key))) }))
-        .filter((s) => s.options.length > 0)
-    : sections;
-  const flat = visible.flatMap((s) => s.options);
-  const exact = !!key && [...terms.values()].some((ts) => ts.includes(key));
-  const textOption = !!key && !exact;
-  const count = flat.length + (textOption ? 1 : 0);
-  const shown = open && count > 0;
-
-  const toggle = (id: string) => {
-    if (picked.has(id)) {
-      if (only) return;
-      send("remove", id);
-    } else send("add", id);
-    // 걸러서 골랐으면 전체 목록으로 돌아간다
-    if (key) {
-      setQuery("");
-      setActive(-1);
-    }
-  };
-  const addText = () => {
-    if (query.trim()) send("text", query.trim());
-  };
 
   // 바깥을 누르면 닫는다(모바일 사파리는 버튼에 포커스를 주지 않아 blur만으로는 못 닫는다)
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
-      if (!boxRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!boxRef.current?.contains(e.target as Node)) setOpen(null);
     };
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
   }, [open]);
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      setOpen(true);
-      if (count) setActive((i) => (e.key === "ArrowDown" ? (i + 1) % count : (i <= 0 ? count : i) - 1));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (active >= 0 && active < flat.length) toggle(flat[active]!.id);
-      else if (active === flat.length && textOption) addText();
-      else if (key) {
-        // 적은 말과 이름·별칭이 똑같은 관심사가 보이면 그것을, 없으면 기타로
-        const hit = flat.find((o) => (terms.get(o.id) ?? []).includes(key));
-        if (hit) toggle(hit.id);
-        else addText();
-      }
-    } else if (e.key === "Escape") {
-      setOpen(false);
-      setActive(-1);
-    }
-  };
+  const openGroup = groups.find((g) => g.id === open);
+  const newsCount = news.filter((n) => picked.has(n.id)).length;
+  const customCount = custom.filter((c) => picked.has(c.id)).length;
+  const trigger = (id: string, label: string, badge: string | null) => (
+    <button
+      key={id}
+      type="button"
+      aria-expanded={open === id}
+      aria-controls={open === id ? panelId : undefined}
+      onClick={() => setOpen((o) => (o === id ? null : id))}
+      className={`tile inline-flex min-h-11 items-center gap-2 py-1 pl-1.5 pr-2.5 text-[14px] font-extrabold transition-colors ${
+        open === id ? "border-sky bg-sky-tint" : "hover:bg-snow"
+      }`}
+    >
+      <TopicGroupIcon id={id} className="size-7 rounded-lg" iconClassName="size-4" />
+      {label}
+      {badge && <span className="rounded-full bg-sky px-1.5 py-px text-[12px] font-black leading-[18px] text-white">{badge}</span>}
+      <IconChevronDown className={`size-4 text-faint transition-transform ${open === id ? "rotate-180" : ""}`} />
+    </button>
+  );
 
   return (
     <>
@@ -160,7 +126,7 @@ export function TopicSettings({
               {c.name}
               <button
                 type="button"
-                onClick={() => toggle(c.id)}
+                onClick={c.remove}
                 disabled={only}
                 aria-label={`${c.name} 빼기`}
                 title={only ? "관심사가 하나는 있어야 해요" : undefined}
@@ -176,100 +142,93 @@ export function TopicSettings({
         {state?.message}
       </p>
 
-      <div ref={boxRef} className={`relative ${chips.length > 0 ? "mt-3" : ""}`}>
-        <label htmlFor="topic-pick" className="sr-only">
-          관심사 고르기 또는 직접 적기
-        </label>
-        <input
-          ref={inputRef}
-          id="topic-pick"
-          autoComplete="off"
-          maxLength={200}
-          role="combobox"
-          aria-expanded={shown}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={shown && active >= 0 ? `${listId}-${active}` : undefined}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-            setActive(-1);
-          }}
-          onFocus={() => setOpen(true)}
-          onClick={() => setOpen(true)}
-          onKeyDown={onKeyDown}
-          placeholder="관심사 고르기 또는 직접 적기"
-          className={`tile min-h-12 w-full pl-4 pr-12 text-[15px] font-semibold placeholder:text-faint ${shown ? "border-sky" : ""}`}
-        />
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-label={shown ? "목록 닫기" : "목록 열기"}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            setOpen((o) => !o);
-            inputRef.current?.focus();
-          }}
-          className="absolute right-1.5 top-1.5 flex size-9 items-center justify-center rounded-lg text-faint hover:bg-snow hover:text-ink"
-        >
-          <IconChevronDown className={`size-5 transition-transform ${shown ? "rotate-180" : ""}`} />
-        </button>
-
-        {/* 누르는 동안 입력칸이 포커스를 잃어 목록이 닫히지 않게 mousedown을 막는다 */}
-        <div
-          id={listId}
-          role="listbox"
-          aria-multiselectable="true"
-          aria-label="관심사 목록"
-          hidden={!shown}
-          onMouseDown={(e) => e.preventDefault()}
-          className="tile absolute inset-x-0 top-full z-20 mt-1.5 max-h-[min(60vh,440px)] overflow-y-auto overscroll-contain p-1.5 shadow-lg"
-        >
-          {visible.map((s) => (
-            <div key={s.id} role="group" aria-labelledby={`${listId}-g-${s.id}`}>
-              <div id={`${listId}-g-${s.id}`} className="sticky top-0 z-10 flex items-center gap-2 bg-white px-2 pb-1 pt-2.5 text-[13px] font-black text-sub">
-                <TopicGroupIcon id={s.id} className="size-5 rounded-md" iconClassName="size-3.5" />
-                {s.title}
-              </div>
-              {s.options.map((o) => {
-                const i = flat.indexOf(o);
-                const on = picked.has(o.id);
-                return (
-                  <div
-                    key={o.id}
-                    id={`${listId}-${i}`}
-                    role="option"
-                    aria-selected={on}
-                    onClick={() => toggle(o.id)}
-                    onPointerEnter={() => setActive(i)}
-                    className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 text-[15px] font-extrabold ${i === active ? "bg-snow" : ""} ${on ? "text-ink" : "text-sub"}`}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{o.label}</span>
-                    <i aria-hidden className={`flex size-5 shrink-0 items-center justify-center rounded-md border-2 ${on ? "border-sky bg-sky text-white" : "border-line bg-white"}`}>
-                      {on && <IconCheck className="size-3.5 [stroke-width:3.4]" />}
-                    </i>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-          {textOption && (
-            <div
-              id={`${listId}-${flat.length}`}
-              role="option"
-              aria-selected={false}
-              onClick={addText}
-              onPointerEnter={() => setActive(flat.length)}
-              className={`mt-1 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3 text-[15px] font-extrabold ${active === flat.length ? "bg-snow" : ""}`}
-            >
-              <IconPlus className="size-4 text-sky [stroke-width:2.6]" />
-              <span className="min-w-0 truncate">‘{query.trim()}’ 넣기</span>
-              <span className="ml-auto shrink-0 text-[13px] font-bold text-faint">기타</span>
-            </div>
-          )}
+      <div
+        ref={boxRef}
+        className={`relative ${chips.length > 0 ? "mt-3" : ""}`}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && open) {
+            setOpen(null);
+            boxRef.current?.querySelector<HTMLButtonElement>(`[aria-expanded="true"]`)?.focus();
+          }
+        }}
+      >
+        <div className="flex flex-wrap gap-2">
+          {groups.map((g) => {
+            const some = g.details.filter((d) => picked.has(d.id)).length;
+            return trigger(g.id, g.name, picked.has(g.id) ? "전체" : some ? String(some) : null);
+          })}
+          {trigger("news", "뉴스", newsCount ? String(newsCount) : null)}
+          {trigger("etc", "기타", customCount ? String(customCount) : null)}
         </div>
+
+        {open && (
+          <div id={panelId} className="tile absolute inset-x-0 top-full z-20 mt-2 max-h-[min(60vh,460px)] overflow-y-auto overscroll-contain p-1.5 shadow-lg">
+            {openGroup && (
+              <>
+                <CheckRow
+                  label={`${openGroup.name} 전체`}
+                  checked={picked.has(openGroup.id) ? true : openGroup.details.some((d) => picked.has(d.id)) ? "mixed" : false}
+                  onClick={() => clickWhole(openGroup)}
+                />
+                <hr aria-hidden className="mx-3 my-1 border-t-2 border-line" />
+                {openGroup.details.map((d) => (
+                  <CheckRow key={d.id} label={d.name} checked={picked.has(openGroup.id) || picked.has(d.id)} onClick={() => clickDetail(openGroup, d.id)} />
+                ))}
+              </>
+            )}
+            {open === "news" && news.map((n) => <CheckRow key={n.id} label={n.name} checked={picked.has(n.id)} onClick={() => toggleOne(n.id)} />)}
+            {open === "etc" && (
+              <form
+                className="flex gap-2 p-1.5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (text.trim()) send({ text: text.trim() });
+                }}
+              >
+                <label htmlFor="etc-text" className="sr-only">
+                  목록에 없는 관심사
+                </label>
+                <input
+                  id="etc-text"
+                  autoFocus
+                  autoComplete="off"
+                  maxLength={200}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="목록에 없는 관심사(예: 드론, 게임)"
+                  className="tile min-h-12 min-w-0 flex-1 px-4 text-[15px] font-semibold placeholder:text-faint"
+                />
+                <button type="submit" disabled={!text.trim()} className="btn min-h-12 shrink-0 px-5">
+                  넣기
+                </button>
+              </form>
+            )}
+          </div>
+        )}
       </div>
     </>
+  );
+}
+
+/** 체크 한 줄. 줄 전체를 누르면 켜고 끈다. mixed는 분야 전체 칸에서 상세 몇 개만 골랐을 때 */
+function CheckRow({ label, checked, onClick }: { label: string; checked: boolean | "mixed"; onClick: () => void }) {
+  const on = checked === true;
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onClick}
+      className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-extrabold hover:bg-snow ${on ? "text-ink" : "text-sub"}`}
+    >
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <i
+        aria-hidden
+        className={`flex size-5 shrink-0 items-center justify-center rounded-md border-2 ${on ? "border-sky bg-sky text-white" : checked === "mixed" ? "border-sky bg-white text-sky" : "border-line bg-white"}`}
+      >
+        {on && <IconCheck className="size-3.5 [stroke-width:3.4]" />}
+        {checked === "mixed" && <span className="h-0.5 w-2.5 rounded-full bg-current" />}
+      </i>
+    </button>
   );
 }

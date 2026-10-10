@@ -1,10 +1,10 @@
 import 'server-only';
 import {
-  childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, NEWS_SECTIONS, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS, TOPICS,
+  childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, NEWS_SECTIONS, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS,
 } from '@maengo/core/topics';
 import { screener, screenModel } from './ai';
 import { db, must } from './db';
-import type { TopicGroupView, TopicResult, TopicSuggestion, UserTopic } from '../types';
+import type { TopicGroupView, TopicResult, UserTopic } from '../types';
 import { entitlements, type Profile } from './profile';
 
 // 관심사 고치기(설정). user_topics에 바로 쓰고, 다음 피드 고르기부터 반영된다.
@@ -106,9 +106,36 @@ export async function removeTopic(profile: Profile, id: string): Promise<TopicRe
   return { tone: 'ok', message: '' };
 }
 
-/** 설정 > 관심사 드롭다운에서 적은 말로 거를 때 볼 말: 사전 전체의 이름·별칭 */
-export function topicSuggestions(): TopicSuggestion[] {
-  return TOPICS.map((t) => ({ id: t.id, terms: [t.name, ...t.aliases] }));
+/**
+ * 설정 > 관심사의 분야 드롭다운: 그 분야에서 고른 것을 통째로 정한다. pick은 'all'(분야 전체) 또는 상세 관심사 id를 쉼표로 이은 것(빈 값이면 다 뺀다).
+ * 분야 전체를 고르면 그 분야 상세 관심사는 뺀다(분야 전체가 상세 소식도 받는다, withParents). 상세를 다 고르면 분야 전체로 바꾼다.
+ * 이미 있던 관심사는 지우지 않고 둬서 피드백으로 바뀐 가중치가 남는다.
+ */
+export async function setGroupPicks(profile: Profile, groupId: string, pick: string): Promise<TopicResult> {
+  const group = TOPIC_BY_ID.get(groupId);
+  const children = childrenOf(groupId).map((c) => c.id);
+  if (!group || group.parent || !children.length) return { tone: 'warn', message: '없는 관심사예요.' };
+  let desired = pick === 'all' ? [groupId] : pick.split(',').filter((id) => children.includes(id));
+  if (desired.length === children.length) desired = [groupId];
+  const weights = await weightsOf(profile.id);
+  const mine = Object.keys(weights).filter((id) => weights[id]! > 0);
+  const drop = [groupId, ...children].filter((id) => mine.includes(id) && !desired.includes(id));
+  const add = desired.filter((id) => !mine.includes(id));
+  if (mine.length - drop.length + add.length < 1) return LAST;
+  const limit = entitlements(profile).topicLimit;
+  const listAfter = mine.filter((id) => !isCustomTopicId(id)).length - drop.length + add.length;
+  if (add.length && listAfter > limit) {
+    const who = profile.plan === 'free' ? 'Free는' : '지금 플랜은';
+    return { tone: 'warn', message: `${who} 관심사를 ${limit}개까지 고를 수 있어요. 다른 관심사를 빼고 다시 골라 주세요.` };
+  }
+  if (drop.length) must(await db.from('user_topics').delete().eq('user_id', profile.id).in('topic_id', drop), 'user_topics group drop');
+  if (add.length) {
+    must(
+      await db.from('user_topics').upsert(add.map((topic_id) => ({ user_id: profile.id, topic_id, weight: 1, source: 'settings' })), { onConflict: 'user_id,topic_id' }),
+      'user_topics group add',
+    );
+  }
+  return { tone: 'ok', message: '' };
 }
 
 const ADULT: TopicResult = { tone: 'warn', code: 'adult', message: '성인 관련 관심사는 넣을 수 없어요.' };

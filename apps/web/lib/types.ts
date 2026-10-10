@@ -124,12 +124,6 @@ export interface UserTopic {
   name: string;
 }
 
-/** 설정 > 관심사 드롭다운에서 적은 말로 거를 때 볼 말(이름·별칭) */
-export interface TopicSuggestion {
-  id: string;
-  terms: string[];
-}
-
 /** 설정 > 관심사: 관심 분야와 그 아래 상세 관심사 */
 export interface TopicGroupView {
   id: string;
