@@ -41,6 +41,16 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 
 계정 로그인·결제·본인 확인이 필요해서 대신 만들 수 없다. 값을 `.env.local`에 넣고 알려 주면 나머지(Supabase 설정, 코드 연결)는 이쪽에서 한다.
 
+### 0. 듣기 음성: Google Cloud TTS(Chirp 3 HD) 키 — 10분
+2026-10-10 Gemini TTS(무료 하루 10번)에서 바꿨다. 매월 한글 100만 자(공백 포함)까지 무료, 그 뒤 100만 자당 $30.
+1. [Google Cloud 콘솔](https://console.cloud.google.com/)에서 프로젝트 `maengo`(구글 로그인과 같은 프로젝트)를 고른다
+2. 결제 → 결제 계정 연결(카드). 무료 한도 안에서만 써도 결제 계정이 있어야 API가 켜진다
+3. 결제 → 예산 및 알림 → 예산 만들기(예: 월 1만 원, 50%·90%·100%에서 메일)
+4. API 및 서비스 → 라이브러리 → **Cloud Text-to-Speech API** → 사용
+5. API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → API 키 → 키 수정 → API 제한사항: **Cloud Text-to-Speech API**만
+6. `apps/web/.env.local`에 `GOOGLE_TTS_API_KEY=<키>`(대화창에 붙이지 말고 파일에 직접). Vercel 운영 환경 변수에는 이쪽에서 파일 값을 옮긴다
+7. 키가 있으면 듣기·미리 듣기 샘플이 Chirp 3 HD로 만들어진다(`apps/web/lib/server/google-tts.ts`). 키를 지우면 Gemini TTS로 돌아간다
+
 ### 1. Gemini 결제 켜기 — 출시 전에
 키는 받았다(위). 플러스 유저에게 상위 모델 요약을 주려면 [AI Studio](https://aistudio.google.com/apikey)에서 결제를 연결한다. 그 전까지는 모두 Flash 요약이다.
 

@@ -8,6 +8,7 @@ import { estimateTimeline, layoutChapters, PERSONAS, voiceKey } from '@maengo/co
 import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
 import type { FeedItem } from '../types';
 import { tts, ttsModel } from './ai';
+import { TtsQuotaError } from './google-tts';
 import { audioStore } from './audio-store';
 import { db, must } from './db';
 import { feedItems, findFeedItem } from './feed';
@@ -171,9 +172,9 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
         try {
           speech = await withTtsSlot(() => tts.speak({ model: ttsModel(), persona, voice: vk, lines }));
         } catch (e) {
-          if (e instanceof GeminiQuotaError) {
-            // Gemini가 알려 준 시각까지(모르면 한 시간) TTS를 부르지 않는다
-            const minutes = e.retryMs ? Math.min(24 * 60, Math.ceil(e.retryMs / 60_000)) : 60;
+          if (e instanceof GeminiQuotaError || e instanceof TtsQuotaError) {
+            // 알려 준 시각까지 TTS를 부르지 않는다. 모르면 Gemini(하루 한도)는 한 시간, Google(분당 한도)은 5분
+            const minutes = e.retryMs ? Math.min(24 * 60, Math.ceil(e.retryMs / 60_000)) : e instanceof TtsQuotaError ? 5 : 60;
             await blockTts(minutes);
             throw new TtsBusyError(new Date(Date.now() + minutes * 60_000));
           }
