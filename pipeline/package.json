@@ -22,6 +22,7 @@
     "typescript": "^5.7.2"
   },
   "exports": {
-    "./instant": "./src/instant.ts"
+    "./instant": "./src/instant.ts",
+    "./deliveries": "./src/deliveries.ts"
   }
 }
