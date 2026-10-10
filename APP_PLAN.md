@@ -113,13 +113,14 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 - `deliveries` 작업 = `pipeline/src/deliveries.ts`의 `runDeliveries`: 오늘 줄 채우기 → 멈춘 줄 되돌리기 → 만들 차례인 사람들 관심사를 합쳐 피드 만들기 → 보낼 차례에 FCM HTTP v1로 발송(죽은 토큰은 지움, `notifications_log` 기록). 상태 확인: `select * from cron_status()`, `select name, next_run_at, last_status, last_error from scheduler_tasks`(서버 키)
 - `POST /api/devices {token, platform: 'android'|'ios'|'web', appVersion}`·`DELETE {token}`: 로그인한 사람의 기기 토큰 등록·삭제(웹뷰는 같은 출처라 쿠키로 인증된다)
 - Firebase 준비 끝: 설정 파일·서비스 계정·APNs 키·웹 푸시 키(API_KEYS.md 4번)
+- 알림 켜고 끄기(2026-10-11): `profiles.push_enabled`(기본 꺼짐). 꺼 두면 맹고는 만들어 두되 보내지 않는다(`delivery_jobs` 'muted'). 설정 > 알림의 '알림 받기' 스위치(`components/settings/PushToggle.tsx`): 켜면 `lib/web-push.ts`의 `registerThisBrowser()`로 기기를 등록한 뒤 서버 액션 `setPushEnabled(true)`(등록된 기기가 없으면 켜지지 않음), 끄면 그 사람의 기기 토큰을 모두 지운다
+- 웹 푸시 끝: 서비스 워커 `public/push-sw.js`, Firebase JS SDK는 켤 때만 불러온다. 개인정보 처리방침에 알림 토큰·Google(FCM) 위탁을 넣음(시행일 2026-10-11)
 
 **앱(남음)**
 - [ ] `@capacitor-firebase/messaging` 설치, iOS는 Push Notifications·Background Modes(Remote notifications) 켜고 `GoogleService-Info.plist`를 App 타깃에 추가
-- [ ] 권한 요청은 사용자 동작에서만(설정 > 알림의 "알림 받기" 버튼, 온보딩 마지막에 한 번 권하기). 권한을 받으면 토큰을 `POST /api/devices`로, 앱을 열 때마다 다시 등록
+- [ ] 권한 요청은 사용자 동작에서만: 설정 > 알림의 '알림 받기' 스위치가 앱 안에서는 `registerThisBrowser()`에서 `{ ok: false, reason: 'app' }`을 돌려준다. 여기를 네이티브 권한 요청 → FCM 토큰 → `POST /api/devices`(platform ios·android)로 채우면 스위치가 그대로 동작한다. 온보딩 마지막에 한 번 권하기
+- [ ] 앱을 열 때마다 토큰 다시 등록은 `push_enabled`가 켜져 있고 권한이 있을 때만(꺼 두면 서버가 토큰을 지운 상태를 유지)
 - [ ] 알림을 누르면 `data.path`(`/today?from=push`)로 이동. 로그아웃하면 `DELETE /api/devices`
-- [ ] 개인정보 처리방침(`apps/web/app/(legal)/privacy/page.tsx`)에 기기 알림 토큰 항목과 Google(FCM) 위탁·국외 이전을 다시 넣고 시행일(`lib/site.ts`)을 바꾼다. 계정 삭제 안내의 '지워지는 정보'에도 앱 알림 토큰을 더한다
-- 웹 푸시는 나중: 로컬 시험 페이지(`public/push-test.html`, 커밋 안 함)로 서버 발송까지 확인함. 사용자 Chrome에서 'push service not available'이 나와 원인 확인 중
 - 완료: 실기기 두 대가 설정한 시각에 알림을 받고, 누르면 오늘 화면이 열린다. 같은 날 두 번 오지 않는다
 
 ### 4단계. 화면 꺼도 듣기(1~2일, 확인 먼저)

@@ -6,12 +6,13 @@ import { CustomTopicEditor } from "@/components/settings/CustomTopicEditor";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
+import { PushToggle } from "@/components/settings/PushToggle";
 import { TopicEditor } from "@/components/settings/TopicEditor";
 import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
 import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
-import { entitlements } from "@/lib/server/profile";
+import { entitlements, webPushTokens } from "@/lib/server/profile";
 import { BETA, PREMIUM_PRICE } from "@/lib/site";
 import { topicGroups, userTopics } from "@/lib/server/topics";
 
@@ -38,7 +39,7 @@ export default async function SettingsPage() {
   const view = toProfileView(profile);
   const demoTools = demoToolsEnabled();
   const e = entitlements(profile);
-  const topics = await userTopics(profile);
+  const [topics, webTokens] = await Promise.all([userTopics(profile), webPushTokens(profile.id)]);
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
@@ -89,7 +90,8 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="notify" title="알림">
-          <NotifyTimePicker current={profile.notifyAt} />
+          <PushToggle enabled={profile.pushEnabled} webTokens={webTokens} />
+          <NotifyTimePicker current={profile.notifyAt} pushEnabled={profile.pushEnabled} />
         </Section>
 
         <Section id="account" title="계정">

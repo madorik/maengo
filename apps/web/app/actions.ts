@@ -125,10 +125,39 @@ export async function saveNotifyAt(_prev: NotifyResult | null, formData: FormDat
   const profile = await requireProfile();
   const value = formData.get("notifyAt");
   if (!isNotifyTime(value)) return { notifyAt: profile.notifyAt, tone: "warn", message: "고를 수 없는 시간이에요. 목록에서 골라 주세요." };
-  if (value === profile.notifyAt) return { notifyAt: value, tone: "ok", message: `이미 ${notifyTimeLabel(value)}에 알려 드리고 있어요.` };
+  if (value === profile.notifyAt) {
+    const label = notifyTimeLabel(value);
+    return { notifyAt: value, tone: "ok", message: profile.pushEnabled ? `이미 ${label}에 알려 드리고 있어요.` : `이미 ${josa(label, "으로", "로")} 골라 두었어요.` };
+  }
   must(await db.from("profiles").update({ notify_at: value }).eq("id", profile.id), "profiles notify_at");
   revalidatePath("/", "layout");
   return { notifyAt: value, tone: "ok", message: `알림 시간을 ${josa(notifyTimeLabel(value), "으로", "로")} 바꿨어요.` };
+}
+
+export interface PushResult {
+  enabled: boolean;
+  tone: "ok" | "warn";
+  message: string;
+}
+
+/**
+ * 설정 > 알림 켜고 끄기. 켤 때는 먼저 이 기기를 /api/devices로 등록해 둔다(등록된 기기가 없으면 켜지 않는다).
+ * 끄면 그 사람의 기기 토큰을 모두 지워 어느 기기에도 보내지 않는다. 맹고는 알림 시각에 계속 만들어 둔다.
+ */
+export async function setPushEnabled(enabled: boolean): Promise<PushResult> {
+  const profile = await requireProfile();
+  const on = enabled === true;
+  const label = notifyTimeLabel(profile.notifyAt);
+  if (on) {
+    const { count } = await db.from("device_tokens").select("token", { count: "exact", head: true }).eq("user_id", profile.id);
+    if (!count) return { enabled: false, tone: "warn", message: "알림 받을 기기를 등록하지 못했어요. 다시 켜 주세요." };
+  }
+  must(await db.from("profiles").update({ push_enabled: on }).eq("id", profile.id), "profiles push_enabled");
+  if (!on) must(await db.from("device_tokens").delete().eq("user_id", profile.id), "device_tokens");
+  revalidatePath("/", "layout");
+  return on
+    ? { enabled: true, tone: "ok", message: `알림을 켰어요. 매일 ${label}에 알려 드려요.` }
+    : { enabled: false, tone: "ok", message: `알림을 껐어요. 맹고는 매일 ${label}에 준비해 둘게요.` };
 }
 
 const VOICES: Voice[] = ["f", "m"];

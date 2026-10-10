@@ -17,6 +17,8 @@ export interface Profile {
   /** 관심사 고르기를 마쳤는지. 안 마쳤으면 /onboarding으로 보낸다 */
   onboarded: boolean;
   notifyAt: string;
+  /** 푸시 알림을 켰는지(설정 > 알림). 꺼 두면 맹고는 만들어 두되 알리지 않는다 */
+  pushEnabled: boolean;
   plan: Plan;
   /** Premium이 끝나는 시각(가입 1주일 또는 결제 기간). null이면 기한 없음 */
   premiumUntil: number | null;
@@ -32,6 +34,7 @@ interface ProfileRow {
   id: string;
   display_name: string | null;
   notify_at: string;
+  push_enabled: boolean;
   plan: Plan;
   premium_until: string | null;
   persona: Persona;
@@ -46,7 +49,7 @@ export async function loadProfile(
   who: { provider: Provider; email: string | null; avatarUrl: string | null; demo: boolean },
 ): Promise<Profile | null> {
   const row = must(
-    await db.from('profiles').select('id,display_name,notify_at,plan,premium_until,persona,voice,auto_next,skip_read,onboarded_at').eq('id', userId).maybeSingle(),
+    await db.from('profiles').select('id,display_name,notify_at,push_enabled,plan,premium_until,persona,voice,auto_next,skip_read,onboarded_at').eq('id', userId).maybeSingle(),
     'profiles',
   ) as ProfileRow | null;
   if (!row) return null;
@@ -65,6 +68,7 @@ export async function loadProfile(
     ...who,
     onboarded: row.onboarded_at !== null,
     notifyAt: row.notify_at.slice(0, 5),
+    pushEnabled: row.push_enabled,
     plan,
     premiumUntil,
     // 말투는 아나운서 하나로 고정(DB 값은 쓰지 않는다)
@@ -73,6 +77,12 @@ export async function loadProfile(
     autoNext: row.auto_next,
     skipRead: row.skip_read,
   };
+}
+
+/** 이 사람이 웹 푸시로 등록한 토큰(설정 > 알림이 '이 브라우저도 받는지' 비교하는 데 쓴다) */
+export async function webPushTokens(userId: string): Promise<string[]> {
+  const rows = must(await db.from('device_tokens').select('token').eq('user_id', userId).eq('platform', 'web'), 'device_tokens') as { token: string }[];
+  return rows.map((r) => r.token);
 }
 
 /** Premium 남은 날(기한이 있을 때만). 가입 1주일 Premium이면 7 → 0 */
