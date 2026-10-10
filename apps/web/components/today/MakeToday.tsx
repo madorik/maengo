@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { IconCheck } from "@/components/icons";
+import { useEffect, useState } from "react";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 
 type Progress =
   | { stage: "finding" }
+  | { stage: "collecting" }
   | { stage: "summarizing"; done: number; total: number }
   | { stage: "saving" }
   | { stage: "done"; items: number }
@@ -18,17 +17,95 @@ type Progress =
 
 type State = { kind: "idle" } | { kind: "running"; p: Progress } | { kind: "empty" } | { kind: "error" } | { kind: "done"; items: number };
 
-const STEPS = ["관심사에 맞는 소식 찾기", "읽고 요약하기", "오늘 목록 담기"] as const;
+/** 단계마다 진행 바가 머무를 구간. 서버 알림이 없는 동안에도 다음 구간 직전까지 조금씩 차오른다 */
+function rangeOf(p: Progress): [number, number] {
+  if (p.stage === "finding") return [0.03, 0.12];
+  if (p.stage === "collecting") return [0.12, 0.45];
+  if (p.stage === "summarizing") {
+    const step = 0.45 / Math.max(1, p.total);
+    return [0.45 + step * p.done, 0.45 + step * (p.done + 1) - 0.02];
+  }
+  if (p.stage === "saving") return [0.92, 0.98];
+  return [1, 1];
+}
 
-function stepOf(p: Progress): number {
-  if (p.stage === "finding") return 0;
-  if (p.stage === "summarizing") return 1;
-  return 2;
+/** 진행 중에 돌아가며 보여 줄 말. 단계에 맞춰 바뀐다 */
+function cheersOf(p: Progress): string[] {
+  if (p.stage === "finding") return ["관심사에 맞는 소식을 찾고 있어요", "맹고가 신문 더미를 뒤적이는 중이에요"];
+  if (p.stage === "collecting") return ["따끈한 새 소식을 모으고 있어요", "여기저기서 소식을 주워 담는 중이에요", "조금만 기다려 주세요~", "맹고가 열심히 뛰어다니고 있어요"];
+  if (p.stage === "summarizing")
+    return [
+      `맹고 ${p.total}개를 만들고 있어요~`,
+      "맹고가 열심히 기사를 읽고 있어요",
+      "핵심만 쏙쏙 골라 담는 중이에요",
+      "조금만 기다려 주세요~",
+      p.done ? `${p.done}개 완성! 나머지도 금방이에요` : "첫 번째 맹고를 빚는 중이에요",
+    ];
+  if (p.stage === "saving") return ["거의 다 됐어요! 오늘 목록에 담는 중이에요"];
+  if (p.stage === "done") return [`오늘의 맹고 ${p.items}개가 준비됐어요!`];
+  return ["오늘의 맹고를 만들고 있어요"];
+}
+
+/** 스크린리더에는 돌아가는 말 대신 단계만 알린다 */
+function stageLabel(p: Progress): string {
+  if (p.stage === "collecting") return "새 소식을 모으는 중";
+  if (p.stage === "summarizing") return `소식 ${p.total}개 중 ${p.done}개 요약함`;
+  if (p.stage === "saving") return "오늘 목록에 담는 중";
+  if (p.stage === "done") return `오늘의 맹고 ${p.items}개 준비됨`;
+  return "관심사에 맞는 소식을 찾는 중";
+}
+
+/** 만드는 동안 보이는 카드: 차오르는 줄무늬 진행 바와 몇 초마다 바뀌는 말 */
+function Making({ p }: { p: Progress }) {
+  const [lo, hi] = rangeOf(p);
+  const [shown, setShown] = useState(lo);
+  const [tick, setTick] = useState(0);
+  const done = p.stage === "done";
+
+  // 다음 구간 직전까지 천천히 다가간다(구간이 바뀌면 그 바닥부터)
+  useEffect(() => {
+    const id = setInterval(() => setShown((v) => Math.max(lo, v + (hi - Math.max(lo, v)) * 0.035)), 150);
+    return () => clearInterval(id);
+  }, [lo, hi]);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 2600);
+    return () => clearInterval(id);
+  }, []);
+
+  const cheers = cheersOf(p);
+  const line = cheers[tick % cheers.length]!;
+  const pct = Math.round((done ? 1 : Math.max(lo, shown)) * 100);
+  return (
+    <div className="tile mt-6 p-5">
+      <p role="status" className="sr-only">
+        {stageLabel(p)}
+      </p>
+      <div className="flex items-center gap-3">
+        <Mascot mood={done ? "cheer" : "listen"} className={`size-16 shrink-0 ${done ? "pop" : "bob"}`} />
+        <div className="min-w-0 flex-1" aria-hidden>
+          <p key={line} className="swap text-[18px] font-black leading-snug">
+            {line}
+          </p>
+          <p className="mt-0.5 text-[13px] font-semibold text-sub">
+            {done ? "곧 화면에 보여 드릴게요" : p.stage === "summarizing" ? `${p.total}개 중 ${p.done}개 완성` : "1~2분쯤 걸릴 수 있어요"}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <div role="progressbar" aria-label="오늘의 맹고 만드는 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="h-4 flex-1 overflow-hidden rounded-full bg-line">
+          <div className={`h-full rounded-full bg-sky transition-[width] duration-300 ease-out ${done ? "" : "stripes"}`} style={{ width: `${pct}%` }} />
+        </div>
+        <span className="w-10 text-right font-round text-[14px] font-black tabular-nums text-sky-dark" aria-hidden>
+          {pct}%
+        </span>
+      </div>
+    </div>
+  );
 }
 
 /**
  * 오늘의 맹고가 비었을 때(가입 직후, 새벽 배치 전): "오늘 맹고 받기"를 누르면 이 사람 것을 지금 만든다.
- * 서버가 보내는 진행 상황(찾기 → 요약 n/N → 담기)을 그대로 보여 주고, 끝나면 화면을 새로 그린다.
+ * 서버가 보내는 진행 상황(찾기 → (고를 게 없으면) 새 소식 모으기 → 요약 n/N → 담기)에 맞춰 진행 바와 말을 바꾸고, 끝나면 화면을 새로 그린다.
  */
 export function MakeToday({ reason }: { reason: "waiting" | "exhausted" | null }) {
   const router = useRouter();
@@ -66,45 +143,7 @@ export function MakeToday({ reason }: { reason: "waiting" | "exhausted" | null }
   };
 
   if (state.kind === "running" || state.kind === "done") {
-    const p: Progress = state.kind === "done" ? { stage: "done", items: state.items } : state.p;
-    const step = stepOf(p);
-    const ratio = p.stage === "finding" ? 0.12 : p.stage === "summarizing" ? 0.2 + 0.65 * (p.done / Math.max(1, p.total)) : p.stage === "saving" ? 0.92 : 1;
-    return (
-      <div className="tile mt-6 p-5" role="status" aria-live="polite">
-        <div className="flex items-center gap-3">
-          <Mascot mood={state.kind === "done" ? "cheer" : "listen"} className={`size-16 shrink-0 ${state.kind === "done" ? "" : "bob"}`} />
-          <div className="min-w-0">
-            <p className="text-[18px] font-black">{state.kind === "done" ? `오늘의 맹고 ${state.items}개가 준비됐어요!` : "오늘의 맹고를 만들고 있어요"}</p>
-            <p className="mt-0.5 text-[14px] font-semibold text-sub">
-              {p.stage === "summarizing"
-                ? `맹고가 기사를 읽고 요약하는 중이에요 (${p.done}/${p.total})`
-                : p.stage === "finding"
-                  ? "관심사에 맞는 소식을 고르는 중이에요"
-                  : p.stage === "saving"
-                    ? "오늘 목록에 담는 중이에요"
-                    : "곧 화면에 보여 드릴게요"}
-            </p>
-          </div>
-        </div>
-        <ProgressBar value={ratio} tone="sky" label="오늘의 맹고 만드는 중" className="mt-4 h-3" />
-        <ol className="mt-4 flex flex-col gap-2">
-          {STEPS.map((label, i) => {
-            const done = state.kind === "done" || i < step;
-            const now = state.kind !== "done" && i === step;
-            return (
-              <li key={label} className={`flex items-center gap-2 text-[14px] font-bold ${done ? "text-leaf" : now ? "text-ink" : "text-faint"}`}>
-                <span className={`flex size-5 items-center justify-center rounded-full border-2 ${done ? "border-leaf bg-leaf text-white" : now ? "border-sky" : "border-line"}`}>
-                  {done && <IconCheck className="size-3 [stroke-width:3.5]" />}
-                </span>
-                {label}
-                {now && p.stage === "summarizing" && <span className="font-round text-sub">{` ${p.done}/${p.total}`}</span>}
-              </li>
-            );
-          })}
-        </ol>
-        <p className="mt-3 text-[12px] font-semibold text-faint">처음 한 번만 1분쯤 걸려요. 이 화면에서 잠시만 기다려 주세요.</p>
-      </div>
-    );
+    return <Making p={state.kind === "done" ? { stage: "done", items: state.items } : state.p} />;
   }
 
   return (
@@ -114,7 +153,7 @@ export function MakeToday({ reason }: { reason: "waiting" | "exhausted" | null }
         {state.kind === "empty" ? (
           <>
             <p className="text-[15px] font-bold leading-relaxed">
-              아직 이 관심사로 모인 소식이 없어요. 매일 새벽 새 소식을 모으니 내일 아침에 다시 와 주세요.
+              방금 새 소식까지 모아 봤지만 최근 사흘 동안 이 관심사 소식이 없었어요. 관심사를 더하면 바로 다시 찾아 드릴게요.
             </p>
             <Link href="/settings#topics" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
               관심사 넓히기
