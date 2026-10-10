@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { MangoIcon } from "@/components/MangoIcon";
 import { AccountMenu } from "./AccountMenu";
 import { NAV } from "./nav";
-import { StatChips } from "./StatChips";
 
 /** 데스크톱 왼쪽 메뉴 */
 export function SideNav() {
@@ -34,10 +33,7 @@ export function SideNav() {
           );
         })}
       </nav>
-      <div className="mt-6 border-t-2 border-line px-1 pt-5">
-        <StatChips />
-      </div>
-      {/* 계정(프로필 사진·이름 → 로그아웃)은 왼쪽 아래 */}
+      {/* 계정(프로필 사진·이름 → 로그아웃)은 왼쪽 아래. Premium이면 사진에 왕관 */}
       <div className="mt-auto border-t-2 border-line pt-3">
         <AccountMenu placement="up" />
       </div>

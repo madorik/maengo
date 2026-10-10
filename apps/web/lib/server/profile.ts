@@ -16,7 +16,8 @@ export interface Profile {
   onboarded: boolean;
   notifyAt: string;
   plan: Plan;
-  trialEndsAt: number | null;
+  /** Premium이 끝나는 시각(가입 1주일 또는 결제 기간). null이면 기한 없음 */
+  premiumUntil: number | null;
   persona: Persona;
   voice: Voice;
   autoNext: boolean;
@@ -30,7 +31,7 @@ interface ProfileRow {
   display_name: string | null;
   notify_at: string;
   plan: Plan;
-  trial_ends_at: string | null;
+  premium_until: string | null;
   persona: Persona;
   voice: Voice;
   auto_next: boolean;
@@ -43,13 +44,19 @@ export async function loadProfile(
   who: { provider: Provider; email: string | null; avatarUrl: string | null; demo: boolean },
 ): Promise<Profile | null> {
   const row = must(
-    await db.from('profiles').select('id,display_name,notify_at,plan,trial_ends_at,persona,voice,auto_next,skip_read,onboarded_at').eq('id', userId).maybeSingle(),
+    await db.from('profiles').select('id,display_name,notify_at,plan,premium_until,persona,voice,auto_next,skip_read,onboarded_at').eq('id', userId).maybeSingle(),
     'profiles',
   ) as ProfileRow | null;
   if (!row) return null;
-  const trialEndsAt = row.trial_ends_at ? Date.parse(row.trial_ends_at) : null;
-  // 체험이 끝났으면 무료로 본다(결제가 붙으면 결제 단계가 plan을 바꾼다)
-  const plan: Plan = row.plan === 'trial' && trialEndsAt !== null && trialEndsAt < Date.now() ? 'free' : row.plan;
+  let premiumUntil = row.premium_until ? Date.parse(row.premium_until) : null;
+  let plan: Plan = row.plan;
+  // Premium 기한이 지났으면 Free로 돌린다(DB도 바로 고친다. 배치도 새벽마다 한꺼번에 돌린다)
+  if (plan === 'plus' && premiumUntil !== null && premiumUntil < Date.now()) {
+    plan = 'free';
+    premiumUntil = null;
+    const { error } = await db.from('profiles').update({ plan: 'free', premium_until: null }).eq('id', row.id).eq('plan', 'plus');
+    if (error) console.error('Premium 만료 처리 실패', error.message);
+  }
   return {
     id: row.id,
     displayName: row.display_name,
@@ -57,7 +64,7 @@ export async function loadProfile(
     onboarded: row.onboarded_at !== null,
     notifyAt: row.notify_at.slice(0, 5),
     plan,
-    trialEndsAt,
+    premiumUntil,
     persona: row.persona,
     voice: row.voice,
     autoNext: row.auto_next,
@@ -65,14 +72,15 @@ export async function loadProfile(
   };
 }
 
-export function trialDaysLeft(p: Profile, now = Date.now()): number | null {
-  if (p.plan !== 'trial' || !p.trialEndsAt) return null;
-  return Math.max(0, Math.ceil((p.trialEndsAt - now) / DAY_MS));
+/** Premium 남은 날(기한이 있을 때만). 가입 1주일 Premium이면 7 → 0 */
+export function premiumDaysLeft(p: Profile, now = Date.now()): number | null {
+  if (p.plan !== 'plus' || !p.premiumUntil) return null;
+  return Math.max(0, Math.ceil((p.premiumUntil - now) / DAY_MS));
 }
 
 /** PLAN.md 9.1 entitlements. 권한은 여기 한 곳에서만 판단한다. */
 export function entitlements(p: Profile) {
   const paid = p.plan !== 'free';
-  // 하루 소식 수: 무료 1개, 플러스·체험 최대 10개
+  // 하루 소식 수: Free 1개, Premium 최대 10개
   return { audio: paid, podcast: paid, pack: paid, topicLimit: paid ? 20 : 5, dailyItems: paid ? 10 : 1 };
 }

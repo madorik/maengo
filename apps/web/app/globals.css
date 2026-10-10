@@ -33,7 +33,7 @@
 
 @theme inline {
   --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;
-  /* 숫자(연속 일수·XP)만 둥근 라틴 글꼴로 */
+  /* 숫자(진행 개수·시간)만 둥근 라틴 글꼴로 */
   --font-round: var(--font-nunito), "Pretendard Variable", sans-serif;
 }
 

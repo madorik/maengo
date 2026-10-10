@@ -13,7 +13,8 @@
 
 ### Vercel — 2026-10-10 배포
 - 프로젝트 `maengo`(팀 `madorik's projects`, **Hobby** — 비상업용이라 판매 시작 전에 Pro로), 주소 **https://maengo.vercel.app**
-- 루트 디렉터리 `apps/web`, 함수 리전 서울(`icn1`, `apps/web/vercel.json`), 음성 생성 경로 최대 300초
+- 루트 디렉터리 `apps/web`, 함수 리전 서울(`icn1`). `vercel.json`의 regions만으로는 안 바뀌어 프로젝트 설정(Functions → Region)을 icn1로 바꿨다(2026-10-10, 그 전엔 미국 iad1이라 Supabase 왕복이 느렸다). 음성 생성·오늘 맹고 받기 경로 최대 300초
+- **커밋 작성자 이메일은 `xornjs1988@gmail.com`**(저장소 git config). Hobby는 다른 작성자의 커밋을 배포하지 않는다
 - 환경 변수(프로덕션) 10개: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `SESSION_SECRET`(운영용으로 새로 만듦)
 - 공개 주소라 `DEMO_USER_ID`(애플 버튼 데모 로그인)와 `DEMO_TOOLS`(플랜 전환 등)는 넣지 않았다
 - 배포: 저장소 루트에서 `npx vercel deploy --prod`(`.vercelignore`가 `.env*`·캐시를 막는다). 푸시마다 자동 배포하려면 Vercel 대시보드 → 프로젝트 → Settings → Git에서 GitHub 저장소를 연결한다(Vercel GitHub 앱 설치 필요)

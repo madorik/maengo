@@ -3,7 +3,7 @@
 import { PERSONAS } from "@maengo/core/audio";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { IconChevronDown, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { Crown, IconChevronDown, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -41,7 +41,7 @@ export function ListenWidget() {
   const playing = p.status === "playing";
   const minutes = minutesLabel(p.personaTotalMs(p.persona));
   const sub = !p.enabled
-    ? "플러스에서 들을 수 있어요"
+    ? "Premium에서 들을 수 있어요"
     : p.error
       ? "음성을 만들지 못했어요"
       : p.preparing
@@ -154,7 +154,7 @@ export function ListenWidget() {
           ) : (
             <div className="flex flex-col items-center px-5 pb-5 pt-4 text-center">
               <Mascot mood="listen" className="size-24" />
-              <p className="mt-2 text-[16px] font-black">귀로 듣기는 플러스에서</p>
+              <p className="mt-2 text-[16px] font-black">귀로 듣기는 Premium에서</p>
               <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">
                 하루 최대 10개를 받고, 선생님·아나운서·대담 말투로 끝까지 이어서 들어요.
               </p>
@@ -195,7 +195,10 @@ export function ListenWidget() {
             {playing ? <IconPause className="size-5" /> : <IconPlay className="size-6" />}
           </button>
         ) : (
-          <span className="mr-1.5 shrink-0 rounded-md bg-mango px-1.5 py-0.5 text-[11px] font-black">PLUS</span>
+          <span className="mr-1.5 inline-flex shrink-0 items-center gap-0.5 rounded-md bg-mango px-1.5 py-0.5 text-[11px] font-black">
+            <Crown className="size-3.5" />
+            Premium
+          </span>
         )}
       </div>
     </div>

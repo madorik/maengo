@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { IconCheck, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
+import { Crown, IconCheck, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -54,11 +54,12 @@ export function TodayList() {
               <Mascot mood="listen" className="size-14 shrink-0" />
               <div>
                 <p className="text-[16px] font-black">오늘 고른 소식이 {data.hiddenCount}개 더 있어요</p>
-                <p className="mt-0.5 text-[14px] font-semibold text-sub">무료는 하루 {data.dailyLimit}개, 플러스는 하루 최대 10개를 받아요.</p>
+                <p className="mt-0.5 text-[14px] font-semibold text-sub">Free는 하루 {data.dailyLimit}개, Premium은 하루 최대 10개를 받아요.</p>
               </div>
             </div>
             <Link href="/settings#plan" className="btn shrink-0">
-              플러스로 다 보기
+              <Crown className="size-5" />
+              Premium으로 다 보기
             </Link>
           </div>
         )}

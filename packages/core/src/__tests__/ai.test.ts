@@ -8,7 +8,6 @@ import { concatWav } from '../audio/wav';
 
 test('무료는 Flash, 플러스와 체험은 상위 모델', () => {
   assert.equal(tierOf('free'), 'basic');
-  assert.equal(tierOf('trial'), 'pro');
   assert.equal(modelForPlan('free', {}), DEFAULT_MODELS.basic);
   assert.equal(modelForPlan('plus', {}), DEFAULT_MODELS.pro);
   assert.equal(modelFor('pro', { GEMINI_MODEL_PLUS: ' gemini-x-pro ' }), 'gemini-x-pro');
@@ -72,4 +71,15 @@ test('WAV를 이어 붙이면 헤더의 데이터 크기가 조각 합과 같다
   const wav = concatWav([new Uint8Array(10), new Uint8Array(6)], 8000, 8);
   assert.equal(wav.length, 44 + 16);
   assert.equal(new DataView(wav.buffer).getUint32(40, true), 16);
+});
+
+test('TTS 글: 말투 지시문 없이 대본 줄만, 대담은 화자 이름을 붙인다', async () => {
+  const { ttsText } = await import('../ai/gemini');
+  const lines = templateScript({ ...item, persona: 'teacher' });
+  const text = ttsText(lines, false);
+  assert.ok(!/처럼|읽어 주세요/.test(text));
+  assert.equal(text.split('\n')[0], lines[0]!.text);
+  const pair = ttsText(templateScript({ ...item, persona: 'dialogue' }), true);
+  assert.match(pair.split('\n')[0]!, /^진행자: /);
+  assert.match(pair.split('\n')[1]!, /^해설자: /);
 });

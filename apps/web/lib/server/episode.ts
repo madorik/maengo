@@ -42,8 +42,8 @@ export interface Episode {
   chapters: Chapter[];
 }
 
-/** 대본 형식을 바꾸면 올린다(예전 음성을 다시 쓰지 않게) */
-const SCRIPT_VERSION = 1;
+/** 대본·TTS 입력 형식을 바꾸면 올린다(예전 음성을 다시 쓰지 않게). 2: 말투 지시문을 빼고 대본만 읽게 함(2026-10-10) */
+const SCRIPT_VERSION = 2;
 /** 무료 등급 TTS 분당 한도를 넘지 않게 한 번에 세 개까지만 만든다 */
 const TTS_CONCURRENCY = 3;
 /** R2 전에 로컬에 WAV(PCM)로 만들어 둔 음성. 있으면 TTS를 다시 부르지 않고 MP3로 옮긴다 */

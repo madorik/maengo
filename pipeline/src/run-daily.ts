@@ -49,6 +49,9 @@ async function main() {
   const stages = stagesToRun();
   log(`맹고 일일 배치 ${ctx.date} · 단계: ${stages.join(' → ')}${ctx.force ? ' · force' : ''}`);
   const { data: run } = await db.from('pipeline_runs').insert({ date: ctx.date, stats: {} }).select('id').single();
+  // 가입 1주일 Premium(또는 결제 기간)이 끝난 사람을 Free로 돌린다. 오늘 피드는 Free 기준(하루 1개)으로 만든다
+  const { data: expired } = await db.rpc('expire_premium');
+  if (expired) log(`Premium 기한이 지나 Free로 바꾼 사람 ${expired}명`);
 
   let error: string | null = null;
   for (const s of stages) {
