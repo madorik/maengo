@@ -29,7 +29,7 @@ export async function collect(ctx: Ctx) {
   const perSource = await mapLimit(sources, 8, async (s) => {
     try {
       const xml = await fetchText(s.url, { attempts: s.kind === 'youtube' ? 4 : 2, maxBytes: 20_000_000 });
-      const entries = parseFeed(xml, s.lang);
+      const entries = parseFeed(xml, s.lang).filter((e) => !e.isShort);
       // 날짜 없는 피드는 맨 앞 3개만 본다(처음 볼 때 옛 글이 한꺼번에 들어오지 않게)
       let undated = 0;
       const fresh = entries.filter((e) => (e.publishedAt ? e.publishedAt.getTime() >= since : undated++ < 3));

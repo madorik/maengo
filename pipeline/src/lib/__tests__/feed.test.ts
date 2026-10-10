@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { parseDate, parseFeed } from '../feed';
 import { canonicalUrl } from '../url';
+import { clip } from '../text';
 
 test('주소 정리: 추적 파라미터와 미디엄 rss 꼬리표를 걷어 낸다', () => {
   assert.equal(canonicalUrl('https://Example.com/post/?utm_source=x&id=3#top'), 'https://example.com/post?id=3');
@@ -51,4 +52,21 @@ test('인기 신호: 유튜브 조회수와 해커 뉴스 점수를 읽는다', 
   assert.equal(h?.hnPoints, 260);
   assert.equal(h?.views, null);
   assert.equal(plain?.hnPoints, null);
+});
+
+test('유튜브 쇼츠는 링크(/shorts/)로 알아본다', () => {
+  const xml = `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015">
+    <entry><yt:videoId>aaaaaaaaaaa</yt:videoId><title>쇼츠</title><link rel="alternate" href="https://www.youtube.com/shorts/aaaaaaaaaaa"/></entry>
+    <entry><yt:videoId>bbbbbbbbbbb</yt:videoId><title>일반 영상</title><link rel="alternate" href="https://www.youtube.com/watch?v=bbbbbbbbbbb"/></entry></feed>`;
+  const [short, normal] = parseFeed(xml, 'ko');
+  assert.equal(short?.isShort, true);
+  assert.equal(short?.url, 'https://www.youtube.com/watch?v=aaaaaaaaaaa');
+  assert.equal(normal?.isShort, false);
+});
+
+test('자르기: 이모지를 반으로 자르지 않고, DB가 받지 않는 글자는 지운다', () => {
+  const s = `${'가'.repeat(9)}😀끝`; // 😀는 두 칸(서로게이트 쌍)
+  assert.equal(clip(s, 10), `${'가'.repeat(9)}…`);
+  assert.equal(clip(s, 11), `${'가'.repeat(9)}😀…`);
+  assert.equal(clip('a\u0000b\ud83dc', 100), 'abc');
 });
