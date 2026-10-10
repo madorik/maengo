@@ -112,7 +112,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 - [ ] 크론: Vercel Hobby 크론은 하루 1번이라 못 쓴다. Supabase `pg_cron` + `pg_net`으로 30분마다 위 주소를 부르는 걸 기본으로(마이그레이션으로 만든다). 안 되면 GitHub Actions(`*/30 * * * *`, 몇 분 늦을 수 있음)
 - [ ] 앱: 권한 요청은 사용자 동작에서만(설정 > 알림의 "알림 받기" 버튼, 온보딩 마지막에 한 번 권하기). 앱을 열 때마다 토큰 등록. 알림을 누르면 `/today?from=push`
 - [x] Firebase 설정 파일(2026-10-11, Firebase 프로젝트 `maengo-adfc4`, 보낸이 ID 893902466437): `apps/mobile/android/app/google-services.json`, `apps/mobile/ios/App/App/GoogleService-Info.plist`에 넣어 둠(루트 .gitignore로 제외 — 저장소가 공개라 커밋하지 않는다, 원본은 `~/.maengo/`). **iOS plist는 Xcode에서 App 타깃에 추가(Copy Bundle Resources)해야 앱에 들어간다**
-- [ ] iOS: Push Notifications·Background Modes(Remote notifications) 켜기, APNs 키를 Firebase에 올림(사용자 작업)
+- [ ] iOS: Push Notifications·Background Modes(Remote notifications) 켜기. APNs 키는 Firebase에 올려 둠(2026-10-11)
 - [ ] 개인정보 처리방침(`apps/web/app/(legal)/privacy/page.tsx`)에 기기 알림 토큰 항목과 Google(FCM) 위탁·국외 이전을 다시 넣고 시행일(`lib/site.ts`)을 바꾼다. 계정 삭제 안내의 '지워지는 정보'에도 앱 알림 토큰을 더한다
 - 완료: 실기기 두 대가 설정한 시각에 알림을 받고, 누르면 오늘 화면이 열린다. 같은 날 두 번 오지 않는다
 
