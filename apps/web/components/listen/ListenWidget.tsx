@@ -13,7 +13,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
-import { Queue, Switch, VoicePicker } from "./controls";
+import { Queue, Switch } from "./controls";
 
 /**
  * 오른쪽 아래에 떠 있는 "오늘 맹고 전체 듣기". 챗봇 창처럼 누르면 듣기 창이 펼쳐진다.
@@ -194,9 +194,6 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
                 <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-12 min-h-0 rounded-full p-0">
                   <IconNext />
                 </button>
-              </div>
-              <div className="mt-4">
-                <VoicePicker />
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto border-t-2 border-line px-3 pb-3">

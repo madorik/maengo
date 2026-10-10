@@ -1,6 +1,5 @@
 "use client";
 
-import { VOICES } from "@maengo/core/audio";
 import { IconCheck } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -49,30 +48,5 @@ export function Queue({ onPick }: { onPick?: () => void }) {
         );
       })}
     </ol>
-  );
-}
-
-export function VoicePicker() {
-  const p = usePlayer();
-  if (p.persona === "dialogue") {
-    return <p className="mt-4 text-[14px] font-semibold leading-relaxed text-sub">대담은 진행자와 해설자, 두 목소리가 함께 나와요.</p>;
-  }
-  return (
-    <div className="mt-4 grid grid-cols-2 gap-2">
-      {VOICES.map((v) => {
-        const on = v.id === p.voice;
-        return (
-          <button
-            key={v.id}
-            type="button"
-            aria-pressed={on}
-            onClick={() => p.setVoice(v.id)}
-            className={`tile min-h-12 text-[15px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
-          >
-            {v.label} 목소리
-          </button>
-        );
-      })}
-    </div>
   );
 }

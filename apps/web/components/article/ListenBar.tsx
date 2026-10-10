@@ -1,13 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { IconMic, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
-import { VoicePicker } from "@/components/listen/controls";
+import { IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
-import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
-import { Sheet } from "@/components/ui/Sheet";
 import { formatClock } from "@/lib/player/machine";
 
 
@@ -29,22 +25,7 @@ export interface ListenBarCtl {
 }
 
 export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
-  const p = usePlayer();
-  const [sheet, setSheet] = useState(false);
   const playing = ctl.state === "playing";
-
-  const personaButton = (
-    <button
-      type="button"
-      aria-haspopup="dialog"
-      aria-label={`목소리 바꾸기, 지금 ${p.voice === "f" ? "여성" : "남성"}`}
-      onClick={() => setSheet(true)}
-      className="btn btn-ghost min-h-12 shrink-0 px-3 text-[14px]"
-    >
-      <IconMic className="size-5 text-sky" />
-      <span className="hidden sm:inline">{p.voice === "f" ? "여성" : "남성"}</span>
-    </button>
-  );
 
   let body: React.ReactNode;
   if (ctl.state === "locked") {
@@ -69,7 +50,6 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
           <span className="block text-[15px] font-extrabold text-sky-dark">음성을 만드는 중이에요</span>
           <span className="block text-[13px] font-semibold text-sub">처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요</span>
         </p>
-        {personaButton}
       </div>
     );
   } else if (ctl.state === "playing" || ctl.state === "paused") {
@@ -102,7 +82,6 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
         >
           {ctl.rate.toFixed(1)}x
         </button>
-        {personaButton}
       </div>
     );
   } else if (ctl.state === "finished") {
@@ -133,7 +112,6 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
           <IconSpeaker className="size-6" />이 글 듣기
           {ctl.totalMs > 0 && <span className="font-round text-[15px] font-extrabold opacity-85">{formatClock(ctl.totalMs)}</span>}
         </button>
-        {personaButton}
       </div>
     );
   }
@@ -143,10 +121,6 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
       <div className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-line bg-white">
         <div className="mx-auto max-w-[720px] px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">{body}</div>
       </div>
-      <Sheet title="목소리" open={sheet} onClose={() => setSheet(false)}>
-        <VoicePicker />
-        <p className="mt-3 text-[13px] font-semibold text-sub">고르면 바로 저장돼요. 다음에 들을 때도 이 목소리로 시작해요.</p>
-      </Sheet>
     </>
   );
 }
