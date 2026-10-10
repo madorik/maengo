@@ -51,6 +51,8 @@ export interface PlayerApi {
   goTo: (index: number) => void;
   /** 이 항목 하나만 듣고 멈춘다(레슨 화면의 스피커 버튼) */
   playOne: (index: number) => void;
+  /** 지금 소식 안의 한 시각(ms)으로 옮겨 듣는다(대본에서 줄을 누를 때). 파일이 열려 있을 때만 */
+  seek: (ms: number) => void;
   next: () => void;
   prev: () => void;
   restart: () => void;
@@ -234,6 +236,15 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const pause = () => audioRef.current?.pause();
 
+  const seek = (ms: number) => {
+    const audio = audioRef.current;
+    if (!audio || cur < 0 || needsFile() || preparing || audio.readyState < 1) return;
+    setError(null);
+    audio.currentTime = ms / 1000;
+    setPosMs(ms);
+    if (audio.paused) startPlayback();
+  };
+
   const nextIndex = nextPlayable(chapters, cur + 1, readSet, skip);
   const next = () => {
     if (nextIndex !== null) goTo(nextIndex);
@@ -402,6 +413,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     pause,
     goTo,
     playOne,
+    seek,
     next,
     prev,
     restart,
