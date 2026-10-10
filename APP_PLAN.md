@@ -113,6 +113,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 - [ ] 앱: 권한 요청은 사용자 동작에서만(설정 > 알림의 "알림 받기" 버튼, 온보딩 마지막에 한 번 권하기). 앱을 열 때마다 토큰 등록. 알림을 누르면 `/today?from=push`
 - [ ] Firebase 설정 파일: `GoogleService-Info.plist`(ios/App/App), `google-services.json`(android/app). 공개돼도 되는 값이지만 저장소 공개 범위를 보고 커밋 여부를 정한다
 - [ ] iOS: Push Notifications·Background Modes(Remote notifications) 켜기, APNs 키를 Firebase에 올림(사용자 작업)
+- [ ] 개인정보 처리방침(`apps/web/app/(legal)/privacy/page.tsx`)에 기기 알림 토큰 항목과 Google(FCM) 위탁·국외 이전을 다시 넣고 시행일(`lib/site.ts`)을 바꾼다. 계정 삭제 안내의 '지워지는 정보'에도 앱 알림 토큰을 더한다
 - 완료: 실기기 두 대가 설정한 시각에 알림을 받고, 누르면 오늘 화면이 열린다. 같은 날 두 번 오지 않는다
 
 ### 4단계. 화면 꺼도 듣기(1~2일, 확인 먼저)
