@@ -124,13 +124,9 @@ export interface UserTopic {
   name: string;
 }
 
-/** 설정 > 관심사 찾기 칸의 자동 완성 후보 */
+/** 설정 > 관심사 드롭다운에서 적은 말로 거를 때 볼 말(이름·별칭) */
 export interface TopicSuggestion {
   id: string;
-  name: string;
-  /** 어느 분야인지('코인', '뉴스 헤드라인', '분야 전체') */
-  hint: string;
-  /** 찾을 말(이름·별칭) */
   terms: string[];
 }
 

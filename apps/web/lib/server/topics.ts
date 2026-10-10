@@ -1,6 +1,6 @@
 import 'server-only';
 import {
-  childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, isNewsSection, NEWS_SECTIONS, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS, TOPICS,
+  childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, NEWS_SECTIONS, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS, TOPICS,
 } from '@maengo/core/topics';
 import { screener, screenModel } from './ai';
 import { db, must } from './db';
@@ -106,26 +106,9 @@ export async function removeTopic(profile: Profile, id: string): Promise<TopicRe
   return { tone: 'ok', message: '' };
 }
 
-/** 설정 카드의 ×: 분야 하나(분야 전체 + 그 상세 관심사), 뉴스 헤드라인 전부, 기타 전부를 한 번에 뺀다 */
-export async function removeCard(profile: Profile, card: string): Promise<TopicResult> {
-  const mine = await userTopics(profile);
-  const inCard = (t: UserTopic) =>
-    card === 'etc' ? !!t.custom : card === 'news' ? isNewsSection(t.id) : t.id === card || TOPIC_BY_ID.get(t.id)?.parent === card;
-  const ids = mine.filter(inCard).map((t) => t.id);
-  if (!ids.length) return { tone: 'ok', message: '' };
-  if (ids.length >= mine.length) return LAST;
-  must(await db.from('user_topics').delete().eq('user_id', profile.id).in('topic_id', ids), 'user_topics card delete');
-  return { tone: 'ok', message: '' };
-}
-
-/** 설정 > 관심사 찾기 칸의 자동 완성 후보: 사전 전체(이름·별칭으로 찾는다). hint는 어느 분야인지 */
+/** 설정 > 관심사 드롭다운에서 적은 말로 거를 때 볼 말: 사전 전체의 이름·별칭 */
 export function topicSuggestions(): TopicSuggestion[] {
-  return TOPICS.map((t) => ({
-    id: t.id,
-    name: t.name,
-    hint: t.parent ? TOPIC_BY_ID.get(t.parent)!.name : isNewsSection(t.id) ? '뉴스 헤드라인' : '분야 전체',
-    terms: [t.name, ...t.aliases],
-  }));
+  return TOPICS.map((t) => ({ id: t.id, terms: [t.name, ...t.aliases] }));
 }
 
 const ADULT: TopicResult = { tone: 'warn', code: 'adult', message: '성인 관련 관심사는 넣을 수 없어요.' };
