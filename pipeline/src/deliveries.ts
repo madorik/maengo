@@ -11,7 +11,7 @@ import { fcmReady, sendPush } from './lib/fcm';
 import { mapLimit } from './lib/limit';
 import { flushUsage, recordUsage } from './lib/usage';
 
-// 알림 시각에 맹고를 만들고 보낸다(서버 스케줄러). Supabase pg_cron이 5분마다 웹 /api/cron/deliveries를 부르면 여기가 돈다.
+// 알림 시각에 맹고를 만들고 보낸다(서버 스케줄러). 서버 스케줄러(scheduler.ts)의 deliveries 작업으로 5분마다 돈다.
 // 할 일은 delivery_jobs 표(사람·날짜마다 한 줄)로 관리한다:
 //   1. 오늘 줄 채우기(plan_deliveries) — 알림 시각을 바꿨으면 대기 중인 줄의 시각도 맞춘다
 //   2. 10분 넘게 멈춘 줄 되돌리기(reclaim_stuck_deliveries)

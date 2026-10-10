@@ -209,7 +209,8 @@ completeOnboarding({
 
 ### 6.1 실행
 
-- GitHub Actions `daily.yml`, `cron: '0 19 * * *'`(UTC) = 매일 04:00 KST. Actions 예약 실행은 붐빌 때 늦어질 수 있어 첫 알림(06:30)까지 2시간 반의 여유를 둔다.
+- 2026-10-11부터 서버 스케줄러: Supabase `pg_cron`이 5분마다 `/api/cron/scheduler`를 부르고, `scheduler_tasks` 표에서 차례가 된 작업만 돈다(수집·임베딩·묶기·태그 30분, 요약 30분, 알림 맹고 5분, Premium 기한 하루). Vercel 함수 300초 안에 끝나게 한 번에 약 4분 예산을 두고, 못 한 일은 다음 차례가 이어받는다.
+- GitHub Actions `daily.yml`은 손으로 몰아 돌릴 때만 쓴다(예약 실행 없음).
 - `concurrency: daily`로 중복 실행을 막는다.
 - 진입점: `pnpm --filter pipeline daily --date=2026-10-20 [--only=summarize] [--from=rank]`
 - 모든 단계는 "이미 있으면 건너뜀"으로 멱등하다. 실패하면 `--from`으로 그 단계부터 다시 돌린다.

@@ -62,8 +62,8 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 
 버킷은 비공개로 둔다. 웹이 서명 URL을 만들어 `<audio>`가 R2에서 바로 받는다(CORS 설정 필요 없음).
 
-### GitHub Actions 시크릿 — 일일 배치를 켤 때
-`.github/workflows/daily.yml`이 매일 04:00 KST에 돈다. 저장소 Settings → Secrets and variables → Actions에 넣는다. 이름과 값은 `.env.local`과 같다.
+### GitHub Actions 시크릿 — 일일 배치를 손으로 돌릴 때
+정기 수집·요약은 서버 스케줄러(`scheduler_tasks` 표, 2026-10-11)가 한다. `.github/workflows/daily.yml`은 손으로만 돌린다. 저장소 Settings → Secrets and variables → Actions에 넣는다. 이름과 값은 `.env.local`과 같다.
 
 | 이름 | 종류 | 값 |
 | --- | --- | --- |

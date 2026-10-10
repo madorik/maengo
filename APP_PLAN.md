@@ -39,7 +39,7 @@
 | 로그인 확인 | `apps/web/proxy.ts`가 쿠키의 토큰 서명만 본다. 사용자가 없으면 화면이 `/auth/signout`으로 보내 쿠키를 지운다 |
 | 알림 데이터 | `device_tokens(token, user_id, platform android·ios·web, app_version, last_seen_at)`, `notifications_log(user_id, date, channel)` 표가 이미 있다. `profiles.notify_at`은 06:00~23:30, 30분 단위(설정 화면에서 고름) |
 | 듣기 | `<audio>` 하나 + Media Session(잠금 화면 제목·조작)을 이미 쓴다(`components/providers/PlayerProvider.tsx`). Free는 듣기 잠금, Premium은 제한 없음 |
-| 오늘 피드 | 가입 후 첫 방문은 "오늘 맹고 받기"를 눌러야 받는다. 그 뒤로는 새벽 4시 배치(GitHub Actions)가 채운다 |
+| 오늘 피드 | 가입 후 첫 방문은 "오늘 맹고 받기"를 눌러야 받는다. 그 뒤로는 서버 스케줄러가 알림 시각 30분 전에 만들고 알림 시각에 보낸다 |
 | 스토어 필수 문서·기능 | 있음(2026-10-10): `/terms`, `/privacy`, `/delete-account`(공개 페이지, 구글 플레이 '계정 삭제 URL'에 쓴다), 설정 > 계정 > 계정 삭제. 운영자·문의 메일·시행일은 `apps/web/lib/site.ts` |
 | 개발 도구 | Xcode 26.3(iOS는 SPM, CocoaPods 안 씀). Android Studio 2025.3 있음(SDK는 안 잡혀 있음). SDK·에뮬레이터는 Homebrew `android-commandlinetools`(`/opt/homebrew/share/android-commandlinetools`)를 CLI 빌드에 쓴다. JDK는 Android Studio 내장 JBR 21. 맹고용 에뮬레이터 `maengo_api36`(Pixel 8, Android 16, Play) |
 | 앱 버전 | Capacitor 8.5.3, @capacitor/app 8.1.2, browser 8.0.5, splash-screen 8.0.2(2026-10-10 최신 안정판). 웹과 앱에 같은 버전으로 넣는다 |
@@ -109,7 +109,8 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 
 **서버(끝남)**
 - 스케줄 표 `delivery_jobs`(사람·날짜마다 한 줄: build_at = 알림 30분 전, notify_at = 알림 시각, 상태 pending → building → ready → sending → sent / empty / no_device / failed, 시도 횟수·마지막 오류)
-- Supabase `pg_cron`이 5분마다 `POST /api/cron/deliveries`(비밀값은 Vault의 `cron_secret`, 서버 `CRON_SECRET`) → `pipeline/src/deliveries.ts`의 `runDeliveries`: 오늘 줄 채우기 → 멈춘 줄 되돌리기 → 만들 차례인 사람들 관심사를 합쳐 피드 만들기 → 보낼 차례에 FCM HTTP v1로 발송(죽은 토큰은 지움, `notifications_log` 기록). 상태 확인: `select * from cron_status()`(서버 키)
+- 작업 표 `scheduler_tasks`(작업마다 한 줄: 주기·켜짐·예산 config·다음 차례·마지막 결과). Supabase `pg_cron`이 5분마다 `POST /api/cron/scheduler`(비밀값은 Vault의 `cron_secret`, 서버 `CRON_SECRET`) → `pipeline/src/scheduler.ts`가 차례가 된 작업만 돌린다: `deliveries` 5분, `ingest`(수집·임베딩·묶기·태그) 30분, `summarize`(요약·중복 합치기) 30분, `daily`(Premium 기한) 하루. GitHub Actions `daily.yml`은 손으로 돌릴 때만
+- `deliveries` 작업 = `pipeline/src/deliveries.ts`의 `runDeliveries`: 오늘 줄 채우기 → 멈춘 줄 되돌리기 → 만들 차례인 사람들 관심사를 합쳐 피드 만들기 → 보낼 차례에 FCM HTTP v1로 발송(죽은 토큰은 지움, `notifications_log` 기록). 상태 확인: `select * from cron_status()`, `select name, next_run_at, last_status, last_error from scheduler_tasks`(서버 키)
 - `POST /api/devices {token, platform: 'android'|'ios'|'web', appVersion}`·`DELETE {token}`: 로그인한 사람의 기기 토큰 등록·삭제(웹뷰는 같은 출처라 쿠키로 인증된다)
 - Firebase 준비 끝: 설정 파일·서비스 계정·APNs 키·웹 푸시 키(API_KEYS.md 4번)
 
