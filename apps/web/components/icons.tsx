@@ -70,6 +70,40 @@ export const IconCap = (p: Props) => <Line {...p}><path d="M2 9l10-5 10 5-10 5z"
 export const IconChat = (p: Props) => <Line {...p}><path d="M4 5h11v8H8l-4 3z" /><path d="M15 9h5v8l-3-2h-6v-2" /></Line>;
 export const IconList = (p: Props) => <Line {...p}><path d="M9 6h11" /><path d="M9 12h11" /><path d="M9 18h11" /><path d="M4 6h.01" /><path d="M4 12h.01" /><path d="M4 18h.01" /></Line>;
 
+// ---- 관심 분야(온보딩 카드). 같은 24 격자·선 굵기 ----
+export const IconSparkles = (p: Props) => (
+  <Line {...p}><path d="M10 6Q11.2 11.8 17 13Q11.2 14.2 10 20Q8.8 14.2 3 13Q8.8 11.8 10 6Z" /><path d="M18.5 2.7Q19 5 21.3 5.5Q19 6 18.5 8.3Q18 6 15.7 5.5Q18 5 18.5 2.7Z" /></Line>
+);
+export const IconTrendUp = (p: Props) => <Line {...p}><path d="M4 4v16h16" /><path d="M7.5 15l3.5-4 3 3 5-6" /><path d="M15.5 8h3.5v3.5" /></Line>;
+export const IconCoin = (p: Props) => (
+  <Line {...p}>
+    <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+    <path d="M9.5 8v8" /><path d="M9.5 8h3.4a1.9 1.9 0 0 1 0 3.8H9.5" /><path d="M9.5 11.8h3.9a2.1 2.1 0 0 1 0 4.2H9.5" />
+    <path d="M11 6.5V8" /><path d="M13 6.5V8" /><path d="M11 16v1.5" /><path d="M13 16v1.5" />
+  </Line>
+);
+export const IconChip = (p: Props) => (
+  <Line {...p}>
+    <path d="M8 6h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" /><path d="M10 10h4v4h-4z" />
+    <path d="M10 3v3" /><path d="M14 3v3" /><path d="M10 18v3" /><path d="M14 18v3" /><path d="M3 10h3" /><path d="M3 14h3" /><path d="M18 10h3" /><path d="M18 14h3" />
+  </Line>
+);
+export const IconCode = (p: Props) => <Line {...p}><path d="M8 7l-5 5 5 5" /><path d="M16 7l5 5-5 5" /><path d="M13.5 4.5l-3 15" /></Line>;
+export const IconMusic = (p: Props) => (
+  <Line {...p}><path d="M9 18V6l11-2v12" /><path d="M9 9.5l11-2" /><path d="M9 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z" /><path d="M20 16a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z" /></Line>
+);
+export const IconLipstick = (p: Props) => (
+  <Line {...p}><path d="M8 13h8v7a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z" /><path d="M9 13v-3h6v3" /><path d="M10 10V6.5l4-3V10" /></Line>
+);
+export const IconBowl = (p: Props) => (
+  <Line {...p}>
+    <path d="M3.5 12h17a8.5 7.5 0 0 1-17 0z" /><path d="M9 21h6" />
+    <path d="M14 10l6-6" /><path d="M16.5 10.5l4.5-4.5" />
+    <path d="M7 9.5c-.8-.8-.8-1.7 0-2.5s.8-1.7 0-2.5" /><path d="M10.5 9.5c-.8-.8-.8-1.7 0-2.5s.8-1.7 0-2.5" />
+  </Line>
+);
+export const IconPencil = (p: Props) => <Line {...p}><path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></Line>;
+
 /** Premium 왕관(금색) */
 export function Crown({ className = "size-4" }: { className?: string }) {
   return (

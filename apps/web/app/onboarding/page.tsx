@@ -4,6 +4,7 @@ import { childrenOf, TOPIC_GROUPS } from "@maengo/core/topics";
 import { completeOnboarding } from "../actions";
 import { IconCheck } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
+import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { Bubble } from "@/components/ui/Bubble";
 import { requireProfile } from "@/lib/server/session";
 
@@ -49,7 +50,8 @@ export default async function OnboardingPage({ searchParams }: Props) {
             {TOPIC_GROUPS.map((g) => (
               <label key={g.id} className="group block min-w-0 cursor-pointer">
                 <input type="checkbox" name="topic" value={g.id} className="peer sr-only" />
-                <span className="tile flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
+                <span className="tile flex min-h-16 items-center gap-3 px-3 py-3 transition-colors peer-[:not(:checked)]:hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
+                  <TopicGroupIcon id={g.id} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[17px] font-black">{g.name}</span>
                     <span className="block truncate text-[13px] font-semibold text-sub">
@@ -69,7 +71,8 @@ export default async function OnboardingPage({ searchParams }: Props) {
             <div className="group/etc min-w-0">
               <label className="group block min-w-0 cursor-pointer">
                 <input type="checkbox" name="etc" className="peer sr-only" defaultChecked={error === "etc" || error === "adult"} />
-                <span className="tile flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
+                <span className="tile flex min-h-16 items-center gap-3 px-3 py-3 transition-colors peer-[:not(:checked)]:hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
+                  <TopicGroupIcon id="etc" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[17px] font-black">기타</span>
                     <span className="block truncate text-[13px] font-semibold text-sub">목록에 없는 관심사를 직접 적어요</span>
