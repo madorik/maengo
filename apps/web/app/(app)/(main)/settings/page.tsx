@@ -13,7 +13,7 @@ import { isAppUserAgent } from "@/lib/app-client";
 import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
-import { webPushTokens } from "@/lib/server/profile";
+import { entitlements, webPushTokens } from "@/lib/server/profile";
 import { BETA, PREMIUM_PRICE } from "@/lib/site";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 
@@ -46,6 +46,7 @@ export default async function SettingsPage() {
   const view = toProfileView(profile);
   const demoTools = demoToolsEnabled();
   const [topics, webTokens] = await Promise.all([userTopics(profile), webPushTokens(profile.id)]);
+  const { dailyItems } = entitlements(profile);
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
@@ -87,6 +88,10 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="topics" title="관심사">
+          {/* 관심사를 많이 골라도 하루 개수(dailyItems)만큼만 오니, 고른 관심사가 매일 다 나오지 않는다는 걸 미리 알린다(사용자 요청) */}
+          <p className="mb-3 text-[14px] text-sub">
+            관심사는 여러 개 골라도 돼요. 다만 하루에 받는 맹고는 {dailyItems}개라, 고른 관심사 중 그날 중요한 소식부터 {dailyItems}개만 골라 드려요. 그래서 고른 관심사가 매일 모두 나오지는 않아요.
+          </p>
           <TopicSettings
             groups={topicGroups(topics)}
             news={newsSections(topics)}
