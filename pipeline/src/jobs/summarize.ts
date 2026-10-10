@@ -1,14 +1,14 @@
 import { modelFor } from '@maengo/core/ai';
 import { rankFeed } from '@maengo/core/feed';
 import { GeminiQuotaError, PROMPT_VERSION } from '@maengo/core/gemini';
-import { TOPIC_BY_ID, TOPICS, whyLead } from '@maengo/core/topics';
+import { TOPIC_BY_ID, whyLead, withParents } from '@maengo/core/topics';
 import type { SummarizeSource } from '@maengo/core/ai';
 import type { Tier } from '@maengo/core/types';
 import { db, check } from '../lib/db';
 import { env } from '../lib/env';
 import { extractArticle, youtubeSeconds } from '../lib/extract';
 import { mapLimit } from '../lib/limit';
-import { loadAudience, loadCandidates, withSimilarExcluded } from '../lib/audience';
+import { dictionary, loadAudience, loadCandidates, withSimilarExcluded } from '../lib/audience';
 import { youtubeIdOf } from '../lib/url';
 import type { Ctx } from '../lib/ctx';
 
@@ -82,7 +82,9 @@ export async function summarizeCluster(
     }),
   );
 
-  const out = await ctx.ai.summarize({ model: modelFor(tier), kind: rep.kind, sources, videoUrl, dictionary: TOPICS });
+  const topicDict = await dictionary(ctx);
+  const nameOf = new Map(topicDict.map((t) => [t.id, t.name]));
+  const out = await ctx.ai.summarize({ model: modelFor(tier), kind: rep.kind, sources, videoUrl, dictionary: topicDict });
   if (out.skip || !out.title || !out.body.length) {
     if (tier === 'basic') await db.from('clusters').update({ skip_reason: out.skip ?? '요약이 비어 있음' }).eq('id', clusterId);
     return 'skipped';
@@ -107,23 +109,32 @@ export async function summarizeCluster(
     ),
     'summaries upsert',
   );
+  // 상세 관심사 태그에 큰 분류를 더한다. 큰 분류의 why는 가장 관련 높은 자식의 문구를 쓴다
+  const topics = withParents(out.topics);
+  const whyByTopic = new Map(out.why.map((w) => [w.topicId, w.text]));
+  for (const t of [...out.topics].sort((a, b) => b.relevance - a.relevance)) {
+    const parent = TOPIC_BY_ID.get(t.topicId)?.parent;
+    const text = whyByTopic.get(t.topicId);
+    if (parent && text && !whyByTopic.has(parent)) whyByTopic.set(parent, text);
+  }
+  const whys = [...whyByTopic].map(([topicId, text]) => ({ topicId, text }));
   if (tier === 'basic') {
     check(await db.from('cluster_topics').delete().eq('cluster_id', clusterId), 'cluster_topics delete');
-    if (out.topics.length) {
+    if (topics.length) {
       check(
-        await db.from('cluster_topics').insert(out.topics.map((t) => ({ cluster_id: clusterId, topic_id: t.topicId, relevance: t.relevance }))),
+        await db.from('cluster_topics').insert(topics.map((t) => ({ cluster_id: clusterId, topic_id: t.topicId, relevance: t.relevance }))),
         'cluster_topics insert',
       );
     }
   }
-  if (out.why.length) {
+  if (whys.length) {
     check(
       await db.from('cluster_why').upsert(
-        out.why.map((w) => ({
+        whys.map((w) => ({
           cluster_id: clusterId,
           topic_id: w.topicId,
           tier,
-          why: `${whyLead(TOPIC_BY_ID.get(w.topicId)?.name ?? w.topicId)}: ${w.text}`,
+          why: `${whyLead(nameOf.get(w.topicId) ?? w.topicId)}: ${w.text}`,
         })),
         { onConflict: 'cluster_id,topic_id,tier' },
       ),

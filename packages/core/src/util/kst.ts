@@ -55,10 +55,23 @@ export function kstDayLabel(date: string, now: Date = new Date()): string {
   return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 ${WEEKDAYS[d.getUTCDay()]}요일`;
 }
 
-/** '07:00' → '아침 7시', '06:30' → '아침 6시 30분' */
+/** '07:00' → '아침 7시', '12:00' → '낮 12시', '21:30' → '밤 9시 30분' */
 export function notifyTimeLabel(hhmm: string): string {
   const [h = 0, m = 0] = hhmm.split(':').map(Number);
-  const part = h < 12 ? '아침' : h < 18 ? '오후' : '저녁';
+  const part = h < 12 ? '아침' : h === 12 ? '낮' : h < 18 ? '오후' : h < 21 ? '저녁' : '밤';
   const hour = h <= 12 ? h : h - 12;
   return `${part} ${hour}시${m ? ` ${m}분` : ''}`;
+}
+
+/**
+ * 알림 시간 선택지(KST): 아침 6시부터 밤 11시 30분까지 30분 단위.
+ * 일일 배치가 새벽 4시에 돌아서 2시간 여유를 둔다. 알림 크론도 30분마다 돈다(PLAN.md 9.2).
+ */
+export const NOTIFY_TIMES: string[] = Array.from({ length: 36 }, (_, i) => {
+  const minutes = 6 * 60 + i * 30;
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${minutes % 60 ? '30' : '00'}`;
+});
+
+export function isNotifyTime(v: unknown): v is string {
+  return typeof v === 'string' && NOTIFY_TIMES.includes(v);
 }

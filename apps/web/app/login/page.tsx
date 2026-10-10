@@ -28,26 +28,19 @@ export default async function LoginPage({ searchParams }: Props) {
           당신은 듣기만.
         </h1>
         <p className="mt-3 text-[16px] font-medium leading-relaxed text-sub">
-          관심사만 알려 주세요. 매일 아침 그 분야 기술 소식을 골라 읽어 드리고 들려 드려요.
+          관심사만 알려 주세요. 매일 아침 그 분야 소식을 골라 읽어 드리고 들려 드려요.
         </p>
       </div>
 
       <form action={signIn} className="flex flex-col gap-3">
-        {error === "google" && (
+        {error && (
           <p role="alert" className="text-center text-[14px] font-bold text-orange">
-            구글 로그인을 마치지 못했어요. 다시 눌러 주세요.
+            로그인을 마치지 못했어요. 다시 눌러 주세요.
           </p>
         )}
-        {error === "apple" && (
-          <p role="alert" className="text-center text-[14px] font-bold text-orange">
-            Apple 로그인은 아직 준비 중이에요. Google로 계속해 주세요.
-          </p>
-        )}
-        <LoginButtons appleReady={demoLoginEnabled()} />
+        <LoginButtons demo={demoLoginEnabled()} />
         <p className="mt-2 text-center text-[12px] font-medium leading-relaxed text-sub">
           계속하면 이용약관과 개인정보 처리방침에 동의하게 돼요.
-          <br />
-          {demoLoginEnabled() ? "Apple 로그인은 준비 중이라 지금은 데모 계정으로 들어가요." : "Apple 로그인은 곧 열려요."}
         </p>
       </form>
     </div>

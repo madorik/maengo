@@ -18,7 +18,7 @@ import { useTodayAudio } from "./useTodayAudio";
 import { VideoThumb } from "./VideoThumb";
 
 const CHOICES: { kind: FeedbackKind; label: string; note: string }[] = [
-  { kind: "more", label: "더 보고 싶어요", note: "이 토픽을 더 자주 골라 드릴게요." },
+  { kind: "more", label: "더 보고 싶어요", note: "이 분야 소식을 더 자주 골라 드릴게요." },
   { kind: "known", label: "이미 알아요", note: "이미 아는 소식은 다음부터 빼 드릴게요." },
   { kind: "skip", label: "관심 없어요", note: "비슷한 소식은 덜 보여 드릴게요." },
 ];

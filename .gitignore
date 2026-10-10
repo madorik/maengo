@@ -12,3 +12,10 @@ next-env.d.ts
 
 # Vercel CLI 연결 정보
 .vercel
+
+# 애플·푸시 비밀 키, 서비스 계정 파일. 저장소 밖(~/.maengo)에 둔다
+*.p8
+*.p12
+*service-account*.json
+GoogleService-Info.plist
+google-services.json

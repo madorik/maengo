@@ -9,6 +9,7 @@ const TONE: Record<CategoryId, string> = {
   marketing: "bg-[#FFEBDD] text-[#B4500B]",
   career: "bg-leaf-tint text-leaf-dark",
   finance: "bg-[#E2F5F3] text-[#0F6E66]",
+  realestate: "bg-[#F3EEE6] text-[#7A5A2E]",
   science: "bg-[#E6EBFF] text-[#3046B5]",
   travel: "bg-[#E0F4FA] text-[#0B6C8A]",
   life: "bg-[#FDECEC] text-[#B23A3A]",

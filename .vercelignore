@@ -7,3 +7,6 @@
 **/.cache
 .git
 *.tsbuildinfo
+*.p8
+*.p12
+*service-account*.json

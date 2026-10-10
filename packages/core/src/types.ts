@@ -18,6 +18,8 @@ export interface Topic {
   id: string;
   name: string;
   aliases: string[];
+  /** 상세 관심사면 큰 분류 id(예: 'postgres' → 'backend'). 큰 분류면 없음 */
+  parent?: string;
 }
 
 export interface ScriptLine {
