@@ -43,8 +43,8 @@ export interface TodayData {
   dailyLimit: number;
   /** 플랜 때문에 오늘 못 보는 소식 수(무료 사용자 안내용) */
   hiddenCount: number;
-  /** 오늘 소식이 비었을 때 왜 비었는지. waiting = 오늘 배치가 아직 안 돌았다, exhausted = 토픽에서 안 본 소식을 다 썼다 */
-  emptyReason: 'waiting' | 'exhausted' | null;
+  /** 오늘 소식이 비었을 때 왜 비었는지. first = 가입하고 아직 한 번도 안 받았다(눌러야 받는다), waiting = 오늘 배치가 아직 안 돌았다, exhausted = 토픽에서 안 본 소식을 다 썼다 */
+  emptyReason: 'first' | 'waiting' | 'exhausted' | null;
   items: FeedItem[];
   read: number[];
   listened: number[];

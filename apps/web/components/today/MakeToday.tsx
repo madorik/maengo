@@ -9,6 +9,7 @@ import { Bubble } from "@/components/ui/Bubble";
 type Progress =
   | { stage: "finding" }
   | { stage: "collecting" }
+  | { stage: "found"; ready: number; toMake: number }
   | { stage: "summarizing"; done: number; total: number }
   | { stage: "saving" }
   | { stage: "done"; items: number }
@@ -21,12 +22,20 @@ type State = { kind: "idle" } | { kind: "running"; p: Progress } | { kind: "empt
 function rangeOf(p: Progress): [number, number] {
   if (p.stage === "finding") return [0.03, 0.12];
   if (p.stage === "collecting") return [0.12, 0.45];
+  if (p.stage === "found") return p.toMake ? [0.45, 0.47] : [0.5, 0.9];
   if (p.stage === "summarizing") {
     const step = 0.45 / Math.max(1, p.total);
     return [0.45 + step * p.done, 0.45 + step * (p.done + 1) - 0.02];
   }
   if (p.stage === "saving") return [0.92, 0.98];
   return [1, 1];
+}
+
+/** 구간 안에서 차오르는 빠르기(150ms마다 남은 거리의 이만큼). 오래 걸리는 단계는 천천히 차올라 멈춰 보이지 않게 한다 */
+function paceOf(p: Progress): number {
+  if (p.stage === "collecting") return 0.012;
+  if (p.stage === "summarizing") return 0.008;
+  return 0.05;
 }
 
 /** 진행 중에 돌아가며 보여 줄 말. 단계에 맞춰 바뀐다 */
@@ -39,8 +48,12 @@ function cheersOf(p: Progress): string[] {
       "맹고가 열심히 기사를 읽고 있어요",
       "핵심만 쏙쏙 골라 담는 중이에요",
       "조금만 기다려 주세요~",
-      p.done ? `${p.done}개 완성! 나머지도 금방이에요` : "첫 번째 맹고를 빚는 중이에요",
+      p.done === 0 ? "첫 번째 맹고를 빚는 중이에요" : p.done < p.total ? `${p.done}개 완성! 나머지도 금방이에요` : "다 만들었어요! 담는 중이에요",
     ];
+  if (p.stage === "found")
+    return p.toMake
+      ? [`맹고 ${p.ready + p.toMake}개를 찾았어요! ${p.toMake}개는 지금 새로 만들게요`]
+      : [`이미 준비된 맹고 ${p.ready}개를 찾았어요!`, "오늘 목록에 예쁘게 담는 중이에요"];
   if (p.stage === "saving") return ["거의 다 됐어요! 오늘 목록에 담는 중이에요"];
   if (p.stage === "done") return [`오늘의 맹고 ${p.items}개가 준비됐어요!`];
   return ["오늘의 맹고를 만들고 있어요"];
@@ -50,6 +63,7 @@ function cheersOf(p: Progress): string[] {
 function stageLabel(p: Progress): string {
   if (p.stage === "collecting") return "새 소식을 모으는 중";
   if (p.stage === "summarizing") return `소식 ${p.total}개 중 ${p.done}개 요약함`;
+  if (p.stage === "found") return `소식 ${p.ready + p.toMake}개 찾음`;
   if (p.stage === "saving") return "오늘 목록에 담는 중";
   if (p.stage === "done") return `오늘의 맹고 ${p.items}개 준비됨`;
   return "관심사에 맞는 소식을 찾는 중";
@@ -58,15 +72,16 @@ function stageLabel(p: Progress): string {
 /** 만드는 동안 보이는 카드: 차오르는 줄무늬 진행 바와 몇 초마다 바뀌는 말 */
 function Making({ p }: { p: Progress }) {
   const [lo, hi] = rangeOf(p);
+  const pace = paceOf(p);
   const [shown, setShown] = useState(lo);
   const [tick, setTick] = useState(0);
   const done = p.stage === "done";
 
   // 다음 구간 직전까지 천천히 다가간다(구간이 바뀌면 그 바닥부터)
   useEffect(() => {
-    const id = setInterval(() => setShown((v) => Math.max(lo, v + (hi - Math.max(lo, v)) * 0.035)), 150);
+    const id = setInterval(() => setShown((v) => Math.max(lo, v + (hi - Math.max(lo, v)) * pace)), 150);
     return () => clearInterval(id);
-  }, [lo, hi]);
+  }, [lo, hi, pace]);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 2600);
     return () => clearInterval(id);
@@ -104,15 +119,28 @@ function Making({ p }: { p: Progress }) {
 }
 
 /**
- * 오늘의 맹고가 비었을 때(가입 직후, 새벽 배치 전): "오늘 맹고 받기"를 누르면 이 사람 것을 지금 만든다.
+ * 오늘의 맹고가 비었을 때(가입 직후 첫 방문은 늘, 그 뒤엔 새벽 배치 전): "오늘 맹고 받기"를 누르면 이미 요약된 소식을 가져오고 없으면 지금 만든다.
  * 서버가 보내는 진행 상황(찾기 → (고를 게 없으면) 새 소식 모으기 → 요약 n/N → 담기)에 맞춰 진행 바와 말을 바꾸고, 끝나면 화면을 새로 그린다.
  */
-export function MakeToday({ reason }: { reason: "waiting" | "exhausted" | null }) {
+/** 단계마다 최소 이만큼은 보여 준다(이미 준비된 소식을 가져오면 1초도 안 걸려 진행이 안 보이므로) */
+const MIN_STAGE_MS = 700;
+/** 다 되면 이만큼 '준비됐어요'를 보여 주고 목록으로 넘어간다 */
+const DONE_HOLD_MS = 1200;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted" | null }) {
   const router = useRouter();
   const [state, setState] = useState<State>({ kind: "idle" });
 
   const start = async () => {
     setState({ kind: "running", p: { stage: "finding" } });
+    let shownAt = Date.now();
+    const show = async (next: State) => {
+      const wait = MIN_STAGE_MS - (Date.now() - shownAt);
+      if (wait > 0) await sleep(wait);
+      setState(next);
+      shownAt = Date.now();
+    };
     try {
       const res = await fetch("/api/feed/today", { method: "POST" });
       if (!res.ok || !res.body) throw new Error(String(res.status));
@@ -129,13 +157,16 @@ export function MakeToday({ reason }: { reason: "waiting" | "exhausted" | null }
         for (const line of lines) {
           if (!line.trim()) continue;
           last = JSON.parse(line) as Progress;
-          if (last.stage === "empty") setState({ kind: "empty" });
-          else if (last.stage === "error") setState({ kind: "error" });
-          else if (last.stage === "done") setState({ kind: "done", items: last.items });
-          else setState({ kind: "running", p: last });
+          if (last.stage === "empty") await show({ kind: "empty" });
+          else if (last.stage === "error") await show({ kind: "error" });
+          else if (last.stage === "done") await show({ kind: "done", items: last.items });
+          else await show({ kind: "running", p: last });
         }
       }
-      if (last?.stage === "done") router.refresh();
+      if (last?.stage === "done") {
+        await sleep(DONE_HOLD_MS);
+        router.refresh();
+      }
       else if (!last || (last.stage !== "empty" && last.stage !== "error")) setState({ kind: "error" });
     } catch {
       setState({ kind: "error" });
@@ -164,9 +195,11 @@ export function MakeToday({ reason }: { reason: "waiting" | "exhausted" | null }
             <p className="text-[15px] font-bold leading-relaxed">
               {state.kind === "error"
                 ? "오늘의 맹고를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
-                : reason === "exhausted"
-                  ? "관심사에서 고른 소식을 다 봤어요. 새로 들어온 소식이 있는지 찾아볼까요?"
-                  : "아직 오늘의 맹고가 없어요. 지금 바로 만들어 드릴까요?"}
+                : reason === "first"
+                  ? "첫 맹고를 받아 볼까요? 누르면 관심사에 맞는 소식을 찾아 오고, 없으면 바로 만들어 드려요."
+                  : reason === "exhausted"
+                    ? "관심사에서 고른 소식을 다 봤어요. 새로 들어온 소식이 있는지 찾아볼까요?"
+                    : "아직 오늘의 맹고가 없어요. 지금 바로 만들어 드릴까요?"}
             </p>
             <button type="button" onClick={start} className="btn mt-3 w-full">
               {state.kind === "error" ? "다시 받기" : "오늘 맹고 받기"}
