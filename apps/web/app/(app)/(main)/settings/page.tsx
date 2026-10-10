@@ -93,7 +93,6 @@ export default async function SettingsPage() {
             news={newsSections(topics)}
             custom={topics.filter((t) => t.custom)}
             limit={e.topicLimit}
-            customLimit={e.customLimit}
             suggestions={topicSuggestions()}
           />
         </Section>
