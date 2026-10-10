@@ -18,7 +18,7 @@ const MAX_DAILY = 10;
 
 export async function rank(ctx: Ctx) {
   // 오늘 피드는 각자 알림 시각에 만든다(slot.ts, 30분마다). 여기서는 알림 시각이 이미 된 사람만 만든다.
-  // 새벽 4시에는 알림 시각(06:00~23:30)이 된 사람이 없어, 이 배치는 수집·요약만 미리 해 두는 셈이다
+  // 피드는 서버 스케줄러의 deliveries 작업이 알림 시각마다 만든다. 이 단계는 손으로 몰아 돌릴 때만 쓴다
   const due = dueClock(ctx.now);
   const audience = (await loadAudience(ctx)).filter((a) => a.notifyAt <= due);
   const candidates = (await loadCandidates(ctx)).filter((c) => c.summarized);

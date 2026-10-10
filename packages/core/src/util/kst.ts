@@ -65,7 +65,7 @@ export function notifyTimeLabel(hhmm: string): string {
 
 /**
  * 알림 시간 선택지(KST): 아침 6시부터 밤 11시 30분까지 30분 단위.
- * 일일 배치가 새벽 4시에 돌아서 2시간 여유를 둔다. 알림 크론도 30분마다 돈다(PLAN.md 9.2).
+ * 서버 스케줄러가 알림 30분 전에 맹고를 만들고 알림 시각에 보낸다(scheduler_tasks의 deliveries, 5분마다).
  */
 export const NOTIFY_TIMES: string[] = Array.from({ length: 36 }, (_, i) => {
   const minutes = 6 * 60 + i * 30;

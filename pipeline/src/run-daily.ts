@@ -12,7 +12,7 @@ import { summarize } from './jobs/summarize';
 import { dedupe } from './jobs/dedupe';
 import { rank } from './jobs/rank';
 
-// 일일 배치 진입점(PLAN.md 6장). GitHub Actions가 매일 04:00 KST에 돌린다.
+// 일일 배치 진입점(PLAN.md 6장). 정기 실행은 서버 스케줄러(scheduler.ts)로 옮겼고, 이건 손으로 몰아 돌릴 때 쓴다(GitHub Actions daily.yml 수동 실행).
 //   pnpm --filter @maengo/pipeline daily [--date=2026-10-20] [--only=collect,embed] [--from=summarize] [--force] [--window=72]
 // 모든 단계는 이미 한 일을 건너뛰므로 실패하면 --from으로 그 단계부터 다시 돌리면 된다.
 // 오디오는 만들지 않는다. 사용자가 듣기를 누를 때 만든다.

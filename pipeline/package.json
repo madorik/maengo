@@ -23,6 +23,7 @@
   },
   "exports": {
     "./instant": "./src/instant.ts",
-    "./deliveries": "./src/deliveries.ts"
+    "./deliveries": "./src/deliveries.ts",
+    "./scheduler": "./src/scheduler.ts"
   }
 }

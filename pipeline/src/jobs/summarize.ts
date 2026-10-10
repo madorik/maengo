@@ -156,14 +156,20 @@ export async function summarize(ctx: Ctx) {
       if (!c.summarized) needed.set(r.clusterId, Math.max(needed.get(r.clusterId) ?? 0, r.score));
     }
   }
-  const queue = [...needed].sort((a, b) => b[1] - a[1]).slice(0, env.summarizeLimit).map(([id]) => id);
-  ctx.log(`summarize: 유저 ${audience.length}명 · 후보 ${candidates.length}개 → 요약할 묶음 ${queue.length}개(상한 ${env.summarizeLimit})`);
+  const limit = ctx.budget?.summarizeLimit ?? env.summarizeLimit;
+  const queue = [...needed].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id]) => id);
+  ctx.log(`summarize: 유저 ${audience.length}명 · 후보 ${candidates.length}개 → 요약할 묶음 ${queue.length}개(상한 ${limit})`);
 
   const counts: Record<SummaryResult, number> = { ok: 0, skipped: 0, deferred: 0, failed: 0 };
-  const budget = { videos: env.videoLimit };
+  const budget = { videos: ctx.budget?.videoLimit ?? env.videoLimit };
   let quotaHit = false;
   await mapLimit(queue, 3, async (id) => {
     if (quotaHit) return;
+    // 서버 함수 시간이 모자라면 남은 요약은 다음 실행으로
+    if (ctx.budget?.deadline && Date.now() > ctx.budget.deadline) {
+      counts.deferred++;
+      return;
+    }
     try {
       const r = await summarizeCluster(ctx, id, 'basic', budget);
       counts[r]++;

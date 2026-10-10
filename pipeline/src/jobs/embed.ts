@@ -4,9 +4,11 @@ import { HOUR, type Ctx } from '../lib/ctx';
 /** 3. embed: 제목 + RSS 설명을 768차원으로. 본문은 읽지 않는다(요약 대상만 읽는다) */
 export async function embed(ctx: Ctx) {
   const since = new Date(ctx.now.getTime() - 7 * 24 * HOUR).toISOString();
-  const items = await selectAll<{ id: number; title: string; excerpt: string | null }>((from, to) =>
-    db.from('items').select('id,title,excerpt').is('embedding', null).gte('fetched_at', since).order('id').range(from, to),
+  // 최신 글부터. 서버 스케줄러는 한 번에 embedLimit개까지만(남은 것은 다음 실행)
+  const all = await selectAll<{ id: number; title: string; excerpt: string | null }>((from, to) =>
+    db.from('items').select('id,title,excerpt').is('embedding', null).gte('fetched_at', since).order('id', { ascending: false }).range(from, to),
   );
+  const items = all.slice(0, ctx.budget?.embedLimit ?? all.length);
   if (!items.length) {
     ctx.stats.embed = { embedded: 0 };
     ctx.log('embed: 새로 임베딩할 글 없음');
