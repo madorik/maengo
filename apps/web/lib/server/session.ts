@@ -24,10 +24,12 @@ export const currentProfile = cache(async (): Promise<Profile | null> => {
   const claims = data?.claims;
   if (claims?.sub) {
     const provider = claims.app_metadata?.provider === 'apple' ? 'apple' : 'google';
-    return loadProfile(claims.sub, { provider, email: typeof claims.email === 'string' ? claims.email : null, demo: false });
+    const meta = (claims.user_metadata ?? {}) as { avatar_url?: unknown; picture?: unknown };
+    const avatar = typeof meta.avatar_url === 'string' ? meta.avatar_url : typeof meta.picture === 'string' ? meta.picture : null;
+    return loadProfile(claims.sub, { provider, email: typeof claims.email === 'string' ? claims.email : null, avatarUrl: avatar, demo: false });
   }
   const demo = await readSession((await cookies()).get(SESSION_COOKIE)?.value);
-  if (demo) return loadProfile(demo.userId, { provider: demo.provider, email: null, demo: true });
+  if (demo) return loadProfile(demo.userId, { provider: demo.provider, email: null, avatarUrl: null, demo: true });
   return null;
 });
 

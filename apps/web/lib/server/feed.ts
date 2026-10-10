@@ -410,6 +410,7 @@ export function toProfileView(p: Profile): ProfileView {
     displayName: p.displayName,
     provider: p.provider,
     email: p.email,
+    avatarUrl: p.avatarUrl,
     demo: p.demo,
     plan: p.plan,
     trialDaysLeft: trialDaysLeft(p),

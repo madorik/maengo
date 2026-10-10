@@ -8,6 +8,8 @@ export interface Profile {
   displayName: string | null;
   provider: Provider;
   email: string | null;
+  /** 구글 프로필 사진(애플·데모는 없음) */
+  avatarUrl: string | null;
   /** 애플 연동 전까지 쓰는 데모 계정으로 들어왔는지 */
   demo: boolean;
   /** 관심사 고르기를 마쳤는지. 안 마쳤으면 /onboarding으로 보낸다 */
@@ -36,7 +38,10 @@ interface ProfileRow {
   onboarded_at: string | null;
 }
 
-export async function loadProfile(userId: string, who: { provider: Provider; email: string | null; demo: boolean }): Promise<Profile | null> {
+export async function loadProfile(
+  userId: string,
+  who: { provider: Provider; email: string | null; avatarUrl: string | null; demo: boolean },
+): Promise<Profile | null> {
   const row = must(
     await db.from('profiles').select('id,display_name,notify_at,plan,trial_ends_at,persona,voice,auto_next,skip_read,onboarded_at').eq('id', userId).maybeSingle(),
     'profiles',
