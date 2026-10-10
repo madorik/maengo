@@ -56,7 +56,7 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
       <div className="flex items-center gap-3">
         <Mascot mood="listen" className="size-12 shrink-0" />
         <p className="min-w-0 flex-1">
-          <span className="block text-[15px] font-extrabold">이 글 듣기는 플러스에서</span>
+          <span className="block text-[15px] font-extrabold">이 글 듣기는 Premium에서</span>
           <span className="block text-[13px] font-semibold text-sub">7일 무료 체험으로 들어 볼 수 있어요</span>
         </p>
         <Link href="/settings#plan" className="btn min-h-11 shrink-0 px-4 text-[14px]">

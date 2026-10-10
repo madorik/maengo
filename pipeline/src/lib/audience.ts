@@ -21,21 +21,21 @@ export interface Audience {
 }
 
 /** 체험 기간이 끝났으면 무료로 본다(결제 단계가 plan을 바꾸기 전까지) */
-function effectivePlan(plan: Plan, trialEndsAt: string | null, now: Date): Plan {
-  if (plan === 'trial' && trialEndsAt && Date.parse(trialEndsAt) < now.getTime()) return 'free';
+function effectivePlan(plan: Plan, premiumUntil: string | null, now: Date): Plan {
+  if (plan === 'plus' && premiumUntil && Date.parse(premiumUntil) < now.getTime()) return 'free';
   return plan;
 }
 
 /** 관심사를 고른 유저들. onlyUserId를 주면 그 한 명만(웹에서 "오늘 맹고 받기"를 누른 사람) */
 export async function loadAudience(ctx: Ctx, onlyUserId?: string): Promise<Audience[]> {
-  let query = db.from('profiles').select('id,plan,trial_ends_at').not('onboarded_at', 'is', null);
+  let query = db.from('profiles').select('id,plan,premium_until').not('onboarded_at', 'is', null);
   if (onlyUserId) query = query.eq('id', onlyUserId);
-  const profiles = check(await query, 'profiles') as { id: string; plan: Plan; trial_ends_at: string | null }[];
+  const profiles = check(await query, 'profiles') as { id: string; plan: Plan; premium_until: string | null }[];
   if (!profiles.length) return [];
   const ids = profiles.map((p) => p.id);
   const byId = new Map<string, Audience>();
   for (const p of profiles) {
-    const plan = effectivePlan(p.plan, p.trial_ends_at, ctx.now);
+    const plan = effectivePlan(p.plan, p.premium_until, ctx.now);
     byId.set(p.id, { id: p.id, plan, tier: tierOf(plan), dailyItems: plan === 'free' ? 1 : 10, weights: {}, exclude: new Set(), known: [] });
   }
   const topics = await selectAll<{ user_id: string; topic_id: string; weight: number }>((f, t) => db.from('user_topics').select('user_id,topic_id,weight').in('user_id', ids).range(f, t));

@@ -1,6 +1,8 @@
 import { modelFor } from "@maengo/core/ai";
 import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
+import { Crown } from "@/components/icons";
+import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { TopicEditor } from "@/components/settings/TopicEditor";
 import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
@@ -14,9 +16,8 @@ import { topicGroups, userTopics } from "@/lib/server/topics";
 export const metadata: Metadata = { title: "설정" };
 
 const PLANS: { id: Plan; label: string; desc: string }[] = [
-  { id: "free", label: "무료", desc: "하루 1개를 글로 읽어요. 요약과 문구는 Gemini Flash가 써요." },
-  { id: "trial", label: "플러스 체험", desc: "7일 동안 플러스와 같아요. 하루 최대 10개를 받고 들을 수 있어요." },
-  { id: "plus", label: "플러스", desc: "하루 최대 10개, 오디오 이어 듣기, 팟캐스트, 스터디 팩. 요약과 문구는 상위 모델이 써요." },
+  { id: "free", label: "Free", desc: "하루 1개를 글로 읽어요. 요약과 문구는 Gemini Flash가 써요." },
+  { id: "plus", label: "Premium", desc: "하루 최대 10개, 오디오 이어 듣기, 팟캐스트, 스터디 팩. 요약과 문구는 상위 모델이 써요." },
 ];
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
@@ -43,9 +44,12 @@ export default async function SettingsPage() {
       <div className="mt-6">
         <Section id="plan" title="플랜">
           <p className="text-sub">{PLANS.find((p) => p.id === view.plan)!.desc}</p>
+          {view.premiumDaysLeft !== null && (
+            <p className="mt-1 text-[14px] font-bold text-sky-dark">가입 기념 Premium이 {view.premiumDaysLeft}일 남았어요. 지나면 Free로 바뀌어요.</p>
+          )}
           {demoTools && (
             <>
-              <form action={demoSetPlan} className="mt-4 grid grid-cols-3 gap-2">
+              <form action={demoSetPlan} className="mt-4 grid grid-cols-2 gap-2">
                 {PLANS.map((p) => (
                   <button
                     key={p.id}
@@ -53,13 +57,14 @@ export default async function SettingsPage() {
                     name="plan"
                     value={p.id}
                     aria-pressed={view.plan === p.id}
-                    className={`tile min-h-12 text-[15px] font-extrabold ${view.plan === p.id ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
+                    className={`tile inline-flex min-h-12 items-center justify-center gap-1 px-1 text-[15px] font-extrabold ${view.plan === p.id ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
                   >
+                    {p.id !== "free" && <Crown className="size-4" />}
                     {p.label}
                   </button>
                 ))}
               </form>
-              <p className="mt-2 text-[13px] text-sub">결제가 붙기 전까지 쓰는 데모 전환이에요. 바꾸면 오늘 피드의 문구와 듣기 권한이 바로 바뀌어요.</p>
+              <p className="mt-2 text-[13px] text-sub">결제가 붙기 전까지 쓰는 데모 전환이에요(Premium은 기한 없이). 바꾸면 오늘 피드의 문구와 듣기 권한이 바로 바뀌어요.</p>
             </>
           )}
         </Section>
@@ -68,9 +73,9 @@ export default async function SettingsPage() {
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-2">
             <dt className="text-sub">요약과 &ldquo;왜 중요한가&rdquo;</dt>
             <dd className="break-all font-extrabold">{view.model}</dd>
-            <dt className="text-sub">오디오 대본(플러스)</dt>
+            <dt className="text-sub">오디오 대본(Premium)</dt>
             <dd className="break-all font-extrabold">{modelFor("pro")}</dd>
-            <dt className="text-sub">음성 합성(플러스)</dt>
+            <dt className="text-sub">음성 합성(Premium)</dt>
             <dd className="break-all font-extrabold">{ttsModel()}</dd>
           </dl>
           <p className="mt-3 text-[13px] text-sub">
@@ -81,6 +86,10 @@ export default async function SettingsPage() {
 
         <Section id="topics" title="관심사">
           <TopicEditor topics={topics} groups={topicGroups(topics)} limit={entitlements(profile).topicLimit} />
+        </Section>
+
+        <Section id="listen" title="듣기">
+          <ListenPrefs audio={view.audio} />
         </Section>
 
         <Section id="notify" title="알림">
@@ -103,7 +112,7 @@ export default async function SettingsPage() {
               </form>
             </div>
             <p className="mt-2 text-[13px] text-sub">
-              다시 고르면 지난 피드에 나온 소식, 읽거나 들은 소식, 이미 알아요와 관심 없어요를 누른 소식을 빼고 골라요.
+              다시 고르면 지난 피드에 나온 소식, 읽거나 들은 소식, 싫어요를 누른 소식을 빼고 골라요.
               처음 상태로 되돌리면 읽음·피드백을 지우고 관심사 가중치를 1로 돌려요.
             </p>
           </Section>

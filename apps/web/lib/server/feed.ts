@@ -10,7 +10,7 @@ import type { FeedbackKind, Tier } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, ProfileView, TodayData } from '../types';
 import { ai } from './ai';
 import { db, must } from './db';
-import { entitlements, trialDaysLeft, type Profile } from './profile';
+import { entitlements, premiumDaysLeft, type Profile } from './profile';
 import { topicNames } from './topics';
 
 // 피드 읽기. 소식(요약·why·토픽)은 일일 파이프라인(pipeline/)이 Supabase에 만들어 두고, 웹은 읽기만 한다.
@@ -413,7 +413,7 @@ export function toProfileView(p: Profile): ProfileView {
     avatarUrl: p.avatarUrl,
     demo: p.demo,
     plan: p.plan,
-    trialDaysLeft: trialDaysLeft(p),
+    premiumDaysLeft: premiumDaysLeft(p),
     audio: entitlements(p).audio,
     dailyItems: entitlements(p).dailyItems,
     persona: p.persona,

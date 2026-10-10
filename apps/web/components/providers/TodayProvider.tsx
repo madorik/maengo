@@ -2,11 +2,9 @@
 
 import type { FeedbackKind } from "@maengo/core/types";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { xpToday } from "@/lib/gamify";
 import type { TodayData } from "@/lib/types";
 
 interface Game {
-  xp: number;
   /** 읽었거나 들은 항목 수 */
   done: number;
   total: number;
@@ -34,7 +32,7 @@ function post(url: string, body: unknown) {
   fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
 }
 
-/** 오늘 피드와 읽음·들음·의견 상태, XP. (app) 레이아웃에 있어 화면을 옮겨도 유지된다. */
+/** 오늘 피드와 읽음·들음·의견 상태. (app) 레이아웃에 있어 화면을 옮겨도 유지된다. */
 export function TodayProvider({ initial, children }: { initial: TodayData; children: React.ReactNode }) {
   const [read, setRead] = useState(() => new Set(initial.read));
   const [listened, setListened] = useState(() => new Set(initial.listened));
@@ -72,7 +70,7 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
       listened,
       feedback,
       consumed,
-      game: { xp: xpToday(ids, consumed, feedback), done, total: ids.length, allDone },
+      game: { done, total: ids.length, allDone },
       markRead,
       markListened,
       setFeedback,

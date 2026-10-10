@@ -3,7 +3,6 @@ import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
 import { parseWav } from '../audio/wav';
 import { templateScript } from './script';
 import { CLASSIFY_SYSTEM, MAP_TOPICS_SYSTEM, SUMMARIZE_SYSTEM, WHY_SYSTEM } from './prompts';
-import type { Persona } from '../types';
 import type {
   AiClient, ClassifyInput, MapTopicsInput, SpeakInput, SpeakOutput, SummarizeInput, SummarizeOutput, UsageEvent, UsageKind, WhyInput,
 } from './types';
@@ -18,12 +17,13 @@ export const EMBED_DIMENSIONS = 768;
 /** TTS 목소리(Gemini 기본 목소리 이름). 대담은 진행자 = 여성, 해설자 = 남성 */
 const TTS_VOICES = { f: 'Kore', m: 'Charon' } as const;
 
-/** 말투 지시문. 본문 앞에 붙이면 읽지 않고 말투에만 반영된다 */
-const TTS_STYLE: Record<Persona, string> = {
-  announcer: '뉴스 아나운서처럼 또렷하고 단정하게, 조금 빠르게 읽어 주세요',
-  teacher: '친절한 선생님처럼 차분하고 또박또박, 설명하듯 읽어 주세요',
-  dialogue: '두 사람이 라디오에서 편하게 이야기하듯 자연스럽게 읽어 주세요. 진행자는 묻고 해설자는 설명해요',
-};
+/**
+ * TTS에 보낼 글. 대본 줄만 그대로 보낸다(말투 지시문을 앞에 붙이면 그 문장까지 소리로 읽는 경우가 있었다, 2026-10-10).
+ * 대담은 '진행자: …' / '해설자: …' 줄로 두 목소리를 나눈다.
+ */
+export function ttsText(lines: { who?: string; text: string }[], pair: boolean): string {
+  return lines.map((l) => (pair ? `${l.who ?? '해설자'}: ${l.text}` : l.text)).join('\n');
+}
 
 /**
  * TTS는 줄별 시각을 주지 않는다. 전체 길이를 글자 수(+줄 사이 쉼)에 비례해 나눠 대본 하이라이트에 쓴다.
@@ -322,7 +322,6 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
     async speak(input: SpeakInput): Promise<SpeakOutput> {
       const voice = input.voice;
       const pair = voice === 'pair';
-      const body = input.lines.map((l) => (pair ? `${l.who ?? '해설자'}: ${l.text}` : l.text)).join('\n');
       const speechConfig: SpeechConfig = pair
         ? {
             multiSpeakerVoiceConfig: {
@@ -336,8 +335,7 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       const res = await withRetry(input.model, () =>
         client.models.generateContent({
           model: input.model,
-          // 앞의 지시문은 읽지 않고 말투에만 반영된다(2026-10-09 받아쓰기로 확인)
-          contents: [{ role: 'user', parts: [{ text: `${TTS_STYLE[input.persona]}:\n${body}` }] }],
+          contents: [{ role: 'user', parts: [{ text: ttsText(input.lines, pair) }] }],
           config: { responseModalities: [Modality.AUDIO], speechConfig },
         }),
       );

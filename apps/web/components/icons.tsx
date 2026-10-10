@@ -45,6 +45,12 @@ export const IconGear = (p: Props) => (
 );
 
 // ---- 2차(듀오링고식) 아이콘 ----
+export const IconThumbUp = (p: Props) => (
+  <Line {...p}><path d="M7 11v9H4v-9z" /><path d="M7 11l4-7c1.5 0 2.5 1 2.2 2.6L12.5 10H18a2 2 0 0 1 2 2.3l-1.1 6A2 2 0 0 1 16.9 20H7" /></Line>
+);
+export const IconThumbDown = (p: Props) => (
+  <Line {...p}><path d="M7 13V4H4v9z" /><path d="M7 13l4 7c1.5 0 2.5-1 2.2-2.6L12.5 14H18a2 2 0 0 0 2-2.3l-1.1-6A2 2 0 0 0 16.9 4H7" /></Line>
+);
 export const IconPlus = (p: Props) => <Line {...p}><path d="M12 5v14" /><path d="M5 12h14" /></Line>;
 export const IconClose = (p: Props) => <Line {...p}><path d="M6 6l12 12" /><path d="M18 6L6 18" /></Line>;
 export const IconDoc = (p: Props) => <Line {...p}><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4" /><path d="M9 12h7" /><path d="M9 16h5" /></Line>;
@@ -64,11 +70,12 @@ export const IconCap = (p: Props) => <Line {...p}><path d="M2 9l10-5 10 5-10 5z"
 export const IconChat = (p: Props) => <Line {...p}><path d="M4 5h11v8H8l-4 3z" /><path d="M15 9h5v8l-3-2h-6v-2" /></Line>;
 export const IconList = (p: Props) => <Line {...p}><path d="M9 6h11" /><path d="M9 12h11" /><path d="M9 18h11" /><path d="M4 6h.01" /><path d="M4 12h.01" /><path d="M4 18h.01" /></Line>;
 
-/** XP 번개 */
-export function Bolt({ className = "size-6" }: { className?: string }) {
+/** Premium 왕관(금색) */
+export function Crown({ className = "size-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 ${className}`}>
-      <path d="M13.5 2L4.5 13.5h6.5l-1.5 8.5 9-11.5H12z" fill="#FFC23D" stroke="#E09A12" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M3.5 8l4.5 4 4-7 4 7 4.5-4-1.8 10.5H5.3z" fill="#FFC23D" stroke="#E09A12" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M5.6 20h12.8" stroke="#E09A12" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }

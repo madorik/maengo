@@ -1,10 +1,10 @@
 // 웹과 파이프라인이 같이 쓰는 도메인 타입. DB 스키마(PLAN.md 4장)의 체크 제약과 값이 같다.
 // 직업은 받지 않는다. 개인화는 관심 토픽만으로 한다(2026-10-09 결정).
 
-/** trial은 플러스 체험이다. 권한과 AI 등급은 plus와 같다. */
-export type Plan = 'free' | 'trial' | 'plus';
+/** Free·Premium. Premium은 가입 후 1주일, 또는 결제 기간 동안(profiles.premium_until) */
+export type Plan = 'free' | 'plus';
 
-/** AI 모델 등급. 무료는 basic(Gemini Flash), 플러스·체험은 pro(상위 모델). */
+/** AI 모델 등급. Free는 basic(Gemini Flash), Premium은 pro(상위 모델). */
 export type Tier = 'basic' | 'pro';
 
 export type Persona = 'announcer' | 'teacher' | 'dialogue';

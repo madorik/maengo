@@ -78,7 +78,7 @@ async function addTopicIds(profile: Profile, ids: string[], source: 'settings' |
 
   if (fresh.length > added.length) {
     const head = added.length ? `${obj(n(added))} 추가했어요. ` : '';
-    const who = profile.plan === 'free' ? '무료는' : '지금 플랜은';
+    const who = profile.plan === 'free' ? 'Free는' : '지금 플랜은';
     const after = count + added.length;
     const tail = after > limit ? `지금 ${after}개라 ${after - limit + 1}개를 빼야 더 추가할 수 있어요.` : '하나를 빼고 다시 추가해 주세요.';
     return { tone: 'warn', message: `${head}${who} 관심사를 ${limit}개까지 고를 수 있어요. ${tail}` };

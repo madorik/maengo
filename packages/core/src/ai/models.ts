@@ -1,6 +1,6 @@
 import type { Plan, Tier } from '../types';
 
-// 무료는 Gemini Flash, 플러스(체험 포함)는 상위 모델. 모델 ID는 env로만 바꾼다.
+// Free는 Gemini Flash, Premium은 상위 모델. 모델 ID는 env로만 바꾼다.
 // 기본값은 Gemini API의 최신 별칭이다. 실제 키를 넣는 날 고정 버전으로 바꿀지 정한다(API_KEYS.md).
 export const DEFAULT_MODELS: Record<Tier, string> = {
   basic: 'gemini-flash-latest',

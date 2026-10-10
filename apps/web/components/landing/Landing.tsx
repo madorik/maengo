@@ -1,6 +1,6 @@
 import type { CategoryId } from "@maengo/core/categories";
 import Link from "next/link";
-import { IconCheck, IconDoc, IconPlay, IconSpeaker } from "@/components/icons";
+import { Crown, IconCheck, IconDoc, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
@@ -18,7 +18,7 @@ const FAQ: [string, string][] = [
   ["어떤 소식을 모아요?", "긱뉴스, Hacker News, 공식 블로그, 유튜브 채널, 국내외 기술블로그를 매일 새벽에 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶어요."],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 디자인 시스템, 그로스, AI 도구처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
-  ["무료로 얼마나 쓸 수 있나요?", "무료는 하루 1개 소식을 글로 읽어요. 플러스는 하루 최대 10개와 오디오 듣기를 쓸 수 있고, 7일 동안 무료로 써 볼 수 있어요."],
+  ["무료로 얼마나 쓸 수 있나요?", "Free는 하루 1개 소식을 글로 읽어요. Premium은 하루 최대 10개와 오디오 듣기를 쓸 수 있어요. 가입하면 1주일 동안 Premium을 무료로 써요."],
 ];
 
 type Sample = { category: CategoryId; source: string; video?: boolean; title: string; short: string; author: string; date: string; coverage?: string };
@@ -82,7 +82,7 @@ export function Landing() {
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
               <AuthLink signedOut={{ href: "/login", label: "이미 계정이 있어요" }} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
-            <p className="mt-4 text-[13px] font-semibold text-sub">무료는 하루 1개, 플러스는 하루 최대 10개. 플러스는 7일 동안 무료로 써 볼 수 있어요.</p>
+            <p className="mt-4 text-[13px] font-semibold text-sub">Free는 하루 1개, Premium은 하루 최대 10개. 가입하면 1주일 동안 Premium을 무료로 써요.</p>
           </div>
 
           <div aria-hidden="true" className="mx-auto w-full max-w-[460px] md:order-1">
@@ -232,17 +232,17 @@ export function Landing() {
             </h2>
             <div className="mt-10 grid gap-5 md:grid-cols-2">
               <Plan
-                name="무료"
+                name="Free"
                 price="0원"
-                items={["하루 1개 소식", "요약, 왜 중요한가, 전체 글", "보관함과 카테고리", "관심 토픽 5개"]}
+                items={["하루 1개 소식", "요약, 왜 중요한가, 전체 글", "보관함과 카테고리", "관심사 5개"]}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan
                 featured
-                name="플러스"
+                name="Premium"
                 price="월 4,900원"
-                badge="7일 무료 체험"
-                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 말투 3종", "더 좋은 AI 모델로 요약", "관심 토픽 20개"]}
+                badge="가입하면 1주일 무료"
+                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 말투 3종", "더 좋은 AI 모델로 요약", "관심사 20개"]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={{ signedOut: { href: "/login", label: "7일 무료로 써 보기" }, signedIn: { href: "/settings#plan", label: "7일 무료로 써 보기" } }}
               />
@@ -386,7 +386,10 @@ function Plan({
   return (
     <div className={`tile flex flex-col p-6 ${featured ? "border-mango" : ""}`}>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[20px] font-black">{name}</h3>
+        <h3 className="inline-flex items-center gap-1.5 text-[20px] font-black">
+          {featured && <Crown className="size-6" />}
+          {name}
+        </h3>
         {badge && <span className="rounded-lg bg-mango px-2 py-0.5 text-[12px] font-black">{badge}</span>}
       </div>
       <p className="mt-2 font-round text-[30px] font-black tracking-[-0.02em]">{price}</p>
@@ -419,8 +422,8 @@ function JsonLd() {
       inLanguage: "ko-KR",
       description: SITE_DESCRIPTION,
       offers: [
-        { "@type": "Offer", name: "무료", price: "0", priceCurrency: "KRW" },
-        { "@type": "Offer", name: "플러스", price: "4900", priceCurrency: "KRW" },
+        { "@type": "Offer", name: "Free", price: "0", priceCurrency: "KRW" },
+        { "@type": "Offer", name: "Premium", price: "4900", priceCurrency: "KRW" },
       ],
     },
     {

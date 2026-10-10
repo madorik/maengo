@@ -131,10 +131,10 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
 
 export async function demoSetPlan(formData: FormData) {
   const plan = formData.get("plan") as Plan;
-  if (!demoToolsEnabled() || !["free", "trial", "plus"].includes(plan)) return;
+  if (!demoToolsEnabled() || !["free", "plus"].includes(plan)) return;
   const profile = await requireProfile();
-  const trialEndsAt = plan === "trial" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : null;
-  must(await db.from("profiles").update({ plan, trial_ends_at: trialEndsAt }).eq("id", profile.id), "profiles plan");
+  // 데모 전환의 Premium은 결제한 것처럼 기한 없이 둔다
+  must(await db.from("profiles").update({ plan, premium_until: null }).eq("id", profile.id), "profiles plan");
   revalidatePath("/", "layout");
 }
 

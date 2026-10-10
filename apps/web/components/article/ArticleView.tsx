@@ -3,7 +3,7 @@
 import type { FeedbackKind } from "@maengo/core/types";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { IconBack, IconExternal, IconNext } from "@/components/icons";
+import { IconBack, IconExternal, IconNext, IconThumbDown, IconThumbUp } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -17,10 +17,11 @@ import { useItemAudio } from "./useItemAudio";
 import { useTodayAudio } from "./useTodayAudio";
 import { VideoThumb } from "./VideoThumb";
 
-const CHOICES: { kind: FeedbackKind; label: string; note: string }[] = [
-  { kind: "more", label: "더 보고 싶어요", note: "이 분야 소식을 더 자주 골라 드릴게요." },
-  { kind: "known", label: "이미 알아요", note: "이미 아는 소식은 다음부터 빼 드릴게요." },
-  { kind: "skip", label: "관심 없어요", note: "비슷한 소식은 덜 보여 드릴게요." },
+// 좋아요 = 이 분야 가중치를 올린다(more), 싫어요 = 가중치를 내리고 이 소식을 다시 주지 않는다(skip).
+// 예전의 "이미 알아요"(known)는 화면에서 뺐다. 서버는 예전 값도 그대로 받는다.
+const CHOICES: { kind: FeedbackKind; label: string; note: string; Icon: typeof IconThumbUp }[] = [
+  { kind: "more", label: "좋아요", note: "이 분야 소식을 더 자주 골라 드릴게요.", Icon: IconThumbUp },
+  { kind: "skip", label: "싫어요", note: "이런 소식은 덜 골라 드릴게요.", Icon: IconThumbDown },
 ];
 
 function host(url: string): string {
@@ -67,9 +68,6 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
   }, [activePara, playing]);
 
   const fb = feedback[item.clusterId];
-  const cut = item.why.indexOf(":");
-  const lead = cut > 0 ? item.why.slice(0, cut) : "";
-  const rest = cut > 0 ? item.why.slice(cut + 1).trim() : item.why;
   const sourceLink = item.kind === "video" ? "유튜브에서 보기" : "원문 보기";
 
   return (
@@ -108,20 +106,13 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
 
         {item.kind === "video" && <VideoThumb item={item} />}
 
-        <section aria-label="요약" className="mt-6 rounded-2xl bg-snow px-5 py-4">
-          <p className="text-[13px] font-black text-sub">요약</p>
-          <p className="mt-1 text-[17px] font-bold leading-[1.65]">{item.short}</p>
-        </section>
-
-        <div className="mt-4 flex items-start gap-2">
+        {/* 맹고가 말풍선으로 요약을 건넨다 */}
+        <section aria-label="요약" className="mt-6 flex items-start gap-2">
           <Mascot className="size-14 shrink-0" />
           <Bubble className="flex-1">
-            <p className="text-[16px] font-bold leading-relaxed">
-              {lead && <span className="text-mango-deep">{lead}, </span>}
-              {rest}
-            </p>
+            <p className="text-[17px] font-bold leading-[1.65]">{item.short}</p>
           </Bubble>
-        </div>
+        </section>
 
         <article aria-label="전체 글" className="mt-8 flex flex-col gap-4">
           {item.body.map((para, i) => (
@@ -177,7 +168,7 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
           <h2 id="fb-title" className="text-[17px] font-black">
             이 글 어땠어요?
           </h2>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:max-w-[360px]">
             {CHOICES.map((c) => {
               const on = fb === c.kind;
               return (
@@ -186,15 +177,16 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
                   type="button"
                   aria-pressed={on}
                   onClick={() => setFeedback(item.clusterId, on ? null : c.kind)}
-                  className={`tile min-h-11 px-4 text-[15px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
+                  className={`tile inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
                 >
+                  <c.Icon className="size-5" />
                   {c.label}
                 </button>
               );
             })}
           </div>
           <p aria-live="polite" className="mt-2 min-h-5 text-[14px] font-bold text-leaf">
-            {fb ? CHOICES.find((c) => c.kind === fb)!.note : ""}
+            {CHOICES.find((c) => c.kind === fb)?.note ?? ""}
           </p>
         </section>
 

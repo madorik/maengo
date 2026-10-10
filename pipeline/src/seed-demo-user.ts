@@ -33,9 +33,9 @@ async function main() {
     await db.from('user_topics').upsert(TOPICS.map((topic_id) => ({ user_id: id, topic_id, weight: 1, source: 'onboarding' })), { onConflict: 'user_id,topic_id' }),
     'user_topics',
   );
-  const { data: p } = await db.from('profiles').select('plan,trial_ends_at').eq('id', id).single();
+  const { data: p } = await db.from('profiles').select('plan,premium_until').eq('id', id).single();
   console.log(`DEMO_USER_ID=${id}`);
-  console.log(`plan=${p?.plan} trial_ends_at=${p?.trial_ends_at}`);
+  console.log(`plan=${p?.plan} premium_until=${p?.premium_until}`);
 }
 
 main().catch((e) => {

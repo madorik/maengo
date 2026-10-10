@@ -59,7 +59,8 @@ export interface ProfileView {
   /** 데모 계정으로 들어왔는지(애플 연동 전) */
   demo: boolean;
   plan: Plan;
-  trialDaysLeft: number | null;
+  /** Premium 남은 날(가입 1주일 Premium처럼 기한이 있을 때만) */
+  premiumDaysLeft: number | null;
   audio: boolean;
   dailyItems: number;
   persona: Persona;
