@@ -38,6 +38,8 @@ export interface DeliveryResult {
   failed: number;
   sent: number;
   noDevice: number;
+  /** 알림을 꺼 둬서 보내지 않음 */
+  muted: number;
   summarized: number;
 }
 
@@ -147,7 +149,7 @@ const setStatus = (job: JobRow, patch: Record<string, unknown>) =>
 
 export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
   const ctx = makeCtx(now);
-  const out: DeliveryResult = { planned: 0, reclaimed: 0, built: 0, empty: 0, failed: 0, sent: 0, noDevice: 0, summarized: 0 };
+  const out: DeliveryResult = { planned: 0, reclaimed: 0, built: 0, empty: 0, failed: 0, sent: 0, noDevice: 0, muted: 0, summarized: 0 };
   out.planned = Number(check(await db.rpc('plan_deliveries', { p_date: ctx.date }), 'plan_deliveries') ?? 0);
   out.reclaimed = Number(check(await db.rpc('reclaim_stuck_deliveries'), 'reclaim') ?? 0);
 
@@ -176,7 +178,18 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
 
   // 보내기
   const sends = (check(await db.rpc('claim_send_jobs', { p_now: now.toISOString(), p_limit: SEND_BATCH }), 'claim_send_jobs') ?? []) as JobRow[];
+  // 알림을 꺼 둔 사람은 보내지 않는다(보낼 때 다시 읽어 직전에 끈 것도 지킨다)
+  const pushOn = new Set(
+    sends.length
+      ? (check(await db.from('profiles').select('id').in('id', sends.map((j) => j.user_id)).eq('push_enabled', true), 'profiles push_enabled') as { id: string }[]).map((p) => p.id)
+      : [],
+  );
   for (const job of sends) {
+    if (!pushOn.has(job.user_id)) {
+      out.muted++;
+      await setStatus(job, { status: 'muted' });
+      continue;
+    }
     const tokens = (check(await db.from('device_tokens').select('token').eq('user_id', job.user_id), 'device_tokens') as { token: string }[]).map((t) => t.token);
     if (!tokens.length || !fcmReady()) {
       out.noDevice++;
