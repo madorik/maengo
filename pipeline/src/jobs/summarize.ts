@@ -54,6 +54,11 @@ export async function summarizeCluster(
   const quality = (m: MemberRow) =>
     itemQuality({ sourceWeight: m.sources?.weight ?? 1, views: m.views, hnPoints: m.hn_points, publishedAt: m.published_at }, ctx.now);
   members.sort((a, b) => (a.id === cluster?.rep_item_id ? -1 : b.id === cluster?.rep_item_id ? 1 : quality(b) - quality(a)));
+  // 영상 요약 예산이 없으면(서버 스케줄러는 videoLimit 0) 같은 소식의 글을 기준으로 요약한다. 영상만 있는 묶음은 미룬다
+  if (members[0]!.kind === 'video' && budget.videos <= 0) {
+    const i = members.findIndex((m) => m.kind === 'article');
+    if (i > 0) members.unshift(...members.splice(i, 1));
+  }
   const rep = members[0]!;
   const picked = members.slice(0, 3);
 
