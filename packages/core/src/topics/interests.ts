@@ -70,5 +70,7 @@ const ADULT_WORD_START = /(^|[^a-z])(sex|xxx|nude|milf|escort)/;
 
 export function isAdultInterest(text: string): boolean {
   const key = normalizeInterest(text);
-  return ADULT.some((w) => key.includes(normalizeInterest(w))) || ADULT_WORD_START.test(text.toLowerCase());
+  // 한 글자씩 띄우거나 기호로 끊어 쓴 영어(s.e.x, S E X)는 붙여서 본다
+  const spelled = text.toLowerCase().replace(/\b([a-z])[\s._\-*·]+(?=[a-z]\b)/g, '$1');
+  return ADULT.some((w) => key.includes(normalizeInterest(w))) || ADULT_WORD_START.test(spelled);
 }

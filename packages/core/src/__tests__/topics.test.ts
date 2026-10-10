@@ -92,6 +92,6 @@ test('직접 입력: 새 관심사 id는 같은 말이면 같다', () => {
 
 test('직접 입력: 성인 키워드는 막는다(띄어쓰기·대소문자 섞어도)', () => {
   for (const t of ['야동', '19금 웹툰', 'P o r n', '성인 용품', 'NSFW 그림', '조건 만남']) assert.ok(isAdultInterest(t), t);
-  for (const t of ['Sexy 화보', 'xxx 영상']) assert.ok(isAdultInterest(t), t);
+  for (const t of ['Sexy 화보', 'xxx 영상', 's.e.x', 'S E X', 's-e-x 영상']) assert.ok(isAdultInterest(t), t);
   for (const t of ['성인 ADHD', '드론', '미국 주식', 'Sussex 대학', 'Essex 축구']) assert.ok(!isAdultInterest(t), t);
 });
