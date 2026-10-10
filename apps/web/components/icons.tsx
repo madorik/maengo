@@ -51,6 +51,10 @@ export const IconThumbUp = (p: Props) => (
 export const IconThumbDown = (p: Props) => (
   <Line {...p}><path d="M7 13V4H4v9z" /><path d="M7 13l4 7c1.5 0 2.5-1 2.2-2.6L12.5 14H18a2 2 0 0 0 2-2.3l-1.1-6A2 2 0 0 0 16.9 4H7" /></Line>
 );
+export const IconSearch = (p: Props) => <Line {...p}><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" /><path d="M20 20l-4-4" /></Line>;
+export const IconNews = (p: Props) => (
+  <Line {...p}><path d="M4 5h13v13a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z" /><path d="M17 9h3v9a2 2 0 0 1-2 2" /><path d="M7.5 9h6" /><path d="M7.5 12.5h6" /><path d="M7.5 16h4" /></Line>
+);
 export const IconPlus = (p: Props) => <Line {...p}><path d="M12 5v14" /><path d="M5 12h14" /></Line>;
 export const IconClose = (p: Props) => <Line {...p}><path d="M6 6l12 12" /><path d="M18 6L6 18" /></Line>;
 export const IconMenu = (p: Props) => <Line {...p}><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></Line>;
@@ -90,18 +94,30 @@ export const IconChip = (p: Props) => (
   </Line>
 );
 export const IconCode = (p: Props) => <Line {...p}><path d="M8 7l-5 5 5 5" /><path d="M16 7l5 5-5 5" /><path d="M13.5 4.5l-3 15" /></Line>;
-export const IconMusic = (p: Props) => (
-  <Line {...p}><path d="M9 18V6l11-2v12" /><path d="M9 9.5l11-2" /><path d="M9 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z" /><path d="M20 16a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z" /></Line>
+// 뉴스 분야(정치·경제·사회·생활/문화·IT/과학·세계)
+export const IconLandmark = (p: Props) => (
+  <Line {...p}><path d="M3.5 9.5L12 4.5l8.5 5" /><path d="M5 10v7" /><path d="M9.7 10v7" /><path d="M14.3 10v7" /><path d="M19 10v7" /><path d="M3.5 20h17" /></Line>
 );
-export const IconLipstick = (p: Props) => (
-  <Line {...p}><path d="M8 13h8v7a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z" /><path d="M9 13v-3h6v3" /><path d="M10 10V6.5l4-3V10" /></Line>
+export const IconWon = (p: Props) => (
+  <Line {...p}><circle cx="12" cy="12" r="8.5" /><path d="M7.5 8.5l2 7 2.5-5.5 2.5 5.5 2-7" /><path d="M7 12h10" /></Line>
 );
-export const IconBowl = (p: Props) => (
+export const IconPeople = (p: Props) => (
+  <Line {...p}><path d="M9 11a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 9 11z" /><path d="M3 19.5a6 6 0 0 1 12 0" /><path d="M16 11.2a2.8 2.8 0 1 0 0-5.6" /><path d="M17.5 14.2a5.5 5.5 0 0 1 3.5 5.3" /></Line>
+);
+export const IconPalette = (p: Props) => (
   <Line {...p}>
-    <path d="M3.5 12h17a8.5 7.5 0 0 1-17 0z" /><path d="M9 21h6" />
-    <path d="M14 10l6-6" /><path d="M16.5 10.5l4.5-4.5" />
-    <path d="M7 9.5c-.8-.8-.8-1.7 0-2.5s.8-1.7 0-2.5" /><path d="M10.5 9.5c-.8-.8-.8-1.7 0-2.5s.8-1.7 0-2.5" />
+    <path d="M12 3.5a8.5 8.5 0 0 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.2-1.6-1.2-2.8 0-1 .8-1.6 1.8-1.6h2.3a3.8 3.8 0 0 0 3.8-3.8c0-3.8-3.8-7.1-8.5-7.1z" />
+    <path d="M7.5 12h.01" /><path d="M9.5 8h.01" /><path d="M14 7.5h.01" />
   </Line>
+);
+export const IconAtom = (p: Props) => (
+  <Line {...p}>
+    <path d="M12 12.01v-.02" /><ellipse cx="12" cy="12" rx="9" ry="3.6" />
+    <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)" /><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)" />
+  </Line>
+);
+export const IconGlobe = (p: Props) => (
+  <Line {...p}><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.2-3.6-8.5S9.6 5.9 12 3.5z" /></Line>
 );
 export const IconPencil = (p: Props) => <Line {...p}><path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></Line>;
 

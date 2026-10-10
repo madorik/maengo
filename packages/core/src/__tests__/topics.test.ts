@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createDummyAi } from '../ai/dummy';
-import { childrenOf, TOPIC_GROUPS, TOPICS, withParents } from '../topics/dictionary';
+import { childrenOf, isNewsSection, NEWS_SECTIONS, TOPIC_GROUPS, TOPICS, withParents } from '../topics/dictionary';
 import { customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, splitInterests } from '../topics/interests';
 import { matchTopics } from '../topics/match';
 import { josa } from '../util/josa';
@@ -13,7 +13,8 @@ test('문장에서 토픽 찾기: 이름·별칭, 조사가 붙은 낱말', () =
   // 상세 관심사가 맞으면 큰 분류(개발)는 빼고 상세 관심사만
   assert.deepEqual(m('개발 보안'), ['security']);
   assert.deepEqual(m('미국 주식이랑 스테이블코인').sort(), ['stablecoin', 'stock-us']);
-  assert.deepEqual(m('K-Pop'), ['kpop']);
+  // 뺀 분야(K-Pop)는 맞는 토픽이 없다
+  assert.deepEqual(m('K-Pop'), []);
   // 같은 상세 관심사의 별칭 여럿은 하나로
   assert.deepEqual(m('스프링 부트랑 코틀린'), ['dev-release']);
   assert.deepEqual(m('바이브 코딩'), ['vibe-coding']);
@@ -45,8 +46,12 @@ test('조사: 한글 받침, 영문·숫자는 읽는 소리로', () => {
   assert.equal(josa('k8s', '을', '를'), 'k8s를');
 });
 
-test('큰 분류 8개와 상세 관심사', () => {
-  assert.deepEqual(TOPIC_GROUPS.map((t) => t.name), ['AI', '주식', '코인', '반도체·로봇', '개발', 'K-Pop', 'K-뷰티', 'K-푸드']);
+test('관심 분야 5개와 상세 관심사, 뉴스 분야 6개', () => {
+  assert.deepEqual(TOPIC_GROUPS.map((t) => t.name), ['AI', '주식', '코인', '반도체·로봇', 'Tech']);
+  assert.deepEqual(NEWS_SECTIONS.map((t) => t.name), ['정치', '경제', '사회', '생활/문화', 'IT/과학', '세계']);
+  // 뉴스 분야는 상세 관심사 없이 헤드라인만 받는다
+  for (const n of NEWS_SECTIONS) assert.equal(childrenOf(n.id).length, 0, n.id);
+  assert.ok(isNewsSection('politics') && !isNewsSection('ai') && !isNewsSection('bitcoin'));
   for (const g of TOPIC_GROUPS) assert.ok(childrenOf(g.id).length >= 3, g.id);
   // 직접 적은 말을 이름으로 사전에 잇기 때문에 이름은 겹치지 않는다
   assert.equal(new Set(TOPICS.map((t) => t.name)).size, TOPICS.length);
@@ -76,11 +81,19 @@ test('직접 입력: 사전에 같은 이름이 있으면 그 관심사로', () 
   assert.equal(findTopicByName('스테이블 코인')?.id, 'stablecoin');
   assert.equal(findTopicByName('aws')?.id, 'cloud');
   assert.equal(findTopicByName('스프링 부트')?.id, 'dev-release');
-  // 합친 분야(백엔드)는 개발로
+  // 합친 분야(백엔드)와 예전 이름(개발)은 Tech로
+  assert.equal(findTopicByName('개발')?.id, 'dev');
   assert.equal(findTopicByName('백엔드')?.id, 'dev');
   // 뺀 분야(부동산·청약)는 이제 직접 적은 관심사가 된다
   assert.equal(findTopicByName('청약'), null);
   assert.equal(findTopicByName('드론'), null);
+  // 뉴스 분야: 네이버 뉴스 섹션 이름 그대로, 붙여 써도
+  assert.equal(findTopicByName('정치')?.id, 'politics');
+  assert.equal(findTopicByName('생활 문화')?.id, 'life-culture');
+  assert.equal(findTopicByName('it/과학')?.id, 'it-science');
+  assert.equal(findTopicByName('국제')?.id, 'world');
+  // 뺀 분야(K-뷰티)는 직접 적은 관심사가 된다
+  assert.equal(findTopicByName('K-뷰티'), null);
 });
 
 test('직접 입력: 새 관심사 id는 같은 말이면 같다', () => {

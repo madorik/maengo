@@ -1,22 +1,42 @@
 import type { Topic } from '../types';
 
-// 토픽 사전 v2(2026-10-10). 주기적으로 새 소식·데이터가 생기는 분야 8개 + 그 아래 상세 관심사.
+// 토픽 사전 v3(2026-10-11). 관심 분야 5개(+ 그 아래 상세 관심사)와 뉴스 분야 6개.
 // - 처음 들어오면 큰 분류만 고른다(/onboarding). 상세 관심사는 설정에서 더한다. 목록에 없는 건 기타(custom 토픽)로 적는다.
-// - 상세 관심사로 태그된 소식은 큰 분류에도 같이 태그한다(withParents). 그래서 "개발"만 골라도 Spring 릴리즈 소식을 받는다.
+// - 상세 관심사로 태그된 소식은 큰 분류에도 같이 태그한다(withParents). 그래서 "Tech"만 골라도 Spring 릴리즈 소식을 받는다.
 // - 이름·별칭으로 토픽 벡터를 만들고(tag 단계), 직접 적은 말을 사전에 연결한다(findTopicByName). 이름은 서로 겹치지 않게 둔다.
-// - DB topics 표와 같아야 한다(supabase/migrations/…_topics_v2.sql).
+// - DB topics 표와 같아야 한다(supabase/migrations/…_topics_v2.sql, …_news_sections.sql).
+// - K-Pop·K-뷰티·K-푸드는 뺐다(2026-10-11). 고른 사람은 생활/문화로 옮겼다.
 
-/** 큰 분류. 처음 고르는 화면의 순서 */
+/** 관심 분야(큰 분류). 처음 고르는 화면의 순서 */
 export const TOPIC_GROUPS: Topic[] = [
   { id: 'ai', name: 'AI', aliases: ['인공지능', '생성형 AI', '머신러닝', 'ChatGPT', 'Gemini', 'Claude'] },
   { id: 'stock', name: '주식', aliases: ['증시', '주식 투자', '종목', '주가', '증권'] },
   { id: 'coin', name: '코인', aliases: ['암호화폐', '가상자산', '가상화폐', '크립토', '블록체인'] },
   { id: 'chip-robot', name: '반도체·로봇', aliases: ['반도체 산업', '로봇 산업', '첨단 산업', '하드웨어'] },
-  { id: 'dev', name: '개발', aliases: ['소프트웨어 개발', '프로그래밍', '개발자', '백엔드', '프론트엔드', 'DevOps'] },
-  { id: 'kpop', name: 'K-Pop', aliases: ['케이팝', 'KPOP', '아이돌', '가요'] },
-  { id: 'kbeauty', name: 'K-뷰티', aliases: ['K뷰티', '케이뷰티', '화장품', '뷰티', '코스메틱'] },
-  { id: 'kfood', name: 'K-푸드', aliases: ['K푸드', '케이푸드', '식품', '먹거리'] },
+  // 화면 이름은 Tech(2026-10-11). 예전 이름 '개발'은 별칭으로 남겨 기타에 적어도 이 분야로 잇는다
+  { id: 'dev', name: 'Tech', aliases: ['개발', '테크', '소프트웨어 개발', '프로그래밍', '개발자', '백엔드', '프론트엔드', 'DevOps'] },
 ];
+
+/**
+ * 뉴스 분야(2026-10-11). 네이버 뉴스 섹션과 같은 6개이고 상세 관심사는 없다.
+ * AI가 태그하지 않는다(토픽 벡터·요약 사전에서 뺀다). 언론사 섹션 피드(pipeline sources.ts의 section)에서 온 소식 중
+ * 여러 언론사가 같이 다룬 것, 곧 헤드라인만 붙인다(pipeline tag.ts의 tagHeadlines).
+ */
+export const NEWS_SECTIONS: Topic[] = [
+  { id: 'politics', name: '정치', aliases: ['정치 뉴스', '국회', '정당'] },
+  { id: 'economy', name: '경제', aliases: ['경제 뉴스', '경제 동향'] },
+  { id: 'society', name: '사회', aliases: ['사회 뉴스', '사건사고', '사건·사고'] },
+  { id: 'life-culture', name: '생활/문화', aliases: ['생활', '문화', '생활 뉴스', '문화 뉴스'] },
+  { id: 'it-science', name: 'IT/과학', aliases: ['IT', '과학', 'IT 뉴스', '과학 뉴스'] },
+  { id: 'world', name: '세계', aliases: ['국제', '국제 뉴스', '해외 뉴스', '세계 뉴스'] },
+];
+
+const NEWS_SECTION_IDS: ReadonlySet<string> = new Set(NEWS_SECTIONS.map((t) => t.id));
+
+/** 뉴스 분야(헤드라인만 받는 토픽)인지 */
+export function isNewsSection(id: string): boolean {
+  return NEWS_SECTION_IDS.has(id);
+}
 
 /** 상세 관심사(설정에서 더한다) */
 const DETAILS: Topic[] = [
@@ -52,21 +72,9 @@ const DETAILS: Topic[] = [
   },
   { id: 'cloud', name: '클라우드', aliases: ['AWS', 'Azure', '애저', 'GCP', 'Google Cloud', '구글 클라우드', '쿠버네티스', 'Kubernetes', '서버리스'], parent: 'dev' },
   { id: 'security', name: '보안', aliases: ['해킹', '취약점', 'CVE', '개인정보 유출', '랜섬웨어', '공급망 보안'], parent: 'dev' },
-  // K-Pop
-  { id: 'kpop-release', name: '컴백·신곡', aliases: ['컴백', '신곡', '앨범', '뮤직비디오', '데뷔'], parent: 'kpop' },
-  { id: 'kpop-chart', name: '음원 차트', aliases: ['차트', '멜론 차트', '빌보드', '음원 순위', '음반 판매량'], parent: 'kpop' },
-  { id: 'kpop-concert', name: '콘서트·투어', aliases: ['콘서트', '월드투어', '투어', '팬미팅', '공연'], parent: 'kpop' },
-  // K-뷰티(신제품은 K-푸드와 이름이 겹치지 않게 화장품으로 적는다)
-  { id: 'beauty-new', name: '화장품 신제품', aliases: ['뷰티 신제품', '신상 화장품', '스킨케어 신제품'], parent: 'kbeauty' },
-  { id: 'beauty-trend', name: '뷰티 랭킹·트렌드', aliases: ['올리브영', '뷰티 트렌드', '화장품 랭킹', '뷰티 랭킹'], parent: 'kbeauty' },
-  { id: 'beauty-export', name: '뷰티 브랜드·수출', aliases: ['화장품 수출', 'K뷰티 수출', '인디 브랜드', '아모레퍼시픽', 'LG생활건강'], parent: 'kbeauty' },
-  // K-푸드
-  { id: 'food-new', name: '편의점·식품 신상', aliases: ['편의점 신상', '식품 신제품', '라면 신제품', '과자 신제품'], parent: 'kfood' },
-  { id: 'food-franchise', name: '외식·프랜차이즈', aliases: ['프랜차이즈', '외식', '배달', '카페', '치킨'], parent: 'kfood' },
-  { id: 'food-export', name: 'K-푸드 수출', aliases: ['식품 수출', '라면 수출', '불닭', '한식 세계화'], parent: 'kfood' },
 ];
 
-export const TOPICS: Topic[] = [...TOPIC_GROUPS, ...DETAILS];
+export const TOPICS: Topic[] = [...TOPIC_GROUPS, ...NEWS_SECTIONS, ...DETAILS];
 
 export const TOPIC_BY_ID: ReadonlyMap<string, Topic> = new Map(TOPICS.map((t) => [t.id, t]));
 

@@ -4,13 +4,17 @@
 
 export const CATEGORIES = [
   { id: 'ai', label: 'AI' },
-  { id: 'tech', label: '테크' },
+  { id: 'tech', label: 'Tech' },
   { id: 'design', label: '디자인' },
   { id: 'business', label: '비즈니스' },
   { id: 'marketing', label: '마케팅' },
   { id: 'career', label: '커리어' },
   { id: 'finance', label: '경제·주식' },
   { id: 'crypto', label: '코인' },
+  // 뉴스 분야(2026-10-11). 경제는 finance, 생활/문화는 life·entertainment, IT/과학은 tech·science가 맡는다
+  { id: 'politics', label: '정치' },
+  { id: 'society', label: '사회' },
+  { id: 'world', label: '세계' },
   { id: 'entertainment', label: '연예' },
   { id: 'beauty', label: '뷰티' },
   { id: 'food', label: '푸드' },
@@ -42,6 +46,9 @@ const KEYWORDS: Record<Exclude<CategoryId, 'etc'>, string[]> = {
   career: ['면접', '이직', '연봉', '커리어', '채용', '이력서', '시니어', '주니어'],
   finance: ['환율', '달러', '금리', '물가', '주식', '경제', '예산', '증시', '코스피', '코스닥', '나스닥', '실적', '배당', 'etf'],
   crypto: ['코인', '비트코인', '이더리움', '가상자산', '암호화폐', '스테이블코인', '블록체인', '거래소', '알트코인'],
+  politics: ['국회', '대통령', '여야', '여당', '야당', '국정감사', '국감', '총리', '장관', '정당', '선거', '의원', '청문회'],
+  society: ['경찰', '검찰', '법원', '재판', '사고', '화재', '수사', '교육부', '학교', '노동', '노조', '기소', '구속'],
+  world: ['미국', '중국', '일본', '러시아', '우크라이나', '이스라엘', '트럼프', '유엔', '외교', '정상회담', '전쟁', '휴전'],
   entertainment: ['컴백', '아이돌', '앨범', '콘서트', '케이팝', 'k-pop', '음원', '팬미팅', '데뷔', '걸그룹', '보이그룹'],
   beauty: ['화장품', '뷰티', '스킨케어', '올리브영', '코스메틱', '메이크업', '선크림'],
   food: ['식품', '라면', '편의점', '외식', '프랜차이즈', '음료', '과자', '치킨', '디저트'],
