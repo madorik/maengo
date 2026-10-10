@@ -374,7 +374,7 @@ score(u, c)     = relevance(u, c) · base(c)
 4. 웹훅: 서명을 검증하고 payments·subscriptions를 맞춘다. 같은 이벤트가 두 번 와도 결과가 같아야 한다.
 5. 해지: `cancel_at_period_end=true`. 기간이 끝나면 free로 바꾼다.
 6. 체험: 가입하면 7일 trial. 만료 시 빌링키가 없으면 free로 바꾼다.
-7. 권한은 `entitlements(profile)` 한 곳에서 판단한다. → `{ audio, podcast, pack, topicLimit, dailyItems }`. dailyItems는 무료 1, 플러스·체험 10이다.
+7. 권한은 `entitlements(profile)` 한 곳에서 판단한다. → `{ audio, podcast, pack, topicLimit, dailyItems, keywordLimit }`. dailyItems는 무료 1, 플러스·체험 10이다.
 
 포트원 V2 API의 정확한 엔드포인트와 SDK 함수 이름은 Day 13에 공식 문서로 확인한 뒤 쓴다.
 

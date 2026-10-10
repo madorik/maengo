@@ -6,6 +6,7 @@ import { savePlayerPrefs } from "@/app/actions";
 import {
   isSkipped, lineAt, nextPlayable, prevPlayable, progress as progressOf, startIndex, tick, type Progress,
 } from "@/lib/player/machine";
+import { ttsErrorMessage } from "@/lib/player/tts-error";
 import type { EpisodeData, ProfileView } from "@/lib/types";
 import { useToday } from "./TodayProvider";
 
@@ -61,7 +62,6 @@ export interface PlayerApi {
 const RATES = [1, 1.2, 1.5, 0.8];
 const LOAD_ERROR = "오늘 브리핑을 불러오지 못했어요. 새로고침한 뒤 다시 눌러 주세요.";
 const PLAY_ERROR = "재생을 시작하지 못했어요. 재생 버튼을 한 번 더 눌러 주세요.";
-const TTS_ERROR = "음성을 만들지 못했어요. 오늘 무료 한도를 다 썼을 수 있어요. 잠시 뒤 다시 눌러 주세요.";
 
 const PlayerContext = createContext<PlayerApi | null>(null);
 
@@ -417,7 +417,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         }}
         onError={() => {
           if (!audioRef.current?.getAttribute("src")) return;
-          setError(preparing ? TTS_ERROR : LOAD_ERROR);
+          if (preparing) void ttsErrorMessage().then(setError);
+          else setError(LOAD_ERROR);
           setPreparing(false);
           // 실패한 파일은 떼어 내서 다음 재생 때 다시 만들게 한다
           audioRef.current.removeAttribute("src");

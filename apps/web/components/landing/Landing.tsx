@@ -210,7 +210,7 @@ export function Landing() {
           </h2>
           <ol className="mt-10 grid gap-4 md:grid-cols-3">
             {[
-              ["관심사를 골라요", "추천 토픽에서 고르거나, 문장으로 적어도 맞는 토픽을 찾아 드려요."],
+              ["관심사를 골라요", "목록에서 고르고, 목록에 없는 건 키워드로 적어 두면 돼요."],
               ["새벽에 AI가 훑고 골라요", "매일 새벽 소식을 모아 같은 소식은 묶고, 요약하고, 나에게 맞는 순서로 골라요."],
               ["아침에 받아서 읽고 들어요", "고른 시각에 오늘의 맹고가 도착해요. 읽어도 되고, 이어서 들어도 돼요."],
             ].map(([title, body], i) => (
@@ -234,7 +234,7 @@ export function Landing() {
               <Plan
                 name="Free"
                 price="0원"
-                items={["하루 1개 소식", "요약, 왜 중요한가, 전체 글", "보관함과 카테고리", "관심사 5개"]}
+                items={["하루 1개 소식", "요약, 왜 중요한가, 전체 글", "보관함과 카테고리", "관심사 5개, 키워드 1개"]}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan
@@ -242,7 +242,7 @@ export function Landing() {
                 name="Premium"
                 price="월 4,900원"
                 badge="가입하면 1주일 무료"
-                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 말투 3종", "더 좋은 AI 모델로 요약", "관심사 20개"]}
+                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 말투 3종", "더 좋은 AI 모델로 요약", "관심사 20개, 키워드 10개"]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={{ signedOut: { href: "/login", label: "7일 무료로 써 보기" }, signedIn: { href: "/settings#plan", label: "7일 무료로 써 보기" } }}
               />

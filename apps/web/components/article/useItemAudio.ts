@@ -4,6 +4,7 @@ import type { Chapter } from "@maengo/core/types";
 import { useEffect, useRef, useState } from "react";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { lineAt } from "@/lib/player/machine";
+import { ttsErrorMessage } from "@/lib/player/tts-error";
 import type { ListenBarCtl } from "./ListenBar";
 
 const RATES = [1, 1.2, 1.5, 0.8];
@@ -34,14 +35,24 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     const onPause = () => setStatus((s) => (s === "done" ? s : "paused"));
     const onEnded = () => setStatus("done");
     const onPlaying = () => setPreparing(false);
+    // 파일이 열린 뒤에 대본 시각표를 받는다(그때는 음성이 다 만들어져 있어 실제 시각이 나온다)
+    const onMeta = () => {
+      const q = a.dataset.query;
+      if (!q) return;
+      fetch(`/api/episode/item?${q}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { chapter: Chapter } | null) => d && setChapter(d.chapter))
+        .catch(() => {});
+    };
     const onError = () => {
       if (!a.getAttribute("src")) return;
       setPreparing(false);
       setStatus("idle");
-      setError("음성을 만들지 못했어요. 오늘 무료 한도를 다 썼을 수 있어요. 잠시 뒤 다시 눌러 주세요.");
       a.removeAttribute("src");
       delete a.dataset.query;
+      void ttsErrorMessage().then(setError);
     };
+    a.addEventListener("loadedmetadata", onMeta);
     // 다른 글 하나짜리 재생이 시작되면 이 글은 멈춘다
     const onOther = (e: Event) => {
       if ((e as CustomEvent<number>).detail !== clusterId) a.pause();
@@ -62,16 +73,10 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
       a.removeEventListener("ended", onEnded);
       window.removeEventListener(ITEM_PLAY_EVENT, onOther);
       a.removeEventListener("playing", onPlaying);
+      a.removeEventListener("loadedmetadata", onMeta);
       a.removeEventListener("error", onError);
     };
   }, [enabled, clusterId]);
-
-  const loadMeta = (q: string) => {
-    fetch(`/api/episode/item?${q}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { chapter: Chapter } | null) => d && setChapter(d.chapter))
-      .catch(() => {});
-  };
 
   // 듣는 중에 말투·목소리를 바꾸면 새 목소리로 처음부터 다시 튼다
   useEffect(() => {
@@ -81,7 +86,6 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     a.dataset.query = query;
     a.src = `/api/episode/item/audio?${query}`;
     setPreparing(true);
-    loadMeta(query);
     if (wasPlaying) a.play().catch(() => {});
   }, [query]);
 
@@ -91,12 +95,11 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     p.pause(); // 오늘 브리핑이 돌고 있었다면 멈춘다
     window.dispatchEvent(new CustomEvent(ITEM_PLAY_EVENT, { detail: clusterId }));
     if (a.dataset.query !== query) {
-      // 처음 듣는 말투면 이 요청에서 음성을 만든다(수십 초). 대본 시각표 요청은 같은 생성을 기다린다
+      // 처음 듣는 말투면 이 요청에서 음성을 만든다(수십 초). 대본 시각표는 파일이 열린 뒤에 받는다
       a.dataset.query = query;
       a.src = `/api/episode/item/audio?${query}`;
       setPreparing(true);
       setError(null);
-      loadMeta(query);
     }
     if (status === "done") a.currentTime = 0;
     a.playbackRate = rate;

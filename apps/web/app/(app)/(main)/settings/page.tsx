@@ -1,6 +1,7 @@
 import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
+import { KeywordEditor } from "@/components/settings/KeywordEditor";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { TopicEditor } from "@/components/settings/TopicEditor";
@@ -33,6 +34,7 @@ export default async function SettingsPage() {
   const profile = await requireProfile();
   const view = toProfileView(profile);
   const demoTools = demoToolsEnabled();
+  const e = entitlements(profile);
   const topics = await userTopics(profile);
 
   return (
@@ -68,7 +70,11 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="topics" title="관심사">
-          <TopicEditor topics={topics} groups={topicGroups(topics)} limit={entitlements(profile).topicLimit} />
+          <TopicEditor topics={topics.filter((t) => !t.custom)} groups={topicGroups(topics)} limit={e.topicLimit} />
+        </Section>
+
+        <Section id="keywords" title="키워드">
+          <KeywordEditor keywords={topics.filter((t) => t.custom)} limit={e.keywordLimit} />
         </Section>
 
         <Section id="listen" title="듣기">

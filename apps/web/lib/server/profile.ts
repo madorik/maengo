@@ -82,5 +82,13 @@ export function premiumDaysLeft(p: Profile, now = Date.now()): number | null {
 export function entitlements(p: Profile) {
   const paid = p.plan !== 'free';
   // 하루 소식 수: Free 1개, Premium 최대 10개
-  return { audio: paid, podcast: paid, pack: paid, topicLimit: paid ? 20 : 5, dailyItems: paid ? 10 : 1 };
+  return {
+    audio: paid,
+    podcast: paid,
+    pack: paid,
+    topicLimit: paid ? 20 : 5,
+    dailyItems: paid ? 10 : 1,
+    // 키워드(목록에 없는 말을 직접 적어 넣은 것) 개수. 관심사 개수와 따로 센다
+    keywordLimit: paid ? 10 : 1,
+  };
 }
