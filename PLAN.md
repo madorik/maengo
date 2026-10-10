@@ -401,6 +401,8 @@ Android·iOS 앱과 웹(PWA)을 모두 FCM 하나로 보낸다. 서버는 `fireb
 
 ### 9.3 앱(Android·iOS)
 
+> 실행 계획(단계·완료 기준·준비물)은 [APP_PLAN.md](APP_PLAN.md). 여기와 다르면 그쪽을 따른다.
+
 - **방식**: Capacitor 껍데기 앱이 배포된 웹(`server.url`)을 띄운다. 서버 컴포넌트·Server Actions를 쓰므로 정적 export로 앱에 넣지 않는다.
 - **앱에서만 붙이는 것**: FCM 푸시, 백그라운드 오디오(iOS `UIBackgroundModes: audio`, 잠금 화면 조작), 애플·구글 로그인 네이티브 창(Supabase `signInWithIdToken`), 딥링크(`APP_URL_SCHEME://auth/callback`, 푸시 눌렀을 때).
 - **번들 ID·패키지명**: `kr.maengo.app`으로 확정(2026-10-10, 웹 로그인용 Services ID는 `kr.maengo.web`). 애플 App ID, Firebase 앱, 플레이 콘솔에 같은 값을 쓴다. 등록하면 못 바꾼다.
