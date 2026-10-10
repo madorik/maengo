@@ -23,12 +23,16 @@ const PLANS: { id: Plan; label: string; desc: string }[] = [
   { id: "plus", label: "Premium", desc: "하루 최대 10개, 오디오 이어 듣기, 팟캐스트, 스터디 팩." },
 ];
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+/** 설정 한 묶음. action은 제목 오른쪽에 둔다(알림 켜고 끄기) */
+function Section({ id, title, action, children }: { id: string; title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-20 border-t-2 border-line py-7">
-      <h2 id={`${id}-title`} className="text-[20px] font-black tracking-[-0.02em]">
-        {title}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-x-3">
+        <h2 id={`${id}-title`} className="text-[20px] font-black tracking-[-0.02em]">
+          {title}
+        </h2>
+        {action}
+      </div>
       <div className="mt-3 text-[15px] font-medium leading-[1.7]">{children}</div>
     </section>
   );
@@ -88,8 +92,7 @@ export default async function SettingsPage() {
           <ListenPrefs audio={view.audio} />
         </Section>
 
-        <Section id="notify" title="알림">
-          <PushToggle enabled={profile.pushEnabled} webTokens={webTokens} />
+        <Section id="notify" title="알림" action={<PushToggle enabled={profile.pushEnabled} webTokens={webTokens} />}>
           <NotifyTimePicker current={profile.notifyAt} />
         </Section>
 

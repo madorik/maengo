@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { setPushEnabled } from "@/app/actions";
-import { Switch } from "@/components/ui/Switch";
+import { Toggle } from "@/components/ui/Switch";
 import { isAppUserAgent } from "@/lib/app-client";
 import { registeredHere, registerThisBrowser, type RegisterResult } from "@/lib/web-push";
 
@@ -16,7 +16,10 @@ const FAIL: Record<Extract<RegisterResult, { ok: false }>["reason"], string> = {
 
 const noSubscribe = () => () => {};
 
-/** 설정 > 알림: 푸시 켜고 끄기. 켜면 이 브라우저를 받을 기기로 등록하고, 끄면 어느 기기에도 보내지 않는다 */
+/**
+ * 설정 > 알림 제목 옆의 켜고 끄기. 켜면 이 브라우저를 받을 기기로 등록하고, 끄면 어느 기기에도 보내지 않는다.
+ * 제목 줄(flex-wrap) 안에 놓여서, 오류와 '이 브라우저에서도 받기'는 basis-full로 다음 줄에 내려간다
+ */
 export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens: string[] }) {
   const router = useRouter();
   const [on, setOn] = useState(enabled);
@@ -51,16 +54,18 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
     });
 
   return (
-    <div className="mb-3">
-      <Switch label="알림 받기" checked={on} disabled={busy} onChange={toggle} />
+    <>
+      <Toggle label="알림 받기" checked={on} disabled={busy} onChange={toggle} />
       {on && canWebPush && !here && !busy && (
-        <button type="button" onClick={addHere} className="btn btn-ghost mt-1 min-h-11 px-4 text-[14px]">
-          이 브라우저에서도 받기
-        </button>
+        <div className="mt-2 basis-full">
+          <button type="button" onClick={addHere} className="btn btn-ghost min-h-11 px-4 text-[14px]">
+            이 브라우저에서도 받기
+          </button>
+        </div>
       )}
-      <p aria-live="polite" className="text-[14px] font-bold text-mango-deep empty:hidden">
+      <p aria-live="polite" className="mt-2 basis-full text-[14px] font-bold text-mango-deep empty:hidden">
         {error}
       </p>
-    </div>
+    </>
   );
 }
