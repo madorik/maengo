@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { IconAtom, IconChip, IconCode, IconCoin, IconGlobe, IconLandmark, IconNews, IconPalette, IconPencil, IconPeople, IconSparkles, IconTrendUp, IconWon } from "@/components/icons";
+import { IconAtom, IconChip, IconCode, IconCoin, IconGlobe, IconLandmark, IconPalette, IconPencil, IconPeople, IconSparkles, IconTrendUp, IconWon } from "@/components/icons";
 
 // 관심 분야마다 대표 아이콘과 색. 색은 글 카테고리 칩(CategoryChip)과 맞춰 같은 분야가 같은 색으로 보이게 한다.
 const LOOK: Record<string, { Icon: ComponentType<{ className?: string }>; tone: string }> = {
@@ -8,8 +8,7 @@ const LOOK: Record<string, { Icon: ComponentType<{ className?: string }>; tone: 
   coin: { Icon: IconCoin, tone: "bg-[#FFF3D1] text-[#8A5A00]" },
   "chip-robot": { Icon: IconChip, tone: "bg-sky-tint text-sky-dark" },
   dev: { Icon: IconCode, tone: "bg-[#E6EBFF] text-[#3046B5]" },
-  // 뉴스 분야(헤드라인). news는 설정의 뉴스 헤드라인 카드
-  news: { Icon: IconNews, tone: "bg-[#EEF0F6] text-[#3B4A6B]" },
+  // 뉴스 분야(헤드라인)
   politics: { Icon: IconLandmark, tone: "bg-[#EEF0F6] text-[#3B4A6B]" },
   economy: { Icon: IconWon, tone: "bg-[#E2F5F3] text-[#0F6E66]" },
   society: { Icon: IconPeople, tone: "bg-[#E9F0EE] text-[#3E6158]" },
