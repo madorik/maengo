@@ -1,4 +1,3 @@
-import { modelFor } from "@maengo/core/ai";
 import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
@@ -6,7 +5,6 @@ import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { TopicEditor } from "@/components/settings/TopicEditor";
 import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
-import { ttsModel } from "@/lib/server/ai";
 import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled } from "@/lib/server/demo";
@@ -16,8 +14,8 @@ import { topicGroups, userTopics } from "@/lib/server/topics";
 export const metadata: Metadata = { title: "설정" };
 
 const PLANS: { id: Plan; label: string; desc: string }[] = [
-  { id: "free", label: "Free", desc: "하루 1개를 글로 읽어요. 요약과 문구는 Gemini Flash가 써요." },
-  { id: "plus", label: "Premium", desc: "하루 최대 10개, 오디오 이어 듣기, 팟캐스트, 스터디 팩. 요약과 문구는 상위 모델이 써요." },
+  { id: "free", label: "Free", desc: "하루 1개를 글로 읽어요." },
+  { id: "plus", label: "Premium", desc: "하루 최대 10개, 오디오 이어 듣기, 팟캐스트, 스터디 팩." },
 ];
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
@@ -67,21 +65,6 @@ export default async function SettingsPage() {
               <p className="mt-2 text-[13px] text-sub">결제가 붙기 전까지 쓰는 데모 전환이에요(Premium은 기한 없이). 바꾸면 오늘 피드의 문구와 듣기 권한이 바로 바뀌어요.</p>
             </>
           )}
-        </Section>
-
-        <Section id="ai" title="AI 모델">
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-2">
-            <dt className="text-sub">요약과 &ldquo;왜 중요한가&rdquo;</dt>
-            <dd className="break-all font-extrabold">{view.model}</dd>
-            <dt className="text-sub">오디오 대본(Premium)</dt>
-            <dd className="break-all font-extrabold">{modelFor("pro")}</dd>
-            <dt className="text-sub">음성 합성(Premium)</dt>
-            <dd className="break-all font-extrabold">{ttsModel()}</dd>
-          </dl>
-          <p className="mt-3 text-[13px] text-sub">
-            요약과 &ldquo;왜 중요한가&rdquo;는 매일 새벽 배치가 Gemini로 미리 만들어 둬요. 상위 모델은 Gemini 결제를 켜야 쓸 수 있어서
-            지금은 모두 기본 모델 요약을 보여 줘요. 듣기는 아직 실제 목소리 대신 항목마다 차임, 문장마다 짧은 신호음이 나와요.
-          </p>
         </Section>
 
         <Section id="topics" title="관심사">
