@@ -2,9 +2,9 @@ import { GoogleGenAI, MediaResolution, Modality, ThinkingLevel, type Part, type 
 import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
 import { parseWav } from '../audio/wav';
 import { templateScript } from './script';
-import { CLASSIFY_SYSTEM, MAP_TOPICS_SYSTEM, SUMMARIZE_SYSTEM, WHY_SYSTEM } from './prompts';
+import { CLASSIFY_SYSTEM, MAP_TOPICS_SYSTEM, SCREEN_INTEREST_SYSTEM, SUMMARIZE_SYSTEM, WHY_SYSTEM } from './prompts';
 import type {
-  AiClient, ClassifyInput, MapTopicsInput, SpeakInput, SpeakOutput, SummarizeInput, SummarizeOutput, UsageEvent, UsageKind, WhyInput,
+  AiClient, ClassifyInput, MapTopicsInput, ScreenInterestInput, SpeakInput, SpeakOutput, SummarizeInput, SummarizeOutput, UsageEvent, UsageKind, WhyInput,
 } from './types';
 
 // Gemini API(AI Studio 키) 구현. 파이프라인은 summarize·embed를, 웹은 speak(듣기)를 쓴다.
@@ -314,6 +314,29 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       });
       const known = new Set(ids);
       return [...new Set((data.ids ?? []).filter((id) => known.has(id)))].slice(0, 3);
+    },
+
+    async screenInterest(input: ScreenInterestInput) {
+      // 화면에서 기다리는 검사라 재시도·대체 모델 없이 한 번만 짧게 묻는다
+      const res = await client.models.generateContent({
+        model: input.model,
+        contents: [{ role: 'user', parts: [{ text: input.phrases.map((p, i) => `${i + 1}. ${p}`).join('\n') }] }],
+        config: {
+          systemInstruction: SCREEN_INTEREST_SYSTEM,
+          responseMimeType: 'application/json',
+          responseJsonSchema: { type: 'object', properties: { adult: { type: 'boolean' } }, required: ['adult'] },
+          thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+          abortSignal: AbortSignal.timeout(input.timeoutMs ?? 6000),
+        },
+      });
+      const u = res.usageMetadata;
+      opts.onUsage?.({ model: res.modelVersion ?? input.model, kind: 'screen', inputTokens: u?.promptTokenCount ?? 0, outputTokens: u?.candidatesTokenCount ?? 0, thinkingTokens: u?.thoughtsTokenCount ?? 0 });
+      // Gemini 안전 필터가 질문이나 답을 막았으면 성인 관련어로 본다
+      const finish = res.candidates?.[0]?.finishReason;
+      if (res.promptFeedback?.blockReason || finish === 'SAFETY' || finish === 'PROHIBITED_CONTENT' || finish === 'BLOCKLIST') return { adult: true };
+      const text = res.text;
+      if (!text) throw new Error(`빈 응답(${finish ?? 'unknown'})`);
+      return { adult: (JSON.parse(text) as { adult?: unknown }).adult === true };
     },
 
     async script(input) {

@@ -31,6 +31,14 @@ export interface ClassifyInput {
   body: string[];
 }
 
+export interface ScreenInterestInput {
+  model: string;
+  /** 사용자가 기타에 적은 말(1~3개) */
+  phrases: string[];
+  /** 화면에서 기다리는 검사라 짧게 끊는다(기본 6초) */
+  timeoutMs?: number;
+}
+
 export interface MapTopicsInput {
   model: string;
   /** 유저가 적은 관심사 문장 */
@@ -64,6 +72,8 @@ export interface AiClient {
   classify(input: ClassifyInput): Promise<CategoryId>;
   /** 관심사 문장 → 토픽 id(최대 3개). 맞는 게 없으면 빈 배열 */
   mapTopics(input: MapTopicsInput): Promise<string[]>;
+  /** 기타에 적은 말 중 성인 콘텐츠 관련어가 있는지. 실패하면 던진다(부르는 쪽이 통과로 처리) */
+  screenInterest(input: ScreenInterestInput): Promise<{ adult: boolean }>;
   script(input: ScriptInput): Promise<ScriptLine[]>;
   speak(input: SpeakInput): Promise<SpeakOutput>;
 }
@@ -105,7 +115,7 @@ export interface SummarizeOutput {
   scenes?: { t: string; label: string }[];
 }
 
-export type UsageKind = 'summary' | 'why' | 'script' | 'tts' | 'embed' | 'video' | 'topic_map' | 'classify';
+export type UsageKind = 'summary' | 'why' | 'script' | 'tts' | 'embed' | 'video' | 'topic_map' | 'classify' | 'screen';
 
 export interface UsageEvent {
   model: string;

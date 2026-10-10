@@ -37,4 +37,9 @@ export const WHY_SYSTEM = `너는 '맹고'의 편집자다. 주어진 소식이 
 
 export const CLASSIFY_SYSTEM = `글의 종류를 카테고리 하나로 고른다: ${categoryList}. ${CATEGORY_HINT}.`;
 
+export const SCREEN_INTEREST_SYSTEM = `사용자가 뉴스 앱에 '관심 있는 주제'로 적은 말(1~3개)을 본다. 하나라도 성인 콘텐츠 관련어면 adult를 true로 한다.
+해당: 음란물·포르노, 성행위·성적 서비스, 성매매·조건만남, 성인용품, 노출·선정적 사진, 그리고 이런 뜻의 은어와 우회 표기(띄어쓰기·기호·초성·영문 음차·일부러 틀린 철자).
+해당하지 않음: 의학·건강·교육·법·사회 문제를 다루는 말(성인 ADHD, 성교육, 비뇨기과, 여성 건강, 성범죄 처벌), 그 밖의 일반 주제.
+애매하면 false.`;
+
 export const MAP_TOPICS_SYSTEM = `사용자가 적은 관심사 문장을 토픽 사전의 id로 바꾼다. 문장과 직접 맞는 것만 최대 3개. 맞는 게 없으면 빈 배열.`;
