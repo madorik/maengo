@@ -98,7 +98,7 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 6. 나가는 메일: "나의 이메일 가리기" 사용자에게 메일을 보내려면 Services → Sign in with Apple for Email Communication에 발신 도메인 등록(SPF·DKIM)
 
 ### 4. Firebase(FCM 푸시) — 15분
-> 2026-10-11 진행: Firebase 프로젝트 `maengo-adfc4`(구글 로그인의 `maengo`와 별개), 앱 3개(Android·iOS·웹) 등록. 설정 파일은 `apps/mobile/…`에(공개 저장소라 .gitignore), 원본·서비스 계정 키는 `~/.maengo/`(`firebase-admin.json`, chmod 600). 웹 설정값 5개와 `FIREBASE_SERVICE_ACCOUNT_PATH`는 `.env.local`, Vercel 운영에는 `NEXT_PUBLIC_FIREBASE_*` 5개와 `FIREBASE_SERVICE_ACCOUNT_JSON`(파일 내용). 웹 푸시 공개 키(VAPID)도 `NEXT_PUBLIC_FIREBASE_VAPID_KEY`로 `.env.local`·Vercel 운영에 넣음. **남은 것: APNs 키 업로드(아래 3번 첫 줄)**.
+> 2026-10-11 진행: Firebase 프로젝트 `maengo-adfc4`(구글 로그인의 `maengo`와 별개), 앱 3개(Android·iOS·웹) 등록. 설정 파일은 `apps/mobile/…`에(공개 저장소라 .gitignore), 원본·서비스 계정 키는 `~/.maengo/`(`firebase-admin.json`, chmod 600). 웹 설정값 5개와 `FIREBASE_SERVICE_ACCOUNT_PATH`는 `.env.local`, Vercel 운영에는 `NEXT_PUBLIC_FIREBASE_*` 5개와 `FIREBASE_SERVICE_ACCOUNT_JSON`(파일 내용). 웹 푸시 공개 키(VAPID)도 `NEXT_PUBLIC_FIREBASE_VAPID_KEY`로 `.env.local`·Vercel 운영에 넣음. APNs 인증 키(`XKH9RW6Y9W`)도 업로드함(2026-10-11, 사용자). Firebase 쪽 준비 끝 — 푸시 코드는 APP_PLAN.md 3단계.
 1. [Firebase 콘솔](https://console.firebase.google.com/)에서 프로젝트 추가(구글 로그인과 같은 Google Cloud 프로젝트 `maengo`를 고르면 한곳에서 관리된다). 애널리틱스는 꺼도 된다
 2. 앱 추가
    - Android: 패키지명 `kr.maengo.app` → `google-services.json` 내려받기(앱 단계에서 쓴다)
