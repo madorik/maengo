@@ -3,7 +3,8 @@
 import { PERSONAS } from "@maengo/core/audio";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { IconChevronDown, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { flushSync } from "react-dom";
+import { IconChevronDown, IconClose, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
@@ -12,19 +13,24 @@ import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel, personaName } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
+import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { Queue, Switch } from "./controls";
 
 /**
  * 오른쪽 아래에 떠 있는 "오늘 맹고 전체 듣기". 챗봇 창처럼 누르면 듣기 창이 펼쳐진다.
  * 재생·멈춤은 펼치지 않고 버튼에서 바로 할 수 있다. 플레이어는 (app) 레이아웃에 있어 화면을 옮겨도 이어진다.
+ * ✕로 작은 망고 버튼으로 접고, 그 버튼을 누르면 다시 편다. 접어 둔 상태는 쿠키에 두어 다음에 열어도 그대로다.
  */
-export function ListenWidget() {
+export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }) {
   const p = usePlayer();
   const profile = useProfile();
   const { game } = useToday();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
+  const foldRef = useRef<HTMLButtonElement>(null);
+  const bubbleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -40,30 +46,72 @@ export function ListenWidget() {
 
   if (!game.total) return null;
 
-  // Free: 전체 듣기 자리는 두고 막아 둔다. Premium 배지로 안내하고 창은 열지 않는다
-  if (!profile.audio) {
+  const locked = !profile.audio;
+  const playing = p.status === "playing";
+
+  // 접기·펴기. 쿠키는 서버 레이아웃이 읽어 첫 화면부터 맞게 그린다.
+  // 키보드로 눌렀으면(click detail 0) 포커스를 바뀐 자리의 버튼으로 옮긴다. 터치·마우스는 옮기지 않는다(포커스 테두리가 남지 않게)
+  const fold = (v: boolean, e: React.MouseEvent) => {
+    document.cookie = `${LISTEN_COLLAPSED_COOKIE}=${v ? "1; max-age=31536000" : "; max-age=0"}; path=/; samesite=lax`;
+    flushSync(() => {
+      setOpen(false);
+      setCollapsed(v);
+    });
+    if (e.detail === 0) (v ? bubbleRef.current : (launcherRef.current ?? foldRef.current))?.focus();
+  };
+
+  if (collapsed) {
     return (
-      <div className="pointer-events-none fixed bottom-[calc(84px+env(safe-area-inset-bottom))] right-3 z-40 lg:bottom-6 lg:right-6">
-        <div
-          aria-disabled="true"
-          title="듣기는 Premium에서 쓸 수 있어요"
-          className="tile pointer-events-auto flex max-w-[calc(100vw-24px)] cursor-not-allowed items-center gap-2.5 rounded-full p-1.5 pr-3 shadow-[0_8px_24px_rgb(31_35_64/0.12)]"
+      <div className="pointer-events-none fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-3 z-40 lg:bottom-6 lg:right-6">
+        <button
+          ref={bubbleRef}
+          type="button"
+          onClick={(e) => fold(false, e)}
+          aria-label={`오늘 맹고 전체 듣기 펼치기${playing ? ", 듣는 중" : ""}`}
+          className={`pop tile pointer-events-auto flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${playing ? "border-sky" : ""}`}
         >
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow">
-            <Mascot mood="listen" className="size-10 opacity-60" />
+          <span className={`flex size-12 items-center justify-center rounded-full ${locked ? "bg-snow" : "bg-mango-tint"}`}>
+            <Mascot mood="listen" className={`size-10 ${locked ? "opacity-60" : ""} ${playing ? "bob" : ""}`} />
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-[15px] font-black text-sub">오늘 맹고 전체 듣기</span>
-            <span className="block truncate text-[12px] font-bold text-faint">Premium에서 들을 수 있어요</span>
-          </span>
-          <PremiumBadge />
+        </button>
+      </div>
+    );
+  }
+
+  const foldButton = (
+    <button
+      ref={foldRef}
+      type="button"
+      onClick={(e) => fold(true, e)}
+      aria-label="전체 듣기 접기"
+      className="flex size-10 shrink-0 items-center justify-center rounded-full text-faint hover:bg-snow hover:text-sub"
+    >
+      <IconClose className="size-5 [stroke-width:2.4]" />
+    </button>
+  );
+
+  // Free: 전체 듣기 자리는 두고 막아 둔다. Premium 배지로 안내하고 창은 열지 않는다
+  if (locked) {
+    return (
+      <div className="pointer-events-none fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-3 z-40 lg:bottom-6 lg:right-6">
+        <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
+          <div aria-disabled="true" title="듣기는 Premium에서 쓸 수 있어요" className="flex min-w-0 cursor-not-allowed items-center gap-2.5 pr-1">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow">
+              <Mascot mood="listen" className="size-10 opacity-60" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[15px] font-black text-sub">오늘 맹고 전체 듣기</span>
+              <span className="block truncate text-[12px] font-bold text-faint">Premium에서 들을 수 있어요</span>
+            </span>
+            <PremiumBadge />
+          </div>
+          {foldButton}
         </div>
       </div>
     );
   }
 
   const ch = p.chapters[p.cur];
-  const playing = p.status === "playing";
   const minutes = minutesLabel(p.personaTotalMs(p.persona));
   const sub = p.error
       ? "음성을 만들지 못했어요"
@@ -80,7 +128,7 @@ export function ListenWidget() {
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-[calc(84px+env(safe-area-inset-bottom))] right-3 z-40 flex flex-col items-end gap-3 lg:bottom-6 lg:right-6">
+    <div className="pointer-events-none fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-3 z-40 flex flex-col items-end gap-3 lg:bottom-6 lg:right-6">
       {open && (
         <div
           id="listen-widget"
@@ -88,7 +136,7 @@ export function ListenWidget() {
           tabIndex={-1}
           role="dialog"
           aria-labelledby="listen-widget-title"
-          className="rise tile pointer-events-auto flex max-h-[min(660px,calc(100dvh-170px))] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden shadow-[0_16px_48px_rgb(31_35_64/0.2)] outline-none"
+          className="rise tile pointer-events-auto flex max-h-[min(660px,calc(100dvh-160px-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden shadow-[0_16px_48px_rgb(31_35_64/0.2)] outline-none"
         >
           <header className="flex items-center gap-3 border-b-2 border-line px-4 py-3">
             <Mascot mood="listen" className={`size-10 shrink-0 ${playing ? "bob" : ""}`} />
@@ -176,7 +224,7 @@ export function ListenWidget() {
         </div>
       )}
 
-      <div className="tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)]">
+      <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)]">
         <button
           ref={launcherRef}
           type="button"
@@ -189,7 +237,7 @@ export function ListenWidget() {
           <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-mango-tint">
             <Mascot mood="listen" className={`size-10 ${playing ? "bob" : ""}`} />
           </span>
-          <span className="min-w-0 max-w-[190px]">
+          <span className="min-w-0 max-w-[170px]">
             <span className="block truncate text-[15px] font-black">{ch ? ch.title : "오늘 맹고 전체 듣기"}</span>
             <span className="block truncate text-[12px] font-bold text-sky">{sub}</span>
           </span>
@@ -203,6 +251,7 @@ export function ListenWidget() {
         >
           {playing ? <IconPause className="size-5" /> : <IconPlay className="size-6" />}
         </button>
+        {foldButton}
       </div>
     </div>
   );
