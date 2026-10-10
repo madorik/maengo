@@ -20,7 +20,8 @@
     "pretendard": "^1.3.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "@maengo/pipeline": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

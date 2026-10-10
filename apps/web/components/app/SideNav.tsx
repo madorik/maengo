@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MangoIcon } from "@/components/MangoIcon";
+import { AccountMenu } from "./AccountMenu";
 import { NAV } from "./nav";
 import { StatChips } from "./StatChips";
 
@@ -10,7 +11,7 @@ import { StatChips } from "./StatChips";
 export function SideNav() {
   const pathname = usePathname();
   return (
-    <div className="sticky top-0 hidden h-dvh border-r-2 border-line px-4 py-7 lg:block">
+    <div className="sticky top-0 hidden h-dvh flex-col border-r-2 border-line px-4 py-7 lg:flex">
       <Link href="/" aria-label="맹고 소개" className="flex items-center gap-2 px-3 no-underline">
         <MangoIcon className="size-9" />
         <span className="text-[28px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
@@ -35,6 +36,10 @@ export function SideNav() {
       </nav>
       <div className="mt-6 border-t-2 border-line px-1 pt-5">
         <StatChips />
+      </div>
+      {/* 계정(프로필 사진·이름 → 로그아웃)은 왼쪽 아래 */}
+      <div className="mt-auto border-t-2 border-line pt-3">
+        <AccountMenu placement="up" />
       </div>
     </div>
   );

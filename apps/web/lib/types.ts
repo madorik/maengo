@@ -55,6 +55,7 @@ export interface ProfileView {
   displayName: string | null;
   provider: 'apple' | 'google';
   email: string | null;
+  avatarUrl: string | null;
   /** 데모 계정으로 들어왔는지(애플 연동 전) */
   demo: boolean;
   plan: Plan;

@@ -9,6 +9,7 @@ import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useItemAudio } from "@/components/article/useItemAudio";
+import { MakeToday } from "./MakeToday";
 import type { FeedItem } from "@/lib/types";
 
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로 */
@@ -44,26 +45,7 @@ export function TodayList() {
             ))}
           </ol>
         ) : (
-          <div className="mt-10 flex items-end gap-3">
-            <Mascot className="size-24 shrink-0" />
-            <Bubble className="mb-6 flex-1">
-              {data.emptyReason === "waiting" ? (
-                <>
-                  <p className="text-[15px] font-bold leading-relaxed">오늘 소식은 아직 고르는 중이에요. 매일 새벽 4시에 새 소식이 들어와요.</p>
-                  <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
-                    지난 소식 보기
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <p className="text-[15px] font-bold leading-relaxed">관심사에서 아직 안 본 소식을 다 썼어요. 관심사를 넓히면 더 골라 드릴 수 있어요.</p>
-                  <Link href="/settings#topics" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
-                    관심사 고치기
-                  </Link>
-                </>
-              )}
-            </Bubble>
-          </div>
+          <MakeToday reason={data.emptyReason} />
         )}
 
         {data.hiddenCount > 0 && (

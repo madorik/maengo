@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // packages/core는 빌드 없이 TS 소스를 그대로 내보낸다.
-  transpilePackages: ["@maengo/core"],
+  // packages/core·pipeline은 빌드 없이 TS 소스를 그대로 내보낸다(pipeline은 "오늘 맹고 받기"가 쓴다)
+  transpilePackages: ["@maengo/core", "@maengo/pipeline"],
   // 유튜브 썸네일
   images: { remotePatterns: [{ protocol: "https", hostname: "i.ytimg.com", pathname: "/vi/**" }] },
   // 아이콘·manifest는 기본값(max-age=0)이면 화면을 옮길 때마다 서버에 다시 확인한다.

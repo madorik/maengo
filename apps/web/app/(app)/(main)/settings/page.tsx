@@ -3,7 +3,7 @@ import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { TopicEditor } from "@/components/settings/TopicEditor";
-import { demoRebuildFeed, demoReset, demoSetPlan, signOut } from "@/app/actions";
+import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
 import { ttsModel } from "@/lib/server/ai";
 import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
@@ -108,19 +108,6 @@ export default async function SettingsPage() {
             </p>
           </Section>
         )}
-
-        <Section id="account" title="계정">
-          <p>
-            {view.demo
-              ? "공용 데모 계정으로 들어왔어요(로컬 개발용)."
-              : `${view.provider === "apple" ? "Apple" : "Google"} 계정${view.email ? `(${view.email})` : ""}으로 로그인했어요.`}
-          </p>
-          <form action={signOut} className="mt-3">
-            <button type="submit" className="btn btn-ghost min-h-11 px-4 text-[14px]">
-              로그아웃
-            </button>
-          </form>
-        </Section>
       </div>
     </div>
   );

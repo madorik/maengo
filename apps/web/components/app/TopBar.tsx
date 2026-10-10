@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { MangoIcon } from "@/components/MangoIcon";
+import { AccountMenu } from "./AccountMenu";
 import { StatChips } from "./StatChips";
 
-/** 모바일 위쪽 막대: 로고 + 연속 기록·XP·플랜 */
+/** 모바일 위쪽 막대: 로고 + XP·플랜 + 계정 메뉴 */
 export function TopBar() {
   return (
     <header className="sticky top-0 z-20 border-b-2 border-line bg-white pt-[env(safe-area-inset-top)] lg:hidden">
@@ -12,7 +13,10 @@ export function TopBar() {
         <Link href="/" aria-label="맹고 소개" className="no-underline">
           <MangoIcon className="size-9" />
         </Link>
-        <StatChips />
+        <div className="flex items-center gap-1">
+          <StatChips />
+          <AccountMenu placement="down" />
+        </div>
       </div>
     </header>
   );

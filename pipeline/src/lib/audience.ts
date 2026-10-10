@@ -26,11 +26,11 @@ function effectivePlan(plan: Plan, trialEndsAt: string | null, now: Date): Plan 
   return plan;
 }
 
-export async function loadAudience(ctx: Ctx): Promise<Audience[]> {
-  const profiles = check(
-    await db.from('profiles').select('id,plan,trial_ends_at').not('onboarded_at', 'is', null),
-    'profiles',
-  ) as { id: string; plan: Plan; trial_ends_at: string | null }[];
+/** 관심사를 고른 유저들. onlyUserId를 주면 그 한 명만(웹에서 "오늘 맹고 받기"를 누른 사람) */
+export async function loadAudience(ctx: Ctx, onlyUserId?: string): Promise<Audience[]> {
+  let query = db.from('profiles').select('id,plan,trial_ends_at').not('onboarded_at', 'is', null);
+  if (onlyUserId) query = query.eq('id', onlyUserId);
+  const profiles = check(await query, 'profiles') as { id: string; plan: Plan; trial_ends_at: string | null }[];
   if (!profiles.length) return [];
   const ids = profiles.map((p) => p.id);
   const byId = new Map<string, Audience>();
@@ -62,11 +62,15 @@ export interface Candidate extends RankCandidate {
   centroid: number[] | null;
 }
 
-/** 지난 7일 묶음 중 토픽이 붙은 것. 요약이 없는 것은 freshHours 안의 것만 */
-export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours } = {}): Promise<Candidate[]> {
+/**
+ * 지난 7일 묶음 중 토픽이 붙은 것. 요약이 없는 것은 freshHours 안의 것만.
+ * 중심 벡터(묶음당 수 KB)는 "이미 알아요"와 비슷한 소식을 뺄 때만 필요해서 centroids로 고른다.
+ */
+export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, centroids = true } = {}): Promise<Candidate[]> {
   const since = new Date(ctx.now.getTime() - 7 * 24 * HOUR).toISOString();
-  const clusters = await selectAll<{ id: number; first_seen_at: string; size: number; is_video: boolean; rep_item_id: number | null; centroid: unknown }>((f, t) =>
-    db.from('clusters').select('id,first_seen_at,size,is_video,rep_item_id,centroid').is('skip_reason', null).gte('first_seen_at', since).order('id').range(f, t),
+  const cols = `id,first_seen_at,size,is_video,rep_item_id${centroids ? ',centroid' : ''}`;
+  const clusters = await selectAll<{ id: number; first_seen_at: string; size: number; is_video: boolean; rep_item_id: number | null; centroid?: unknown }>((f, t) =>
+    db.from('clusters').select(cols).is('skip_reason', null).gte('first_seen_at', since).order('id').range(f, t),
   );
   const ids = clusters.map((c) => c.id);
   const topics = new Map<number, { topicId: string; relevance: number }[]>();
