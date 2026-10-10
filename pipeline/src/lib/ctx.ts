@@ -1,4 +1,5 @@
 import type { GeminiAi } from '@maengo/core/gemini';
+import type { Topic } from '@maengo/core/types';
 
 export interface Ctx {
   /** 피드 날짜(KST) */
@@ -12,6 +13,8 @@ export interface Ctx {
   force: boolean;
   /** 수집·묶기 창(시간) */
   windowHours: number;
+  /** 이번 실행의 토픽 사전(사전 + 누군가 고른 직접 입력 관심사). dictionary()로 읽는다 */
+  topics?: Topic[];
 }
 
 export const HOUR = 3600_000;

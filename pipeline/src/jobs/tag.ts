@@ -1,4 +1,5 @@
-import { TOPICS } from '@maengo/core/topics';
+import { withParents } from '@maengo/core/topics';
+import { dictionary } from '../lib/audience';
 import { db, check, fromVector, inChunks, selectAll, toVector } from '../lib/db';
 import { cosine } from '../lib/vec';
 import { HOUR, type Ctx } from '../lib/ctx';
@@ -12,11 +13,13 @@ const FLOOR = Number(process.env.PIPELINE_TAG_FLOOR) || 0.55;
 const CEIL = Number(process.env.PIPELINE_TAG_CEIL) || 0.7;
 const MARGIN = 0.04;
 
-/** 토픽 벡터 입력. 이름·별칭을 같이 넣어 한·영 글 모두와 맞게 한다 */
-export const topicText = (t: { name: string; aliases: string[] }) => `${t.name} 관련 기술 소식 (${t.aliases.join(', ')})`;
+/** 토픽 벡터 입력. 이름·별칭을 같이 넣어 한·영 글 모두와 맞게 한다(직접 입력 관심사는 별칭이 없다) */
+export const topicText = (t: { name: string; aliases: string[] }) => `${t.name} 관련 소식${t.aliases.length ? ` (${t.aliases.join(', ')})` : ''}`;
 
 export async function topicVectors(ctx: Ctx): Promise<Map<string, number[]>> {
-  const rows = check(await db.from('topics').select('id,name,aliases,embedding'), 'topics') as { id: string; name: string; aliases: string[]; embedding: unknown }[];
+  const known = new Set((await dictionary(ctx)).map((t) => t.id));
+  const all = check(await db.from('topics').select('id,name,aliases,embedding'), 'topics') as { id: string; name: string; aliases: string[]; embedding: unknown }[];
+  const rows = all.filter((r) => known.has(r.id));
   const missing = rows.filter((r) => !fromVector(r.embedding));
   if (missing.length) {
     const vecs = await ctx.ai.embed(missing.map(topicText));
@@ -26,8 +29,7 @@ export async function topicVectors(ctx: Ctx): Promise<Map<string, number[]>> {
     }
     ctx.log(`tag: 토픽 벡터 ${missing.length}개 새로 만듦`);
   }
-  const known = new Set(TOPICS.map((t) => t.id));
-  return new Map(rows.filter((r) => known.has(r.id)).map((r) => [r.id, fromVector(r.embedding)!]));
+  return new Map(rows.map((r) => [r.id, fromVector(r.embedding)!]));
 }
 
 export function tagsFor(centroid: number[], topics: Map<string, number[]>) {
@@ -57,7 +59,8 @@ export async function tag(ctx: Ctx) {
   const rows: { cluster_id: number; topic_id: string; relevance: number }[] = [];
   const tops: number[] = [];
   for (const c of todo) {
-    const tags = tagsFor(fromVector(c.centroid)!, topics);
+    // 상세 관심사로 잡히면 큰 분류에도 잡히게 한다("백엔드"만 고른 사람에게도 PostgreSQL 소식이 가게)
+    const tags = withParents(tagsFor(fromVector(c.centroid)!, topics));
     const top = [...topics.values()].reduce((m, v) => Math.max(m, cosine(fromVector(c.centroid)!, v)), -1);
     tops.push(top);
     for (const t of tags) rows.push({ cluster_id: c.id, topic_id: t.topicId, relevance: Number(t.relevance.toFixed(3)) });

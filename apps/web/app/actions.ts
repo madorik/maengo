@@ -13,6 +13,8 @@ import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session
 import { addTopics, addTopicsFromText, removeTopic } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
 import { supabaseAuth } from "@/lib/supabase/server";
+import { isNotifyTime, notifyTimeLabel } from "@maengo/core/kst";
+import { josa } from "@maengo/core/josa";
 import { TOPIC_BY_ID } from "@maengo/core/topics";
 import type { TopicResult } from "@/lib/types";
 
@@ -27,21 +29,25 @@ async function origin(): Promise<string> {
 }
 
 /**
- * 구글: Supabase OAuth로 구글 로그인 화면에 보낸다. 돌아오면 /auth/callback이 세션을 만든다.
- * 애플: 연동 전까지 OAuth 없이 Supabase 데모 계정(DEMO_USER_ID)으로 들어간다(서명한 세션 쿠키).
+ * 구글·애플: Supabase OAuth로 각 로그인 화면에 보낸다. 돌아오면 /auth/callback이 세션을 만든다.
+ * 데모(로컬 개발만): OAuth 없이 공용 데모 계정(DEMO_USER_ID)으로 들어간다(서명한 세션 쿠키).
  */
 export async function signIn(formData: FormData) {
   const jar = await cookies();
-  if (formData.get("provider") === "google") {
+  const provider = formData.get("provider");
+  if (provider === "google" || provider === "apple") {
     const supabase = await supabaseAuth();
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${await origin()}/auth/callback`, queryParams: { prompt: "select_account" } },
+      provider,
+      options: {
+        redirectTo: `${await origin()}/auth/callback`,
+        ...(provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
+      },
     });
-    if (error || !data.url) redirect("/login?error=google");
+    if (error || !data.url) redirect(`/login?error=${provider}`);
     redirect(data.url);
   }
-  if (!demoLoginEnabled()) redirect("/login?error=apple");
+  if (!demoLoginEnabled()) redirect("/login");
   jar.set(SESSION_COOKIE, await signSession({ userId: demoUserId(), provider: "apple" }), { ...cookieOpts, httpOnly: true });
   jar.set(SIGNED_IN_HINT, "1", cookieOpts);
   redirect("/today");
@@ -71,6 +77,23 @@ export async function completeOnboarding(formData: FormData) {
   );
   must(await db.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", profile.id), "profiles onboarded");
   redirect("/today");
+}
+
+export interface NotifyResult {
+  notifyAt: string;
+  tone: "ok" | "warn";
+  message: string;
+}
+
+/** 설정 > 알림 시간. 아침 6시~밤 11시 30분, 30분 단위만 받는다 */
+export async function saveNotifyAt(_prev: NotifyResult | null, formData: FormData): Promise<NotifyResult> {
+  const profile = await requireProfile();
+  const value = formData.get("notifyAt");
+  if (!isNotifyTime(value)) return { notifyAt: profile.notifyAt, tone: "warn", message: "고를 수 없는 시간이에요. 목록에서 골라 주세요." };
+  if (value === profile.notifyAt) return { notifyAt: value, tone: "ok", message: `이미 ${notifyTimeLabel(value)}에 알려 드리고 있어요.` };
+  must(await db.from("profiles").update({ notify_at: value }).eq("id", profile.id), "profiles notify_at");
+  revalidatePath("/", "layout");
+  return { notifyAt: value, tone: "ok", message: `알림 시간을 ${josa(notifyTimeLabel(value), "으로", "로")} 바꿨어요.` };
 }
 
 const PERSONAS: Persona[] = ["announcer", "teacher", "dialogue"];

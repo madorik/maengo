@@ -64,7 +64,7 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 
 ### 2. 구글 로그인 — 15분
 > 2026-10-10: 클라이언트 ID·시크릿은 `.env.local`에 있고 `pnpm setup:auth`로 Supabase에 켰다. 웹 흐름(로그인 → `/auth/callback` → 처음이면 `/onboarding`)도 붙였다.
-> **남은 것**: 구글 화면이 `400 redirect_uri_mismatch`를 낸다. 아래 3번의 리디렉션 URI(`https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback`)를 등록하고, 동의 화면이 "테스트 중"이면 테스트 사용자에 본인 계정을 넣는다.
+> 2026-10-10 리디렉션 URI 등록 확인(구글 로그인 화면까지 정상). 구글 화면에 앱 이름 대신 `dplqcugmgrugfrzjylqw.supabase.co`가 보인다. "맹고"로 보이게 하려면 동의 화면 브랜드 인증이나 Supabase 커스텀 도메인(유료)이 필요하다.
 
 1. [Google Cloud Console](https://console.cloud.google.com/)에서 프로젝트 만들기(이름 `maengo`)
 2. API 및 서비스 → OAuth 동의 화면: 외부, 앱 이름 `맹고`, 범위는 기본(email·profile·openid)만
@@ -75,13 +75,15 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 5. 앱(iOS·Android)에서 구글 로그인을 띄울 때는 iOS·Android 클라이언트 ID를 더 만든다 → `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID`(앱 단계에서)
 
 ### 3. 애플 로그인 + iOS 푸시 키 — 개발자 멤버십 승인 후 20분
+> 2026-10-10: 팀 `QYS79FM739`, 키 `XKH9RW6Y9W`(`~/.maengo/AuthKey_XKH9RW6Y9W.p8`), Services ID `kr.maengo.web`. `pnpm setup:auth`로 Supabase에 켬(애플 시크릿 **2027-04-08 만료** → 그 전에 다시 돌린다). 애플 로그인 화면까지 정상.
+> 애플 화면에 앱 이름이 "maego service web"으로 보인다 → Identifiers → Services IDs → `kr.maengo.web`의 Description을 "맹고"로 고친다.
 1. [Apple Developer Program](https://developer.apple.com/programs/) 가입(연 $99). 개인은 수일 걸린다
-2. Identifiers → App IDs → `kr.maengo.app`(번들 ID, 아래 "정해야 할 것" 참고), Sign in with Apple·Push Notifications 켜기
+2. Identifiers → App IDs → `kr.maengo.app`(번들 ID, 2026-10-10 확정), Sign in with Apple·Push Notifications 켜기
 3. Identifiers → Services IDs → `kr.maengo.web`, Sign in with Apple 켜고 Configure
    - Domains: `dplqcugmgrugfrzjylqw.supabase.co`, 운영 도메인
    - Return URLs: 위 Supabase 콜백 주소
 4. Keys → 새 키, **Sign in with Apple**과 **Apple Push Notifications service(APNs)** 둘 다 체크 → `.p8` 내려받기(한 번만 받을 수 있다). 키 ID 메모
-5. `.env.local`: `APPLE_TEAM_ID`(계정 오른쪽 위 10자리), `APPLE_KEY_ID`, `APPLE_SERVICES_ID=kr.maengo.web`, `APPLE_BUNDLE_ID=kr.maengo.app`, `APPLE_PRIVATE_KEY_PATH=/절대/경로/AuthKey_XXXX.p8`
+5. `.env.local`: `APPLE_TEAM_ID`(계정 오른쪽 위 10자리), `APPLE_KEY_ID`, `APPLE_SERVICES_ID=kr.maengo.web`, `APPLE_BUNDLE_ID=kr.maengo.app`, `APPLE_PRIVATE_KEY_PATH=~/.maengo/AuthKey_XXXX.p8`(저장소 밖, `chmod 600`. 한 번만 받을 수 있으니 비밀번호 관리자에도 백업)
 6. 나가는 메일: "나의 이메일 가리기" 사용자에게 메일을 보내려면 Services → Sign in with Apple for Email Communication에 발신 도메인 등록(SPF·DKIM)
 
 ### 4. Firebase(FCM 푸시) — 15분
@@ -102,7 +104,6 @@ pnpm setup:auth     # 구글·애플 로그인을 Supabase에 켠다(애플 시�
 애플 시크릿은 6개월마다 만료된다. 만료 전에 `pnpm setup:auth`를 다시 돌린다(달력에 알림 걸기).
 
 ## 정해야 할 것
-- **번들 ID·패키지명**: 기본안 `kr.maengo.app`(웹 로그인용 Services ID는 `kr.maengo.web`). 애플·Firebase·플레이 콘솔에 등록하면 바꿀 수 없다
 - **앱 안 결제**: 앱에서 플러스를 팔면 애플·구글 결제를 써야 한다(PLAN.md 9.3, 13장 9번)
 
 ## 나중 단계

@@ -22,5 +22,15 @@ export function matchTopics(text: string, dictionary: readonly Topic[], max = 3)
     })
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score);
-  return scored.slice(0, max).map((s) => s.id);
+  // 큰 분류와 그 상세 관심사가 같이 맞으면 점수가 높은 쪽만 남긴다.
+  // '프론트엔드 성능' → 웹 성능(상세가 더 정확), '부동산' → 부동산(상세는 이름에 낱말만 걸림)
+  const score = new Map(scored.map((s) => [s.id, s.score]));
+  const parentOf = new Map(dictionary.filter((t) => t.parent).map((t) => [t.id, t.parent!]));
+  const drop = new Set<string>();
+  for (const s of scored) {
+    const parent = parentOf.get(s.id);
+    if (!parent || !score.has(parent)) continue;
+    drop.add(s.score >= score.get(parent)! ? parent : s.id);
+  }
+  return scored.filter((s) => !drop.has(s.id)).slice(0, max).map((s) => s.id);
 }

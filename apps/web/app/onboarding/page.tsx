@@ -1,23 +1,23 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { POPULAR_TOPICS, TOPIC_BY_ID } from "@maengo/core/topics";
+import { childrenOf, TOPIC_GROUPS } from "@maengo/core/topics";
 import { completeOnboarding } from "../actions";
+import { IconCheck } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
-import { entitlements } from "@/lib/server/profile";
 import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "관심사 고르기", robots: { index: false, follow: false } };
 
 type Props = { searchParams: Promise<{ error?: string }> };
 
-// 처음 로그인한 사람이 관심 토픽을 고르는 화면(PLAN.md 5.2). 직업은 묻지 않는다.
+// 처음 로그인한 사람이 관심 분야(큰 분류 5개)를 고르는 화면(PLAN.md 5.2). 직업은 묻지 않는다.
+// 상세 관심사(PostgreSQL, 미국 주식 등)는 설정에서 더한다.
 // 알림 시간 고르기는 푸시(FCM)를 붙일 때 둘째 단계로 넣는다.
 export default async function OnboardingPage({ searchParams }: Props) {
   const profile = await requireProfile();
   if (profile.onboarded) redirect("/today");
   const { error } = await searchParams;
-  const limit = entitlements(profile).topicLimit;
   const name = profile.displayName?.split(" ")[0];
 
   return (
@@ -32,18 +32,30 @@ export default async function OnboardingPage({ searchParams }: Props) {
       </div>
       <h1 className="mt-6 text-[24px] font-black leading-snug tracking-[-0.03em]">관심 있는 분야를 골라 주세요</h1>
       <p className="mt-2 text-[15px] font-medium leading-relaxed text-sub">
-        고른 분야에서 매일 아침 소식을 골라요. 셋에서 다섯 개쯤이 알맞고, 나중에 설정에서 바꿀 수 있어요.
+        여러 개 골라도 돼요. 더 좁은 관심사(예: PostgreSQL, 미국 주식)는 나중에 설정에서 더할 수 있어요.
       </p>
 
-      <form action={completeOnboarding} className="mt-6 flex flex-1 flex-col">
-        <fieldset>
-          <legend className="sr-only">관심 토픽(최대 {limit}개)</legend>
-          <div className="flex flex-wrap gap-2">
-            {POPULAR_TOPICS.map((id) => (
-              <label key={id} className="cursor-pointer">
-                <input type="checkbox" name="topic" value={id} className="peer sr-only" />
-                <span className="tile inline-flex min-h-11 items-center px-4 text-[15px] font-extrabold transition-colors hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-checked:text-sky-dark peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
-                  {TOPIC_BY_ID.get(id)!.name}
+      <form action={completeOnboarding} className="mt-6 flex min-w-0 flex-1 flex-col">
+        {/* fieldset은 기본 최소 폭이 내용 길이라 긴 설명 줄이 화면 밖으로 밀린다 */}
+        <fieldset className="min-w-0">
+          <legend className="sr-only">관심 분야(여러 개 고를 수 있어요)</legend>
+          <div className="flex flex-col gap-3">
+            {TOPIC_GROUPS.map((g) => (
+              <label key={g.id} className="group block min-w-0 cursor-pointer">
+                <input type="checkbox" name="topic" value={g.id} className="peer sr-only" />
+                <span className="tile flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[17px] font-black">{g.name}</span>
+                    <span className="block truncate text-[13px] font-semibold text-sub">
+                      {childrenOf(g.id)
+                        .map((c) => c.name)
+                        .join(", ")}
+                    </span>
+                  </span>
+                  {/* 고르면 하늘색 칸에 체크가 들어간다(label 안의 체크박스 상태를 group-has로 본다) */}
+                  <i aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-lg border-2 border-line text-white group-has-[:checked]:border-sky group-has-[:checked]:bg-sky">
+                    <IconCheck className="hidden size-4 [stroke-width:3.2] group-has-[:checked]:block" />
+                  </i>
                 </span>
               </label>
             ))}
@@ -56,7 +68,7 @@ export default async function OnboardingPage({ searchParams }: Props) {
         )}
         <div className="mt-auto pt-8">
           <button type="submit" className="btn w-full">
-            이 분야로 시작하기
+            고른 분야로 시작하기
           </button>
         </div>
       </form>

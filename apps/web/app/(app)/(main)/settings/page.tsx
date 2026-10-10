@@ -1,7 +1,7 @@
 import { modelFor } from "@maengo/core/ai";
-import { notifyTimeLabel } from "@maengo/core/kst";
 import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
+import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { TopicEditor } from "@/components/settings/TopicEditor";
 import { demoRebuildFeed, demoReset, demoSetPlan, signOut } from "@/app/actions";
 import { ttsModel } from "@/lib/server/ai";
@@ -9,7 +9,7 @@ import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
-import { suggestedTopics, userTopics } from "@/lib/server/topics";
+import { topicGroups, userTopics } from "@/lib/server/topics";
 
 export const metadata: Metadata = { title: "설정" };
 
@@ -79,13 +79,12 @@ export default async function SettingsPage() {
           </p>
         </Section>
 
-        <Section id="topics" title="관심 토픽">
-          <TopicEditor topics={topics} suggestions={suggestedTopics(topics)} limit={entitlements(profile).topicLimit} />
+        <Section id="topics" title="관심사">
+          <TopicEditor topics={topics} groups={topicGroups(topics)} limit={entitlements(profile).topicLimit} />
         </Section>
 
         <Section id="notify" title="알림">
-          <p>매일 {notifyTimeLabel(profile.notifyAt)}에 오늘의 맹고를 보내 드려요.</p>
-          <p className="mt-1 text-[13px] text-sub">시간 바꾸기와 웹 푸시는 알림 단계에서 열려요.</p>
+          <NotifyTimePicker current={profile.notifyAt} />
         </Section>
 
         {demoTools && (
@@ -105,7 +104,7 @@ export default async function SettingsPage() {
             </div>
             <p className="mt-2 text-[13px] text-sub">
               다시 고르면 지난 피드에 나온 소식, 읽거나 들은 소식, 이미 알아요와 관심 없어요를 누른 소식을 빼고 골라요.
-              처음 상태로 되돌리면 읽음·피드백을 지우고 토픽 가중치를 1로 돌려요.
+              처음 상태로 되돌리면 읽음·피드백을 지우고 관심사 가중치를 1로 돌려요.
             </p>
           </Section>
         )}
@@ -113,7 +112,7 @@ export default async function SettingsPage() {
         <Section id="account" title="계정">
           <p>
             {view.demo
-              ? "데모 계정으로 들어왔어요. Apple 연동은 다음 단계에서 붙여요."
+              ? "공용 데모 계정으로 들어왔어요(로컬 개발용)."
               : `${view.provider === "apple" ? "Apple" : "Google"} 계정${view.email ? `(${view.email})` : ""}으로 로그인했어요.`}
           </p>
           <form action={signOut} className="mt-3">

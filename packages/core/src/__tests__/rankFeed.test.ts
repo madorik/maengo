@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { feedbackDelta, rankFeed, type RankCandidate } from '../feed/rankFeed';
-import { initialTopicWeights, POPULAR_TOPICS, TOPICS, whyLead } from '../topics/dictionary';
+import { initialTopicWeights, TOPIC_GROUPS, TOPICS, whyLead } from '../topics/dictionary';
 
 const c = (id: number, topicId: string, extra: Partial<RankCandidate> = {}): RankCandidate => ({
   id,
@@ -53,8 +53,9 @@ test('처음 토픽: 고른 것만 1.0, 사전에 없는 id는 버린다', () =>
   assert.deepEqual(initialTopicWeights(['rag', 'react', 'nope']), { rag: 1, react: 1 });
 });
 
-test('인기 토픽 목록은 사전의 모든 토픽을 한 번씩 담는다', () => {
-  assert.deepEqual([...POPULAR_TOPICS].sort(), TOPICS.map((t) => t.id).sort());
+test('사전 id는 겹치지 않고, 큰 분류는 부모가 없다', () => {
+  assert.equal(new Set(TOPICS.map((t) => t.id)).size, TOPICS.length);
+  assert.ok(TOPIC_GROUPS.every((t) => !t.parent));
 });
 
 test('why 앞머리는 직업이 아니라 관심 토픽으로', () => {

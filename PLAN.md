@@ -403,7 +403,7 @@ Android·iOS 앱과 웹(PWA)을 모두 FCM 하나로 보낸다. 서버는 `fireb
 
 - **방식**: Capacitor 껍데기 앱이 배포된 웹(`server.url`)을 띄운다. 서버 컴포넌트·Server Actions를 쓰므로 정적 export로 앱에 넣지 않는다.
 - **앱에서만 붙이는 것**: FCM 푸시, 백그라운드 오디오(iOS `UIBackgroundModes: audio`, 잠금 화면 조작), 애플·구글 로그인 네이티브 창(Supabase `signInWithIdToken`), 딥링크(`APP_URL_SCHEME://auth/callback`, 푸시 눌렀을 때).
-- **번들 ID·패키지명**: 기본안 `kr.maengo.app`(13장 10번). 애플 App ID, Firebase 앱, 플레이 콘솔에 같은 값을 쓴다. 정하면 못 바꾸니 등록 전에 확정한다.
+- **번들 ID·패키지명**: `kr.maengo.app`으로 확정(2026-10-10, 웹 로그인용 Services ID는 `kr.maengo.web`). 애플 App ID, Firebase 앱, 플레이 콘솔에 같은 값을 쓴다. 등록하면 못 바꾼다.
 - **스토어 정책**
   - 애플 4.2(최소 기능): 웹을 감싸기만 한 앱은 거절될 수 있다. 푸시, 백그라운드 이어 듣기, 오프라인 에피소드 저장으로 앱다운 기능을 갖춘다.
   - 애플 4.8: 구글 로그인을 넣으면 애플 로그인도 있어야 한다(이미 있음).
@@ -459,66 +459,66 @@ Android·iOS 앱과 웹(PWA)을 모두 FCM 하나로 보낸다. 서버는 `fireb
 ### 1주차 — 무료 텍스트 피드
 
 **Day 1 기반**
-- [ ] pnpm 모노레포 생성(apps/web, pipeline, packages/core, packages/db), TypeScript·ESLint·vitest 공통 설정, ci.yml
-- [ ] Supabase 프로젝트, 0001 마이그레이션, `supabase gen types` → packages/db
-- [ ] Vercel 프로젝트, R2 버킷 2개(공개·비공개)와 수명 주기 규칙
-- [ ] 외부 계정 신청(10장 표)
+- [x] pnpm 모노레포(apps/web, pipeline, packages/core), 테스트는 node:test + tsx. 남은 것: packages/db(타입 생성), ci.yml
+- [x] Supabase 프로젝트, 마이그레이션. 남은 것: `supabase gen types`
+- [x] Vercel 프로젝트(https://maengo.vercel.app), R2 버킷 1개(비공개 + 서명 URL). 남은 것: 수명 주기 규칙
+- [ ] 외부 계정 신청 — 끝: Supabase·Gemini·Google·Apple·R2·Vercel / 남음: Firebase, Resend, 포트원, 플레이 콘솔
 - 완료 기준: `pnpm dev`로 빈 페이지가 뜨고, 마이그레이션이 DB에 적용돼 있다
 
 **Day 2 로그인**
-- [ ] Google OAuth, Apple Services ID·키, `scripts/apple-client-secret.ts`
-- [ ] Supabase Auth 공급자 설정, `/login`, `/auth/callback`, middleware 가드
-- [ ] 토픽 50개 시드(인기 순서 포함), 토픽 임베딩 스크립트
+- [x] Google OAuth, Apple Services ID·키(시크릿 2027-04-08 만료), `scripts/apple-client-secret.mjs`
+- [x] Supabase Auth 공급자 설정, `/login`, `/auth/callback`, proxy 가드
+- [x] 토픽 사전 v1(2026-10-10): 큰 분류 5개(백엔드·프론트엔드·AI·부동산·주식) + 상세 38개. 처음엔 큰 분류만, 상세는 설정에서. 토픽 임베딩은 tag 단계가 알아서 만든다
 - 완료 기준: 애플·구글 계정으로 각각 로그인하면 `/onboarding`으로 간다
 
 **Day 3 온보딩·수집**
-- [ ] `/onboarding` 3단계 UI(캔버스 그대로), `completeOnboarding`, `/api/topics/map`
-- [ ] collect 단계: RSS·유튜브 채널 RSS·HN·dev.to·검색 API, sources 시드(블로그 30, 채널 20)
+- [x] `/onboarding`(관심사 고르기), `completeOnboarding`. 남은 것: 알림 단계(푸시와 함께), 문장으로 추가(AI 매핑)
+- [x] collect 단계: RSS·유튜브 채널 RSS·HN, 출처 65곳(개발 매체·블로그, 언어·프레임워크·클라우드 공식 릴리스, 주식·부동산 매체). dev.to·검색 API는 안 씀
 - 완료 기준: 온보딩 결과가 profiles·user_topics에 저장되고, collect 한 번에 items가 수백 건 쌓인다
 
 **Day 4 정리 단계**
-- [ ] extract, embed, cluster, tag, score
-- [ ] 단위 테스트: canonicalUrl, clusterAssign
+- [x] extract, embed, cluster, tag(score는 rank에서 계산), dedupe
+- [x] 단위 테스트: canonicalUrl·날짜·피드 파싱. 남은 것: clusterAssign
 - 완료 기준: 하루치 클러스터와 토픽 태그가 생긴다. 중복 묶기 샘플 20건을 눈으로 확인한다
 
 **Day 5 요약**
-- [ ] summarize: 기사는 Gemini Batch, 영상은 Gemini 유튜브 URL, 등급별 모델, structured output, 차단 응답 처리
-- [ ] why 단계
+- [x] summarize: Flash 동기 호출(Batch 아님), structured output, 소식 아님 처리, 영상 요약 코드(실행당 0개로 꺼 둠). pro 등급은 Gemini 결제 뒤
+- [x] why: 요약 호출에 합침(토픽별 문구)
 - [ ] 고정 샘플 30건으로 모델·프롬프트를 비교하고 13장 1번을 정한다
 - 완료 기준: 점수 상위 클러스터가 전부 요약되고, usage_log에 비용이 남는다
 
 **Day 6 피드**
-- [ ] `rankFeed`, `buildFeedForUser`(packages/core), rank 단계, 단위 테스트(다양성·피드백·콜드스타트)
-- [ ] 온보딩 직후 첫 피드 즉시 생성 + "첫 피드 고르는 중" 화면
-- [ ] `/today`: 카드, 자세히, 피드백 3종, 5칸 진행 막대, "오늘은 여기까지예요" 블록
+- [x] `rankFeed`, rank 단계, 웹 임시 피드(buildToday). 단위 테스트는 rankFeed
+- [x] 온보딩 직후 첫 피드: 이미 요약된 소식으로 바로 고른다(기다리는 화면 없음)
+- [x] `/today`: 카드, 상세, 피드백 3종, 진행 막대, 끝 블록, 배치 전 안내
 - 완료 기준: 새 계정이 온보딩을 마치면 10초 안에 카드 5개가 보인다
 
 **Day 7 보관함·알림·배치**
-- [x] `/library`(날짜별, 카테고리 필터, 페이지) — 데모 데이터로 구현됨. 남은 것: 별표, Supabase 조회
-- [ ] FCM: `/api/devices`, 웹 `firebase-messaging-sw.js`·토큰 등록, firebase-admin 발송, Resend 메일, `/api/cron/notify`, vercel.json 크론
-- [ ] daily.yml과 실패 알림
+- [x] `/library`(날짜별, 카테고리 필터, 페이지, Supabase 조회). 남은 것: 별표
+- [ ] FCM: `/api/devices`, 웹 `firebase-messaging-sw.js`·토큰 등록, firebase-admin 발송, Resend 메일, 30분 알림 크론. Vercel Hobby 크론은 하루 1번이라 Pro나 GitHub Actions·Supabase cron으로
+- [x] daily.yml(시크릿 등록됨). 남은 것: 실패 알림(텔레그램·슬랙)
 - 완료 기준: 다음 날 아침 설정한 시각에 푸시나 메일이 온다. 이날부터 직접 써 본다
 
 ### 2주차 — 오디오, 스터디 팩, 결제
 
 **Day 8 오디오 세그먼트**
-- [ ] 페르소나 대본 프롬프트 3종, 발음 사전
-- [ ] Gemini TTS → ffmpeg MP3 → R2, audio 단계
+- [x] 대본: LLM 없는 템플릿 3종(아나운서·선생님·대담). 발음 사전 없음
+- [x] Gemini TTS → MP3(순수 JS) → R2. 배치가 아니라 재생을 누를 때 만든다(8.0)
 - 완료 기준: 클러스터 1개로 페르소나 3종 × 목소리 2종 음성 파일이 나온다
 
 **Day 9 에피소드**
-- [ ] episode 단계(concat, 챕터, episodes 행), assemble.yml
+- [x] 에피소드: 재생할 때 세그먼트를 이어 붙인다(assemble.yml 대신)
 - 완료 기준: 테스트 유저의 오늘 에피소드 1개(약 8분, 챕터 5개)가 R2에 있다
 
 **Day 10 이어 듣기 플레이어**
-- [ ] 플레이어 상태 머신과 단위 테스트(챕터 이동, 자동 재생 끔, 읽은 항목 건너뛰기)
-- [ ] `/today` 듣기 패널, `/listen`, Media Session, 스위치 2개, 재생 목록, 끝 화면
+- [x] 플레이어 상태 머신과 단위 테스트
+- [x] 듣기 위젯(오른쪽 아래), `/listen`, Media Session, 스위치, 재생 목록, 끝 화면, 멈춘 자리 이어 듣기
 - [ ] Capacitor 앱(iOS·Android) 껍데기: FCM 토큰, 백그라운드 오디오, 딥링크, 네이티브 애플·구글 로그인. 실기기 확인
 - 완료 기준: 버튼 한 번으로 잠금 상태에서도 5개가 끝까지 재생된다
 
 **Day 11 팟캐스트·설정**
 - [ ] `/podcast/[token]` RSS, 주소 복사·재발급
-- [ ] `/settings`: 토픽(구현됨)·알림 시간·말투 변경, 말투를 바꾸면 `/api/audio/request`
+- [x] `/settings`: 토픽·알림 시간(2026-10-10)·말투. 말투를 바꾸면 들을 때 그 말투 음성을 만든다
 - 완료 기준: 애플 팟캐스트와 Pocket Casts에 등록해 재생되고, 카플레이에서도 나온다
 
 **Day 12 스터디 팩**
@@ -582,4 +582,4 @@ Supabase 일일 백업이 켜져 있는지 확인한다(Pro).
 | 7 | 카카오 로그인 | 런칭 후 가입 이탈을 보고 결정 | 런칭 후 |
 | 8 | 상표·도메인 | KIPRIS 9류·42류 확인 | Day 1 |
 | 9 | 앱 안 결제 | 애플 인앱 결제·플레이 결제(수수료 15~30%) · 한국 대체 결제(스토어 수수료가 약 4%p 낮아지고 PG 수수료는 따로) · 앱에서는 결제를 빼고 웹에서만 가입(스토어 정책상 안내 문구 제한) | 앱 제출 전 |
-| 10 | 번들 ID·패키지명 | 기본안 `kr.maengo.app`. 애플 App ID·Firebase·플레이 콘솔에 같은 값. 등록하면 못 바꾼다 | Firebase·애플 등록 전 |
+| 10 | 번들 ID·패키지명 | **확정(2026-10-10): `kr.maengo.app`**(com.maengo.*는 maengo.com이 남의 도메인이라 뺐다). 애플 App ID·Firebase·플레이 콘솔에 같은 값 | 끝 |

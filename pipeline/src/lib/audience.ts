@@ -1,6 +1,7 @@
 import { excludesCluster, type RankCandidate } from '@maengo/core/feed';
 import { tierOf } from '@maengo/core/ai';
-import type { FeedbackKind, Plan, Tier } from '@maengo/core/types';
+import { TOPICS } from '@maengo/core/topics';
+import type { FeedbackKind, Plan, Tier, Topic } from '@maengo/core/types';
 import { db, check, fromVector, inChunks, selectAll } from './db';
 import { cosine } from './vec';
 import { HOUR, type Ctx } from './ctx';
@@ -107,4 +108,22 @@ export async function withSimilarExcluded(a: Audience, candidates: Candidate[]):
   const out = new Set(a.exclude);
   for (const c of candidates) if (c.centroid && knownVecs.some((k) => cosine(c.centroid!, k) >= 0.9)) out.add(c.id);
   return out;
+}
+
+/**
+ * 이번 실행의 토픽 사전: 코드 사전 + 누군가 내 관심사에 올린 직접 입력 관심사(custom).
+ * 태그(임베딩 비교)와 요약(AI가 토픽 고르기)이 같이 쓴다. 한 실행에서 한 번만 읽는다.
+ */
+export async function dictionary(ctx: Ctx): Promise<Topic[]> {
+  if (ctx.topics) return ctx.topics;
+  const used = await selectAll<{ topic_id: string }>((f, t) => db.from('user_topics').select('topic_id').like('topic_id', 'c-%').range(f, t));
+  const ids = [...new Set(used.map((r) => r.topic_id))];
+  const custom: Topic[] = [];
+  await inChunks(ids, 200, async (chunk) => {
+    const rows = check(await db.from('topics').select('id,name,aliases').in('id', chunk), 'custom topics') as { id: string; name: string; aliases: string[] }[];
+    custom.push(...rows.map((r) => ({ id: r.id, name: r.name, aliases: r.aliases ?? [] })));
+  });
+  ctx.topics = [...TOPICS, ...custom];
+  if (custom.length) ctx.log(`사전: 직접 입력 관심사 ${custom.length}개 포함(${custom.map((c) => c.name).slice(0, 5).join(', ')}${custom.length > 5 ? ' …' : ''})`);
+  return ctx.topics;
 }

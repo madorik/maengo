@@ -4,13 +4,14 @@ import { modelFor, tierOf } from '@maengo/core/ai';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
 import { kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
-import { TOPIC_BY_ID, whyLead } from '@maengo/core/topics';
+import { whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import type { FeedbackKind, Tier } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, ProfileView, TodayData } from '../types';
 import { ai } from './ai';
 import { db, must } from './db';
 import { entitlements, trialDaysLeft, type Profile } from './profile';
+import { topicNames } from './topics';
 
 // 피드 읽기. 소식(요약·why·토픽)은 일일 파이프라인(pipeline/)이 Supabase에 만들어 두고, 웹은 읽기만 한다.
 // 웹에서는 LLM을 부르지 않는다. 오늘 피드가 아직 없으면(배치 전·토픽 변경 후 다시 만들기) 이미 요약된 소식으로 바로 랭킹한다.
@@ -258,8 +259,8 @@ async function clusterInfo(ids: number[], tier: Tier): Promise<Map<number, Clust
   return out;
 }
 
-function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date): FeedItem {
-  const topicName = TOPIC_BY_ID.get(row.topicId)?.name ?? row.topicId;
+function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date, names: Map<string, string>): FeedItem {
+  const topicName = names.get(row.topicId) ?? row.topicId;
   const videoId = c.kind === 'video' ? youtubeId(c.url) : null;
   return {
     rank: row.rank,
@@ -285,11 +286,12 @@ function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date): FeedItem
 }
 
 async function itemsFor(profile: Profile, rows: FeedRow[], date: string): Promise<FeedItem[]> {
-  const info = await clusterInfo(rows.map((r) => r.clusterId), tierOf(profile.plan));
+  // 직접 입력한 관심사(사전에 없는 토픽)의 이름은 DB에서 찾는다
+  const [info, names] = await Promise.all([clusterInfo(rows.map((r) => r.clusterId), tierOf(profile.plan)), topicNames(rows.map((r) => r.topicId))]);
   const now = new Date();
   return rows.flatMap((r) => {
     const c = info.get(r.clusterId);
-    return c ? [toItem(r, date, c, now)] : [];
+    return c ? [toItem(r, date, c, now, names)] : [];
   });
 }
 

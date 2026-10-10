@@ -118,3 +118,11 @@ export interface UserTopic {
   id: string;
   name: string;
 }
+
+/** 설정 > 관심사 더하기: 큰 분류와 그 아래 상세 관심사 */
+export interface TopicGroupView {
+  id: string;
+  name: string;
+  picked: boolean;
+  details: { id: string; name: string; picked: boolean }[];
+}

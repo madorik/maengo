@@ -24,7 +24,7 @@ export function TodayList() {
           </h1>
           {game.total > 0 && (
             <p className="mt-1 text-[14px] font-semibold leading-snug text-ink/80">
-              관심 토픽 {data.topicNames.join(", ")}에서 골랐어요
+              관심사 {data.topicNames.join(", ")}에서 골랐어요
             </p>
           )}
           {game.total > 0 && (
@@ -56,9 +56,9 @@ export function TodayList() {
                 </>
               ) : (
                 <>
-                  <p className="text-[15px] font-bold leading-relaxed">관심 토픽에서 아직 안 본 소식을 다 썼어요. 토픽을 넓히면 더 골라 드릴 수 있어요.</p>
+                  <p className="text-[15px] font-bold leading-relaxed">관심사에서 아직 안 본 소식을 다 썼어요. 관심사를 넓히면 더 골라 드릴 수 있어요.</p>
                   <Link href="/settings#topics" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
-                    관심 토픽 고치기
+                    관심사 고치기
                   </Link>
                 </>
               )}

@@ -3,6 +3,7 @@
 // 직접 실행: node --env-file=apps/web/.env.local scripts/apple-client-secret.mjs
 import { createPrivateKey, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
 const MAX_DAYS = 180;
@@ -20,7 +21,7 @@ export function appleClientSecret({ teamId, keyId, servicesId, privateKeyPem, da
 export function appleConfigFromEnv(env = process.env) {
   const { APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_SERVICES_ID, APPLE_PRIVATE_KEY_PATH } = env;
   if (!APPLE_TEAM_ID || !APPLE_KEY_ID || !APPLE_SERVICES_ID || !APPLE_PRIVATE_KEY_PATH) return null;
-  return { teamId: APPLE_TEAM_ID, keyId: APPLE_KEY_ID, servicesId: APPLE_SERVICES_ID, privateKeyPem: readFileSync(APPLE_PRIVATE_KEY_PATH, 'utf8') };
+  return { teamId: APPLE_TEAM_ID, keyId: APPLE_KEY_ID, servicesId: APPLE_SERVICES_ID, privateKeyPem: readFileSync(APPLE_PRIVATE_KEY_PATH.replace(/^~(?=\/)/, homedir()), 'utf8') };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
