@@ -150,6 +150,7 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
       <Sheet title="말투와 목소리" open={sheet} onClose={() => setSheet(false)}>
         <PersonaPicker />
         <VoicePicker />
+        <p className="mt-3 text-[13px] font-semibold text-sub">고르면 바로 저장돼요. 다음에 들을 때도 이 말투로 시작해요.</p>
       </Sheet>
     </>
   );
