@@ -1,4 +1,5 @@
 import 'server-only';
+import { PERSONA } from '@maengo/core/audio';
 import type { Persona, Plan, Voice } from '@maengo/core/types';
 import type { Provider } from '../session-token';
 import { db, must } from './db';
@@ -65,7 +66,8 @@ export async function loadProfile(
     notifyAt: row.notify_at.slice(0, 5),
     plan,
     premiumUntil,
-    persona: row.persona,
+    // 말투는 아나운서 하나로 고정(DB 값은 쓰지 않는다)
+    persona: PERSONA,
     voice: row.voice,
     autoNext: row.auto_next,
     skipRead: row.skip_read,

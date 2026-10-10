@@ -19,6 +19,12 @@ export const PERSONAS: PersonaInfo[] = [
 
 export const PERSONA_BY_ID = Object.fromEntries(PERSONAS.map((p) => [p.id, p])) as Record<Persona, PersonaInfo>;
 
+/**
+ * 지금 쓰는 말투. 2026-10-10부터 아나운서 하나만 쓰고 사용자는 목소리(여성·남성)만 고른다(TTS 비용: 소식마다 음성 2개까지).
+ * 선생님·대담은 나중에 다시 열 때를 위해 정의만 남긴다.
+ */
+export const PERSONA: Persona = 'announcer';
+
 export const VOICES: { id: Voice; label: string }[] = [
   { id: 'f', label: '여성' },
   { id: 'm', label: '남성' },

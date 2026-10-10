@@ -156,7 +156,7 @@ export function Landing() {
 
             <Feature
               title="출근길엔 귀로 들어요"
-              body="선생님, 아나운서, 대담 말투 중에 골라 오늘 소식을 끝까지 이어서 들어요. 글을 보면서 들으면 지금 읽는 문단을 짚어 줘요. 운전 중이라면 재생 한 번이면 끝까지 넘어가요."
+              body="아나운서가 오늘 소식을 끝까지 이어서 읽어 줘요. 목소리는 여성·남성 중에 골라요. 글을 보면서 들으면 지금 읽는 문단을 짚어 줘요. 운전 중이라면 재생 한 번이면 끝까지 넘어가요."
             >
               <div className="tile p-5">
                 <div className="flex flex-col gap-3">
@@ -246,7 +246,7 @@ export function Landing() {
                 price={BETA ? "0원" : PREMIUM_PRICE}
                 was={BETA ? PREMIUM_PRICE : undefined}
                 badge={BETA ? "베타 이벤트" : undefined}
-                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 말투 3종", "더 좋은 AI 모델로 요약", "관심사 20개, 기타 10개"]}
+                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 여성·남성 목소리", "더 좋은 AI 모델로 요약", "관심사 20개, 기타 10개"]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={BETA ? { signedOut: { href: "/login", label: "무료로 시작하기" }, signedIn: OPEN } : { signedOut: START, signedIn: { href: "/settings#plan", label: "플랜 보기" } }}
               />

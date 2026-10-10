@@ -1,6 +1,5 @@
 "use client";
 
-import { PERSONAS } from "@maengo/core/audio";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -11,10 +10,10 @@ import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { minutesLabel, personaName } from "@/lib/player/labels";
+import { minutesLabel } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
-import { Queue, Switch } from "./controls";
+import { Queue, Switch, VoicePicker } from "./controls";
 
 /**
  * 오른쪽 아래에 떠 있는 "오늘 맹고 전체 듣기". 챗봇 창처럼 누르면 듣기 창이 펼쳐진다.
@@ -145,7 +144,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
                 오늘 맹고 전체 듣기
               </h2>
               <p className="truncate text-[12px] font-bold text-sub">
-                {`${game.total}개, ${personaName(p.persona)} 말투로 ${minutes}`}
+                {`${game.total}개, ${p.voice === "f" ? "여성" : "남성"} 목소리로 ${minutes}`}
               </p>
             </div>
             <button type="button" aria-label="듣기 창 접기" onClick={close} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
@@ -192,21 +191,8 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
                   <IconNext />
                 </button>
               </div>
-              <div role="group" aria-label="말투" className="mt-4 grid grid-cols-3 gap-1.5">
-                {PERSONAS.map((info) => {
-                  const on = info.id === p.persona;
-                  return (
-                    <button
-                      key={info.id}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => p.setPersona(info.id)}
-                      className={`tile min-h-10 text-[13px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
-                    >
-                      {info.name}
-                    </button>
-                  );
-                })}
+              <div className="mt-4">
+                <VoicePicker />
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto border-t-2 border-line px-3 pb-3">

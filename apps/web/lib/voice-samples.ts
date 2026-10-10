@@ -12,13 +12,10 @@ export const SAMPLE_LINES: Record<Persona, ScriptLine[]> = {
   ],
 };
 
-/** 만들어 둘 샘플: 아나운서·선생님은 여성·남성 목소리 하나씩, 대담은 두 목소리 한 개 */
+/** 만들어 둘 샘플: 지금 말투(아나운서)의 여성·남성 목소리 */
 export const SAMPLES: { persona: Persona; vk: VoiceKey }[] = [
   { persona: "announcer", vk: "f" },
   { persona: "announcer", vk: "m" },
-  { persona: "teacher", vk: "f" },
-  { persona: "teacher", vk: "m" },
-  { persona: "dialogue", vk: "pair" },
 ];
 
 export function samplePath(persona: Persona, vk: VoiceKey): string {

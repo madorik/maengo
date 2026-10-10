@@ -1,21 +1,19 @@
 "use client";
 
-import type { Persona } from "@maengo/core/types";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
-import { IconCap, IconChat, IconClose, IconList, IconMic, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { IconClose, IconList, IconMic, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { Bubble } from "@/components/ui/Bubble";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { minutesLabel, personaName } from "@/lib/player/labels";
+import { minutesLabel } from "@/lib/player/labels";
 import { formatClock, startIndex } from "@/lib/player/machine";
-import { PersonaPicker, Queue, Switch, VoicePicker } from "./controls";
+import { Queue, Switch, VoicePicker } from "./controls";
 import { PlusLock } from "./PlusLock";
 
-const PERSONA_ICON: Record<Persona, typeof IconMic> = { announcer: IconMic, teacher: IconCap, dialogue: IconChat };
 
 /** 듣기 화면. 망고가 헤드폰을 쓰고, 지금 읽는 문장이 말풍선으로 쌓인다 */
 export function ListenScreen() {
@@ -27,7 +25,6 @@ export function ListenScreen() {
   const active = p.cur >= 0;
   const shown = active ? p.cur : startIndex(p.chapters, read, p.skipRead);
   const ch = p.chapters[shown];
-  const PersonaIcon = PERSONA_ICON[p.persona];
 
   const header = (
     <header className="mx-auto flex w-full max-w-[760px] items-center gap-4 px-4 pb-2 pt-[max(16px,env(safe-area-inset-top))]">
@@ -95,7 +92,7 @@ export function ListenScreen() {
               lines={active ? (ch?.lines ?? []) : []}
               current={active ? p.lineIndex : -1}
               playing={playing}
-              intro={`재생을 누르면 ${personaName(p.persona)} 말투로 오늘 ${data.items.length}개를 끝까지 들려 드려요. ${minutesLabel(p.personaTotalMs(p.persona))}이에요.`}
+              intro={`재생을 누르면 오늘 ${data.items.length}개를 끝까지 들려 드려요. ${minutesLabel(p.personaTotalMs(p.persona))}이에요.`}
             />
           </>
         )}
@@ -132,8 +129,8 @@ export function ListenScreen() {
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button type="button" aria-haspopup="dialog" onClick={() => setSheet("voice")} className="btn btn-ghost min-h-12 px-3 text-[15px]">
-              <PersonaIcon className="size-5 text-sky" />
-              {p.persona === "dialogue" ? "대담" : `${personaName(p.persona)}, ${p.voice === "f" ? "여성" : "남성"}`}
+              <IconMic className="size-5 text-sky" />
+              {p.voice === "f" ? "여성 목소리" : "남성 목소리"}
             </button>
             <button type="button" aria-haspopup="dialog" onClick={() => setSheet("queue")} className="btn btn-ghost min-h-12 px-3 text-[15px]">
               <IconList className="size-5 text-sky" />
@@ -143,10 +140,9 @@ export function ListenScreen() {
         </div>
       </footer>
 
-      <Sheet title="말투와 목소리" open={sheet === "voice"} onClose={() => setSheet(null)}>
-        <PersonaPicker />
+      <Sheet title="목소리" open={sheet === "voice"} onClose={() => setSheet(null)}>
         <VoicePicker />
-        <p className="mt-3 text-[13px] font-semibold text-sub">고르면 바로 저장돼요. 다음에 들을 때도 이 말투로 시작해요.</p>
+        <p className="mt-3 text-[13px] font-semibold text-sub">고르면 바로 저장돼요. 다음에 들을 때도 이 목소리로 시작해요.</p>
       </Sheet>
       <Sheet title="재생 목록" open={sheet === "queue"} onClose={() => setSheet(null)}>
         <Switch label="다음 소식 자동 재생" note={p.autoNext ? "한 번 누르면 끝까지 이어서 들어요" : "소식 하나가 끝나면 멈춰요"} checked={p.autoNext} onChange={p.setAutoNext} />

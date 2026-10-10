@@ -1,14 +1,11 @@
 "use client";
 
-import { PERSONAS, VOICES } from "@maengo/core/audio";
-import type { Persona } from "@maengo/core/types";
-import { IconCap, IconChat, IconCheck, IconMic } from "@/components/icons";
+import { VOICES } from "@maengo/core/audio";
+import { IconCheck } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { formatClock, isSkipped } from "@/lib/player/machine";
-import { minutesLabel } from "@/lib/player/labels";
 
-const PERSONA_ICON: Record<Persona, typeof IconMic> = { announcer: IconMic, teacher: IconCap, dialogue: IconChat };
 
 /** 켜고 끄는 스위치 */
 export function Switch({ label, note, checked, onChange }: { label: string; note?: string; checked: boolean; onChange: (on: boolean) => void }) {
@@ -70,33 +67,6 @@ export function Queue({ onPick }: { onPick?: () => void }) {
         );
       })}
     </ol>
-  );
-}
-
-/** 말투 고르기 */
-export function PersonaPicker() {
-  const p = usePlayer();
-  return (
-    <div className="mt-3 grid grid-cols-3 gap-2">
-      {PERSONAS.map((info) => {
-        const on = info.id === p.persona;
-        const Icon = PERSONA_ICON[info.id];
-        return (
-          <button
-            key={info.id}
-            type="button"
-            aria-pressed={on}
-            onClick={() => p.setPersona(info.id)}
-            className={`tile flex min-h-[112px] flex-col items-center justify-center gap-1 px-1.5 py-3 ${on ? "border-sky bg-sky-tint" : "hover:bg-snow"}`}
-          >
-            <Icon className={`size-8 ${on ? "text-sky" : "text-sub"}`} />
-            <span className={`text-[16px] font-black ${on ? "text-sky-dark" : ""}`}>{info.name}</span>
-            <span className="text-[12px] font-bold text-sub">{info.shortDesc}</span>
-            <span className="text-[12px] font-bold text-sub">{minutesLabel(p.personaTotalMs(info.id))}</span>
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
