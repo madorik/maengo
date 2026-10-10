@@ -75,7 +75,6 @@ export default async function SettingsPage() {
                   </button>
                 ))}
               </form>
-              <p className="mt-2 text-[13px] text-sub">결제가 붙기 전까지 쓰는 데모 전환이에요(Premium은 기한 없이). 바꾸면 오늘 피드의 문구와 듣기 권한이 바로 바뀌어요.</p>
             </>
           )}
         </Section>

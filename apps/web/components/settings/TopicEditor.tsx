@@ -49,7 +49,7 @@ export function TopicEditor({ topics, groups, limit, last }: { topics: UserTopic
 
   return (
     <>
-      <p className="text-sub">고른 관심사로 매일 소식을 골라요. 목록에 없으면 맨 아래 기타에 적어 주세요. 바꾼 내용은 내일 아침 피드부터 반영돼요.</p>
+      <p className="text-sub">고른 관심사로 매일 소식을 골라요. 목록에 없으면 맨 아래 기타에 적어 주세요.</p>
 
       <div className="mt-5 flex items-baseline justify-between">
         <h3 className="text-[15px] font-black">내 관심사</h3>
@@ -68,7 +68,6 @@ export function TopicEditor({ topics, groups, limit, last }: { topics: UserTopic
 
       <form action={action} className="mt-3">
         <h3 className="text-[15px] font-black">관심사 더하기</h3>
-        <p className="mt-0.5 text-[13px] font-semibold text-sub">분야 전체를 고르면 넓게, 상세 관심사를 더하면 그 주제를 더 자주 골라 드려요.</p>
         <div className="mt-3 flex flex-col gap-4">
           {groups.map((g) => {
             const rest = g.details.filter((d) => !d.picked);
