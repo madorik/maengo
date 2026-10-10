@@ -1,0 +1,2 @@
+# capacitor.config.ts가 sync 때 offline.html로 만든다(서버 주소가 들어간다)
+www/
