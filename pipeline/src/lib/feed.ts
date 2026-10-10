@@ -3,6 +3,7 @@ import { clip, htmlToText } from './text';
 
 // RSS 2.0·Atom·유튜브 채널 피드를 한 모양으로 읽는다.
 // 인기 신호도 읽는다: 유튜브 조회수(media:statistics views), 해커 뉴스 점수(hnrss 설명의 "Points: N").
+// 유튜브 쇼츠는 채널 RSS의 링크가 /shorts/로 온다(isShort). 요약할 내용이 거의 없어서 수집하지 않는다.
 
 export interface FeedEntry {
   url: string;
@@ -13,6 +14,7 @@ export interface FeedEntry {
   videoId: string | null;
   views: number | null;
   hnPoints: number | null;
+  isShort: boolean;
 }
 
 function count(raw: unknown): number | null {
@@ -88,12 +90,14 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
         videoId: null,
         views: null,
         hnPoints: hnPointsOf(desc),
+        isShort: false,
       });
     }
   } else if (doc.feed) {
     for (const e of (doc.feed.entry ?? []) as any[]) {
       const videoId = text(e['yt:videoId']) || null;
-      const url = videoId ? `https://www.youtube.com/watch?v=${videoId}` : atomLink(e.link);
+      const link = atomLink(e.link);
+      const url = videoId ? `https://www.youtube.com/watch?v=${videoId}` : link;
       if (!url) continue;
       const group = e['media:group'];
       const desc = videoId ? text(group?.['media:description']) : text(e.summary) || text(e.content);
@@ -106,6 +110,7 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
         videoId,
         views: videoId ? count(group?.['media:community']?.['media:statistics']?.['@_views']) : null,
         hnPoints: null,
+        isShort: !!videoId && link.includes('/shorts/'),
       });
     }
   }

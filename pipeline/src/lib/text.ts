@@ -17,4 +17,15 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
-export const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+/** DB(jsonb·text)가 받지 않는 글자를 지운다: NUL, 짝 없는 서로게이트(이모지가 반으로 잘린 것) */
+export function wellFormed(s: string): string {
+  return s.replace(/\u0000/g, '').replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, '');
+}
+
+/** n자로 자른다. 이모지(서로게이트 쌍) 가운데서 자르지 않는다 */
+export function clip(s: string, n: number): string {
+  const clean = wellFormed(s);
+  if (clean.length <= n) return clean;
+  const cut = /[\ud800-\udbff]/.test(clean[n - 1] ?? '') ? n - 1 : n;
+  return `${clean.slice(0, cut)}…`;
+}
