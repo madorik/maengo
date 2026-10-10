@@ -1,0 +1,9 @@
+# Vercel CLI 배포에서 올리지 않는 것. 비밀값(.env*)과 로컬 캐시는 절대 올리지 않는다
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/.next
+**/.cache
+.git
+*.tsbuildinfo

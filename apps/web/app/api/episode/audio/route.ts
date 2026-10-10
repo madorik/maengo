@@ -6,6 +6,9 @@ import { entitlements } from "@/lib/server/profile";
 import { redirectToFile, ttsFailure } from "@/lib/server/file-response";
 import { parseEpisodeParams } from "../params";
 
+// 처음 듣는 소식은 이 요청에서 음성을 만든다(소식당 30~40초, 전체 듣기는 몇 분까지)
+export const maxDuration = 300;
+
 // 오늘 에피소드 파일. 아직 없는 소식의 음성은 이 요청에서 만들고(소식당 수십 초), 다 되면 저장소(R2 서명 URL)로 넘긴다.
 // <audio>는 넘겨받은 주소에서 Range 요청으로 바로 받는다.
 export async function GET(request: NextRequest) {

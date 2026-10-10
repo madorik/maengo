@@ -11,6 +11,14 @@
 - `.env.local`에 넣어 둔 값: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`
 - 무료 프로젝트는 1주일 동안 요청이 없으면 일시 정지된다. 대시보드에서 다시 켜면 된다
 
+### Vercel — 2026-10-10 배포
+- 프로젝트 `maengo`(팀 `madorik's projects`, **Hobby** — 비상업용이라 판매 시작 전에 Pro로), 주소 **https://maengo.vercel.app**
+- 루트 디렉터리 `apps/web`, 함수 리전 서울(`icn1`, `apps/web/vercel.json`), 음성 생성 경로 최대 300초
+- 환경 변수(프로덕션) 10개: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `SESSION_SECRET`(운영용으로 새로 만듦)
+- 공개 주소라 `DEMO_USER_ID`(애플 버튼 데모 로그인)와 `DEMO_TOOLS`(플랜 전환 등)는 넣지 않았다
+- 배포: 저장소 루트에서 `npx vercel deploy --prod`(`.vercelignore`가 `.env*`·캐시를 막는다). 푸시마다 자동 배포하려면 Vercel 대시보드 → 프로젝트 → Settings → Git에서 GitHub 저장소를 연결한다(Vercel GitHub 앱 설치 필요)
+- Supabase 로그인 설정에 사이트 주소·돌아올 주소로 등록함(`NEXT_PUBLIC_SITE_URL=https://maengo.vercel.app pnpm setup:auth`)
+
 ### Gemini API — 2026-10-09 키 받음
 - AI Studio 키(`AQ.`로 시작), Gemini API(`generativelanguage.googleapis.com`)에서 동작한다. 무료 등급(결제 꺼짐)
 - `gemini-flash-latest`는 이날 `gemini-3.8-flash`를 가리켰다. 혼잡(503)이 잦아 재시도하고, 계속되면 `gemini-flash-lite-latest`로 대신한다
