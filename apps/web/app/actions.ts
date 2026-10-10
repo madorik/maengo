@@ -13,8 +13,7 @@ import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session
 import { addCustomTopics, addTopics, removeTopic } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
 import { supabaseAuth } from "@/lib/supabase/server";
-import { isNotifyTime, notifyTimeLabel } from "@maengo/core/kst";
-import { josa } from "@maengo/core/josa";
+import { isNotifyTime } from "@maengo/core/kst";
 import { isAdultInterest, TOPIC_BY_ID } from "@maengo/core/topics";
 import type { TopicResult } from "@/lib/types";
 
@@ -116,28 +115,26 @@ export async function deleteAccount() {
 
 export interface NotifyResult {
   notifyAt: string;
-  tone: "ok" | "warn";
-  message: string;
+  /** 저장하지 못했을 때만(성공은 고른 버튼으로 보인다) */
+  error?: string;
 }
 
 /** 설정 > 알림 시간. 아침 6시~밤 11시 30분, 30분 단위만 받는다 */
 export async function saveNotifyAt(_prev: NotifyResult | null, formData: FormData): Promise<NotifyResult> {
   const profile = await requireProfile();
   const value = formData.get("notifyAt");
-  if (!isNotifyTime(value)) return { notifyAt: profile.notifyAt, tone: "warn", message: "고를 수 없는 시간이에요. 목록에서 골라 주세요." };
-  if (value === profile.notifyAt) {
-    const label = notifyTimeLabel(value);
-    return { notifyAt: value, tone: "ok", message: profile.pushEnabled ? `이미 ${label}에 알려 드리고 있어요.` : `이미 ${josa(label, "으로", "로")} 골라 두었어요.` };
+  if (!isNotifyTime(value)) return { notifyAt: profile.notifyAt, error: "고를 수 없는 시간이에요. 목록에서 골라 주세요." };
+  if (value !== profile.notifyAt) {
+    must(await db.from("profiles").update({ notify_at: value }).eq("id", profile.id), "profiles notify_at");
+    revalidatePath("/", "layout");
   }
-  must(await db.from("profiles").update({ notify_at: value }).eq("id", profile.id), "profiles notify_at");
-  revalidatePath("/", "layout");
-  return { notifyAt: value, tone: "ok", message: `알림 시간을 ${josa(notifyTimeLabel(value), "으로", "로")} 바꿨어요.` };
+  return { notifyAt: value };
 }
 
 export interface PushResult {
   enabled: boolean;
-  tone: "ok" | "warn";
-  message: string;
+  /** 켜지 못했을 때만 */
+  error?: string;
 }
 
 /**
@@ -147,17 +144,14 @@ export interface PushResult {
 export async function setPushEnabled(enabled: boolean): Promise<PushResult> {
   const profile = await requireProfile();
   const on = enabled === true;
-  const label = notifyTimeLabel(profile.notifyAt);
   if (on) {
     const { count } = await db.from("device_tokens").select("token", { count: "exact", head: true }).eq("user_id", profile.id);
-    if (!count) return { enabled: false, tone: "warn", message: "알림 받을 기기를 등록하지 못했어요. 다시 켜 주세요." };
+    if (!count) return { enabled: false, error: "알림 받을 기기를 등록하지 못했어요. 다시 켜 주세요." };
   }
   must(await db.from("profiles").update({ push_enabled: on }).eq("id", profile.id), "profiles push_enabled");
   if (!on) must(await db.from("device_tokens").delete().eq("user_id", profile.id), "device_tokens");
   revalidatePath("/", "layout");
-  return on
-    ? { enabled: true, tone: "ok", message: `알림을 켰어요. 매일 ${label}에 알려 드려요.` }
-    : { enabled: false, tone: "ok", message: `알림을 껐어요. 맹고는 매일 ${label}에 준비해 둘게요.` };
+  return { enabled: on };
 }
 
 const VOICES: Voice[] = ["f", "m"];

@@ -20,7 +20,8 @@ const noSubscribe = () => () => {};
 export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens: string[] }) {
   const router = useRouter();
   const [on, setOn] = useState(enabled);
-  const [msg, setMsg] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
+  /** 켜지 못한 이유(성공은 스위치로 보인다) */
+  const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
   // 다른 기기에서 켰고 이 브라우저는 아직 안 받는 경우 '이 브라우저에서도 받기'를 보여 준다(앱 안에서는 숨긴다)
   const canWebPush = useSyncExternalStore(noSubscribe, () => !isAppUserAgent(navigator.userAgent) && "PushManager" in window, () => false);
@@ -28,36 +29,37 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
 
   const toggle = (next: boolean) =>
     start(async () => {
-      setMsg(null);
+      setError(null);
       if (next) {
         const r = await registerThisBrowser();
         if (!r.ok) {
-          setMsg({ tone: "warn", text: FAIL[r.reason] });
+          setError(FAIL[r.reason]);
           return;
         }
       }
       const res = await setPushEnabled(next);
       setOn(res.enabled);
-      setMsg({ tone: res.tone, text: res.message });
+      setError(res.error ?? null);
     });
 
   const addHere = () =>
     start(async () => {
+      setError(null);
       const r = await registerThisBrowser();
-      setMsg(r.ok ? { tone: "ok", text: "이 브라우저에서도 알림을 받아요." } : { tone: "warn", text: FAIL[r.reason] });
       if (r.ok) router.refresh();
+      else setError(FAIL[r.reason]);
     });
 
   return (
     <div className="mb-3">
-      <Switch label="알림 받기" note={busy ? (on ? "바꾸는 중…" : "켜는 중…") : on ? "켜 둔 기기로 알려 드려요" : "꺼 두면 알림을 보내지 않아요"} checked={on} disabled={busy} onChange={toggle} />
+      <Switch label="알림 받기" checked={on} disabled={busy} onChange={toggle} />
       {on && canWebPush && !here && !busy && (
         <button type="button" onClick={addHere} className="btn btn-ghost mt-1 min-h-11 px-4 text-[14px]">
           이 브라우저에서도 받기
         </button>
       )}
-      <p aria-live="polite" className={`mt-1 min-h-5 text-[14px] font-bold ${msg?.tone === "warn" ? "text-mango-deep" : "text-leaf"}`}>
-        {msg?.text}
+      <p aria-live="polite" className="text-[14px] font-bold text-mango-deep empty:hidden">
+        {error}
       </p>
     </div>
   );

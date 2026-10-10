@@ -18,10 +18,7 @@ export function ListenPrefs({ audio }: { audio: boolean }) {
     <>
       <p className="text-sub">듣기를 누르면 아나운서 말투로 읽어 드려요. 목소리만 골라 주세요. 듣는 중에도 듣기 창에서 바꿀 수 있어요.</p>
       <VoicePicker />
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <p aria-live="polite" className="min-w-0 text-[14px] font-bold text-leaf">
-          지금 기본값: {label}
-        </p>
+      <div className="mt-4">
         <SampleButton key={sampleUrl(p.persona, p.voice)} src={sampleUrl(p.persona, p.voice)} label={label} onStart={p.pause} />
       </div>
       {!audio && <p className="mt-1 text-[13px] text-sub">듣기는 Premium에서 쓸 수 있어요. 목소리는 미리 들어 보고 골라 둘 수 있어요.</p>}

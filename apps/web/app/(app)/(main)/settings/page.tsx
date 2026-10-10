@@ -91,7 +91,7 @@ export default async function SettingsPage() {
 
         <Section id="notify" title="알림">
           <PushToggle enabled={profile.pushEnabled} webTokens={webTokens} />
-          <NotifyTimePicker current={profile.notifyAt} pushEnabled={profile.pushEnabled} />
+          <NotifyTimePicker current={profile.notifyAt} />
         </Section>
 
         <Section id="account" title="계정">
