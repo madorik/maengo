@@ -15,7 +15,7 @@ import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { webPushTokens } from "@/lib/server/profile";
 import { BETA, PREMIUM_PRICE } from "@/lib/site";
-import { newsSections, topicGroups, topicSuggestions, userTopics } from "@/lib/server/topics";
+import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 
 export const metadata: Metadata = { title: "설정" };
 
@@ -91,7 +91,6 @@ export default async function SettingsPage() {
             groups={topicGroups(topics)}
             news={newsSections(topics)}
             custom={topics.filter((t) => t.custom)}
-            suggestions={topicSuggestions()}
           />
         </Section>
 
