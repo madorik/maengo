@@ -87,11 +87,23 @@ async function addTopicIds(profile: Profile, ids: string[], source: 'settings' |
   return { tone: 'ok', message: `${lead ?? `${obj(n(added))} 추가했어요.`} 내일 아침 피드부터 반영돼요.${extra}` };
 }
 
-/** 설정의 분류별 더하기 버튼. 사전에 있는 id만 받는다 */
+/**
+ * 설정의 분류별 더하기 버튼. 사전에 있는 id만 받는다.
+ * 분야 전체를 넣으면 그 아래 상세 관심사는 분야 전체에 들어가므로(분야 태그가 상세 소식도 받는다, withParents) 내 목록에서 뺀다.
+ * 상세를 먼저 빼서 관심사 개수 한도에도 걸리지 않게 한다.
+ */
 export async function addTopics(profile: Profile, ids: string[]): Promise<TopicResult> {
   const valid = ids.filter((id) => TOPIC_BY_ID.has(id));
   if (!valid.length) return { tone: 'warn', message: '없는 관심사예요.' };
-  return addTopicIds(profile, valid, 'settings');
+  const groups = valid.filter((id) => !TOPIC_BY_ID.get(id)!.parent);
+  const children = new Set(groups.flatMap((g) => childrenOf(g).map((c) => c.id)));
+  const weights = await weightsOf(profile.id);
+  const covered = Object.keys(weights).filter((id) => children.has(id));
+  if (covered.length) must(await db.from('user_topics').delete().eq('user_id', profile.id).in('topic_id', covered), 'user_topics covered');
+  const shown = covered.filter((id) => weights[id]! > 0).map((id) => TOPIC_BY_ID.get(id)!.name);
+  const groupNames = groups.map((g) => TOPIC_BY_ID.get(g)!.name).join(', ');
+  const note = shown.length ? ` ${topicOf(shown)} ${groupNames} 분야 전체에 들어가서 내 관심사에서 뺐어요.` : '';
+  return addTopicIds(profile, valid, 'settings', note);
 }
 
 export async function removeTopic(profile: Profile, id: string): Promise<TopicResult> {
