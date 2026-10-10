@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BETA } from "@/lib/site";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/actions";
 import { Crown, IconChevronDown } from "@/components/icons";
@@ -102,7 +103,7 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
             <p className="mx-2 mb-2 inline-flex items-center gap-1 rounded-lg bg-mango-tint px-2 py-0.5 text-[12px] font-extrabold text-mango-deep">
               <Crown className="size-3.5" />
               Premium
-              {p.premiumDaysLeft !== null ? ` · ${p.premiumDaysLeft}일 남음` : ""}
+              {p.premiumDaysLeft !== null ? ` · ${p.premiumDaysLeft}일 남음` : BETA ? " · 베타 무료" : ""}
             </p>
           ) : (
             <div className="mx-2 mb-2 flex items-center justify-between gap-2">

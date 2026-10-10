@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { MangoIcon } from "@/components/MangoIcon";
+import { BetaBadge } from "@/components/ui/BetaBadge";
 import { AccountMenu } from "./AccountMenu";
 import { NavLinks } from "./NavLinks";
 
@@ -12,6 +13,7 @@ export function SideNav() {
       <Link href="/" aria-label="맹고 소개" className="flex items-center gap-2 px-3 no-underline">
         <MangoIcon className="size-9" />
         <span className="text-[28px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
+        <BetaBadge />
       </Link>
       <div className="mt-8">
         <NavLinks />

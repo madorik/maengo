@@ -2,10 +2,11 @@ import type { CategoryId } from "@maengo/core/categories";
 import Link from "next/link";
 import { Crown, IconCheck, IconDoc, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
+import { BetaBadge } from "@/components/ui/BetaBadge";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
-import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
+import { BETA, PREMIUM_PRICE, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
 import { AuthLink } from "./AuthLink";
 
 // 소개(메인) 페이지. 로그인 전에 맹고가 무엇인지 보여 준다. 그림 대신 실제 화면 조각을 그대로 쓴다.
@@ -18,7 +19,7 @@ const FAQ: [string, string][] = [
   ["어떤 소식을 모아요?", "AI·개발 공식 블로그, 경제·코인 매체, 반도체·로봇 전문지, K-Pop·뷰티·푸드 매체 등 국내외 출처를 매일 새벽에 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶어요."],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, K-Pop처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
-  ["무료로 얼마나 쓸 수 있나요?", "Free는 하루 1개 소식을 글로 읽어요. Premium은 하루 최대 10개와 오디오 듣기를 쓸 수 있어요. 가입하면 1주일 동안 Premium을 무료로 써요."],
+  ["무료로 얼마나 쓸 수 있나요?", "지금은 베타 기간이라 가입하면 모든 기능(Premium)을 무료로 써요. 정식 출시 후에는 Free(하루 1개 소식)와 Premium(월 4,900원, 하루 최대 10개와 오디오 듣기)으로 나뉘어요. 유료로 바뀌기 전에 미리 알려 드리고, 동의하지 않으면 결제되지 않아요."],
 ];
 
 type Sample = { category: CategoryId; source: string; video?: boolean; title: string; short: string; author: string; date: string; coverage?: string };
@@ -53,6 +54,7 @@ export function Landing() {
           <Link href="/" className="flex items-center gap-2 no-underline">
             <MangoIcon className="size-9" />
             <span className="text-[26px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
+            <BetaBadge />
           </Link>
           <nav aria-label="소개 메뉴" className="flex items-center gap-1">
             <a href="#features" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
@@ -82,7 +84,7 @@ export function Landing() {
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
               <AuthLink signedOut={{ href: "/login", label: "이미 계정이 있어요" }} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
-            <p className="mt-4 text-[13px] font-semibold text-sub">Free는 하루 1개, Premium은 하루 최대 10개. 가입하면 1주일 동안 Premium을 무료로 써요.</p>
+            <p className="mt-4 text-[13px] font-semibold text-sub">지금은 베타라 가입하면 Premium(하루 최대 10개, 오디오 듣기)을 무료로 써요. 정식 출시 후 유료로 바뀌기 전에 미리 알려 드려요.</p>
           </div>
 
           <div aria-hidden="true" className="mx-auto w-full max-w-[460px] md:order-1">
@@ -230,6 +232,7 @@ export function Landing() {
             <h2 id="pricing-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
               요금
             </h2>
+            {BETA && <p className="mt-3 text-center text-[15px] font-bold text-sub">베타 기간에는 모든 회원이 Premium을 무료로 써요. 정식 출시 후 유료로 바뀌어요.</p>}
             <div className="mt-10 grid gap-5 md:grid-cols-2">
               <Plan
                 name="Free"
@@ -240,11 +243,12 @@ export function Landing() {
               <Plan
                 featured
                 name="Premium"
-                price="월 4,900원"
-                badge="가입하면 1주일 무료"
+                price={BETA ? "0원" : PREMIUM_PRICE}
+                was={BETA ? PREMIUM_PRICE : undefined}
+                badge={BETA ? "베타 이벤트" : undefined}
                 items={["하루 최대 10개 소식", "오디오로 이어 듣기, 말투 3종", "더 좋은 AI 모델로 요약", "관심사 20개, 기타 10개"]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
-                cta={{ signedOut: { href: "/login", label: "7일 무료로 써 보기" }, signedIn: { href: "/settings#plan", label: "7일 무료로 써 보기" } }}
+                cta={BETA ? { signedOut: { href: "/login", label: "무료로 시작하기" }, signedIn: OPEN } : { signedOut: START, signedIn: { href: "/settings#plan", label: "플랜 보기" } }}
               />
             </div>
           </div>
@@ -377,6 +381,7 @@ function ScriptLine({ who, text, right = false, current = false }: { who: string
 function Plan({
   name,
   price,
+  was,
   items,
   cta,
   badge,
@@ -385,6 +390,8 @@ function Plan({
 }: {
   name: string;
   price: string;
+  /** 원래 가격(이벤트로 깎았을 때 취소선을 그어 보여 준다) */
+  was?: string;
   items: string[];
   cta: { signedOut: { href: string; label: string }; signedIn: { href: string; label: string }; ghost?: boolean };
   badge?: string;
@@ -400,7 +407,16 @@ function Plan({
         </h3>
         {badge && <span className="rounded-lg bg-mango px-2 py-0.5 text-[12px] font-black">{badge}</span>}
       </div>
-      <p className="mt-2 font-round text-[30px] font-black tracking-[-0.02em]">{price}</p>
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-2 font-round font-black tracking-[-0.02em]">
+        {was && (
+          <s className="text-[18px] text-faint">
+            <span className="sr-only">원래 가격 </span>
+            {was}
+          </s>
+        )}
+        <span className="text-[30px]">{price}</span>
+      </p>
+      {was && <p className="text-[13px] font-bold text-mango-deep">베타 기간 동안 무료, 정식 출시 후 유료로 바뀌어요</p>}
       <ul className="mt-5 flex flex-1 flex-col gap-2.5">
         {items.map((it) => (
           <li key={it} className="flex items-start gap-2 text-[15px] font-semibold">
@@ -431,7 +447,7 @@ function JsonLd() {
       description: SITE_DESCRIPTION,
       offers: [
         { "@type": "Offer", name: "Free", price: "0", priceCurrency: "KRW" },
-        { "@type": "Offer", name: "Premium", price: "4900", priceCurrency: "KRW" },
+        { "@type": "Offer", name: "Premium", price: BETA ? "0" : "4900", priceCurrency: "KRW" },
       ],
     },
     {
