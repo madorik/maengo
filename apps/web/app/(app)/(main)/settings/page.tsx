@@ -13,7 +13,7 @@ import { isAppUserAgent } from "@/lib/app-client";
 import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
-import { entitlements, webPushTokens } from "@/lib/server/profile";
+import { webPushTokens } from "@/lib/server/profile";
 import { BETA, PREMIUM_PRICE } from "@/lib/site";
 import { newsSections, topicGroups, topicSuggestions, userTopics } from "@/lib/server/topics";
 
@@ -45,7 +45,6 @@ export default async function SettingsPage() {
   const inApp = isAppUserAgent((await headers()).get("user-agent"));
   const view = toProfileView(profile);
   const demoTools = demoToolsEnabled();
-  const e = entitlements(profile);
   const [topics, webTokens] = await Promise.all([userTopics(profile), webPushTokens(profile.id)]);
 
   return (
@@ -92,7 +91,6 @@ export default async function SettingsPage() {
             groups={topicGroups(topics)}
             news={newsSections(topics)}
             custom={topics.filter((t) => t.custom)}
-            limit={e.topicLimit}
             suggestions={topicSuggestions()}
           />
         </Section>

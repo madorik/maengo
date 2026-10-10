@@ -19,6 +19,11 @@ const LOOK: Record<string, { Icon: ComponentType<{ className?: string }>; tone: 
   etc: { Icon: IconPencil, tone: "bg-snow text-sub" },
 };
 
+/** 분야 색(배경 + 글자). 설정의 내 관심사 라벨이 쓴다. 모르는 id는 기타 색 */
+export function topicTone(id: string): string {
+  return (LOOK[id] ?? LOOK.etc).tone;
+}
+
 /** 관심 분야 아이콘(둥근 네모 안). 모르는 id는 기타 모양 */
 export function TopicGroupIcon({ id, className = "size-12 rounded-2xl", iconClassName = "size-7" }: { id: string; className?: string; iconClassName?: string }) {
   const { Icon, tone } = LOOK[id] ?? LOOK.etc;

@@ -10,7 +10,7 @@ import { rebuildFeed } from "@/lib/server/feed";
 import { demoLoginEnabled, demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
-import { addCustomTopics, addTopics, removeCard, removeTopic } from "@/lib/server/topics";
+import { addCustomTopics, addTopics, removeTopic } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
 import { supabaseAuth } from "@/lib/supabase/server";
 import { isNotifyTime } from "@maengo/core/kst";
@@ -168,8 +168,8 @@ export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice;
 }
 
 /**
- * 관심사 고치기(설정). 폼 하나에서 넷 중 하나가 온다.
- * add: 목록에서 관심사 켜기 / remove: 관심사 끄기(기타 포함) / removeCard: 카드 하나 통째로 빼기 / text: 찾기 칸에 적은 말 넣기
+ * 관심사 고치기(설정). 셋 중 하나가 온다.
+ * add: 목록에서 관심사 켜기 / remove: 관심사 끄기(기타 포함) / text: 적은 말 넣기(사전에 있으면 그 관심사, 없으면 기타)
  */
 export async function editTopics(_prev: TopicResult | null, formData: FormData): Promise<TopicResult | null> {
   const profile = await requireProfile();
@@ -177,11 +177,8 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
   const text = formData.get("text");
   const add = formData.get("add");
   const remove = formData.get("remove");
-  const card = formData.get("removeCard");
-  // 찾기 칸에서 후보를 고르면 적던 글자(text)도 같이 오므로 add를 먼저 본다
   if (typeof add === "string") result = await addTopics(profile, [add]);
   else if (typeof remove === "string") result = await removeTopic(profile, remove);
-  else if (typeof card === "string") result = await removeCard(profile, card);
   else if (typeof text === "string") result = await addCustomTopics(profile, text);
   revalidatePath("/settings");
   return result;
