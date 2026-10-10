@@ -33,9 +33,13 @@ export const currentProfile = cache(async (): Promise<Profile | null> => {
   return null;
 });
 
+/**
+ * 로그인한 사람. 이 함수가 도는 화면은 프록시가 이미 로그인으로 본 것이라, 여기서 사람이 없으면
+ * 사용자가 지워진 오래된 세션이다. /login으로 보내면 프록시가 되돌려 끝없이 돌므로 쿠키를 지우는 곳으로 보낸다.
+ */
 export async function requireProfile(): Promise<Profile> {
   const profile = await currentProfile();
-  if (!profile) redirect('/login');
+  if (!profile) redirect('/auth/signout');
   return profile;
 }
 
