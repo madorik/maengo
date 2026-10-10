@@ -1,11 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isAppUserAgent } from "./lib/app-client";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "./lib/session-cookie";
 import { readSession } from "./lib/session-token";
 
 // 로그인 확인: 구글 로그인(Supabase 세션 쿠키)이나 데모 세션(서명한 쿠키) 중 하나면 로그인으로 본다.
 // Supabase 토큰이 만료됐으면 여기서 갱신해 응답 쿠키에 다시 쓴다(서버 컴포넌트는 쿠키를 못 쓴다).
-// 소개 페이지(/)는 누구나 볼 수 있는 정적 페이지라 여기서 다루지 않는다.
+// 소개 페이지(/)는 누구나 볼 수 있는 정적 페이지라 여기서 다루지 않는다. 앱(User-Agent에 MaengoApp)만 예외로,
+// 소개 대신 로그인 여부에 따라 /today·/login으로 보낸다. 브라우저 요청은 matcher에서 걸러져 이 함수를 타지 않는다.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -37,7 +39,10 @@ export async function proxy(request: NextRequest) {
     return r;
   };
   let res = response;
-  if (pathname === "/login" && signedIn) res = redirect("/today");
+  if (pathname === "/") {
+    if (!isAppUserAgent(request.headers.get("user-agent"))) return response;
+    res = redirect(signedIn ? "/today" : "/login");
+  } else if (pathname === "/login" && signedIn) res = redirect("/today");
   else if (pathname !== "/login" && !signedIn) res = redirect("/login");
 
   if (raw && !demo) res.cookies.delete(SESSION_COOKIE);
@@ -49,5 +54,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/onboarding", "/today/:path*", "/article/:path*", "/listen/:path*", "/library/:path*", "/settings/:path*"],
+  matcher: [
+    "/login", "/onboarding", "/today/:path*", "/article/:path*", "/listen/:path*", "/library/:path*", "/settings/:path*",
+    // 앱에서 연 소개 페이지만(lib/app-client.ts의 APP_UA_MARK와 같은 값이어야 한다. matcher는 상수만 된다)
+    { source: "/", has: [{ type: "header", key: "user-agent", value: ".*MaengoApp/.*" }] },
+  ],
 };
