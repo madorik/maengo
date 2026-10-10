@@ -1,6 +1,7 @@
 package kr.maengo.app;
 
 import android.os.Bundle;
+import android.webkit.CookieManager;
 import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 
@@ -30,5 +31,13 @@ public class MainActivity extends BridgeActivity {
                     }
                 }
             );
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // 웹뷰는 쿠키를 몇십 초마다 몰아서 디스크에 쓴다. 백그라운드로 갈 때 바로 써 두어야
+        // 그 사이 앱이 종료돼도 로그인 세션·화면 설정 쿠키가 남는다(Capacitor는 따로 하지 않는다)
+        CookieManager.getInstance().flush();
     }
 }
