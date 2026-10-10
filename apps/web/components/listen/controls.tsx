@@ -7,7 +7,7 @@ import { formatClock, isSkipped } from "@/lib/player/machine";
 
 export { Switch } from "@/components/ui/Switch";
 
-/** 재생 목록. 누르면 그 소식부터 */
+/** 재생 목록. 누르면 그 소식부터(지금 듣는 소식은 그대로) */
 export function Queue({ onPick }: { onPick?: () => void }) {
   const p = usePlayer();
   const { data, read, consumed } = useToday();
@@ -27,7 +27,9 @@ export function Queue({ onPick }: { onPick?: () => void }) {
             <button
               type="button"
               onClick={() => {
-                p.goTo(i);
+                // 지금 듣는 소식을 누르면 처음으로 돌리지 않는다(멈춰 있었으면 그 자리부터 이어서)
+                if (!current) p.goTo(i);
+                else if (!playing) p.play();
                 onPick?.();
               }}
               disabled={!p.ready}
