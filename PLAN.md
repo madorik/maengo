@@ -369,7 +369,7 @@ score(u, c)     = relevance(u, c) · base(c)
 ### 9.1 포트원 정기결제
 
 1. `/plus`에서 포트원 브라우저 SDK로 빌링키를 발급받는다(PG사는 13장 6번).
-2. `POST /api/billing/issue`: 서버가 빌링키로 첫 달(₩4,900)을 결제한다. `payments.id`(우리가 만든 paymentId)가 멱등 키다. 성공하면 subscriptions를 active로, profiles.plan을 plus로, current_period_end를 +1개월로 바꾼다.
+2. `POST /api/billing/issue`: 서버가 빌링키로 첫 달(₩5,900, 2026-10-10 확정)을 결제한다. `payments.id`(우리가 만든 paymentId)가 멱등 키다. 성공하면 subscriptions를 active로, profiles.plan을 plus로, current_period_end를 +1개월로 바꾼다.
 3. `/api/cron/billing`(매일 09:00 KST): current_period_end가 지난 active 구독을 빌링키로 결제한다. 실패하면 past_due로 두고 3일간 하루 1번 재시도한 뒤 plan을 free로 바꾼다.
 4. 웹훅: 서명을 검증하고 payments·subscriptions를 맞춘다. 같은 이벤트가 두 번 와도 결과가 같아야 한다.
 5. 해지: `cancel_at_period_end=true`. 기간이 끝나면 free로 바꾼다.

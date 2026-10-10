@@ -6,7 +6,7 @@ import { BetaBadge } from "@/components/ui/BetaBadge";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
-import { BETA, PREMIUM_PRICE, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
+import { BETA, PREMIUM_PRICE, PREMIUM_PRICE_KRW, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
 import { AuthLink } from "./AuthLink";
 
 // 소개(메인) 페이지. 로그인 전에 맹고가 무엇인지 보여 준다. 그림 대신 실제 화면 조각을 그대로 쓴다.
@@ -19,7 +19,7 @@ const FAQ: [string, string][] = [
   ["어떤 소식을 모아요?", "AI·개발 공식 블로그, 경제·코인 매체, 반도체·로봇 전문지, K-Pop·뷰티·푸드 매체 등 국내외 출처를 매일 새벽에 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶어요."],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, K-Pop처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
-  ["무료로 얼마나 쓸 수 있나요?", "지금은 베타 기간이라 가입하면 모든 기능(Premium)을 무료로 써요. 정식 출시 후에는 Free(하루 1개 소식)와 Premium(월 4,900원, 하루 최대 10개와 오디오 듣기)으로 나뉘어요. 유료로 바뀌기 전에 미리 알려 드리고, 동의하지 않으면 결제되지 않아요."],
+  ["무료로 얼마나 쓸 수 있나요?", `지금은 베타 기간이라 가입하면 모든 기능(Premium)을 무료로 써요. 정식 출시 후에는 Free(하루 1개 소식)와 Premium(${PREMIUM_PRICE}, 하루 최대 10개와 오디오 듣기)으로 나뉘어요. 유료로 바뀌기 전에 미리 알려 드리고, 동의하지 않으면 결제되지 않아요.`],
 ];
 
 type Sample = { category: CategoryId; source: string; video?: boolean; title: string; short: string; author: string; date: string; coverage?: string };
@@ -447,7 +447,7 @@ function JsonLd() {
       description: SITE_DESCRIPTION,
       offers: [
         { "@type": "Offer", name: "Free", price: "0", priceCurrency: "KRW" },
-        { "@type": "Offer", name: "Premium", price: BETA ? "0" : "4900", priceCurrency: "KRW" },
+        { "@type": "Offer", name: "Premium", price: BETA ? "0" : String(PREMIUM_PRICE_KRW), priceCurrency: "KRW" },
       ],
     },
     {
