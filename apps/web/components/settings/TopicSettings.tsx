@@ -3,7 +3,7 @@
 import { startTransition, useActionState, useEffect, useId, useMemo, useOptimistic, useRef, useState } from "react";
 import { editTopics } from "@/app/actions";
 import { IconCheck, IconChevronDown, IconClose } from "@/components/icons";
-import { TopicGroupIcon, topicTone } from "@/components/TopicGroupIcon";
+import { topicTone } from "@/components/TopicGroupIcon";
 import type { TopicGroupView, TopicResult, UserTopic } from "@/lib/types";
 
 type Section = { id: string; name: string; picked: boolean };
@@ -106,11 +106,10 @@ export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView
       aria-expanded={open === id}
       aria-controls={open === id ? panelId : undefined}
       onClick={() => setOpen((o) => (o === id ? null : id))}
-      className={`tile inline-flex min-h-11 items-center gap-2 py-1 pl-1.5 pr-2.5 text-[14px] font-extrabold transition-colors ${
+      className={`tile inline-flex min-h-11 items-center gap-1.5 py-1 pl-3.5 pr-2.5 text-[14px] font-extrabold transition-colors ${
         open === id ? "border-sky bg-sky-tint" : "hover:bg-snow"
       }`}
     >
-      <TopicGroupIcon id={id} className="size-7 rounded-lg" iconClassName="size-4" />
       {label}
       {badge && <span className="rounded-full bg-sky px-1.5 py-px text-[12px] font-black leading-[18px] text-white">{badge}</span>}
       <IconChevronDown className={`size-4 text-faint transition-transform ${open === id ? "rotate-180" : ""}`} />

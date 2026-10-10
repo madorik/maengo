@@ -51,10 +51,6 @@ export const IconThumbUp = (p: Props) => (
 export const IconThumbDown = (p: Props) => (
   <Line {...p}><path d="M7 13V4H4v9z" /><path d="M7 13l4 7c1.5 0 2.5-1 2.2-2.6L12.5 14H18a2 2 0 0 0 2-2.3l-1.1-6A2 2 0 0 0 16.9 4H7" /></Line>
 );
-export const IconSearch = (p: Props) => <Line {...p}><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" /><path d="M20 20l-4-4" /></Line>;
-export const IconNews = (p: Props) => (
-  <Line {...p}><path d="M4 5h13v13a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z" /><path d="M17 9h3v9a2 2 0 0 1-2 2" /><path d="M7.5 9h6" /><path d="M7.5 12.5h6" /><path d="M7.5 16h4" /></Line>
-);
 export const IconPlus = (p: Props) => <Line {...p}><path d="M12 5v14" /><path d="M5 12h14" /></Line>;
 export const IconClose = (p: Props) => <Line {...p}><path d="M6 6l12 12" /><path d="M18 6L6 18" /></Line>;
 export const IconMenu = (p: Props) => <Line {...p}><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></Line>;
