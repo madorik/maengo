@@ -1,6 +1,6 @@
 "use client";
 
-/** 켜고 끄는 스위치(듣기 설정·알림 설정) */
+/** 켜고 끄는 스위치(듣기 설정). 이름과 설명이 왼쪽, 스위치가 오른쪽인 한 줄 */
 export function Switch({
   label,
   note,
@@ -27,9 +27,32 @@ export function Switch({
         <span className="block text-[15px] font-extrabold">{label}</span>
         {note && <span className="mt-0.5 block truncate text-[13px] font-semibold text-sub">{note}</span>}
       </span>
-      <span className={`flex h-8 w-14 shrink-0 items-center rounded-full p-1 transition-colors ${checked ? "justify-end bg-sky" : "justify-start bg-line"}`}>
-        <span className="size-6 rounded-full bg-white shadow-[0_2px_0_rgb(0_0_0/0.15)]" />
-      </span>
+      <Track checked={checked} />
     </button>
+  );
+}
+
+/** 스위치 모양만(제목 옆에 둘 때). label은 화면에 안 보이고 읽기 프로그램이 읽는다 */
+export function Toggle({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className="-m-1 shrink-0 rounded-full p-1 disabled:cursor-wait disabled:opacity-60"
+    >
+      <Track checked={checked} />
+    </button>
+  );
+}
+
+function Track({ checked }: { checked: boolean }) {
+  return (
+    <span className={`flex h-8 w-14 shrink-0 items-center rounded-full p-1 transition-colors ${checked ? "justify-end bg-sky" : "justify-start bg-line"}`}>
+      <span className="size-6 rounded-full bg-white shadow-[0_2px_0_rgb(0_0_0/0.15)]" />
+    </span>
   );
 }
