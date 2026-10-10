@@ -4,10 +4,12 @@ import Link from "next/link";
 import { Crown, IconCheck, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
+import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { useItemAudio } from "@/components/article/useItemAudio";
 import { MakeToday } from "./MakeToday";
 import type { FeedItem } from "@/lib/types";
@@ -84,6 +86,7 @@ export function TodayList() {
 function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
   const { consumed } = useToday();
   const p = usePlayer();
+  const profile = useProfile();
   const done = consumed(item.clusterId);
   // 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 플레이어로, 아니면 이 소식 하나만 만들어 듣는다
   const viaPlayer = p.audioReady || p.preparing || p.status !== "idle";
@@ -129,7 +132,20 @@ function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
           <span className="font-extrabold">{item.author}</span>
           <span className="ml-2 font-semibold text-faint">{item.publishedLabel}</span>
         </p>
-        {p.enabled && (
+        {!profile.audio ? (
+          // Free: 듣기 자리는 두고 막아 둔다(Premium 배지로 안내, 팝업은 띄우지 않는다)
+          <button
+            type="button"
+            disabled
+            title="듣기는 Premium에서 쓸 수 있어요"
+            aria-label={`${item.title} 듣기, Premium에서 쓸 수 있어요`}
+            className="relative z-10 ml-auto inline-flex min-h-10 shrink-0 cursor-not-allowed items-center gap-1.5 rounded-xl border-2 border-line px-3 text-[14px] font-extrabold text-faint"
+          >
+            <IconSpeaker className="size-5" />
+            듣기
+            <PremiumBadge />
+          </button>
+        ) : p.enabled && (
           <button
             type="button"
             onClick={listen}

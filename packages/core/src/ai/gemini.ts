@@ -44,7 +44,8 @@ function spreadLines(lines: { text: string }[], durationMs: number): { startMs: 
 
 /** 하루 할당량이 없거나 다 썼다. 같은 실행 안에서 다시 불러도 소용없다(무료 등급의 Pro 모델은 할당량이 0) */
 export class GeminiQuotaError extends Error {
-  constructor(readonly model: string, message: string) {
+  /** Gemini가 알려 준 다시 시도할 때까지 남은 시간(ms). 모르면 null */
+  constructor(readonly model: string, message: string, readonly retryMs: number | null = null) {
     super(message);
     this.name = 'GeminiQuotaError';
   }
@@ -163,7 +164,7 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
         return await call();
       } catch (e) {
         const { status, daily, retryMs, text } = parseError(e);
-        if (status === 429 && daily) throw new GeminiQuotaError(model, text.slice(0, 300));
+        if (status === 429 && daily) throw new GeminiQuotaError(model, text.slice(0, 300), retryMs);
         const retryable = status === 429 || status === 500 || status === 503 || status === 504;
         if (!retryable || attempt >= maxAttempts) throw e;
         const wait = status === 429 ? Math.min(retryMs ?? 15_000, 65_000) : Math.min(2000 * 2 ** (attempt - 1), 30_000);

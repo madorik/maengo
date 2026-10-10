@@ -1,13 +1,13 @@
 "use client";
 
 import type { Persona } from "@maengo/core/types";
-import Link from "next/link";
 import { useState } from "react";
 import { IconCap, IconChat, IconMic, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { PersonaPicker, VoicePicker } from "@/components/listen/controls";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Sheet } from "@/components/ui/Sheet";
 import { personaName } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
@@ -52,17 +52,18 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
 
   let body: React.ReactNode;
   if (ctl.state === "locked") {
+    // Free: 듣기 버튼을 막아 두고 Premium 배지로 안내한다(팝업 없음)
     body = (
-      <div className="flex items-center gap-3">
-        <Mascot mood="listen" className="size-12 shrink-0" />
-        <p className="min-w-0 flex-1">
-          <span className="block text-[15px] font-extrabold">이 글 듣기는 Premium에서</span>
-          <span className="block text-[13px] font-semibold text-sub">7일 무료 체험으로 들어 볼 수 있어요</span>
-        </p>
-        <Link href="/settings#plan" className="btn min-h-11 shrink-0 px-4 text-[14px]">
-          체험하기
-        </Link>
-      </div>
+      <button
+        type="button"
+        disabled
+        aria-label="이 글 듣기, Premium에서 쓸 수 있어요"
+        className="flex min-h-14 w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl border-2 border-line bg-snow text-[17px] font-extrabold text-faint"
+      >
+        <IconSpeaker className="size-6" />
+        이 글 듣기
+        <PremiumBadge />
+      </button>
     );
   } else if (ctl.preparing) {
     body = (

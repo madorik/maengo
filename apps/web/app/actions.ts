@@ -10,7 +10,7 @@ import { rebuildFeed } from "@/lib/server/feed";
 import { demoLoginEnabled, demoToolsEnabled } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
-import { addTopics, addTopicsFromText, removeTopic } from "@/lib/server/topics";
+import { addTopics, addKeywords, removeTopic } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
 import { supabaseAuth } from "@/lib/supabase/server";
 import { isNotifyTime, notifyTimeLabel } from "@maengo/core/kst";
@@ -111,8 +111,8 @@ export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice;
 }
 
 /**
- * 관심 토픽 고치기(설정). 폼 하나에서 셋 중 하나가 온다.
- * text: 문장으로 추가 / add: 추천 토픽 추가 / remove: 토픽 빼기
+ * 관심사·키워드 고치기(설정). 폼 하나에서 셋 중 하나가 온다.
+ * text: 키워드 넣기 / add: 목록에서 관심사 더하기 / remove: 관심사·키워드 빼기
  */
 export async function editTopics(_prev: TopicResult | null, formData: FormData): Promise<TopicResult | null> {
   const profile = await requireProfile();
@@ -120,7 +120,7 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
   const text = formData.get("text");
   const add = formData.get("add");
   const remove = formData.get("remove");
-  if (typeof text === "string") result = await addTopicsFromText(profile, text);
+  if (typeof text === "string") result = await addKeywords(profile, text);
   else if (typeof add === "string") result = await addTopics(profile, [add]);
   else if (typeof remove === "string") result = await removeTopic(profile, remove);
   revalidatePath("/settings");
