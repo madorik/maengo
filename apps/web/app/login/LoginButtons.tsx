@@ -1,18 +1,49 @@
 "use client";
 
+import { useState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
+import { isAppUserAgent } from "@/lib/app-client";
 
-/** demo가 true면(로컬 개발) 공용 데모 계정으로 들어가는 버튼을 하나 더 둔다 */
+type Provider = "google" | "apple";
+const noSubscribe = () => () => {};
+
+/**
+ * 구글·애플 로그인 버튼. 브라우저는 서버 액션(signIn)으로 넘어가고,
+ * 앱은 구글이 웹뷰 로그인을 막아서 시스템 브라우저로 로그인한 뒤 돌아온다(lib/native/auth.ts).
+ * demo가 true면(로컬 개발) 공용 데모 계정으로 들어가는 버튼을 하나 더 둔다
+ */
 export function LoginButtons({ demo }: { demo: boolean }) {
   const { pending, data } = useFormStatus();
-  const busy = (p: string) => pending && data?.get("provider") === p;
+  const inApp = useSyncExternalStore(noSubscribe, () => isAppUserAgent(navigator.userAgent), () => false);
+  const [appBusy, setAppBusy] = useState<Provider | null>(null);
+  const [appError, setAppError] = useState(false);
+  const busy = (p: string) => (pending && data?.get("provider") === p) || appBusy === p;
+
+  const appLogin = async (provider: Provider) => {
+    setAppBusy(provider);
+    setAppError(false);
+    const { appSignIn } = await import("@/lib/native/auth");
+    const result = await appSignIn(provider);
+    // 성공하면 화면이 /auth/callback으로 넘어간다. 닫았거나 실패하면 버튼을 되살린다
+    if (result === "ok") return;
+    setAppBusy(null);
+    setAppError(result === "error");
+  };
+  // 앱이면 폼을 보내지 않고 앱 로그인을 연다
+  const appProps = (provider: Provider) => (inApp ? { type: "button" as const, onClick: () => void appLogin(provider) } : { type: "submit" as const });
+
   return (
     <>
+      {appError && (
+        <p role="alert" className="text-center text-[14px] font-bold text-orange">
+          로그인을 마치지 못했어요. 다시 눌러 주세요.
+        </p>
+      )}
       <button
-        type="submit"
+        {...appProps("google")}
         name="provider"
         value="google"
-        disabled={pending}
+        disabled={pending || appBusy !== null}
         className="btn btn-ghost w-full"
       >
         <svg viewBox="0 0 48 48" aria-hidden="true" className="size-5">
@@ -24,10 +55,10 @@ export function LoginButtons({ demo }: { demo: boolean }) {
         {busy("google") ? "들어가는 중" : "Google로 계속하기"}
       </button>
       <button
-        type="submit"
+        {...appProps("apple")}
         name="provider"
         value="apple"
-        disabled={pending}
+        disabled={pending || appBusy !== null}
         className="btn btn-ink w-full"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 fill-white">

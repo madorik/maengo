@@ -7,3 +7,6 @@ export const APP_UA_MARK = "MaengoApp/";
 export function isAppUserAgent(ua: string | null | undefined): boolean {
   return !!ua && ua.includes(APP_UA_MARK);
 }
+
+/** 앱 로그인이 돌아오는 딥링크(apps/mobile: iOS NativeAuth.swift, 안드로이드 AndroidManifest의 intent-filter). Supabase 돌아올 주소 허용 목록에 kr.maengo.app://** 가 있어야 한다 */
+export const APP_AUTH_CALLBACK = "kr.maengo.app://auth/callback";
