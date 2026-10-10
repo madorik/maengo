@@ -10,7 +10,7 @@ import { sampleUrl } from "@/lib/voice-samples";
 /**
  * 설정 > 듣기 모드: 목소리(여성·남성). 말투는 아나운서 하나다. 고르면 바로 저장되고(profiles.voice),
  * 오늘 전체 듣기와 글 하나 듣기가 모두 이 목소리로 시작한다. 듣는 중에 듣기 창에서 바꾼 것도 같은 값이다.
- * 목소리마다 위에 미리 듣기가 있어 고르기 전에 들어 볼 수 있다. 미리 만들어 둔 짧은 인사(public/voice-samples)라 Free도 들을 수 있다.
+ * 목소리 버튼마다 재생 버튼이 겹쳐 있어 고르기 전에 들어 볼 수 있다. 미리 만들어 둔 짧은 인사(public/voice-samples)라 Free도 들을 수 있다.
  */
 export function ListenPrefs({ audio }: { audio: boolean }) {
   const p = usePlayer();
@@ -62,24 +62,24 @@ export function ListenPrefs({ audio }: { audio: boolean }) {
           const label = `${v.label} 목소리`;
           const now = playing === v.id;
           return (
-            <div key={v.id} className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => preview(v.id)}
-                aria-label={`${label} ${now ? "미리 듣기 멈추기" : "미리 듣기"}`}
-                title={failed === v.id ? "샘플을 불러오지 못했어요" : undefined}
-                className="btn btn-ghost inline-flex min-h-11 w-full items-center justify-center gap-1.5 text-[14px]"
-              >
-                {now ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
-                {failed === v.id ? "다시 시도" : now ? "멈추기" : "미리 듣기"}
-              </button>
+            // 버튼 안에 버튼을 넣을 수 없어서, 고르기 버튼 오른쪽에 재생 버튼을 겹쳐 둔다
+            <div key={v.id} className="relative">
               <button
                 type="button"
                 aria-pressed={on}
                 onClick={() => p.setVoice(v.id)}
-                className={`tile min-h-12 text-[15px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
+                className={`tile min-h-14 w-full pl-4 pr-14 text-left text-[15px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
               >
                 {label}
+              </button>
+              <button
+                type="button"
+                onClick={() => preview(v.id)}
+                aria-label={failed === v.id ? `${label} 미리 듣기 다시 시도` : `${label} ${now ? "미리 듣기 멈추기" : "미리 듣기"}`}
+                title={failed === v.id ? "샘플을 불러오지 못했어요. 눌러서 다시 시도" : undefined}
+                className={`absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center rounded-full border-2 transition-colors ${now ? "border-sky bg-sky text-white" : "border-line bg-white text-ink hover:bg-snow"}`}
+              >
+                {now ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
               </button>
             </div>
           );
