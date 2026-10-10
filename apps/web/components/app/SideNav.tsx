@@ -1,38 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { MangoIcon } from "@/components/MangoIcon";
 import { AccountMenu } from "./AccountMenu";
-import { NAV } from "./nav";
+import { NavLinks } from "./NavLinks";
 
-/** 데스크톱 왼쪽 메뉴 */
+/** 데스크톱 왼쪽 메뉴(모바일은 위쪽 막대의 ☰로 여는 MobileNav) */
 export function SideNav() {
-  const pathname = usePathname();
   return (
     <div className="sticky top-0 hidden h-dvh flex-col border-r-2 border-line px-4 py-7 lg:flex">
       <Link href="/" aria-label="맹고 소개" className="flex items-center gap-2 px-3 no-underline">
         <MangoIcon className="size-9" />
         <span className="text-[28px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
       </Link>
-      <nav aria-label="주 메뉴" className="mt-8 flex flex-col gap-2">
-        {NAV.map(({ href, label, Icon }) => {
-          const current = pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={current ? "page" : undefined}
-              className={`flex min-h-[52px] items-center gap-4 rounded-xl border-2 px-3 text-[16px] font-extrabold no-underline ${
-                current ? "border-mango bg-mango-tint text-mango-deep" : "border-transparent text-sub hover:bg-snow"
-              }`}
-            >
-              <Icon className="size-7" />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className="mt-8">
+        <NavLinks />
+      </div>
       {/* 계정(프로필 사진·이름 → 로그아웃)은 왼쪽 아래. Premium이면 사진에 왕관 */}
       <div className="mt-auto border-t-2 border-line pt-3">
         <AccountMenu placement="up" />

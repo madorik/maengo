@@ -53,6 +53,7 @@ export const IconThumbDown = (p: Props) => (
 );
 export const IconPlus = (p: Props) => <Line {...p}><path d="M12 5v14" /><path d="M5 12h14" /></Line>;
 export const IconClose = (p: Props) => <Line {...p}><path d="M6 6l12 12" /><path d="M18 6L6 18" /></Line>;
+export const IconMenu = (p: Props) => <Line {...p}><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></Line>;
 export const IconDoc = (p: Props) => <Line {...p}><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4" /><path d="M9 12h7" /><path d="M9 16h5" /></Line>;
 export const IconHeadphones = (p: Props) => (
   <Line {...p}><path d="M4 15v-3a8 8 0 0 1 16 0v3" /><path d="M4 15h3v6H5.5A1.5 1.5 0 0 1 4 19.5z" /><path d="M20 15h-3v6h1.5a1.5 1.5 0 0 0 1.5-1.5z" /></Line>

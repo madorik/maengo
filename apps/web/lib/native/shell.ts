@@ -32,8 +32,10 @@ export function startNativeShell(): () => void {
   // 안드로이드 뒤로 가기: 열린 시트를 닫고 → 웹 기록이 있으면 뒤로 → 첫 화면이면 앱을 뒤로 보낸다.
   // 종료(exitApp) 대신 내려 두기(minimizeApp)는 안드로이드 12+의 기본 동작과 같고, 듣던 음성도 끊지 않는다
   const back = App.addListener("backButton", ({ canGoBack }) => {
-    const sheet = document.querySelector<HTMLDialogElement>("dialog[open]");
-    if (sheet) sheet.close();
+    // 시트·서랍(<dialog>). requestClose는 cancel 이벤트를 거쳐서 서랍처럼 닫는 애니메이션이 있는 창도 맞게 닫힌다(없는 웹뷰는 바로 닫기)
+    const sheet = document.querySelector<HTMLDialogElement & { requestClose?: () => void }>("dialog[open]");
+    if (sheet?.requestClose) sheet.requestClose();
+    else if (sheet) sheet.close();
     else if (canGoBack && !ROOT_PATHS.has(location.pathname)) history.back();
     else void App.minimizeApp();
   });
