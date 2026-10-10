@@ -85,7 +85,7 @@ export default async function SettingsPage() {
           <CustomTopicEditor items={topics.filter((t) => t.custom)} limit={e.customLimit} last={topics.length <= 1} />
         </Section>
 
-        <Section id="listen" title="듣기">
+        <Section id="listen" title="듣기 모드">
           <ListenPrefs audio={view.audio} />
         </Section>
 
