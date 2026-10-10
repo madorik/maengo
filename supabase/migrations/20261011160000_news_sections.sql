@@ -15,15 +15,12 @@ select id, name, aliases, popularity from (values
 ) as v(id, name, aliases, popularity)
 on conflict (id) do update set name = excluded.name, aliases = excluded.aliases, popularity = excluded.popularity, parent = null, custom = false, embedding = null;
 
--- 1-1) 개발 → Tech. 예전 이름은 별칭으로 남긴다. 이름이 바뀌어 토픽 벡터는 다시 만든다
+-- 1-1) 개발 → Tech. 예전 이름은 별칭으로 남긴다. 이름이 바뀌어 토픽 벡터는 다시 만든다(이미 만든 why 문구는 그대로 둔다)
 update public.topics
 set name = 'Tech', aliases = array['개발', '테크', '소프트웨어 개발', '프로그래밍', '개발자', '백엔드', '프론트엔드', 'DevOps']::text[], embedding = null
 where id = 'dev';
--- 이미 만든 why 문구의 앞머리(whyLead)도 새 이름으로
-update public.cluster_why set why = 'Tech에 관심 있다면' || substr(why, length('개발에 관심 있다면') + 1)
-where topic_id = 'dev' and why like '개발에 관심 있다면%';
 
--- 2) K-Pop·K-뷰티·K-푸드를 고른 사람은 생활/문화로 옮긴다(네이버 생활/문화가 공연·패션/뷰티·음식을 다룬다)
+-- 2) K-Pop·K-뷰티·K-푸드 토픽과 그 기록을 지운다(예전 값은 옮기지 않는다)
 create temporary table k_topics (id text primary key);
 insert into k_topics (id) values
   ('kpop'), ('kbeauty'), ('kfood'),
@@ -31,13 +28,8 @@ insert into k_topics (id) values
   ('beauty-new'), ('beauty-trend'), ('beauty-export'),
   ('food-new'), ('food-franchise'), ('food-export');
 
-insert into public.user_topics (user_id, topic_id, weight, source)
-select distinct u.user_id, 'life-culture', 1, 'settings' from public.user_topics u join k_topics k on k.id = u.topic_id
-on conflict (user_id, topic_id) do nothing;
-
--- 받은 피드·피드백 기록은 남기고 토픽만 옮긴다. why 문구와 소식 태그는 지운다(생활/문화 태그는 헤드라인에만 붙는다)
-update public.feeds set topic_id = 'life-culture' where topic_id in (select id from k_topics);
-update public.feedback set topic_id = 'life-culture' where topic_id in (select id from k_topics);
+delete from public.feeds where topic_id in (select id from k_topics);
+update public.feedback set topic_id = null where topic_id in (select id from k_topics);
 delete from public.cluster_why where topic_id in (select id from k_topics);
 delete from public.cluster_topics where topic_id in (select id from k_topics);
 delete from public.user_topics where topic_id in (select id from k_topics);
