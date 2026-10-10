@@ -8,16 +8,14 @@ import { saveNotifyAt } from "@/app/actions";
 const PRESETS = ["07:00", "08:00", "12:00", "18:00", "21:00"];
 
 /** 설정 > 알림 시간: 자주 고르는 시간은 버튼으로, 그 밖은 30분 단위 목록에서 고른다. 고르는 즉시 저장한다 */
-export function NotifyTimePicker({ current, pushEnabled }: { current: string; pushEnabled: boolean }) {
+export function NotifyTimePicker({ current }: { current: string }) {
   const [state, action, pending] = useActionState(saveNotifyAt, null);
   const value = state?.notifyAt ?? current;
 
   return (
     <>
-      <p>
-        매일 <strong className="font-black">{notifyTimeLabel(value)}</strong>에 오늘의 맹고를 {pushEnabled ? "알려 드려요." : "준비해 둬요. 알림을 켜면 이때 알려 드려요."}
-      </p>
-      <form action={action} className="mt-4">
+      <p className="text-[15px] font-extrabold">알림 시간</p>
+      <form action={action} className="mt-3">
         <div role="group" aria-label="자주 고르는 시간" className="flex flex-wrap gap-2">
           {PRESETS.map((t) => (
             <button
@@ -55,8 +53,8 @@ export function NotifyTimePicker({ current, pushEnabled }: { current: string; pu
           ))}
         </select>
       </form>
-      <p aria-live="polite" className={`mt-3 min-h-5 text-[14px] font-bold ${state?.tone === "warn" ? "text-mango-deep" : "text-leaf"}`}>
-        {state?.message}
+      <p aria-live="polite" className="mt-3 text-[14px] font-bold text-mango-deep empty:hidden">
+        {state?.error}
       </p>
     </>
   );
