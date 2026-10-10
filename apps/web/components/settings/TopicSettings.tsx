@@ -3,7 +3,7 @@
 import { normalizeInterest } from "@maengo/core/topics";
 import { useActionState, useId, useMemo, useRef, useState } from "react";
 import { editTopics } from "@/app/actions";
-import { IconCheck, IconClose, IconPlus, IconSearch } from "@/components/icons";
+import { IconCheck, IconChevronDown, IconClose, IconPlus, IconSearch } from "@/components/icons";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import type { TopicGroupView, TopicResult, TopicSuggestion, UserTopic } from "@/lib/types";
 
@@ -12,25 +12,23 @@ type Section = { id: string; name: string; picked: boolean };
 type State = (TopicResult & { okSeq: number }) | null;
 
 /**
- * 설정 > 관심사(2026-10-11 개편). 고른 것만 펼쳐 보여서 한 화면에 깔리는 버튼 수를 줄인다.
- * - 맨 위 찾기 칸: 사전의 이름·별칭으로 자동 완성하고, 없는 말은 그대로 기타로 넣는다(예전 기타 칸을 합쳤다).
- * - 내 관심사: 고른 분야마다 카드 하나. 카드 안 칩을 눌러 켜고 끈다(분야 전체와 상세 관심사는 따로 켠다). ×는 카드를 통째로 뺀다.
- *   뉴스 헤드라인은 카드 하나에 6개 분야 칩, 기타는 적은 말 칩.
- * - 더하기: 아직 안 고른 분야만 한 줄씩.
+ * 설정 > 관심사(2026-10-11 개편). 설정 앱처럼 고른 것만 한 줄씩 요약해 보여 주고, 줄을 누르면 그 자리에서 펼쳐 고친다.
+ * - 내 관심사: 고른 분야마다 한 줄(아이콘 · 이름 · 고른 것 요약). 펼치면 체크 목록(분야 전체 + 상세 관심사)과 '이 분야 빼기'.
+ *   뉴스 헤드라인은 한 줄에 6개 분야, 기타는 적은 말 목록. 한 번에 한 줄만 펼친다(details name).
+ *   분야 전체와 상세 관심사는 따로 켠다(둘 다 켜면 상세 소식이 더 자주 나온다).
+ * - 더하기: 찾기 칸(사전 자동 완성, 없는 말은 기타로) + 아직 안 고른 분야.
  */
 export function TopicSettings({
   groups,
   news,
   custom,
   limit,
-  customLimit,
   suggestions,
 }: {
   groups: TopicGroupView[];
   news: Section[];
   custom: UserTopic[];
   limit: number;
-  customLimit: number;
   suggestions: TopicSuggestion[];
 }) {
   const [state, action, pending] = useActionState<State, FormData>(async (prev, formData) => {
@@ -47,77 +45,84 @@ export function TopicSettings({
 
   return (
     <>
-      <TopicSearch key={state?.okSeq ?? 0} action={action} pending={pending} suggestions={suggestions.filter((s) => !picked.has(s.id))} />
-      <p aria-live="polite" className="mt-2 text-[14px] font-bold text-mango-deep empty:hidden">
-        {state?.message}
-      </p>
+      {total > 0 && (
+        <>
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-[15px] font-black">내 관심사</h3>
+            <Count used={picked.size} limit={limit} />
+          </div>
+          <form action={action} className={`tile mt-3 divide-y-2 divide-line overflow-hidden ${pending ? "opacity-70" : ""}`}>
+            {myGroups.map((g) => {
+              const on = [...(g.picked ? [`${g.name} 전체`] : []), ...g.details.filter((d) => d.picked).map((d) => d.name)];
+              return (
+                <Row key={g.id} id={g.id} title={g.name} summary={on.join(" · ")} removeLabel="이 분야 빼기" removable={!pending && on.length < total}>
+                  <CheckRow id={g.id} label={`${g.name} 전체`} on={g.picked} disabled={pending || (g.picked && only)} />
+                  <hr aria-hidden className="ml-[68px] mr-4 border-t-2 border-line" />
+                  {g.details.map((d) => (
+                    <CheckRow key={d.id} id={d.id} label={d.name} on={d.picked} disabled={pending || (d.picked && only)} />
+                  ))}
+                </Row>
+              );
+            })}
+            {myNews.length > 0 && (
+              <Row id="news" title="뉴스 헤드라인" summary={myNews.map((n) => n.name).join(" · ")} removeLabel="뉴스 헤드라인 빼기" removable={!pending && myNews.length < total}>
+                {news.map((n) => (
+                  <CheckRow key={n.id} id={n.id} label={n.name} on={n.picked} disabled={pending || (n.picked && only)} />
+                ))}
+              </Row>
+            )}
+            {custom.length > 0 && (
+              <Row id="etc" title="기타" summary={custom.map((t) => t.name).join(" · ")} removeLabel="기타 모두 빼기" removable={!pending && custom.length < total}>
+                {custom.map((t) => (
+                  <div key={t.id} className="flex min-h-12 items-center gap-3 pl-[68px] pr-2 text-[15px] font-extrabold">
+                    <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                    <button
+                      type="submit"
+                      name="remove"
+                      value={t.id}
+                      disabled={pending || only}
+                      aria-label={`${t.name} 빼기`}
+                      className="flex size-10 items-center justify-center rounded-lg text-faint hover:bg-snow hover:text-ink disabled:opacity-40"
+                    >
+                      <IconClose className="size-4 [stroke-width:2.6]" />
+                    </button>
+                  </div>
+                ))}
+              </Row>
+            )}
+          </form>
+          <p aria-live="polite" className="mt-2 text-[14px] font-bold text-mango-deep empty:hidden">
+            {state?.message}
+          </p>
+        </>
+      )}
 
-      <div className="mt-5 flex items-baseline justify-between">
-        <h3 className="text-[15px] font-black">내 관심사</h3>
-        <Count used={picked.size} limit={limit} />
+      <h3 className={`text-[15px] font-black ${total > 0 ? "mt-7" : ""}`}>더하기</h3>
+      <div className="mt-3">
+        <TopicSearch key={state?.okSeq ?? 0} action={action} pending={pending} suggestions={suggestions.filter((s) => !picked.has(s.id))} />
       </div>
-      <form action={action} className="mt-3 flex flex-col gap-3">
-        {myGroups.map((g) => {
-          const count = (g.picked ? 1 : 0) + g.details.filter((d) => d.picked).length;
-          return (
-            <Card key={g.id} id={g.id} title={g.name} pending={pending} lastCard={count >= total}>
-              <Toggle id={g.id} label="전체" ariaLabel={`${g.name} 분야 전체`} picked={g.picked} pending={pending} only={only} />
-              {g.details.map((d) => (
-                <Toggle key={d.id} id={d.id} label={d.name} picked={d.picked} pending={pending} only={only} />
-              ))}
-            </Card>
-          );
-        })}
-        {myNews.length > 0 && (
-          <Card id="news" title="뉴스 헤드라인" pending={pending} lastCard={myNews.length >= total}>
-            {news.map((n) => (
-              <Toggle key={n.id} id={n.id} label={n.name} ariaLabel={`${n.name} 뉴스`} picked={n.picked} pending={pending} only={only} />
-            ))}
-          </Card>
-        )}
-        {custom.length > 0 && (
-          <Card id="etc" title="기타" pending={pending} lastCard={custom.length >= total} aside={<Count used={custom.length} limit={customLimit} />}>
-            {custom.map((t) => (
-              <span key={t.id} className="inline-flex min-h-9 items-center gap-0.5 rounded-xl border-2 border-sky bg-sky-tint py-0.5 pl-3 pr-1 text-[14px] font-extrabold text-sky-dark">
-                {t.name}
-                <button
-                  type="submit"
-                  name="remove"
-                  value={t.id}
-                  disabled={pending || only}
-                  aria-label={`${t.name} 빼기`}
-                  className="flex size-7 items-center justify-center rounded-lg hover:bg-white/70 disabled:opacity-40"
-                >
-                  <IconClose className="size-3.5 [stroke-width:2.8]" />
-                </button>
-              </span>
-            ))}
-          </Card>
-        )}
-      </form>
-
+      {total === 0 && (
+        <p aria-live="polite" className="mt-2 text-[14px] font-bold text-mango-deep empty:hidden">
+          {state?.message}
+        </p>
+      )}
       {(restGroups.length > 0 || myNews.length === 0) && (
-        <form action={action} className="mt-6">
-          <h3 className="text-[15px] font-black">더하기</h3>
+        <form action={action} className="mt-3">
           {restGroups.length > 0 && (
-            <ul className="mt-3 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {restGroups.map((g) => (
-                <li key={g.id}>
-                  <AddButton id={g.id} name={g.name} ariaLabel={`${g.name} 분야 더하기`} pending={pending} />
-                </li>
+                <AddButton key={g.id} id={g.id} name={g.name} ariaLabel={`${g.name} 분야 더하기`} pending={pending} />
               ))}
-            </ul>
+            </div>
           )}
           {myNews.length === 0 && (
             <>
-              <h4 className="mt-4 text-[14px] font-black text-sub">뉴스 헤드라인</h4>
-              <ul className="mt-2 flex flex-wrap gap-2">
+              <h4 className={`text-[13px] font-black text-sub ${restGroups.length > 0 ? "mt-4" : ""}`}>뉴스 헤드라인</h4>
+              <div className="mt-2 flex flex-wrap gap-2">
                 {news.map((n) => (
-                  <li key={n.id}>
-                    <AddButton id={n.id} name={n.name} ariaLabel={`${n.name} 뉴스 더하기`} pending={pending} />
-                  </li>
+                  <AddButton key={n.id} id={n.id} name={n.name} ariaLabel={`${n.name} 뉴스 더하기`} pending={pending} />
                 ))}
-              </ul>
+              </div>
             </>
           )}
         </form>
@@ -136,67 +141,58 @@ function Count({ used, limit }: { used: number; limit: number }) {
   );
 }
 
-/** 내 관심사 카드 하나. lastCard면 이 카드가 관심사 전부라 ×를 막는다 */
-function Card({
-  id,
-  title,
-  pending,
-  lastCard,
-  aside,
-  children,
-}: {
-  id: string;
-  title: string;
-  pending: boolean;
-  lastCard: boolean;
-  aside?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+/**
+ * 내 관심사 한 줄. 누르면 아래로 펼쳐져 고칠 목록이 나온다(details, 같은 name끼리는 하나만 열린다).
+ * 고친 뒤 화면을 다시 그려도 같은 줄이 열린 채로 남는다(open을 React가 건드리지 않는다).
+ */
+function Row({ id, title, summary, removeLabel, removable, children }: { id: string; title: string; summary: string; removeLabel: string; removable: boolean; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={`card-${id}`} className="tile p-3">
-      <div className="flex items-center gap-2.5">
-        <TopicGroupIcon id={id} className="size-8 rounded-xl" iconClassName="size-[18px]" />
-        <h4 id={`card-${id}`} className="min-w-0 flex-1 truncate text-[16px] font-black">
-          {title}
-        </h4>
-        {aside}
+    <details name="my-topics" className="group/row">
+      <summary className="flex min-h-[68px] cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-snow [&::-webkit-details-marker]:hidden">
+        <TopicGroupIcon id={id} className="size-10 rounded-xl" iconClassName="size-[22px]" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[16px] font-black leading-snug">{title}</span>
+          <span className="block truncate text-[13px] font-semibold leading-snug text-sub">{summary}</span>
+        </span>
+        <IconChevronDown className="size-5 text-faint transition-transform group-open/row:rotate-180" />
+      </summary>
+      <div className="pb-1.5">
+        {children}
         <button
           type="submit"
           name="removeCard"
           value={id}
-          disabled={pending || lastCard}
-          aria-label={`${title} 빼기`}
-          title={lastCard ? "관심사가 하나는 있어야 해요" : undefined}
-          className="flex size-9 items-center justify-center rounded-lg text-faint hover:bg-snow hover:text-ink disabled:opacity-40"
+          disabled={!removable}
+          title={removable ? undefined : "관심사가 하나는 있어야 해요"}
+          className="mt-1 flex min-h-11 w-full items-center pl-[68px] text-left text-[14px] font-extrabold text-orange hover:underline disabled:text-faint disabled:no-underline"
         >
-          <IconClose className="size-4 [stroke-width:2.6]" />
+          {removeLabel}
         </button>
       </div>
-      <div className="mt-2.5 flex flex-wrap gap-1.5">{children}</div>
-    </section>
+    </details>
   );
 }
 
-/** 켜고 끄는 칩. 켜져 있으면 하늘색 + 체크, 꺼져 있으면 + */
-function Toggle({ id, label, ariaLabel, picked, pending, only }: { id: string; label: string; ariaLabel?: string; picked: boolean; pending: boolean; only: boolean }) {
+/** 펼친 줄 안의 체크 한 줄. 줄 전체를 누르면 켜고 끈다 */
+function CheckRow({ id, label, on, disabled }: { id: string; label: string; on: boolean; disabled: boolean }) {
   return (
     <button
       type="submit"
-      name={picked ? "remove" : "add"}
+      name={on ? "remove" : "add"}
       value={id}
-      aria-pressed={picked}
-      aria-label={ariaLabel}
-      disabled={pending || (picked && only)}
-      className={`inline-flex min-h-9 items-center gap-1 rounded-xl border-2 px-2.5 text-[14px] font-extrabold transition-colors disabled:cursor-default ${
-        picked ? "border-sky bg-sky-tint text-sky-dark" : "border-line bg-white text-sub hover:bg-snow hover:text-ink"
-      }`}
+      aria-pressed={on}
+      disabled={disabled}
+      className="flex min-h-12 w-full items-center gap-3 pl-[68px] pr-4 text-left text-[15px] font-extrabold hover:bg-snow disabled:cursor-default disabled:hover:bg-transparent"
     >
-      {picked ? <IconCheck className="size-3.5 [stroke-width:3.2]" /> : <IconPlus className="size-3.5 text-sky [stroke-width:2.8]" />}
-      {label}
+      <span className={`min-w-0 flex-1 truncate ${on ? "text-ink" : "text-sub"}`}>{label}</span>
+      <i aria-hidden className={`flex size-6 shrink-0 items-center justify-center rounded-lg border-2 ${on ? "border-sky bg-sky text-white" : "border-line bg-white"}`}>
+        {on && <IconCheck className="size-4 [stroke-width:3.2]" />}
+      </i>
     </button>
   );
 }
 
+/** 아직 안 고른 분야 더하기 */
 function AddButton({ id, name, ariaLabel, pending }: { id: string; name: string; ariaLabel: string; pending: boolean }) {
   return (
     <button
