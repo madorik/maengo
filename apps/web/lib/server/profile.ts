@@ -1,5 +1,6 @@
 import 'server-only';
 import { PERSONA } from '@maengo/core/audio';
+import { dailyItemsFor } from '@maengo/core/plans';
 import type { Persona, Plan, Voice } from '@maengo/core/types';
 import type { Provider } from '../session-token';
 import { db, must } from './db';
@@ -89,7 +90,7 @@ export function entitlements(p: Profile) {
     podcast: paid,
     pack: paid,
     topicLimit: paid ? 20 : 5,
-    dailyItems: paid ? 10 : 1,
+    dailyItems: dailyItemsFor(p.plan),
     // 기타(목록에 없어 직접 적은 관심사, custom 토픽) 개수. 목록 관심사와 따로 센다
     customLimit: paid ? 10 : 1,
   };
