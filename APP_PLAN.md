@@ -105,15 +105,20 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 - 대안(네이티브 로그인이 막히면): 시스템 브라우저로 OAuth를 열고 `kr.maengo.app://auth/callback` 딥링크로 돌아와 웹뷰를 `/auth/callback?code=…`로 보낸다(PKCE 검증 쿠키는 웹뷰에 있다). Supabase Redirect URLs에 스킴을 더해야 한다
 - 완료: 두 기기에서 애플·구글로 로그인, 앱을 껐다 켜도 로그인 유지(WKWebView 쿠키 유지 확인), 로그아웃 후 다시 로그인
 
-### 3단계. 푸시(2~3일)
+### 3단계. 푸시 — 서버는 끝(2026-10-11), 앱만 남음
 
-- [ ] 서버: `POST /api/devices`·`DELETE`(`{token, platform, appVersion}` → `device_tokens` upsert, `last_seen_at` 갱신)
-- [ ] 서버: `/api/cron/notify`(비밀 헤더 `CRON_SECRET`로 보호). 지금 KST 30분 슬롯과 `notify_at`이 같고 오늘 `notifications_log`에 없는 사람에게 `firebase-admin`으로 보낸다. 죽은 토큰(`registration-token-not-registered`)은 지운다. 오늘 피드가 없으면 "오늘의 맹고를 받아 보세요" 문구로 보낸다(첫 방문 흐름과 맞춤)
-- [ ] 크론: Vercel Hobby 크론은 하루 1번이라 못 쓴다. Supabase `pg_cron` + `pg_net`으로 30분마다 위 주소를 부르는 걸 기본으로(마이그레이션으로 만든다). 안 되면 GitHub Actions(`*/30 * * * *`, 몇 분 늦을 수 있음)
-- [ ] 앱: 권한 요청은 사용자 동작에서만(설정 > 알림의 "알림 받기" 버튼, 온보딩 마지막에 한 번 권하기). 앱을 열 때마다 토큰 등록. 알림을 누르면 `/today?from=push`
-- [x] Firebase 설정 파일(2026-10-11, Firebase 프로젝트 `maengo-adfc4`, 보낸이 ID 893902466437): `apps/mobile/android/app/google-services.json`, `apps/mobile/ios/App/App/GoogleService-Info.plist`에 넣어 둠(루트 .gitignore로 제외 — 저장소가 공개라 커밋하지 않는다, 원본은 `~/.maengo/`). **iOS plist는 Xcode에서 App 타깃에 추가(Copy Bundle Resources)해야 앱에 들어간다**
-- [ ] iOS: Push Notifications·Background Modes(Remote notifications) 켜기. APNs 키는 Firebase에 올려 둠(2026-10-11)
+**서버(끝남)**
+- 스케줄 표 `delivery_jobs`(사람·날짜마다 한 줄: build_at = 알림 30분 전, notify_at = 알림 시각, 상태 pending → building → ready → sending → sent / empty / no_device / failed, 시도 횟수·마지막 오류)
+- Supabase `pg_cron`이 5분마다 `POST /api/cron/deliveries`(비밀값은 Vault의 `cron_secret`, 서버 `CRON_SECRET`) → `pipeline/src/deliveries.ts`의 `runDeliveries`: 오늘 줄 채우기 → 멈춘 줄 되돌리기 → 만들 차례인 사람들 관심사를 합쳐 피드 만들기 → 보낼 차례에 FCM HTTP v1로 발송(죽은 토큰은 지움, `notifications_log` 기록). 상태 확인: `select * from cron_status()`(서버 키)
+- `POST /api/devices {token, platform: 'android'|'ios'|'web', appVersion}`·`DELETE {token}`: 로그인한 사람의 기기 토큰 등록·삭제(웹뷰는 같은 출처라 쿠키로 인증된다)
+- Firebase 준비 끝: 설정 파일·서비스 계정·APNs 키·웹 푸시 키(API_KEYS.md 4번)
+
+**앱(남음)**
+- [ ] `@capacitor-firebase/messaging` 설치, iOS는 Push Notifications·Background Modes(Remote notifications) 켜고 `GoogleService-Info.plist`를 App 타깃에 추가
+- [ ] 권한 요청은 사용자 동작에서만(설정 > 알림의 "알림 받기" 버튼, 온보딩 마지막에 한 번 권하기). 권한을 받으면 토큰을 `POST /api/devices`로, 앱을 열 때마다 다시 등록
+- [ ] 알림을 누르면 `data.path`(`/today?from=push`)로 이동. 로그아웃하면 `DELETE /api/devices`
 - [ ] 개인정보 처리방침(`apps/web/app/(legal)/privacy/page.tsx`)에 기기 알림 토큰 항목과 Google(FCM) 위탁·국외 이전을 다시 넣고 시행일(`lib/site.ts`)을 바꾼다. 계정 삭제 안내의 '지워지는 정보'에도 앱 알림 토큰을 더한다
+- 웹 푸시는 나중: 로컬 시험 페이지(`public/push-test.html`, 커밋 안 함)로 서버 발송까지 확인함. 사용자 Chrome에서 'push service not available'이 나와 원인 확인 중
 - 완료: 실기기 두 대가 설정한 시각에 알림을 받고, 누르면 오늘 화면이 열린다. 같은 날 두 번 오지 않는다
 
 ### 4단계. 화면 꺼도 듣기(1~2일, 확인 먼저)
