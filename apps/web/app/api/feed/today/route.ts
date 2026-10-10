@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { currentProfile } from "@/lib/server/session";
 
 // "오늘 맹고 받기": 오늘 피드가 비었을 때 이 사람 것을 지금 만든다. 진행 상황을 한 줄에 하나씩(NDJSON) 흘려보낸다.
-// 요약이 필요하면 소식당 10~20초, 최대 5개라 1분 안쪽이다.
+// 요약이 필요하면 소식당 10~20초, 최대 5개라 1분 안쪽이다. 고를 소식이 없으면 최근 글 처리(수집·임베딩·묶기·태그)가 1~2분 더 걸린다.
 export const maxDuration = 300;
 
 const running = new Set<string>();
