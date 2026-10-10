@@ -1,3 +1,4 @@
+import { itemQuality } from '@maengo/core/feed';
 import { db, check, fromVector, inChunks, selectAll, toVector } from '../lib/db';
 import { add, cosine, normalize } from '../lib/vec';
 import { HOUR, type Ctx } from '../lib/ctx';
@@ -14,6 +15,8 @@ interface ItemRow {
   kind: 'article' | 'video';
   source_id: number | null;
   published_at: string | null;
+  views: number | null;
+  hn_points: number | null;
 }
 
 interface Group {
@@ -22,7 +25,8 @@ interface Group {
   sum: number[];
   /** DB에 이미 있던 구성원 수(창 밖 포함) + 이번에 붙은 수 */
   size: number;
-  members: { id: number; weight: number; at: number; kind: 'article' | 'video' }[];
+  /** quality = 출처 신빙성 × 인기(조회수·점수). 대표 글을 고를 때 쓴다 */
+  members: { id: number; quality: number; at: number; kind: 'article' | 'video' }[];
   sources: Set<number>;
   touched: boolean;
   firstSeen: number;
@@ -31,11 +35,17 @@ interface Group {
 export async function cluster(ctx: Ctx) {
   const since = new Date(ctx.now.getTime() - ctx.windowHours * HOUR).toISOString();
   const items = await selectAll<ItemRow>((from, to) =>
-    db.from('items').select('id,embedding,cluster_id,kind,source_id,published_at').not('embedding', 'is', null).gte('published_at', since).order('id').range(from, to),
+    db.from('items').select('id,embedding,cluster_id,kind,source_id,published_at,views,hn_points').not('embedding', 'is', null).gte('published_at', since).order('id').range(from, to),
   );
   const weights = new Map<number, number>(
     (check(await db.from('sources').select('id,weight'), 'sources') as { id: number; weight: number }[]).map((s) => [s.id, s.weight]),
   );
+  const memberOf = (it: ItemRow) => ({
+    id: it.id,
+    quality: itemQuality({ sourceWeight: weights.get(it.source_id ?? -1) ?? 1, views: it.views, hnPoints: it.hn_points, publishedAt: it.published_at }, ctx.now),
+    at: Date.parse(it.published_at ?? ctx.now.toISOString()),
+    kind: it.kind,
+  });
 
   const clusterIds = [...new Set(items.map((i) => i.cluster_id).filter((x): x is number => x != null))];
   const existing = new Map<number, { size: number; first_seen_at: string }>();
@@ -52,7 +62,7 @@ export async function cluster(ctx: Ctx) {
     const v = fromVector(it.embedding);
     if (!v) continue;
     vec.set(it.id, v);
-    const member = { id: it.id, weight: weights.get(it.source_id ?? -1) ?? 1, at: Date.parse(it.published_at ?? ctx.now.toISOString()), kind: it.kind };
+    const member = memberOf(it);
     if (it.cluster_id == null) {
       pending.push(it);
       continue;
@@ -83,7 +93,7 @@ export async function cluster(ctx: Ctx) {
       const s = cosine(v, c);
       if (s > bestCos) [best, bestCos] = [g, s];
     }
-    const member = { id: it.id, weight: weights.get(it.source_id ?? -1) ?? 1, at: Date.parse(it.published_at ?? ctx.now.toISOString()), kind: it.kind };
+    const member = memberOf(it);
     let g: Group;
     if (best && bestCos >= CLUSTER_THRESHOLD) {
       g = best;
@@ -122,10 +132,11 @@ export async function cluster(ctx: Ctx) {
     check(await db.rpc('set_item_clusters', { p: chunk }), 'set_item_clusters');
   });
 
-  // 바뀐 묶음의 크기·중심·대표 글을 고친다. 대표는 출처 가중치가 가장 높은 글(같으면 먼저 나온 글)
+  // 바뀐 묶음의 크기·중심·대표 글을 고친다. 대표는 출처 신빙성 × 인기가 가장 높은 글(같으면 먼저 나온 글).
+  // 대표 글이 요약의 기준 글이 되고 원문 링크로 나간다
   const touched = groups.filter((g) => g.touched && g.id != null);
   const updates = touched.map((g) => {
-    const rep = [...g.members].sort((a, b) => b.weight - a.weight || a.at - b.at)[0]!;
+    const rep = [...g.members].sort((a, b) => b.quality - a.quality || a.at - b.at)[0]!;
     return {
       id: g.id!,
       size: g.size,

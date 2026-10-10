@@ -33,3 +33,22 @@ test('RSS와 Atom을 같은 모양으로 읽는다', () => {
   assert.equal(a?.author, 'neo');
   assert.equal(a?.publishedAt?.toISOString(), '2026-10-09T05:03:14.000Z');
 });
+
+test('인기 신호: 유튜브 조회수와 해커 뉴스 점수를 읽는다', () => {
+  const yt = `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
+    <entry><yt:videoId>AHlWV-nI9yo</yt:videoId><title>영상</title><published>2026-10-09T13:44:09+00:00</published>
+    <media:group><media:description>설명</media:description><media:community><media:starRating count="73" average="5.00" min="1" max="5"/>
+    <media:statistics views="7967"/></media:community></media:group></entry></feed>`;
+  const [v] = parseFeed(yt, 'ko');
+  assert.equal(v?.views, 7967);
+  assert.equal(v?.hnPoints, null);
+
+  const hn = `<rss version="2.0"><channel><item><title>Bitwarden</title><link>https://community.bitwarden.com/t/1</link>
+    <description><![CDATA[<p>Comments URL: <a href="https://news.ycombinator.com/item?id=50033407">x</a></p><p>Points: 260</p><p># Comments: 193</p>]]></description>
+    <pubDate>Sat, 10 Oct 2026 14:32:50 +0000</pubDate></item>
+    <item><title>보통 글</title><link>https://a.com/2</link><description>Points: 999 이라는 문장이 든 일반 글</description></item></channel></rss>`;
+  const [h, plain] = parseFeed(hn, 'en');
+  assert.equal(h?.hnPoints, 260);
+  assert.equal(h?.views, null);
+  assert.equal(plain?.hnPoints, null);
+});

@@ -8,6 +8,8 @@ export interface RankCandidate {
   sourceWeight: number;
   /** 같은 소식을 다룬 출처 수 */
   size: number;
+  /** 대표 글의 인기 배수(조회수·점수, quality.ts). 없으면 1 */
+  popularity?: number;
   isVideo: boolean;
   topics: { topicId: string; relevance: number }[];
 }
@@ -29,7 +31,7 @@ const FRESHNESS_HOURS = 36;
 
 export function baseScore(c: RankCandidate): number {
   const freshness = Math.exp(-Math.max(0, c.ageHours) / FRESHNESS_HOURS);
-  return freshness * c.sourceWeight * (1 + 0.3 * Math.log(Math.max(1, c.size)));
+  return freshness * c.sourceWeight * (c.popularity ?? 1) * (1 + 0.3 * Math.log(Math.max(1, c.size)));
 }
 
 export function rankFeed(

@@ -86,6 +86,11 @@ export interface SummarizeSource {
   url: string;
   author?: string | null;
   publishedAt?: string | null;
+  /** 출처 신뢰도(feed/quality.ts의 credibilityLabel). 공식·큐레이션·전문 출처는 높음 */
+  credibility?: '높음' | '보통';
+  /** 유튜브 조회수, 해커 뉴스 점수(있을 때) */
+  views?: number | null;
+  hnPoints?: number | null;
   /** 본문(또는 본문을 못 읽었으면 RSS 설명). 호출하는 쪽이 길이를 자른다 */
   text: string;
 }
