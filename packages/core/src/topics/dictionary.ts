@@ -1,66 +1,69 @@
 import type { Topic } from '../types';
 
-// 토픽 사전 v1(2026-10-10). 큰 분류 5개 + 그 아래 상세 관심사(언어·프레임워크·클라우드는 공식 블로그·릴리스 피드로 수집).
-// - 처음 들어오면 큰 분류만 고른다(/onboarding). 상세 관심사는 설정에서 더한다.
-// - 상세 관심사로 태그된 소식은 큰 분류에도 같이 태그한다(withParents). 그래서 "백엔드"만 골라도 PostgreSQL 소식을 받는다.
-// - DB topics 표와 같아야 한다(supabase/migrations/…_topic_groups.sql).
+// 토픽 사전 v2(2026-10-10). 주기적으로 새 소식·데이터가 생기는 분야 8개 + 그 아래 상세 관심사.
+// - 처음 들어오면 큰 분류만 고른다(/onboarding). 상세 관심사는 설정에서 더한다. 목록에 없는 건 기타(custom 토픽)로 적는다.
+// - 상세 관심사로 태그된 소식은 큰 분류에도 같이 태그한다(withParents). 그래서 "개발"만 골라도 Spring 릴리즈 소식을 받는다.
+// - 이름·별칭으로 토픽 벡터를 만들고(tag 단계), 직접 적은 말을 사전에 연결한다(findTopicByName). 이름은 서로 겹치지 않게 둔다.
+// - DB topics 표와 같아야 한다(supabase/migrations/…_topics_v2.sql).
 
 /** 큰 분류. 처음 고르는 화면의 순서 */
 export const TOPIC_GROUPS: Topic[] = [
   { id: 'ai', name: 'AI', aliases: ['인공지능', '생성형 AI', '머신러닝', 'ChatGPT', 'Gemini', 'Claude'] },
-  { id: 'backend', name: '백엔드', aliases: ['서버', '서버 개발', 'API', '인프라', '클라우드', 'DevOps'] },
-  { id: 'frontend', name: '프론트엔드', aliases: ['웹 개발', '자바스크립트', 'JavaScript', 'UI 개발'] },
-  { id: 'realestate', name: '부동산', aliases: ['아파트', '집값', '주택', '분양', '부동산 시장'] },
-  { id: 'stock', name: '주식', aliases: ['증시', '코스피', '코스닥', '나스닥', '주식 투자', '종목'] },
+  { id: 'stock', name: '주식', aliases: ['증시', '주식 투자', '종목', '주가', '증권'] },
+  { id: 'coin', name: '코인', aliases: ['암호화폐', '가상자산', '가상화폐', '크립토', '블록체인'] },
+  { id: 'chip-robot', name: '반도체·로봇', aliases: ['반도체 산업', '로봇 산업', '첨단 산업', '하드웨어'] },
+  { id: 'dev', name: '개발', aliases: ['소프트웨어 개발', '프로그래밍', '개발자', '백엔드', '프론트엔드', 'DevOps'] },
+  { id: 'kpop', name: 'K-Pop', aliases: ['케이팝', 'KPOP', '아이돌', '가요'] },
+  { id: 'kbeauty', name: 'K-뷰티', aliases: ['K뷰티', '케이뷰티', '화장품', '뷰티', '코스메틱'] },
+  { id: 'kfood', name: 'K-푸드', aliases: ['K푸드', '케이푸드', '식품', '먹거리'] },
 ];
 
 /** 상세 관심사(설정에서 더한다) */
 const DETAILS: Topic[] = [
-  // 백엔드: 언어·프레임워크
-  { id: 'spring', name: 'Spring', aliases: ['스프링', 'Spring Boot', '스프링 부트', 'Spring Framework'], parent: 'backend' },
-  { id: 'fastapi', name: 'FastAPI', aliases: ['패스트API'], parent: 'backend' },
-  { id: 'java', name: 'Java', aliases: ['자바', 'JDK', 'OpenJDK', 'JVM'], parent: 'backend' },
-  { id: 'kotlin', name: 'Kotlin', aliases: ['코틀린'], parent: 'backend' },
-  { id: 'python', name: 'Python', aliases: ['파이썬', 'CPython', 'PyPI'], parent: 'backend' },
-  // 백엔드: 클라우드
-  { id: 'aws', name: 'AWS', aliases: ['아마존 웹 서비스', 'Amazon Web Services', 'EC2', 'S3', 'Lambda'], parent: 'backend' },
-  { id: 'azure', name: 'Azure', aliases: ['애저', 'Microsoft Azure'], parent: 'backend' },
-  { id: 'gcp', name: 'Google Cloud', aliases: ['GCP', '구글 클라우드', 'BigQuery', 'Cloud Run'], parent: 'backend' },
-  // 백엔드: 운영·데이터
-  { id: 'backend-perf', name: '백엔드 성능', aliases: ['성능 튜닝', '레이턴시', '서버 성능', '캐시', '트래픽'], parent: 'backend' },
-  { id: 'database', name: '데이터베이스', aliases: ['DB', 'SQL'], parent: 'backend' },
-  { id: 'postgres', name: 'PostgreSQL', aliases: ['포스트그레스', 'postgres'], parent: 'backend' },
-  { id: 'kubernetes', name: '쿠버네티스', aliases: ['k8s', 'kubernetes', '컨테이너', '도커'], parent: 'backend' },
-  { id: 'observability', name: '관측성', aliases: ['모니터링', '트레이싱', 'observability', '로그'], parent: 'backend' },
-  { id: 'security', name: '보안', aliases: ['공급망 보안', '취약점', '해킹'], parent: 'backend' },
-  { id: 'data-eng', name: '데이터 엔지니어링', aliases: ['데이터 파이프라인', 'ETL'], parent: 'backend' },
-  // 프론트엔드
-  { id: 'react', name: 'React', aliases: ['리액트', '서버 컴포넌트', 'React Native'], parent: 'frontend' },
-  { id: 'nextjs', name: 'Next.js', aliases: ['넥스트', 'App Router', 'Vercel'], parent: 'frontend' },
-  { id: 'vue', name: 'Vue', aliases: ['뷰', 'Vue.js', 'Nuxt'], parent: 'frontend' },
-  { id: 'typescript', name: 'TypeScript', aliases: ['타입스크립트'], parent: 'frontend' },
-  { id: 'web-perf', name: '웹 성능', aliases: ['Core Web Vitals', '로딩 속도', '프론트엔드 성능', '렌더링'], parent: 'frontend' },
-  { id: 'design-system', name: '디자인 시스템', aliases: ['디자인 토큰', '컴포넌트 라이브러리', 'UI 디자인', '피그마'], parent: 'frontend' },
-  { id: 'mobile-app', name: '모바일 앱', aliases: ['iOS', 'Android', '앱 성능', '안드로이드'], parent: 'frontend' },
   // AI
-  { id: 'llm-dev', name: 'LLM', aliases: ['LLM 개발', 'LLM API', '언어 모델', '거대 언어 모델', '오픈소스 모델'], parent: 'ai' },
+  { id: 'llm-dev', name: 'LLM', aliases: ['새 모델', '언어 모델', '거대 언어 모델', '오픈소스 모델', 'LLM API'], parent: 'ai' },
+  { id: 'vibe-coding', name: '바이브코딩', aliases: ['바이브 코딩', 'vibe coding', 'AI 코딩', '코딩 에이전트', 'Claude Code', 'Cursor', 'Copilot', '코파일럿'], parent: 'ai' },
+  { id: 'llm-agent', name: 'AI 에이전트', aliases: ['에이전트', 'agent', 'LLM 에이전트', '멀티 에이전트', 'MCP'], parent: 'ai' },
+  { id: 'ai-automation', name: '업무 자동화', aliases: ['자동화', '워크플로 자동화', '노코드', 'n8n', 'RPA', 'AI 업무'], parent: 'ai' },
   { id: 'rag', name: 'RAG', aliases: ['검색 증강', '벡터 검색', '벡터 DB'], parent: 'ai' },
-  { id: 'fine-tuning', name: '파인튜닝', aliases: ['fine-tuning', '미세 조정', 'LoRA', '학습 데이터'], parent: 'ai' },
-  { id: 'llm-agent', name: 'LLM 에이전트', aliases: ['에이전트', 'agent', 'AI 에이전트', '멀티 에이전트'], parent: 'ai' },
-  { id: 'prompt', name: '프롬프트 설계', aliases: ['프롬프트 엔지니어링', 'prompt'], parent: 'ai' },
-  { id: 'ai-tools', name: 'AI 도구', aliases: ['AI 툴', '코딩 어시스턴트', 'AI 코딩', '코파일럿'], parent: 'ai' },
-  { id: 'speech-ai', name: '음성 AI', aliases: ['TTS', 'STT', '음성 합성'], parent: 'ai' },
-  // 부동산
-  { id: 're-subscription', name: '청약·분양', aliases: ['청약', '분양가', '청약 경쟁률', '특별공급'], parent: 'realestate' },
-  { id: 're-policy', name: '부동산 정책·세금', aliases: ['부동산 대책', '대출 규제', 'DSR', '종부세', '양도세', '취득세'], parent: 'realestate' },
-  { id: 're-rent', name: '전월세', aliases: ['전세', '월세', '전세 사기', '임대차'], parent: 'realestate' },
-  { id: 're-redevelop', name: '재건축·재개발', aliases: ['재건축', '재개발', '정비사업', '리모델링'], parent: 'realestate' },
+  { id: 'gen-media', name: '이미지·영상 생성', aliases: ['이미지 생성', '영상 생성', '동영상 생성', 'Sora', 'Midjourney', '미드저니', 'Veo'], parent: 'ai' },
   // 주식
-  { id: 'stock-kr', name: '국내 주식', aliases: ['코스피', '코스닥', '국내 증시', '삼성전자'], parent: 'stock' },
-  { id: 'stock-us', name: '미국 주식', aliases: ['나스닥', 'S&P500', '뉴욕 증시', '미국 증시', '엔비디아'], parent: 'stock' },
-  { id: 'etf', name: 'ETF·연금 투자', aliases: ['ETF', '연금저축', 'IRP', 'ISA', '배당'], parent: 'stock' },
-  { id: 'ipo', name: '공모주', aliases: ['IPO', '상장', '수요예측'], parent: 'stock' },
+  { id: 'kospi', name: '코스피', aliases: ['KOSPI', '유가증권시장', '국내 증시'], parent: 'stock' },
+  { id: 'kosdaq', name: '코스닥', aliases: ['KOSDAQ', '코스닥 시장'], parent: 'stock' },
+  { id: 'stock-us', name: '미국 주식', aliases: ['나스닥', 'S&P500', '뉴욕 증시', '미국 증시', '다우'], parent: 'stock' },
   { id: 'macro', name: '금리·환율', aliases: ['기준금리', '환율', '금리', '연준', 'FOMC', '물가'], parent: 'stock' },
+  { id: 'etf', name: 'ETF', aliases: ['상장지수펀드', '연금저축', 'IRP', 'ISA', '배당'], parent: 'stock' },
+  { id: 'ipo', name: '공모주', aliases: ['IPO', '상장', '수요예측'], parent: 'stock' },
+  // 코인
+  { id: 'bitcoin', name: '비트코인', aliases: ['BTC', '비트코인 ETF', '비트코인 가격'], parent: 'coin' },
+  { id: 'ethereum', name: '이더리움', aliases: ['ETH', '이더', '이더리움 ETF'], parent: 'coin' },
+  { id: 'stablecoin', name: '스테이블코인', aliases: ['스테이블 코인', 'USDT', 'USDC', '테더', '원화 스테이블코인'], parent: 'coin' },
+  { id: 'crypto-reg', name: '가상자산 규제', aliases: ['가상자산법', '코인 규제', '거래소 규제', '디지털자산기본법'], parent: 'coin' },
+  // 반도체·로봇
+  { id: 'semiconductor', name: '반도체', aliases: ['HBM', '메모리 반도체', '파운드리', '엔비디아', 'TSMC', 'SK하이닉스', 'AI 칩', 'GPU'], parent: 'chip-robot' },
+  { id: 'robot', name: '로봇·휴머노이드', aliases: ['로봇', '휴머노이드', '피지컬 AI', '로보틱스', '산업용 로봇'], parent: 'chip-robot' },
+  { id: 'ev-battery', name: '전기차·배터리', aliases: ['전기차', '배터리', '2차전지', '이차전지', 'EV', '자율주행'], parent: 'chip-robot' },
+  // 개발(언어·프레임워크·클라우드는 공식 블로그·릴리즈 피드로 수집)
+  {
+    id: 'dev-release',
+    name: '언어·프레임워크 릴리즈',
+    aliases: ['릴리즈', '릴리스', '새 버전', 'Spring', '스프링', 'Spring Boot', '스프링 부트', 'FastAPI', 'Java', '자바', 'Kotlin', '코틀린', 'Python', '파이썬', 'React', '리액트', 'Next.js', 'Vue', 'TypeScript', '타입스크립트', 'PostgreSQL'],
+    parent: 'dev',
+  },
+  { id: 'cloud', name: '클라우드', aliases: ['AWS', 'Azure', '애저', 'GCP', 'Google Cloud', '구글 클라우드', '쿠버네티스', 'Kubernetes', '서버리스'], parent: 'dev' },
+  { id: 'security', name: '보안', aliases: ['해킹', '취약점', 'CVE', '개인정보 유출', '랜섬웨어', '공급망 보안'], parent: 'dev' },
+  // K-Pop
+  { id: 'kpop-release', name: '컴백·신곡', aliases: ['컴백', '신곡', '앨범', '뮤직비디오', '데뷔'], parent: 'kpop' },
+  { id: 'kpop-chart', name: '음원 차트', aliases: ['차트', '멜론 차트', '빌보드', '음원 순위', '음반 판매량'], parent: 'kpop' },
+  { id: 'kpop-concert', name: '콘서트·투어', aliases: ['콘서트', '월드투어', '투어', '팬미팅', '공연'], parent: 'kpop' },
+  // K-뷰티(신제품은 K-푸드와 이름이 겹치지 않게 화장품으로 적는다)
+  { id: 'beauty-new', name: '화장품 신제품', aliases: ['뷰티 신제품', '신상 화장품', '스킨케어 신제품'], parent: 'kbeauty' },
+  { id: 'beauty-trend', name: '뷰티 랭킹·트렌드', aliases: ['올리브영', '뷰티 트렌드', '화장품 랭킹', '뷰티 랭킹'], parent: 'kbeauty' },
+  { id: 'beauty-export', name: '뷰티 브랜드·수출', aliases: ['화장품 수출', 'K뷰티 수출', '인디 브랜드', '아모레퍼시픽', 'LG생활건강'], parent: 'kbeauty' },
+  // K-푸드
+  { id: 'food-new', name: '편의점·식품 신상', aliases: ['편의점 신상', '식품 신제품', '라면 신제품', '과자 신제품'], parent: 'kfood' },
+  { id: 'food-franchise', name: '외식·프랜차이즈', aliases: ['프랜차이즈', '외식', '배달', '카페', '치킨'], parent: 'kfood' },
+  { id: 'food-export', name: 'K-푸드 수출', aliases: ['식품 수출', '라면 수출', '불닭', '한식 세계화'], parent: 'kfood' },
 ];
 
 export const TOPICS: Topic[] = [...TOPIC_GROUPS, ...DETAILS];

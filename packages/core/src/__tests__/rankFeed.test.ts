@@ -50,7 +50,7 @@ test('피드백 가중치는 0.1~1.5 사이에 머문다', () => {
 });
 
 test('처음 토픽: 고른 것만 1.0, 사전에 없는 id는 버린다', () => {
-  assert.deepEqual(initialTopicWeights(['rag', 'react', 'nope']), { rag: 1, react: 1 });
+  assert.deepEqual(initialTopicWeights(['rag', 'bitcoin', 'nope']), { rag: 1, bitcoin: 1 });
 });
 
 test('사전 id는 겹치지 않고, 큰 분류는 부모가 없다', () => {

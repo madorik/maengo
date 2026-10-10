@@ -10,12 +10,12 @@ import { rebuildFeed } from "@/lib/server/feed";
 import { demoLoginEnabled, demoToolsEnabled } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
-import { addTopics, addKeywords, removeTopic } from "@/lib/server/topics";
+import { addCustomTopics, addTopics, removeTopic } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
 import { supabaseAuth } from "@/lib/supabase/server";
 import { isNotifyTime, notifyTimeLabel } from "@maengo/core/kst";
 import { josa } from "@maengo/core/josa";
-import { TOPIC_BY_ID } from "@maengo/core/topics";
+import { isAdultInterest, TOPIC_BY_ID } from "@maengo/core/topics";
 import type { TopicResult } from "@/lib/types";
 
 const cookieOpts = { sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 } as const;
@@ -62,19 +62,30 @@ export async function signOut() {
   redirect("/login");
 }
 
-/** 처음 고른 관심 토픽을 저장하고 오늘 피드로 간다(PLAN.md 5.2) */
+/**
+ * 처음 고른 관심 분야를 저장하고 오늘 피드로 간다(PLAN.md 5.2).
+ * 기타를 고르고 적은 말은 설정 > 관심사의 기타와 같은 규칙으로 넣는다(목록에 있는 말은 관심사로). 기타만 골라도 된다.
+ */
 export async function completeOnboarding(formData: FormData) {
   const profile = await requireProfile();
   const limit = entitlements(profile).topicLimit;
   const picked = [...new Set(formData.getAll("topic").map(String))].filter((id) => TOPIC_BY_ID.has(id)).slice(0, limit);
-  if (!picked.length) redirect("/onboarding?error=empty");
-  must(
-    await db.from("user_topics").upsert(
-      picked.map((topic_id) => ({ user_id: profile.id, topic_id, weight: 1, source: "onboarding" })),
-      { onConflict: "user_id,topic_id" },
-    ),
-    "user_topics onboarding",
-  );
+  const etc = formData.get("etc") === "on";
+  const etcText = etc ? String(formData.get("etcText") ?? "").trim() : "";
+  if (etc && !etcText) redirect("/onboarding?error=etc");
+  if (isAdultInterest(etcText)) redirect("/onboarding?error=adult");
+  if (!picked.length && !etcText) redirect("/onboarding?error=empty");
+  if (picked.length) {
+    must(
+      await db.from("user_topics").upsert(
+        picked.map((topic_id) => ({ user_id: profile.id, topic_id, weight: 1, source: "onboarding" })),
+        { onConflict: "user_id,topic_id" },
+      ),
+      "user_topics onboarding",
+    );
+  }
+  // 분야는 이미 넣었으니 기타가 막히면 다시 제출할 때 같은 분야를 덮어쓴다
+  if (etcText && (await addCustomTopics(profile, etcText)).tone === "warn") redirect("/onboarding?error=etc");
   must(await db.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", profile.id), "profiles onboarded");
   redirect("/today");
 }
@@ -111,8 +122,8 @@ export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice;
 }
 
 /**
- * 관심사·키워드 고치기(설정). 폼 하나에서 셋 중 하나가 온다.
- * text: 키워드 넣기 / add: 목록에서 관심사 더하기 / remove: 관심사·키워드 빼기
+ * 관심사 고치기(설정). 폼 하나에서 셋 중 하나가 온다.
+ * text: 기타에 적기 / add: 목록에서 관심사 더하기 / remove: 관심사 빼기(기타 포함)
  */
 export async function editTopics(_prev: TopicResult | null, formData: FormData): Promise<TopicResult | null> {
   const profile = await requireProfile();
@@ -120,7 +131,7 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
   const text = formData.get("text");
   const add = formData.get("add");
   const remove = formData.get("remove");
-  if (typeof text === "string") result = await addKeywords(profile, text);
+  if (typeof text === "string") result = await addCustomTopics(profile, text);
   else if (typeof add === "string") result = await addTopics(profile, [add]);
   else if (typeof remove === "string") result = await removeTopic(profile, remove);
   revalidatePath("/settings");

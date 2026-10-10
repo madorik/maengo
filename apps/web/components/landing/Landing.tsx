@@ -15,8 +15,8 @@ const START = { href: "/login", label: "무료로 시작하기" };
 const OPEN = { href: "/today", label: "오늘 맹고 열기" };
 
 const FAQ: [string, string][] = [
-  ["어떤 소식을 모아요?", "긱뉴스, Hacker News, 공식 블로그, 유튜브 채널, 국내외 기술블로그를 매일 새벽에 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶어요."],
-  ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 디자인 시스템, 그로스, AI 도구처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
+  ["어떤 소식을 모아요?", "AI·개발 공식 블로그, 경제·코인 매체, 반도체·로봇 전문지, K-Pop·뷰티·푸드 매체 등 국내외 출처를 매일 새벽에 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶어요."],
+  ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, K-Pop처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   ["무료로 얼마나 쓸 수 있나요?", "Free는 하루 1개 소식을 글로 읽어요. Premium은 하루 최대 10개와 오디오 듣기를 쓸 수 있어요. 가입하면 1주일 동안 Premium을 무료로 써요."],
 ];
@@ -76,7 +76,7 @@ export function Landing() {
               당신은 듣기만.
             </h1>
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
-              관심 있는 분야만 알려 주세요. 매일 아침 긱뉴스, 공식 블로그, 유튜브, 기술블로그를 AI가 훑어서 그 분야의 놓치면 안 되는 기술 뉴스만 골라 요약해 읽어 드리고 들려 드려요.
+              관심 있는 분야만 알려 주세요. 매일 아침 국내외 매체와 공식 블로그를 AI가 훑어서 그 분야의 놓치면 안 되는 소식만 골라 요약해 읽어 드리고 들려 드려요.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
@@ -107,12 +107,12 @@ export function Landing() {
           <div className="mx-auto flex max-w-[1100px] flex-col gap-20 px-5 py-16 md:gap-28 md:py-24">
             <Feature
               title="관심사에 맞춰, 같은 소식은 하나로"
-              body="LLM, 쿠버네티스, 디자인 시스템처럼 관심 있는 분야만 고르면 돼요. 직업과 상관없이 그 분야 소식만 골라요. 여러 곳에서 같은 소식을 다뤄도 하나로 묶고, AI·테크·디자인처럼 카테고리도 자동으로 붙여요."
+              body="AI, 주식, K-Pop처럼 관심 있는 분야만 고르면 돼요. 목록에 없으면 기타에 직접 적어도 돼요. 여러 곳에서 같은 소식을 다뤄도 하나로 묶고, AI·코인·연예처럼 카테고리도 자동으로 붙여요."
             >
               <div className="tile p-5">
-                <p className="text-[14px] font-black text-sub">내 토픽</p>
+                <p className="text-[14px] font-black text-sub">내 관심사</p>
                 <ul className="mt-2 flex flex-wrap gap-2">
-                  {["LLM 에이전트", "RAG", "백엔드 성능", "데이터베이스", "쿠버네티스"].map((t) => (
+                  {["바이브코딩", "AI 에이전트", "코스피", "비트코인", "컴백·신곡"].map((t) => (
                     <li key={t} className="tile px-3 py-1 text-[14px] font-extrabold">
                       {t}
                     </li>
@@ -210,7 +210,7 @@ export function Landing() {
           </h2>
           <ol className="mt-10 grid gap-4 md:grid-cols-3">
             {[
-              ["관심사를 골라요", "목록에서 고르고, 목록에 없는 건 키워드로 적어 두면 돼요."],
+              ["관심사를 골라요", "목록에서 고르고, 목록에 없는 건 기타에 직접 적으면 돼요."],
               ["새벽에 AI가 훑고 골라요", "매일 새벽 소식을 모아 같은 소식은 묶고, 요약하고, 나에게 맞는 순서로 골라요."],
               ["아침에 받아서 읽고 들어요", "고른 시각에 오늘의 맹고가 도착해요. 읽어도 되고, 이어서 들어도 돼요."],
             ].map(([title, body], i) => (
@@ -234,7 +234,7 @@ export function Landing() {
               <Plan
                 name="Free"
                 price="0원"
-                items={["하루 1개 소식", "요약, 왜 중요한가, 전체 글", "보관함과 카테고리", "관심사 5개, 키워드 1개"]}
+                items={["하루 1개 소식", "요약, 왜 중요한가, 전체 글", "보관함과 카테고리", "관심사 5개, 기타 1개"]}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan
@@ -242,7 +242,7 @@ export function Landing() {
                 name="Premium"
                 price="월 4,900원"
                 badge="가입하면 1주일 무료"
-                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 말투 3종", "더 좋은 AI 모델로 요약", "관심사 20개, 키워드 10개"]}
+                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 말투 3종", "더 좋은 AI 모델로 요약", "관심사 20개, 기타 10개"]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={{ signedOut: { href: "/login", label: "7일 무료로 써 보기" }, signedIn: { href: "/settings#plan", label: "7일 무료로 써 보기" } }}
               />
@@ -287,7 +287,7 @@ export function Landing() {
         <div className="mx-auto flex max-w-[1100px] flex-col gap-2 px-5 py-8 text-[13px] font-semibold text-sub sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-2">
             <MangoIcon className="size-6" />
-            관심사에 맞춘 기술 소식, 맹고
+            관심사에 맞춘 오늘의 소식, 맹고
           </span>
           <span>© 2026 맹고</span>
         </div>

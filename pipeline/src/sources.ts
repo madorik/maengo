@@ -1,5 +1,6 @@
 // 수집 출처. collect 단계가 시작할 때 sources 테이블에 upsert 한다(url 기준, active·실패 횟수는 건드리지 않는다).
-// 2026-10-09(개발)·10-10(주식·부동산)에 모두 열어 보고 넣었다. 봇을 막는 곳(우아한형제들 403)은 넣지 않았다.
+// 2026-10-09(개발)·10-10(주식, 코인·반도체·로봇·K-Pop·K-뷰티·K-푸드)에 모두 열어 보고 넣었다. 봇을 막는 곳(우아한형제들·allkpop 403)은 넣지 않았다.
+// 목록에서 빼도 DB sources 행은 남는다. 그만 받을 출처는 마이그레이션에서 active = false로 끈다(부동산: …_topics_v2.sql).
 // weight: 출처 가중치(랭킹의 sourceWeight). 공식·큐레이션은 높게, 기사량이 많은 매체는 낮게.
 
 export interface SourceSeed {
@@ -79,10 +80,28 @@ export const SOURCES: SourceSeed[] = [
   { kind: 'rss', url: 'https://www.yna.co.kr/rss/economy.xml', name: '연합뉴스 경제', weight: 0.9, lang: 'ko' },
   { kind: 'rss', url: 'https://kr.investing.com/rss/news.rss', name: '인베스팅닷컴', weight: 0.8, lang: 'ko' },
   { kind: 'rss', url: 'https://www.cnbc.com/id/15839069/device/rss/rss.html', name: 'CNBC', weight: 1.0, lang: 'en' },
-  // 부동산(2026-10-10 추가)
-  { kind: 'rss', url: 'https://www.hankyung.com/feed/realestate', name: '한국경제 부동산', weight: 1.0, lang: 'ko' },
-  { kind: 'rss', url: 'https://www.mk.co.kr/rss/50300009/', name: '매일경제 부동산', weight: 0.9, lang: 'ko' },
-  { kind: 'rss', url: 'http://rss.edaily.co.kr/realestate_news.xml', name: '이데일리 부동산', weight: 0.8, lang: 'ko' },
+  // 코인(2026-10-10 추가)
+  { kind: 'rss', url: 'https://www.blockmedia.co.kr/feed', name: '블록미디어', weight: 1.0, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.tokenpost.kr/rss', name: '토큰포스트', weight: 0.8, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', name: 'CoinDesk', weight: 1.0, lang: 'en' },
+  { kind: 'rss', url: 'https://cointelegraph.com/rss', name: 'Cointelegraph', weight: 0.8, lang: 'en' },
+  // 반도체·로봇·전기차(2026-10-10 추가)
+  { kind: 'rss', url: 'https://www.thelec.kr/rss/allArticle.xml', name: '디일렉', weight: 1.0, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.irobotnews.com/rss/allArticle.xml', name: '로봇신문', weight: 1.0, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.therobotreport.com/feed/', name: 'The Robot Report', weight: 0.9, lang: 'en' },
+  { kind: 'rss', url: 'https://spectrum.ieee.org/feeds/topic/robotics.rss', name: 'IEEE Spectrum 로봇', weight: 0.9, lang: 'en' },
+  { kind: 'rss', url: 'https://www.eetimes.com/feed/', name: 'EE Times', weight: 0.8, lang: 'en' },
+  { kind: 'rss', url: 'https://electrek.co/feed/', name: 'Electrek', weight: 0.8, lang: 'en' },
+  // K-Pop(2026-10-10 추가). 연합뉴스·한경 연예는 드라마·배우 소식도 섞여 있어 가중치를 낮춘다
+  { kind: 'rss', url: 'https://www.soompi.com/feed', name: 'Soompi', weight: 1.0, lang: 'en' },
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/entertainment.xml', name: '연합뉴스 연예', weight: 0.8, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.hankyung.com/feed/entertainment', name: '한국경제 연예', weight: 0.7, lang: 'ko' },
+  // K-뷰티·K-푸드(2026-10-10 추가). 업계지라 주말에는 글이 거의 없다
+  { kind: 'rss', url: 'https://www.jangup.com/rss/allArticle.xml', name: '장업신문', weight: 1.0, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.thebk.co.kr/rss/allArticle.xml', name: '뷰티경제', weight: 0.9, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.thinkfood.co.kr/rss/allArticle.xml', name: '식품음료신문', weight: 1.0, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.foodnews.co.kr/rss/allArticle.xml', name: '식품저널', weight: 0.9, lang: 'ko' },
+  { kind: 'rss', url: 'https://www.foodbank.co.kr/rss/allArticle.xml', name: '식품외식경제', weight: 0.9, lang: 'ko' },
   // 유튜브 채널(채널 RSS는 가끔 500·404를 내서 몇 번 다시 시도한다)
   { kind: 'youtube', url: yt('UC_x5XG1OV2P6uZZ5FSM9Ttw'), name: 'Google for Developers', weight: 1.0, lang: 'en' },
   { kind: 'youtube', url: yt('UCQNE2JmbasNYbjGAcuBiRRg'), name: '조코딩', weight: 0.9, lang: 'ko' },

@@ -1,7 +1,7 @@
 import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
-import { KeywordEditor } from "@/components/settings/KeywordEditor";
+import { CustomTopicEditor } from "@/components/settings/CustomTopicEditor";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { TopicEditor } from "@/components/settings/TopicEditor";
@@ -70,11 +70,8 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="topics" title="관심사">
-          <TopicEditor topics={topics.filter((t) => !t.custom)} groups={topicGroups(topics)} limit={e.topicLimit} />
-        </Section>
-
-        <Section id="keywords" title="키워드">
-          <KeywordEditor keywords={topics.filter((t) => t.custom)} limit={e.keywordLimit} />
+          <TopicEditor topics={topics.filter((t) => !t.custom)} groups={topicGroups(topics)} limit={e.topicLimit} last={topics.length <= 1} />
+          <CustomTopicEditor items={topics.filter((t) => t.custom)} limit={e.customLimit} last={topics.length <= 1} />
         </Section>
 
         <Section id="listen" title="듣기">
