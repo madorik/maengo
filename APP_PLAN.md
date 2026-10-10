@@ -166,6 +166,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 | 변수 | 쓰는 곳 | 용도 |
 | --- | --- | --- |
 | `CAP_SERVER_URL` | apps/mobile(빌드 때) | 개발 때 띄울 웹 주소. 없으면 운영 |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | web(서버, Vercel) | 푸시 보내기 |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | web(서버, Vercel) | 푸시 보내기. Vercel 운영에 넣어 둠(2026-10-11). 로컬은 `FIREBASE_SERVICE_ACCOUNT_PATH=~/.maengo/firebase-admin.json` |
+| `NEXT_PUBLIC_FIREBASE_*`(5개) | web | 웹 푸시용 Firebase 설정. `.env.local`·Vercel 운영에 넣어 둠(2026-10-11) |
 | `CRON_SECRET` | web(서버), Supabase cron | `/api/cron/notify` 보호 |
 | `APPLE_BUNDLE_ID=kr.maengo.app` | web(서버) | 이미 `.env.local`에 있음. 네이티브 애플 로그인 검증 |
