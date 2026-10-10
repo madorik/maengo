@@ -42,7 +42,11 @@ export function ListenWidget() {
   const minutes = minutesLabel(p.personaTotalMs(p.persona));
   const sub = !p.enabled
     ? "플러스에서 들을 수 있어요"
-    : ch
+    : p.error
+      ? "음성을 만들지 못했어요"
+      : p.preparing
+        ? "음성 만드는 중 · 처음 한 번만 1~2분"
+        : ch
       ? `${p.progress.count}개 중 ${p.progress.position}번째 ${playing ? "듣는 중" : "멈춤"}`
       : p.status === "done"
         ? "오늘 소식을 다 들었어요"
@@ -91,6 +95,16 @@ export function ListenWidget() {
                     {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
                   </span>
                 </p>
+                {p.preparing && (
+                  <p role="status" className="mt-2 rounded-xl bg-sky-tint px-3 py-2 text-[13px] font-bold leading-relaxed text-sky-dark">
+                    음성을 만드는 중이에요. 처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요.
+                  </p>
+                )}
+                {p.error && (
+                  <p role="alert" className="mt-2 text-[13px] font-bold leading-relaxed text-orange">
+                    {p.error}
+                  </p>
+                )}
                 <div className="mt-2 flex items-center justify-center gap-5">
                   <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-12 min-h-0 rounded-full p-0">
                     <IconPrev />

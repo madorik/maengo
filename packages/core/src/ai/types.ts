@@ -16,8 +16,6 @@ export interface WhyInput {
 export interface ScriptInput {
   model: string;
   persona: Persona;
-  /** 1부터. '세 번째 소식' 같은 연결 문장에 쓴다 */
-  rank: number;
   topicName: string;
   title: string;
   short: string;
@@ -68,4 +66,52 @@ export interface AiClient {
   mapTopics(input: MapTopicsInput): Promise<string[]>;
   script(input: ScriptInput): Promise<ScriptLine[]>;
   speak(input: SpeakInput): Promise<SpeakOutput>;
+}
+
+// ---- 파이프라인(요약·임베딩). Gemini 구현만 있다 ----
+
+export interface SummarizeSource {
+  title: string;
+  sourceName: string;
+  url: string;
+  author?: string | null;
+  publishedAt?: string | null;
+  /** 본문(또는 본문을 못 읽었으면 RSS 설명). 호출하는 쪽이 길이를 자른다 */
+  text: string;
+}
+
+export interface SummarizeInput {
+  model: string;
+  kind: 'article' | 'video';
+  /** 같은 소식을 다룬 글들. 첫 번째가 대표 */
+  sources: SummarizeSource[];
+  /** 영상이면 유튜브 주소. 모델이 영상을 직접 본다 */
+  videoUrl?: string;
+  /** 고를 수 있는 토픽 사전 */
+  dictionary: readonly Topic[];
+}
+
+export interface SummarizeOutput {
+  /** 소식이 아니면(광고·채용·본문 없음) 이유를 담아 돌려준다. 나머지 칸은 비어 있을 수 있다 */
+  skip: string | null;
+  title: string;
+  short: string;
+  body: string[];
+  category: CategoryId;
+  author: string;
+  topics: { topicId: string; relevance: number }[];
+  /** 토픽별 "왜 중요한가" 본문(앞머리 제외) */
+  why: { topicId: string; text: string }[];
+  scenes?: { t: string; label: string }[];
+}
+
+export type UsageKind = 'summary' | 'why' | 'script' | 'tts' | 'embed' | 'video' | 'topic_map' | 'classify';
+
+export interface UsageEvent {
+  model: string;
+  kind: UsageKind;
+  inputTokens: number;
+  outputTokens: number;
+  /** 생각 토큰. 출력 요금으로 청구된다 */
+  thinkingTokens: number;
 }

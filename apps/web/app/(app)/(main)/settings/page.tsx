@@ -7,7 +7,7 @@ import { demoRebuildFeed, demoReset, demoSetPlan, signOut } from "@/app/actions"
 import { ttsModel } from "@/lib/server/ai";
 import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
-import { entitlements } from "@/lib/server/store";
+import { entitlements } from "@/lib/server/profile";
 import { suggestedTopics, userTopics } from "@/lib/server/topics";
 
 export const metadata: Metadata = { title: "설정" };
@@ -32,6 +32,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const view = toProfileView(profile);
+  const topics = await userTopics(profile);
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
@@ -67,14 +68,13 @@ export default async function SettingsPage() {
             <dd className="break-all font-extrabold">{ttsModel()}</dd>
           </dl>
           <p className="mt-3 text-[13px] text-sub">
-            {view.aiProvider === "dummy"
-              ? "지금은 API 키가 없어서 모델을 부르지 않고 미리 만든 더미 응답을 보여 줘요. 듣기도 실제 목소리 대신 항목마다 차임, 문장마다 짧은 신호음이 나와요."
-              : "Gemini API로 실제 응답을 만들고 있어요."}
+            요약과 &ldquo;왜 중요한가&rdquo;는 매일 새벽 배치가 Gemini로 미리 만들어 둬요. 상위 모델은 Gemini 결제를 켜야 쓸 수 있어서
+            지금은 모두 기본 모델 요약을 보여 줘요. 듣기는 아직 실제 목소리 대신 항목마다 차임, 문장마다 짧은 신호음이 나와요.
           </p>
         </Section>
 
         <Section id="topics" title="관심 토픽">
-          <TopicEditor topics={userTopics(profile)} suggestions={suggestedTopics(profile)} limit={entitlements(profile).topicLimit} />
+          <TopicEditor topics={topics} suggestions={suggestedTopics(topics)} limit={entitlements(profile).topicLimit} />
         </Section>
 
         <Section id="notify" title="알림">
@@ -83,7 +83,7 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="demo" title="데모 도구">
-          <p className="text-sub">파이프라인이 붙기 전까지 피드 고르기를 확인하는 버튼이에요.</p>
+          <p className="text-sub">이미 요약된 소식으로 오늘 피드를 다시 골라요. AI를 새로 부르지 않아요.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <form action={demoRebuildFeed}>
               <button type="submit" className="btn btn-ghost min-h-11 px-4 text-[14px]">
@@ -97,12 +97,13 @@ export default async function SettingsPage() {
             </form>
           </div>
           <p className="mt-2 text-[13px] text-sub">
-            다시 고르면 읽거나 들은 소식, 이미 알아요와 관심 없어요를 누른 소식을 빼고 새로 골라요.
+            다시 고르면 지난 피드에 나온 소식, 읽거나 들은 소식, 이미 알아요와 관심 없어요를 누른 소식을 빼고 골라요.
+            처음 상태로 되돌리면 읽음·피드백을 지우고 토픽 가중치를 1로 돌려요.
           </p>
         </Section>
 
         <Section id="account" title="계정">
-          <p>{view.provider === "apple" ? "Apple" : "Google"} 계정으로 로그인했어요.</p>
+          <p>데모 계정으로 들어왔어요. Apple·Google 연동은 다음 단계에서 붙여요.</p>
           <form action={signOut} className="mt-3">
             <button type="submit" className="btn btn-ghost min-h-11 px-4 text-[14px]">
               로그아웃

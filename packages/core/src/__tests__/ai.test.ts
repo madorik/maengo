@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DEFAULT_MODELS, modelFor, modelForPlan, tierOf } from '../ai/models';
-import { createDummyAi, dummyScript } from '../ai/dummy';
+import { createDummyAi } from '../ai/dummy';
+import { templateScript } from '../ai/script';
 import { layoutChapters } from '../audio/chapters';
 import { concatWav } from '../audio/wav';
 
@@ -16,7 +17,6 @@ test('무료는 Flash, 플러스와 체험은 상위 모델', () => {
 
 const item = {
   model: 'm',
-  rank: 3,
   topicName: 'LLM 에이전트',
   title: '에이전트 평가, 정답셋 없이 시작하는 법',
   short: '실패한 대화를 모아 평가셋의 씨앗으로 씁니다.',
@@ -24,16 +24,16 @@ const item = {
   why: 'LLM 에이전트에 관심 있다면: RAG 챗봇 회귀 테스트에 바로 쓸 수 있어요.',
 };
 
-test('더미 대본: 대담은 진행자·해설자가 번갈아 말하고, 해설자가 문단을 읽는다', () => {
-  const lines = dummyScript({ ...item, persona: 'dialogue' });
+test('대본: 대담은 진행자·해설자가 번갈아 말하고, 해설자가 문단을 읽는다', () => {
+  const lines = templateScript({ ...item, persona: 'dialogue' });
   assert.deepEqual(lines.map((l) => l.who), ['진행자', '해설자', '진행자', '해설자', '진행자', '해설자']);
   assert.deepEqual(lines.map((l) => l.para), [undefined, 0, undefined, 1, undefined, undefined]);
-  assert.match(lines[0]!.text, /세 번째/);
+  assert.match(lines[0]!.text, /이번 소식/);
   assert.match(lines.at(-1)!.text, /관심 있다면, /);
 });
 
-test('더미 대본: 본문을 문장 단위로 읽고 문단 번호를 단다', () => {
-  const lines = dummyScript({ ...item, persona: 'announcer' });
+test('대본: 본문을 문장 단위로 읽고 문단 번호를 단다', () => {
+  const lines = templateScript({ ...item, persona: 'announcer' });
   assert.deepEqual(lines.filter((l) => l.para !== undefined).map((l) => [l.para, l.text]), [
     [0, '실패한 대화를 모읍니다.'],
     [0, '사람이 고친 답이 곧 정답이에요.'],

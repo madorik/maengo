@@ -1,4 +1,4 @@
-// 더미 TTS가 쓰는 WAV 인코더. 실제 오디오는 MP3(ffmpeg)로 만든다(PLAN.md 8.1).
+// WAV 인코더·디코더. Gemini TTS가 24kHz 16비트 WAV를 준다. 저장용 MP3 변환은 R2를 붙일 때 한다(PLAN.md 8.1).
 
 export function wavHeader(dataBytes: number, sampleRate: number, bitsPerSample: 8 | 16): Uint8Array {
   const header = new Uint8Array(44);
@@ -34,4 +34,29 @@ export function concatWav(parts: Uint8Array[], sampleRate: number, bitsPerSample
     at += p.length;
   }
   return out;
+}
+
+/** WAV에서 PCM과 형식을 꺼낸다. 헤더가 없으면(raw PCM) null */
+export function parseWav(bytes: Uint8Array): { pcm: Uint8Array; sampleRate: number; bitsPerSample: 8 | 16; channels: number } | null {
+  const ascii = (at: number) => String.fromCharCode(bytes[at]!, bytes[at + 1]!, bytes[at + 2]!, bytes[at + 3]!);
+  if (bytes.length < 12 || ascii(0) !== 'RIFF' || ascii(8) !== 'WAVE') return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let sampleRate = 24000;
+  let bitsPerSample: 8 | 16 = 16;
+  let channels = 1;
+  for (let at = 12; at + 8 <= bytes.length; ) {
+    const id = ascii(at);
+    // 스트리밍으로 만든 WAV는 data 길이가 0이나 0xFFFFFFFF일 수 있어 남은 바이트로 자른다
+    let size = view.getUint32(at + 4, true);
+    if (id === 'fmt ') {
+      channels = view.getUint16(at + 10, true);
+      sampleRate = view.getUint32(at + 12, true);
+      bitsPerSample = view.getUint16(at + 22, true) === 8 ? 8 : 16;
+    } else if (id === 'data') {
+      if (size === 0 || at + 8 + size > bytes.length) size = bytes.length - at - 8;
+      return { pcm: bytes.subarray(at + 8, at + 8 + size), sampleRate, bitsPerSample, channels };
+    }
+    at += 8 + size + (size % 2);
+  }
+  return null;
 }

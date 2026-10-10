@@ -8,6 +8,7 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { useItemAudio } from "@/components/article/useItemAudio";
 import type { FeedItem } from "@/lib/types";
 
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로 */
@@ -46,10 +47,21 @@ export function TodayList() {
           <div className="mt-10 flex items-end gap-3">
             <Mascot className="size-24 shrink-0" />
             <Bubble className="mb-6 flex-1">
-              <p className="text-[15px] font-bold leading-relaxed">관심 토픽에서 아직 안 본 소식을 다 썼어요. 토픽을 넓히면 더 골라 드릴 수 있어요.</p>
-              <Link href="/settings#topics" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
-                관심 토픽 고치기
-              </Link>
+              {data.emptyReason === "waiting" ? (
+                <>
+                  <p className="text-[15px] font-bold leading-relaxed">오늘 소식은 아직 고르는 중이에요. 매일 새벽 4시에 새 소식이 들어와요.</p>
+                  <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
+                    지난 소식 보기
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="text-[15px] font-bold leading-relaxed">관심 토픽에서 아직 안 본 소식을 다 썼어요. 토픽을 넓히면 더 골라 드릴 수 있어요.</p>
+                  <Link href="/settings#topics" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
+                    관심 토픽 고치기
+                  </Link>
+                </>
+              )}
             </Bubble>
           </div>
         )}
@@ -90,8 +102,16 @@ function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
   const { consumed } = useToday();
   const p = usePlayer();
   const done = consumed(item.clusterId);
-  const current = p.cur === index && p.status !== "done";
-  const playing = current && p.status === "playing";
+  // 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 플레이어로, 아니면 이 소식 하나만 만들어 듣는다
+  const viaPlayer = p.audioReady || p.preparing || p.status !== "idle";
+  const single = useItemAudio(item.clusterId, p.enabled && !viaPlayer);
+  const current = viaPlayer ? p.cur === index && p.status !== "done" : single.ctl.state === "playing" || single.ctl.state === "paused";
+  const preparing = viaPlayer ? current && p.preparing : !!single.ctl.preparing;
+  const playing = !preparing && (viaPlayer ? current && p.status === "playing" : single.ctl.state === "playing");
+  const listen = () => {
+    if (viaPlayer) return playing ? p.pause() : p.playOne(index);
+    return playing ? single.ctl.pause() : single.ctl.play();
+  };
 
   return (
     <li className={`tile relative p-4 transition-colors hover:bg-snow sm:p-5 ${current ? "border-sky" : ""}`}>
@@ -100,7 +120,11 @@ function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
         <SourceChip item={item} />
         {item.coverage && item.kind === "article" && <span className="hidden truncate font-bold text-sub sm:inline">{item.coverage}</span>}
         <span className="ml-auto shrink-0">
-          {playing ? (
+          {!viaPlayer && single.ctl.error ? (
+            <span className="text-orange">음성을 못 만들었어요</span>
+          ) : preparing ? (
+            <span className="text-sky">음성 만드는 중</span>
+          ) : playing ? (
             <span className="text-sky">듣는 중</span>
           ) : done ? (
             <span className="inline-flex items-center gap-1 text-leaf">
@@ -125,13 +149,13 @@ function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
         {p.enabled && (
           <button
             type="button"
-            onClick={() => (playing ? p.pause() : p.playOne(index))}
-            disabled={!p.ready}
+            onClick={listen}
+            disabled={!p.ready || preparing}
             aria-label={playing ? `${item.title} 그만 듣기` : `${item.title} 듣기`}
             className="btn btn-ghost relative z-10 ml-auto min-h-10 shrink-0 px-3 text-[14px]"
           >
             {playing ? <IconPause className="size-4 text-sky" /> : <IconSpeaker className="size-5 text-sky" />}
-            {playing ? "멈춤" : "듣기"}
+            {preparing ? "만드는 중" : playing ? "멈춤" : "듣기"}
           </button>
         )}
       </div>

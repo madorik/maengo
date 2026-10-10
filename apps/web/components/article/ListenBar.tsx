@@ -18,6 +18,9 @@ const PERSONA_ICON: Record<Persona, typeof IconMic> = { announcer: IconMic, teac
 export interface ListenBarCtl {
   state: "locked" | "idle" | "playing" | "paused" | "finished";
   ready: boolean;
+  /** 음성을 만드는 중(처음 듣는 말투·소식) */
+  preparing?: boolean;
+  error?: string | null;
   elapsedMs: number;
   totalMs: number;
   play: () => void;
@@ -59,6 +62,17 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
         <Link href="/settings#plan" className="btn min-h-11 shrink-0 px-4 text-[14px]">
           체험하기
         </Link>
+      </div>
+    );
+  } else if (ctl.preparing) {
+    body = (
+      <div className="flex items-center gap-3" role="status">
+        <Mascot mood="listen" className="bob size-12 shrink-0" />
+        <p className="min-w-0 flex-1">
+          <span className="block text-[15px] font-extrabold text-sky-dark">음성을 만드는 중이에요</span>
+          <span className="block text-[13px] font-semibold text-sub">처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요</span>
+        </p>
+        {personaButton}
       </div>
     );
   } else if (ctl.state === "playing" || ctl.state === "paused") {
@@ -113,7 +127,12 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
     );
   } else {
     body = (
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {ctl.error && (
+          <p role="alert" className="w-full text-[13px] font-bold leading-relaxed text-orange">
+            {ctl.error}
+          </p>
+        )}
         <button type="button" onClick={ctl.play} disabled={!ctl.ready} className="btn btn-sky min-h-14 flex-1 text-[17px]">
           <IconSpeaker className="size-6" />이 글 듣기
           {ctl.totalMs > 0 && <span className="font-round text-[15px] font-extrabold opacity-85">{formatClock(ctl.totalMs)}</span>}

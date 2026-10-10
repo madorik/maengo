@@ -18,6 +18,8 @@ export function useTodayAudio(index: number, next?: FeedItem): { ctl: ListenBarC
     ctl: {
       state: !p.enabled ? "locked" : current ? (p.status === "playing" ? "playing" : "paused") : finished ? "finished" : "idle",
       ready: p.ready,
+      preparing: p.preparing && current,
+      error: current || p.cur < 0 ? p.error : null,
       elapsedMs: current && ch ? Math.max(0, p.posMs - ch.startMs) : 0,
       totalMs: ch ? ch.endMs - ch.startMs : 0,
       play: () => p.playOne(index),

@@ -1,0 +1,46 @@
+# 맹고 일일 배치(PLAN.md 6장): 수집 → 임베딩 → 묶기 → 태그 → 요약 → 중복 합치기 → 유저별 피드.
+# 매일 04:00 KST. 오디오는 만들지 않는다(사용자가 듣기를 누를 때 만든다).
+#
+# 필요한 저장소 시크릿: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
+# 개발 중에는 비용을 아끼려고 한 번에 요약 5개, 영상 요약 0개로 묶어 둔다.
+# 출시할 때 저장소 변수 PIPELINE_SUMMARIZE_LIMIT·PIPELINE_VIDEO_LIMIT로 늘린다.
+name: daily
+
+on:
+  schedule:
+    - cron: "0 19 * * *" # UTC 19:00 = KST 04:00
+  workflow_dispatch:
+    inputs:
+      args:
+        description: "추가 인자 (예: --from=summarize, --only=collect,embed, --force)"
+        required: false
+        default: ""
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter "@maengo/pipeline..."
+      - name: 배치 실행
+        run: pnpm --filter @maengo/pipeline daily $ARGS
+        env:
+          ARGS: ${{ inputs.args }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PIPELINE_SUMMARIZE_LIMIT: ${{ vars.PIPELINE_SUMMARIZE_LIMIT || '5' }}
+          PIPELINE_VIDEO_LIMIT: ${{ vars.PIPELINE_VIDEO_LIMIT || '0' }}

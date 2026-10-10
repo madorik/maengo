@@ -1,4 +1,5 @@
 export * from './models';
 export * from './types';
-export { createDummyAi, dummyScript, dummySpeak, splitSentences } from './dummy';
+export { createDummyAi, dummySpeak } from './dummy';
+export { splitSentences, templateScript } from './script';
 export type { DummyCanned } from './dummy';

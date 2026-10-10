@@ -43,6 +43,8 @@ export interface TodayData {
   dailyLimit: number;
   /** 플랜 때문에 오늘 못 보는 소식 수(무료 사용자 안내용) */
   hiddenCount: number;
+  /** 오늘 소식이 비었을 때 왜 비었는지. waiting = 오늘 배치가 아직 안 돌았다, exhausted = 토픽에서 안 본 소식을 다 썼다 */
+  emptyReason: 'waiting' | 'exhausted' | null;
   items: FeedItem[];
   read: number[];
   listened: number[];
@@ -70,6 +72,8 @@ export interface EpisodeData {
   persona: Persona;
   voice: Voice;
   audioUrl: string;
+  /** 음성이 다 만들어져 있는지. false면 chapters·durationMs는 어림값이고, audioUrl을 열 때 음성을 만든다 */
+  ready: boolean;
   durationMs: number;
   chapters: Chapter[];
   /** 말투별 항목 길이(ms). 고르기 전에 "약 N분"을 보여 주는 데 쓴다 */

@@ -1,0 +1,24 @@
+{
+  "name": "@maengo/pipeline",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "맹고 일일 배치: 수집 → 임베딩 → 묶기 → 태그 → 요약 → 유저별 피드",
+  "scripts": {
+    "daily": "tsx --env-file-if-exists=../apps/web/.env.local src/run-daily.ts",
+    "seed:demo": "tsx --env-file-if-exists=../apps/web/.env.local src/seed-demo-user.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@maengo/core": "workspace:*",
+    "@mozilla/readability": "^0.6.0",
+    "@supabase/supabase-js": "^2.117.3",
+    "fast-xml-parser": "^5.11.2",
+    "linkedom": "^0.18.13"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

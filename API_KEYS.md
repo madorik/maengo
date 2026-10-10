@@ -11,6 +11,17 @@
 - `.env.local`에 넣어 둔 값: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`
 - 무료 프로젝트는 1주일 동안 요청이 없으면 일시 정지된다. 대시보드에서 다시 켜면 된다
 
+### Gemini API — 2026-10-09 키 받음
+- AI Studio 키(`AQ.`로 시작), Gemini API(`generativelanguage.googleapis.com`)에서 동작한다. 무료 등급(결제 꺼짐)
+- `gemini-flash-latest`는 이날 `gemini-3.8-flash`를 가리켰다. 혼잡(503)이 잦아 재시도하고, 계속되면 `gemini-flash-lite-latest`로 대신한다
+- **Pro 모델은 무료 등급 할당량이 0**이다. 결제를 켜기 전까지 플러스·체험도 기본(Flash) 요약을 본다. 파이프라인이 알아서 건너뛴다
+- 무료 등급은 분당·하루 호출 한도가 있고, 입력이 Google 제품 개선에 쓰일 수 있다(공개 기사라 지금은 괜찮음)
+- 실행마다 `usage_log`에 추정 비용을 남긴다. 2026-10-09 기준 글 391개 임베딩 $0.007, 요약 3개 $0.007(유료 단가 기준, 실제 청구 0)
+
+### 데모 계정 — 2026-10-09 만듦
+- Supabase 유저 `demo@example.com`(관리자 API로 만듦, 메일 안 나감). 관심 토픽은 비용을 아끼려고 LLM 에이전트 하나
+- 애플·구글 연동 전까지 로그인 버튼 두 개 모두 이 계정으로 들어간다(서명한 세션 쿠키, `SESSION_SECRET`)
+
 로그인 콜백 주소(아래 구글·애플 설정에 그대로 넣는다):
 
 ```
@@ -21,10 +32,27 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 
 계정 로그인·결제·본인 확인이 필요해서 대신 만들 수 없다. 값을 `.env.local`에 넣고 알려 주면 나머지(Supabase 설정, 코드 연결)는 이쪽에서 한다.
 
-### 1. Gemini API 키 — 5분
-1. [Google AI Studio → API keys](https://aistudio.google.com/apikey)에서 키 만들기
-2. 같은 화면에서 결제(유료 티어) 연결. 무료 티어는 유튜브 길이 제한이 낮고 입력이 제품 개선에 쓰일 수 있다
-3. `.env.local`: `GEMINI_API_KEY=…`
+### 1. Gemini 결제 켜기 — 출시 전에
+키는 받았다(위). 플러스 유저에게 상위 모델 요약을 주려면 [AI Studio](https://aistudio.google.com/apikey)에서 결제를 연결한다. 그 전까지는 모두 Flash 요약이다.
+
+### R2 키 — 5분
+버킷 `maengo-storage`(계정 `ace834d6e28e47b5fbb47974fd7d6c6a`)는 만들어 두셨다. 2026-10-09 키를 받아 `.env.local`에 넣었는데 **읽기 전용 토큰**이라 업로드가 403이다. 권한을 Object Read & Write로 바꿔야 한다(그 전까지 개발 서버는 `AUDIO_STORE=local`).
+1. Cloudflare 대시보드 → R2 Object Storage → API Tokens(Manage) → Create API Token
+2. 권한 **Object Read & Write**, 버킷은 **maengo-storage만**
+3. 나오는 Access Key ID·Secret Access Key(한 번만 보임)를 `.env.local`의 `R2_ACCESS_KEY_ID`·`R2_SECRET_ACCESS_KEY`에
+
+버킷은 비공개로 둔다. 웹이 서명 URL을 만들어 `<audio>`가 R2에서 바로 받는다(CORS 설정 필요 없음).
+
+### GitHub Actions 시크릿 — 일일 배치를 켤 때
+`.github/workflows/daily.yml`이 매일 04:00 KST에 돈다. 저장소 Settings → Secrets and variables → Actions에 넣는다.
+
+| 이름 | 종류 | 값 |
+| --- | --- | --- |
+| `SUPABASE_URL` | 시크릿 | `.env.local`의 `NEXT_PUBLIC_SUPABASE_URL`과 같다 |
+| `SUPABASE_SERVICE_ROLE_KEY` | 시크릿 | `.env.local`과 같다 |
+| `GEMINI_API_KEY` | 시크릿 | `.env.local`과 같다 |
+| `PIPELINE_SUMMARIZE_LIMIT` | 변수(선택) | 비우면 5. 출시 때 40 안팎으로 |
+| `PIPELINE_VIDEO_LIMIT` | 변수(선택) | 비우면 0. 영상 요약을 켤 때 2 안팎으로 |
 
 ### 2. 구글 로그인 — 15분
 1. [Google Cloud Console](https://console.cloud.google.com/)에서 프로젝트 만들기(이름 `maengo`)
@@ -73,7 +101,6 @@ pnpm setup:auth     # 구글·애플 로그인을 Supabase에 켠다(애플 시�
 | `NEXT_PUBLIC_SITE_URL` | 직접 정한다(예: `https://maengo.kr`) | 배포. 공유 카드·사이트맵·canonical. 바꾸면 다시 빌드 |
 | `GOOGLE_SITE_VERIFICATION`, `NAVER_SITE_VERIFICATION` | Google Search Console, 네이버 서치어드바이저(HTML 태그 방식) | 배포 후 검색 등록 |
 | `SEARCH_API_KEY` | Exa 또는 Tavily | 수집 파이프라인 |
-| `R2_*` | Cloudflare → R2 → API 토큰 | 오디오 파일 저장 |
 | `RESEND_API_KEY`, `MAIL_FROM` | Resend(발신 도메인 DNS 인증) | 이메일 알림 |
 | `PORTONE_*` | 포트원 콘솔(PG 심사 1~2주) | 웹 정기결제 |
 | `CRON_SECRET` | 직접 만든다: `openssl rand -hex 32` | 알림·결제 크론 |
@@ -87,6 +114,6 @@ pnpm setup:auth     # 구글·애플 로그인을 Supabase에 켠다(애플 시�
 | --- | --- | --- |
 | `GEMINI_MODEL_FREE` | `gemini-flash-latest` | 무료 플랜의 요약·문구 |
 | `GEMINI_MODEL_PLUS` | `gemini-pro-latest` | 플러스·체험의 요약·문구, 오디오 대본 |
-| `GEMINI_TTS_MODEL` | `gemini-2.5-flash-preview-tts` | 음성 합성(플러스 전용) |
+| `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` | 음성 합성(플러스 전용). 2026-10-09 무료 등급으로 동작 확인, 더 싼 `gemini-3.8-flash-lite-tts`도 됨 |
 
 `-latest` 별칭은 Google이 새 버전으로 자동으로 바꾼다. 결과가 갑자기 달라지는 게 싫으면 키를 넣는 날 고정 버전으로 바꾼다.
