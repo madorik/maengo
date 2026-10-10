@@ -11,18 +11,6 @@ export function LoginButtons({ demo }: { demo: boolean }) {
       <button
         type="submit"
         name="provider"
-        value="apple"
-        disabled={pending}
-        className="btn btn-ink w-full"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 fill-white">
-          <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45z" />
-        </svg>
-        {busy("apple") ? "들어가는 중" : "Apple로 계속하기"}
-      </button>
-      <button
-        type="submit"
-        name="provider"
         value="google"
         disabled={pending}
         className="btn btn-ghost w-full"
@@ -34,6 +22,18 @@ export function LoginButtons({ demo }: { demo: boolean }) {
           <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
         </svg>
         {busy("google") ? "들어가는 중" : "Google로 계속하기"}
+      </button>
+      <button
+        type="submit"
+        name="provider"
+        value="apple"
+        disabled={pending}
+        className="btn btn-ink w-full"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 fill-white">
+          <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45z" />
+        </svg>
+        {busy("apple") ? "들어가는 중" : "Apple로 계속하기"}
       </button>
       {demo && (
         <button type="submit" name="provider" value="demo" disabled={pending} className="mt-1 min-h-11 text-[14px] font-extrabold text-sky hover:underline">
