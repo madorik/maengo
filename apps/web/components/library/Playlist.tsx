@@ -7,7 +7,8 @@ import { useProfile } from "@/components/providers/ProfileProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { PLAYLIST_MAX } from "@/lib/playlist";
 
-// 보관함 플레이리스트(Premium). '골라 듣기'를 누르고 카드를 고르면 고른 순서대로 번호가 붙고, 아래 막대의 '듣기'로 이어 듣는다.
+// 보관함 플레이리스트(Premium). '골라 듣기'를 누르고 카드를 고르면 고른 순서대로 번호가 붙고, 제목 줄의 'n개 듣기'로 이어 듣는다.
+// 고르는 동안 제목 줄은 화면 위(상단바 아래)에 붙어 있어 아래로 내려가도 바로 누를 수 있고, 오른쪽 아래 듣기 창을 가리지 않는다.
 // 재생은 오늘 듣기와 같은 플레이어(PlayerProvider.playPlaylist)라 화면을 옮겨도 이어지고, 오른쪽 아래 듣기 창에서 조작한다.
 // 고른 것은 쪽·카테고리를 옮겨도 남는다(보관함 화면 안에서는 이 Provider가 그대로 유지된다).
 
@@ -41,32 +42,67 @@ export function PlaylistPicker({ children }: { children: React.ReactNode }) {
     },
     toggle: (id) => setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= PLAYLIST_MAX ? prev : [...prev, id])),
   };
-  return (
-    <PickContext.Provider value={api}>
-      {children}
-      <PickBar />
-    </PickContext.Provider>
-  );
+  return <PickContext.Provider value={api}>{children}</PickContext.Provider>;
 }
 
-/** 제목 옆 '골라 듣기'(고르는 중에는 '취소'). Free는 Premium 배지와 함께 막아 둔다 */
-export function PickButton() {
+/** 보관함 제목 줄. 고르는 동안은 위에 붙고 '취소'·'n개 듣기'가 된다. Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다 */
+export function LibraryHeader({ total }: { total: number }) {
   const profile = useProfile();
   const pick = usePick();
-  if (!profile.audio) {
-    return (
+  const p = usePlayer();
+  const n = pick.ids.length;
+  const play = () => {
+    p.playPlaylist(pick.ids);
+    pick.setPicking(false);
+  };
+
+  let controls: React.ReactNode = null;
+  if (total > 0 && !profile.audio) {
+    controls = (
       <span aria-disabled="true" title="골라 듣기는 Premium에서 쓸 수 있어요" className="inline-flex min-h-11 cursor-not-allowed items-center gap-1.5 text-[14px] font-extrabold text-faint">
         <IconHeadphones className="size-4" />
         골라 듣기
         <PremiumBadge />
       </span>
     );
+  } else if (pick.picking) {
+    controls = (
+      <span className="flex shrink-0 items-center gap-2">
+        <button type="button" onClick={() => pick.setPicking(false)} className="btn btn-ghost min-h-11 px-4 text-[14px]">
+          취소
+        </button>
+        <button type="button" onClick={play} disabled={!n} className="btn btn-sky inline-flex min-h-11 items-center gap-1.5 px-4 text-[14px]">
+          <IconPlay className="size-4" />
+          {n ? `${n}개 듣기` : "듣기"}
+        </button>
+      </span>
+    );
+  } else if (total > 0) {
+    controls = (
+      <button type="button" onClick={() => pick.setPicking(true)} className="btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-4 text-[14px]">
+        <IconHeadphones className="size-4" />
+        골라 듣기
+      </button>
+    );
   }
+
   return (
-    <button type="button" onClick={() => pick.setPicking(!pick.picking)} aria-pressed={pick.picking} className="btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-4 text-[14px]">
-      {!pick.picking && <IconHeadphones className="size-4" />}
-      {pick.picking ? "취소" : "골라 듣기"}
-    </button>
+    <div
+      className={`flex flex-wrap items-center justify-between gap-x-3 px-1 ${
+        // 상단바(모바일 56px + 테두리) 아래에 붙인다. 데스크톱은 상단바가 없다
+        pick.picking ? "sticky top-[calc(58px+env(safe-area-inset-top))] z-30 -mx-4 border-b-2 border-line bg-white px-5 py-2 lg:top-0" : ""
+      }`}
+    >
+      <h1 className="text-[28px] font-black tracking-[-0.03em]">
+        보관함 <span className="font-round text-[20px] text-faint">{total}</span>
+      </h1>
+      {controls}
+      {pick.full && (
+        <p role="status" className="basis-full pb-1 text-[13px] font-bold text-mango-deep">
+          한 번에 {PLAYLIST_MAX}개까지 고를 수 있어요
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -92,30 +128,5 @@ export function PickTarget({ id, title }: { id: number; title: string }) {
         {on ? order : ""}
       </span>
     </button>
-  );
-}
-
-/** 고르는 중에 화면 아래에 뜨는 듣기 막대 */
-function PickBar() {
-  const pick = usePick();
-  const p = usePlayer();
-  if (!pick.picking) return null;
-  const n = pick.ids.length;
-  const play = () => {
-    p.playPlaylist(pick.ids);
-    pick.setPicking(false);
-  };
-  return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-50 px-3 lg:bottom-6">
-      <div className="rise tile pointer-events-auto mx-auto flex max-w-[648px] items-center gap-3 p-2 pl-4 shadow-[0_16px_48px_rgb(31_35_64/0.2)]">
-        <p aria-live="polite" className="min-w-0 flex-1 text-[14px] font-bold text-mango-deep">
-          {pick.full ? `한 번에 ${PLAYLIST_MAX}개까지 고를 수 있어요` : ""}
-        </p>
-        <button type="button" onClick={play} disabled={!n} className="btn btn-sky inline-flex min-h-12 shrink-0 items-center gap-1.5 px-5 text-[15px]">
-          <IconPlay className="size-5" />
-          {n ? `${n}개 듣기` : "듣기"}
-        </button>
-      </div>
-    </div>
   );
 }

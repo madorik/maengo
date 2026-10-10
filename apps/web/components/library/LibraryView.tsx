@@ -4,7 +4,7 @@ import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { LibraryData, LibraryEntry } from "@/lib/types";
-import { PickButton, PickTarget, PlaylistPicker } from "./Playlist";
+import { LibraryHeader, PickTarget, PlaylistPicker } from "./Playlist";
 
 // 보관함: 지금까지 받은 피드 전체. 서버에서 그린다(페이지·카테고리는 주소의 ?page=&category=).
 // '골라 듣기'로 고른 소식을 이어 듣는다(Playlist.tsx, Premium).
@@ -21,12 +21,7 @@ export function LibraryView({ lib }: { lib: LibraryData }) {
   return (
     <div className="mx-auto max-w-[680px] px-4 py-6 lg:py-10">
       <PlaylistPicker>
-        <div className="flex items-center justify-between gap-3 px-1">
-          <h1 className="text-[28px] font-black tracking-[-0.03em]">
-            보관함 <span className="font-round text-[20px] text-faint">{lib.total}</span>
-          </h1>
-          {lib.total > 0 && <PickButton />}
-        </div>
+        <LibraryHeader total={lib.total} />
 
         {lib.categories.length > 0 && (
           <nav aria-label="카테고리" className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-2">
