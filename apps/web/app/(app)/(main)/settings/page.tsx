@@ -1,6 +1,5 @@
 import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { Crown } from "@/components/icons";
 import Link from "next/link";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
@@ -9,12 +8,11 @@ import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { PushToggle } from "@/components/settings/PushToggle";
 import { TopicSettings } from "@/components/settings/TopicSettings";
 import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
-import { isAppUserAgent } from "@/lib/app-client";
 import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements, webPushTokens } from "@/lib/server/profile";
-import { BETA, PREMIUM_PRICE } from "@/lib/site";
+import { BETA } from "@/lib/site";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 
 export const metadata: Metadata = { title: "설정" };
@@ -41,8 +39,6 @@ function Section({ id, title, action, children }: { id: string; title: string; a
 
 export default async function SettingsPage() {
   const profile = await requireProfile();
-  // 앱에서는 가격을 말하지 않는다(애플 결제 규정. 결제는 사업자등록 뒤 인앱 결제로)
-  const inApp = isAppUserAgent((await headers()).get("user-agent"));
   const view = toProfileView(profile);
   const demoTools = demoToolsEnabled();
   const [topics, webTokens] = await Promise.all([userTopics(profile), webPushTokens(profile.id)]);
@@ -55,11 +51,7 @@ export default async function SettingsPage() {
       <div className="mt-6">
         <Section id="plan" title="플랜">
           {BETA ? (
-            <p className="text-sub">
-              {inApp
-                ? "지금은 베타 기간이라 모든 기능(Premium)을 무료로 써요."
-                : `지금은 베타 기간이라 모든 기능(Premium)을 무료로 써요. 정식 출시 후 Premium은 유료(${PREMIUM_PRICE})로 바뀌어요. 바뀌기 전에 미리 알려 드리고, 동의하지 않으면 결제되지 않아요.`}
-            </p>
+            <p className="text-sub">지금은 베타 기간이라 모든 기능(Premium)을 무료로 써요. 정식 출시 후 모든 사용자는 Free 플랜으로 돌아가요.</p>
           ) : (
             <p className="text-sub">{PLANS.find((p) => p.id === view.plan)!.desc}</p>
           )}
