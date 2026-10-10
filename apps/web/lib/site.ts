@@ -18,6 +18,15 @@ export const SITE_KEYWORDS = [
   "출근길 팟캐스트",
 ];
 
+// ---- 베타 ----
+/**
+ * 베타 기간(결제를 받기 전): 모든 회원이 기한 없는 Premium이고, 로고 옆에 Beta를 단다.
+ * 정식 출시 때 false로 바꾸고, 가입 트리거·기존 회원 플랜(supabase/migrations/…_beta_all_premium.sql)과 이용약관 6조를 다시 정한다.
+ */
+export const BETA = true;
+/** 정식 출시 뒤 Premium 가격. 베타 동안은 취소선을 긋고 0원으로 보여 준다 */
+export const PREMIUM_PRICE = "월 4,900원";
+
 // ---- 약관·개인정보 처리방침 ----
 /** 운영자이자 개인정보 보호책임자. 사업자등록 전이라 개인 이름으로 적는다 */
 export const OPERATOR_NAME = "정민균";

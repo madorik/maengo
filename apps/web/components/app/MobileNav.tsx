@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconClose, IconMenu } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
+import { BetaBadge } from "@/components/ui/BetaBadge";
 import { NavLinks } from "./NavLinks";
 
 /**
@@ -76,6 +77,7 @@ export function MobileNav() {
             <Link href="/" onClick={close} aria-label="맹고 소개" className="flex items-center gap-2 px-3 no-underline">
               <MangoIcon className="size-9" />
               <span className="text-[28px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
+              <BetaBadge />
             </Link>
             <button type="button" aria-label="메뉴 닫기" onClick={close} className="flex size-11 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-ink">
               <IconClose className="size-6 [stroke-width:2.4]" />

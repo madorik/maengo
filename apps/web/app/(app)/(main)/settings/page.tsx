@@ -12,6 +12,7 @@ import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
+import { BETA, PREMIUM_PRICE } from "@/lib/site";
 import { topicGroups, userTopics } from "@/lib/server/topics";
 
 export const metadata: Metadata = { title: "설정" };
@@ -45,7 +46,14 @@ export default async function SettingsPage() {
 
       <div className="mt-6">
         <Section id="plan" title="플랜">
-          <p className="text-sub">{PLANS.find((p) => p.id === view.plan)!.desc}</p>
+          {BETA ? (
+            <p className="text-sub">
+              지금은 베타 기간이라 모든 기능(Premium)을 무료로 써요. 정식 출시 후 Premium은 유료({PREMIUM_PRICE})로 바뀌어요. 바뀌기 전에 미리 알려 드리고, 동의하지
+              않으면 결제되지 않아요.
+            </p>
+          ) : (
+            <p className="text-sub">{PLANS.find((p) => p.id === view.plan)!.desc}</p>
+          )}
           {view.premiumDaysLeft !== null && (
             <p className="mt-1 text-[14px] font-bold text-sky-dark">가입 기념 Premium이 {view.premiumDaysLeft}일 남았어요. 지나면 Free로 바뀌어요.</p>
           )}
