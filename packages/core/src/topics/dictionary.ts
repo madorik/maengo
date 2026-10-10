@@ -5,7 +5,7 @@ import type { Topic } from '../types';
 // - 상세 관심사로 태그된 소식은 큰 분류에도 같이 태그한다(withParents). 그래서 "Tech"만 골라도 Spring 릴리즈 소식을 받는다.
 // - 이름·별칭으로 토픽 벡터를 만들고(tag 단계), 직접 적은 말을 사전에 연결한다(findTopicByName). 이름은 서로 겹치지 않게 둔다.
 // - DB topics 표와 같아야 한다(supabase/migrations/…_topics_v2.sql, …_news_sections.sql).
-// - K-Pop·K-뷰티·K-푸드는 뺐다(2026-10-11). 고른 사람은 생활/문화로 옮겼다.
+// - K-Pop·K-뷰티·K-푸드는 뺐다(2026-10-11). 고른 기록도 지웠다.
 
 /** 관심 분야(큰 분류). 처음 고르는 화면의 순서 */
 export const TOPIC_GROUPS: Topic[] = [
