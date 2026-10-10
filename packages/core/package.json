@@ -20,7 +20,8 @@
     "./youtube": "./src/util/youtube.ts",
     "./categories": "./src/categories.ts",
     "./josa": "./src/util/josa.ts",
-    "./gemini": "./src/ai/gemini.ts"
+    "./gemini": "./src/ai/gemini.ts",
+    "./plans": "./src/plans.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0"

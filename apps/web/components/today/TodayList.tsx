@@ -17,6 +17,7 @@ import type { FeedItem } from "@/lib/types";
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로 */
 export function TodayList() {
   const { data, game } = useToday();
+  const profile = useProfile();
   return (
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
@@ -50,7 +51,8 @@ export function TodayList() {
           <MakeToday reason={data.emptyReason} />
         )}
 
-        {data.hiddenCount > 0 && (
+        {/* 하루 개수를 넘는 소식 안내는 Free에게만(베타 동안 Premium도 5개라 숨긴 소식이 생긴다) */}
+        {data.hiddenCount > 0 && profile.plan === "free" && (
           <div className="tile mt-4 flex flex-col gap-4 border-dashed p-5 sm:flex-row sm:items-center">
             <div className="flex flex-1 items-center gap-3">
               <Mascot mood="listen" className="size-14 shrink-0" />

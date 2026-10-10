@@ -1,3 +1,4 @@
+import { dailyItemsFor } from '@maengo/core/plans';
 import { excludesCluster, type RankCandidate } from '@maengo/core/feed';
 import { tierOf } from '@maengo/core/ai';
 import { TOPICS } from '@maengo/core/topics';
@@ -36,7 +37,7 @@ export async function loadAudience(ctx: Ctx, onlyUserId?: string): Promise<Audie
   const byId = new Map<string, Audience>();
   for (const p of profiles) {
     const plan = effectivePlan(p.plan, p.premium_until, ctx.now);
-    byId.set(p.id, { id: p.id, plan, tier: tierOf(plan), dailyItems: plan === 'free' ? 1 : 10, weights: {}, exclude: new Set(), known: [] });
+    byId.set(p.id, { id: p.id, plan, tier: tierOf(plan), dailyItems: dailyItemsFor(plan), weights: {}, exclude: new Set(), known: [] });
   }
   const topics = await selectAll<{ user_id: string; topic_id: string; weight: number }>((f, t) => db.from('user_topics').select('user_id,topic_id,weight').in('user_id', ids).range(f, t));
   for (const r of topics) byId.get(r.user_id)!.weights[r.topic_id] = r.weight;

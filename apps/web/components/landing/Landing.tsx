@@ -84,7 +84,7 @@ export function Landing() {
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
               <AuthLink signedOut={{ href: "/login", label: "이미 계정이 있어요" }} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
-            <p className="mt-4 text-[13px] font-semibold text-sub">지금은 베타라 가입하면 Premium(하루 최대 10개, 오디오 듣기)을 무료로 써요. 정식 출시 후 유료로 바뀌기 전에 미리 알려 드려요.</p>
+            <p className="mt-4 text-[13px] font-semibold text-sub">지금은 베타라 가입하면 Premium(하루 5개 소식, 오디오 듣기)을 무료로 써요. 정식 출시 후 유료로 바뀌기 전에 미리 알려 드려요.</p>
           </div>
 
           <div aria-hidden="true" className="mx-auto w-full max-w-[460px] md:order-1">
@@ -246,7 +246,7 @@ export function Landing() {
                 price={BETA ? "0원" : PREMIUM_PRICE}
                 was={BETA ? PREMIUM_PRICE : undefined}
                 badge={BETA ? "베타 이벤트" : undefined}
-                items={["하루 최대 10개 소식", "오디오로 이어 듣기, 여성·남성 목소리", "더 좋은 AI 모델로 요약", "관심사 20개, 기타 10개"]}
+                items={[BETA ? "하루 최대 10개 소식(베타 기간 5개)" : "하루 최대 10개 소식", "오디오로 이어 듣기, 여성·남성 목소리", "더 좋은 AI 모델로 요약", "관심사 20개, 기타 10개"]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={BETA ? { signedOut: { href: "/login", label: "무료로 시작하기" }, signedIn: OPEN } : { signedOut: START, signedIn: { href: "/settings#plan", label: "플랜 보기" } }}
               />
@@ -357,7 +357,7 @@ function ListenPill() {
       </span>
       <span className="pr-1">
         <span className="block text-[14px] font-black">오늘 맹고 전체 듣기</span>
-        <span className="block text-[12px] font-bold text-sky">10개, 약 11분</span>
+        <span className="block text-[12px] font-bold text-sky">{BETA ? "5개, 약 6분" : "10개, 약 11분"}</span>
       </span>
       <span className="flex size-11 items-center justify-center rounded-full bg-sky text-white shadow-[0_3px_0_var(--color-sky-dark)]">
         <IconPlay className="size-5" />
