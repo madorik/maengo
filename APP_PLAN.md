@@ -92,6 +92,8 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 
 ### 2단계. 네이티브 로그인(2~3일)
 
+> 2026-10-11: 비공개 테스트를 먼저 하려고 아래 '대안'(시스템 브라우저 + 딥링크)으로 구현했다(사용자 결정). `/api/auth/app` → iOS ASWebAuthenticationSession(`ios/App/App/NativeAuth.swift`)·안드로이드 Custom Tabs → `kr.maengo.app://auth/callback?code=` → 웹뷰가 `/auth/callback?code=`. Supabase 허용 목록에 `kr.maengo.app://**`. 실기기 로그인 확인은 테스트 빌드로 한다. 네이티브 SDK 로그인은 나중에 바꿔도 된다.
+
 흐름: 앱 로그인 버튼 → `FirebaseAuthentication.signInWithApple()`/`signInWithGoogle()`(`skipNativeAuth`) → ID 토큰(애플은 nonce도) → `POST /api/auth/native {provider, idToken, nonce}` → 서버가 `supabaseAuth()`로 `signInWithIdToken` → 응답 쿠키에 세션 → `/today`(첫 로그인이면 `/onboarding`).
 
 - [ ] `/api/auth/native` 라우트(서버에서 세션을 만들어 쿠키를 쓰므로 웹 로그인과 같은 쿠키·proxy를 그대로 쓴다). 데모 세션 쿠키가 있으면 지운다(`/auth/callback`과 같게)
@@ -133,7 +135,8 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 
 - [x] **계정 삭제**(애플 필수): 설정 > 계정 > 계정 삭제 → 확인 → `deleteAccount`(app/actions.ts). 2026-10-10 완료
 - [x] **이용약관·개인정보 처리방침·계정 삭제 안내**: `/terms`, `/privacy`, `/delete-account`(2026-10-10). 앱에서 새로 처리하는 정보가 생기면(예: 분석 도구) `/privacy`와 시행일을 고친다. 스토어 등록 정보에 이 주소들을 건다
-- [ ] 앱 안에서 결제·가격 안내를 보이지 않게(iOS). Premium 상태 표시(왕관)는 그대로 둬도 된다
+- [x] 앱 안에서 결제·가격 안내를 보이지 않게(iOS). 설정의 베타 안내에서 앱이면 가격을 뺐다(2026-10-11). Premium 상태 표시(왕관)는 그대로
+- [ ] 스토어 등록·비공개 테스트: 순서·문구·답은 `apps/mobile/STORE.md`(2026-10-11 작성). Android 업로드 키 `~/.maengo/maengo-upload.jks`, iOS는 아이폰 전용·암호화 면제 선언
 - [ ] 스토어 등록 정보: 스크린샷(6.7·6.5인치 아이폰, 안드로이드 폰), 설명, 키워드, 연령 등급, 애플 개인정보 라벨, 플레이 데이터 보안 양식
 - [ ] 심사 메모: 로그인은 애플·구글뿐이라 심사자가 자기 계정으로 가입할 수 있다고 적는다. 첫 화면에서 "오늘 맹고 받기"를 눌러야 소식이 나온다고 적는다
 - [ ] 배포 경로: iOS TestFlight 내부 → 외부 테스트 → 심사. Android 내부 테스트 → **비공개 테스트(개인 개발자 계정은 테스터 12명 이상, 14일 연속)** → 프로덕션. 14일 조건 때문에 Android 비공개 테스트는 1~2단계가 끝나는 대로 일찍 시작한다
