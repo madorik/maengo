@@ -3,6 +3,7 @@ import { signIn } from "../actions";
 import Link from "next/link";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
+import { demoLoginEnabled } from "@/lib/server/demo";
 import { LoginButtons } from "./LoginButtons";
 
 export const metadata: Metadata = { title: "로그인", robots: { index: false, follow: true } };
@@ -37,11 +38,16 @@ export default async function LoginPage({ searchParams }: Props) {
             구글 로그인을 마치지 못했어요. 다시 눌러 주세요.
           </p>
         )}
-        <LoginButtons />
+        {error === "apple" && (
+          <p role="alert" className="text-center text-[14px] font-bold text-orange">
+            Apple 로그인은 아직 준비 중이에요. Google로 계속해 주세요.
+          </p>
+        )}
+        <LoginButtons appleReady={demoLoginEnabled()} />
         <p className="mt-2 text-center text-[12px] font-medium leading-relaxed text-sub">
           계속하면 이용약관과 개인정보 처리방침에 동의하게 돼요.
           <br />
-          Apple 로그인은 준비 중이라 지금은 데모 계정으로 들어가요.
+          {demoLoginEnabled() ? "Apple 로그인은 준비 중이라 지금은 데모 계정으로 들어가요." : "Apple 로그인은 곧 열려요."}
         </p>
       </form>
     </div>

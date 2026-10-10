@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
 import { rebuildFeed } from "@/lib/server/feed";
+import { demoLoginEnabled, demoToolsEnabled } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
 import { addTopics, addTopicsFromText, removeTopic } from "@/lib/server/topics";
@@ -40,6 +41,7 @@ export async function signIn(formData: FormData) {
     if (error || !data.url) redirect("/login?error=google");
     redirect(data.url);
   }
+  if (!demoLoginEnabled()) redirect("/login?error=apple");
   jar.set(SESSION_COOKIE, await signSession({ userId: demoUserId(), provider: "apple" }), { ...cookieOpts, httpOnly: true });
   jar.set(SIGNED_IN_HINT, "1", cookieOpts);
   redirect("/today");
@@ -106,7 +108,7 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
 
 export async function demoSetPlan(formData: FormData) {
   const plan = formData.get("plan") as Plan;
-  if (!["free", "trial", "plus"].includes(plan)) return;
+  if (!demoToolsEnabled() || !["free", "trial", "plus"].includes(plan)) return;
   const profile = await requireProfile();
   const trialEndsAt = plan === "trial" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : null;
   must(await db.from("profiles").update({ plan, trial_ends_at: trialEndsAt }).eq("id", profile.id), "profiles plan");
@@ -115,6 +117,7 @@ export async function demoSetPlan(formData: FormData) {
 
 /** 오늘 피드를 이미 요약된 소식으로 다시 고른다(LLM 호출 없음) */
 export async function demoRebuildFeed() {
+  if (!demoToolsEnabled()) return;
   const profile = await requireProfile();
   await rebuildFeed(profile);
   revalidatePath("/", "layout");
@@ -122,6 +125,7 @@ export async function demoRebuildFeed() {
 
 /** 읽음·피드백을 지우고 토픽 가중치를 1로 되돌린 뒤 오늘 피드를 다시 고른다 */
 export async function demoReset() {
+  if (!demoToolsEnabled()) return;
   const profile = await requireProfile();
   must(await db.from("feedback").delete().eq("user_id", profile.id), "feedback reset");
   must(await db.from("reads").delete().eq("user_id", profile.id), "reads reset");

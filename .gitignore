@@ -9,3 +9,6 @@ next-env.d.ts
 
 # 듣기 음성 로컬 캐시(R2 붙기 전까지)
 .cache/
+
+# Vercel CLI 연결 정보
+.vercel

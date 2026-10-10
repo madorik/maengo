@@ -205,6 +205,8 @@ completeOnboarding({
 - **랭킹**: 요약된 묶음만 후보. 웹이 배치 전에 만든 임시 피드(`feed_days.built_by='web'`)는 다시 만든다
 - **웹**: 메모리 데모를 걷어 내고 Supabase를 읽는다(service role + user_id 조건, 실제 로그인 붙으면 RLS 클라이언트로). 웹은 LLM을 부르지 않는다
 
+배포(2026-10-10): 웹은 Vercel(https://maengo.vercel.app, 서울 리전), 로그인은 구글(Supabase Auth) + 처음 들어오면 관심사 고르기. 공개 배포에서는 데모 로그인·데모 도구를 끈다.
+
 ### 6.1 실행
 
 - GitHub Actions `daily.yml`, `cron: '0 19 * * *'`(UTC) = 매일 04:00 KST. Actions 예약 실행은 붐빌 때 늦어질 수 있어 첫 알림(06:30)까지 2시간 반의 여유를 둔다.
