@@ -1,18 +1,15 @@
 "use client";
 
-import type { Persona } from "@maengo/core/types";
 import { useState } from "react";
-import { IconCap, IconChat, IconMic, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
-import { PersonaPicker, VoicePicker } from "@/components/listen/controls";
+import { IconMic, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
+import { VoicePicker } from "@/components/listen/controls";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Sheet } from "@/components/ui/Sheet";
-import { personaName } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
 
-const PERSONA_ICON: Record<Persona, typeof IconMic> = { announcer: IconMic, teacher: IconCap, dialogue: IconChat };
 
 /** 상세 화면 아래 "이 글 듣기" 막대가 쓰는 조작 묶음. 오늘 글과 지난 글이 같은 막대를 쓴다 */
 export interface ListenBarCtl {
@@ -34,19 +31,18 @@ export interface ListenBarCtl {
 export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
   const p = usePlayer();
   const [sheet, setSheet] = useState(false);
-  const PersonaIcon = PERSONA_ICON[p.persona];
   const playing = ctl.state === "playing";
 
   const personaButton = (
     <button
       type="button"
       aria-haspopup="dialog"
-      aria-label={`말투 바꾸기, 지금 ${personaName(p.persona)}`}
+      aria-label={`목소리 바꾸기, 지금 ${p.voice === "f" ? "여성" : "남성"}`}
       onClick={() => setSheet(true)}
       className="btn btn-ghost min-h-12 shrink-0 px-3 text-[14px]"
     >
-      <PersonaIcon className="size-5 text-sky" />
-      <span className="hidden sm:inline">{personaName(p.persona)}</span>
+      <IconMic className="size-5 text-sky" />
+      <span className="hidden sm:inline">{p.voice === "f" ? "여성" : "남성"}</span>
     </button>
   );
 
@@ -90,7 +86,6 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between text-[13px] font-extrabold">
             <span className="truncate text-sky">
-              {playing && <span className="hidden sm:inline">{personaName(p.persona)} 말투로 </span>}
               {playing ? "듣는 중" : "멈춤"}
             </span>
             <span className="shrink-0 whitespace-nowrap tabular-nums text-sub">
@@ -148,10 +143,9 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
       <div className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-line bg-white">
         <div className="mx-auto max-w-[720px] px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">{body}</div>
       </div>
-      <Sheet title="말투와 목소리" open={sheet} onClose={() => setSheet(false)}>
-        <PersonaPicker />
+      <Sheet title="목소리" open={sheet} onClose={() => setSheet(false)}>
         <VoicePicker />
-        <p className="mt-3 text-[13px] font-semibold text-sub">고르면 바로 저장돼요. 다음에 들을 때도 이 말투로 시작해요.</p>
+        <p className="mt-3 text-[13px] font-semibold text-sub">고르면 바로 저장돼요. 다음에 들을 때도 이 목소리로 시작해요.</p>
       </Sheet>
     </>
   );

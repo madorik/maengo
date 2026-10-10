@@ -131,14 +131,13 @@ export async function saveNotifyAt(_prev: NotifyResult | null, formData: FormDat
   return { notifyAt: value, tone: "ok", message: `알림 시간을 ${josa(notifyTimeLabel(value), "으로", "로")} 바꿨어요.` };
 }
 
-const PERSONAS: Persona[] = ["announcer", "teacher", "dialogue"];
 const VOICES: Voice[] = ["f", "m"];
 
 export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice; autoNext?: boolean; skipRead?: boolean }) {
   const profile = await currentProfile();
   if (!profile) return;
   const patch: Record<string, unknown> = {};
-  if (prefs.persona && PERSONAS.includes(prefs.persona)) patch.persona = prefs.persona;
+  // 말투는 아나운서 하나로 고정이라 받지 않는다(core/audio의 PERSONA)
   if (prefs.voice && VOICES.includes(prefs.voice)) patch.voice = prefs.voice;
   if (typeof prefs.autoNext === "boolean") patch.auto_next = prefs.autoNext;
   if (typeof prefs.skipRead === "boolean") patch.skip_read = prefs.skipRead;
