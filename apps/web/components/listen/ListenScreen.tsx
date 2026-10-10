@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
-import { IconClose, IconList, IconMic, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { IconClose, IconList, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -11,7 +11,7 @@ import { Bubble } from "@/components/ui/Bubble";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel } from "@/lib/player/labels";
 import { formatClock, startIndex } from "@/lib/player/machine";
-import { Queue, Switch, VoicePicker } from "./controls";
+import { Queue, Switch } from "./controls";
 import { PlusLock } from "./PlusLock";
 
 /** 듣기 화면(오늘 피드). 보관함 플레이리스트를 듣는 중이면 오늘로 돌아가는 버튼만 보여 준다(대본 화면은 오늘 피드용) */
@@ -38,7 +38,7 @@ export function ListenScreen() {
 function TodayListenScreen() {
   const p = usePlayer();
   const { data, read, game } = useToday();
-  const [sheet, setSheet] = useState<"voice" | "queue" | null>(null);
+  const [sheet, setSheet] = useState(false);
 
   const playing = p.status === "playing";
   const active = p.cur >= 0;
@@ -146,12 +146,8 @@ function TodayListenScreen() {
               <IconNext className="size-6" />
             </button>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <button type="button" aria-haspopup="dialog" onClick={() => setSheet("voice")} className="btn btn-ghost min-h-12 px-3 text-[15px]">
-              <IconMic className="size-5 text-sky" />
-              {p.voice === "f" ? "여성 목소리" : "남성 목소리"}
-            </button>
-            <button type="button" aria-haspopup="dialog" onClick={() => setSheet("queue")} className="btn btn-ghost min-h-12 px-3 text-[15px]">
+          <div className="mt-5">
+            <button type="button" aria-haspopup="dialog" onClick={() => setSheet(true)} className="btn btn-ghost min-h-12 w-full px-3 text-[15px]">
               <IconList className="size-5 text-sky" />
               목록과 설정
             </button>
@@ -159,14 +155,10 @@ function TodayListenScreen() {
         </div>
       </footer>
 
-      <Sheet title="목소리" open={sheet === "voice"} onClose={() => setSheet(null)}>
-        <VoicePicker />
-        <p className="mt-3 text-[13px] font-semibold text-sub">고르면 바로 저장돼요. 다음에 들을 때도 이 목소리로 시작해요.</p>
-      </Sheet>
-      <Sheet title="재생 목록" open={sheet === "queue"} onClose={() => setSheet(null)}>
+      <Sheet title="재생 목록" open={sheet} onClose={() => setSheet(false)}>
         <Switch label="다음 소식 자동 재생" note={p.autoNext ? "한 번 누르면 끝까지 이어서 들어요" : "소식 하나가 끝나면 멈춰요"} checked={p.autoNext} onChange={p.setAutoNext} />
         <Switch label="읽은 소식은 건너뛰기" checked={p.skipRead} onChange={p.setSkipRead} />
-        <Queue onPick={() => setSheet(null)} />
+        <Queue onPick={() => setSheet(false)} />
       </Sheet>
     </div>
   );
