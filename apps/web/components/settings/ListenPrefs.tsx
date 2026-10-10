@@ -44,7 +44,6 @@ export function ListenPrefs({ audio }: { audio: boolean }) {
 
   return (
     <>
-      <p className="text-sub">듣기를 누르면 아나운서 말투로 읽어 드려요. 목소리만 골라 주세요. 듣는 중에도 듣기 창에서 바꿀 수 있어요.</p>
       <audio
         ref={ref}
         preload="none"
@@ -56,7 +55,7 @@ export function ListenPrefs({ audio }: { audio: boolean }) {
           setFailed(current.current);
         }}
       />
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {VOICES.map((v) => {
           const on = v.id === p.voice;
           const label = `${v.label} 목소리`;
