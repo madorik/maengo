@@ -34,7 +34,6 @@ export default function DeleteAccountPage() {
         <li>관심사(&lsquo;기타&rsquo;에 직접 적은 관심사 포함)</li>
         <li>받은 맹고 목록, 읽음·들음 기록, 좋아요·싫어요</li>
         <li>알림 시각, 듣기 설정, 플랜과 Premium 기간</li>
-        <li>앱 알림 토큰</li>
       </ul>
 
       <h2>남는 정보</h2>
