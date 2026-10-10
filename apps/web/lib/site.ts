@@ -25,7 +25,9 @@ export const SITE_KEYWORDS = [
  */
 export const BETA = true;
 /** 정식 출시 뒤 Premium 가격. 베타 동안은 취소선을 긋고 0원으로 보여 준다 */
-export const PREMIUM_PRICE = "월 4,900원";
+export const PREMIUM_PRICE = "월 5,900원";
+/** 구조화 데이터(JSON-LD)에 쓰는 숫자 가격 */
+export const PREMIUM_PRICE_KRW = 5900;
 
 // ---- 약관·개인정보 처리방침 ----
 /** 운영자이자 개인정보 보호책임자. 사업자등록 전이라 개인 이름으로 적는다 */
