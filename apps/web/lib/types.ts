@@ -117,7 +117,7 @@ export interface LibraryData {
 export type TopicResult = { tone: 'ok' | 'warn'; message: string };
 
 export interface UserTopic {
-  /** 키워드(목록에 없는 말을 직접 적어 넣은 것)인지 */
+  /** 기타(목록에 없어 직접 적은 관심사)인지 */
   custom?: boolean;
   id: string;
   name: string;
