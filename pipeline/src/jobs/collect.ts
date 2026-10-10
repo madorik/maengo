@@ -71,12 +71,20 @@ export async function collect(ctx: Ctx) {
     published_at: new Date(Math.min(entry.publishedAt?.getTime() ?? now, now)).toISOString(),
     // 해커 뉴스 설명은 점수·댓글 링크뿐이라 버린다
     excerpt: source.kind === 'hn' ? null : entry.excerpt || null,
+    views: entry.views,
+    hn_points: entry.hnPoints,
   }));
   await inChunks(rows, 200, async (chunk) => {
     check(await db.from('items').upsert(chunk, { onConflict: 'canonical_url', ignoreDuplicates: true }), 'items insert');
   });
 
-  ctx.stats.collect = { sources: sources.length, failed: failed.length, entries: byUrl.size, inserted: rows.length };
-  ctx.log(`collect: 출처 ${sources.length}곳(실패 ${failed.length}) · 글 ${byUrl.size}개 중 새 글 ${rows.length}개`);
+  // 이미 받은 글의 조회수·점수는 시간이 지나며 늘어나므로 새 값으로 바꾼다(유튜브·해커 뉴스만이라 몇십 개)
+  const stale = [...byUrl].filter(([url, { entry }]) => existing.has(url) && (entry.views != null || entry.hnPoints != null));
+  await mapLimit(stale, 8, async ([url, { entry }]) => {
+    check(await db.from('items').update({ views: entry.views, hn_points: entry.hnPoints }).eq('canonical_url', url), 'items popularity');
+  });
+
+  ctx.stats.collect = { sources: sources.length, failed: failed.length, entries: byUrl.size, inserted: rows.length, popularityUpdated: stale.length };
+  ctx.log(`collect: 출처 ${sources.length}곳(실패 ${failed.length}) · 글 ${byUrl.size}개 중 새 글 ${rows.length}개 · 조회수·점수 갱신 ${stale.length}개`);
   for (const f of failed) ctx.log(`  수집 실패 ${f}`);
 }

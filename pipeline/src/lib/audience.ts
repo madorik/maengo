@@ -1,5 +1,5 @@
 import { dailyItemsFor } from '@maengo/core/plans';
-import { excludesCluster, type RankCandidate } from '@maengo/core/feed';
+import { excludesCluster, popularityBoost, type RankCandidate } from '@maengo/core/feed';
 import { tierOf } from '@maengo/core/ai';
 import { TOPICS } from '@maengo/core/topics';
 import type { FeedbackKind, Plan, Tier, Topic } from '@maengo/core/types';
@@ -70,6 +70,19 @@ export interface Candidate extends RankCandidate {
   centroid: number[] | null;
 }
 
+/** 묶음의 대표 글. 출처 가중치와 인기(조회수·점수)를 랭킹에 넘긴다 */
+interface RepItem {
+  id: number;
+  source_id: number | null;
+  views: number | null;
+  hn_points: number | null;
+  published_at: string | null;
+}
+
+function popularityOf(rep: RepItem | undefined, now: Date): number {
+  return rep ? popularityBoost({ sourceWeight: 1, views: rep.views, hnPoints: rep.hn_points, publishedAt: rep.published_at }, now) : 1;
+}
+
 /**
  * 지난 7일 묶음 중 토픽이 붙은 것. 요약이 없는 것은 freshHours 안의 것만.
  * 중심 벡터(묶음당 수 KB)는 "이미 알아요"와 비슷한 소식을 뺄 때만 필요해서 centroids로 고른다.
@@ -83,7 +96,7 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
   const ids = clusters.map((c) => c.id);
   const topics = new Map<number, { topicId: string; relevance: number }[]>();
   const summarized = new Set<number>();
-  const repSource = new Map<number, number>();
+  const repItems = new Map<number, RepItem>();
   await inChunks(ids, 200, async (chunk) => {
     const ct = check(await db.from('cluster_topics').select('cluster_id,topic_id,relevance').in('cluster_id', chunk), 'cluster_topics') as { cluster_id: number; topic_id: string; relevance: number }[];
     for (const r of ct) (topics.get(r.cluster_id) ?? topics.set(r.cluster_id, []).get(r.cluster_id)!).push({ topicId: r.topic_id, relevance: r.relevance });
@@ -92,8 +105,8 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
   });
   const repIds = clusters.map((c) => c.rep_item_id).filter((x): x is number => x != null);
   await inChunks(repIds, 200, async (chunk) => {
-    const rows = check(await db.from('items').select('id,source_id').in('id', chunk), 'items') as { id: number; source_id: number | null }[];
-    for (const r of rows) if (r.source_id != null) repSource.set(r.id, r.source_id);
+    const rows = check(await db.from('items').select('id,source_id,views,hn_points,published_at').in('id', chunk), 'items') as RepItem[];
+    for (const r of rows) repItems.set(r.id, r);
   });
   const weights = new Map((check(await db.from('sources').select('id,weight'), 'sources') as { id: number; weight: number }[]).map((s) => [s.id, s.weight]));
 
@@ -103,7 +116,8 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
     .map((c) => ({
       id: c.id,
       ageHours: (ctx.now.getTime() - Date.parse(c.first_seen_at)) / HOUR,
-      sourceWeight: weights.get(repSource.get(c.rep_item_id ?? -1) ?? -1) ?? 1,
+      sourceWeight: weights.get(repItems.get(c.rep_item_id ?? -1)?.source_id ?? -1) ?? 1,
+      popularity: popularityOf(repItems.get(c.rep_item_id ?? -1), ctx.now),
       size: c.size,
       isVideo: c.is_video,
       topics: topics.get(c.id)!,

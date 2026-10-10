@@ -136,14 +136,20 @@ function summarizeSchema(topicIds: string[], video: boolean) {
 
 function sourceBlock(input: SummarizeInput): string {
   return input.sources
-    .map((s, i) =>
-      [
+    .map((s, i) => {
+      const signals = [
+        s.credibility ? `출처 신뢰도: ${s.credibility}` : '',
+        s.views != null ? `조회수: ${s.views.toLocaleString('ko-KR')}회` : '',
+        s.hnPoints != null ? `해커 뉴스 점수: ${s.hnPoints}` : '',
+      ].filter(Boolean);
+      return [
         `[글 ${i + 1}] ${s.title}`,
         `출처: ${s.sourceName}${s.author ? ` / 글쓴이: ${s.author}` : ''}${s.publishedAt ? ` / 작성: ${s.publishedAt}` : ''}`,
+        ...(signals.length ? [signals.join(' / ')] : []),
         `주소: ${s.url}`,
         s.text ? `본문:\n${s.text}` : '본문: (없음)',
-      ].join('\n'),
-    )
+      ].join('\n');
+    })
     .join('\n\n');
 }
 

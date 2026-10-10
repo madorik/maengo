@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { clip, htmlToText } from './text';
 
 // RSS 2.0·Atom·유튜브 채널 피드를 한 모양으로 읽는다.
+// 인기 신호도 읽는다: 유튜브 조회수(media:statistics views), 해커 뉴스 점수(hnrss 설명의 "Points: N").
 
 export interface FeedEntry {
   url: string;
@@ -10,6 +11,20 @@ export interface FeedEntry {
   publishedAt: Date | null;
   excerpt: string;
   videoId: string | null;
+  views: number | null;
+  hnPoints: number | null;
+}
+
+function count(raw: unknown): number | null {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+}
+
+/** hnrss 설명(HTML)의 "Points: 260". 해커 뉴스 글이 아니면 null */
+function hnPointsOf(desc: string): number | null {
+  if (!desc.includes('news.ycombinator.com/item')) return null;
+  const m = /Points:\s*(\d+)/.exec(desc);
+  return m ? count(m[1]) : null;
 }
 
 const parser = new XMLParser({
@@ -71,6 +86,8 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
         publishedAt: parseDate(text(it.pubDate) || text(it['dc:date']), lang),
         excerpt: clip(htmlToText(desc), 600),
         videoId: null,
+        views: null,
+        hnPoints: hnPointsOf(desc),
       });
     }
   } else if (doc.feed) {
@@ -78,7 +95,8 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
       const videoId = text(e['yt:videoId']) || null;
       const url = videoId ? `https://www.youtube.com/watch?v=${videoId}` : atomLink(e.link);
       if (!url) continue;
-      const desc = videoId ? text(e['media:group']?.['media:description']) : text(e.summary) || text(e.content);
+      const group = e['media:group'];
+      const desc = videoId ? text(group?.['media:description']) : text(e.summary) || text(e.content);
       out.push({
         url: url.trim(),
         title: htmlToText(text(e.title)),
@@ -86,6 +104,8 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
         publishedAt: parseDate(text(e.published) || text(e.updated), lang),
         excerpt: clip(htmlToText(desc), 600),
         videoId,
+        views: videoId ? count(group?.['media:community']?.['media:statistics']?.['@_views']) : null,
+        hnPoints: null,
       });
     }
   }

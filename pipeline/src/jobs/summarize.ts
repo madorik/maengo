@@ -1,5 +1,5 @@
 import { modelFor } from '@maengo/core/ai';
-import { rankFeed } from '@maengo/core/feed';
+import { credibilityLabel, itemQuality, rankFeed } from '@maengo/core/feed';
 import { GeminiQuotaError, PROMPT_VERSION } from '@maengo/core/gemini';
 import { TOPIC_BY_ID, whyLead, withParents } from '@maengo/core/topics';
 import type { SummarizeSource } from '@maengo/core/ai';
@@ -27,6 +27,8 @@ interface MemberRow {
   published_at: string | null;
   excerpt: string | null;
   source_id: number | null;
+  views: number | null;
+  hn_points: number | null;
   sources: { name: string; weight: number } | null;
 }
 
@@ -42,15 +44,16 @@ export async function summarizeCluster(
   const members = check(
     await db
       .from('items')
-      .select('id,canonical_url,title,kind,author,published_at,excerpt,source_id,sources(name,weight)')
+      .select('id,canonical_url,title,kind,author,published_at,excerpt,source_id,views,hn_points,sources(name,weight)')
       .eq('cluster_id', clusterId),
     'members',
   ) as unknown as MemberRow[];
   const { data: cluster } = await db.from('clusters').select('rep_item_id').eq('id', clusterId).single();
   if (!members.length) return 'failed';
-  members.sort((a, b) =>
-    a.id === cluster?.rep_item_id ? -1 : b.id === cluster?.rep_item_id ? 1 : (b.sources?.weight ?? 1) - (a.sources?.weight ?? 1),
-  );
+  // 대표 글을 맨 앞에, 나머지는 출처 신빙성 × 인기 순. 앞의 글일수록 본문을 길게 읽고 프롬프트도 사실의 기준으로 삼는다
+  const quality = (m: MemberRow) =>
+    itemQuality({ sourceWeight: m.sources?.weight ?? 1, views: m.views, hnPoints: m.hn_points, publishedAt: m.published_at }, ctx.now);
+  members.sort((a, b) => (a.id === cluster?.rep_item_id ? -1 : b.id === cluster?.rep_item_id ? 1 : quality(b) - quality(a)));
   const rep = members[0]!;
   const picked = members.slice(0, 3);
 
@@ -77,6 +80,9 @@ export async function summarizeCluster(
         url: m.canonical_url,
         author: m.author,
         publishedAt: m.published_at,
+        credibility: credibilityLabel(m.sources?.weight ?? 1),
+        views: m.views,
+        hnPoints: m.hn_points,
         text: body.length >= 200 ? body : m.excerpt ?? '',
       };
     }),

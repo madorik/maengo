@@ -2,7 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { modelFor, tierOf } from '@maengo/core/ai';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
-import { excludesCluster, feedbackDelta, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
+import { excludesCluster, feedbackDelta, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
 import { kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
@@ -58,14 +58,19 @@ async function summarizedCandidates(): Promise<RankCandidate[]> {
   const rows = must(
     await db
       .from('summaries')
-      .select('cluster_id, clusters!inner(first_seen_at,size,is_video,skip_reason,rep:items!clusters_rep_item_id_fkey(sources(weight)))')
+      .select('cluster_id, clusters!inner(first_seen_at,size,is_video,skip_reason,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight)))')
       .eq('tier', 'basic')
       .gte('clusters.first_seen_at', since)
       .is('clusters.skip_reason', null),
     'candidates',
   ) as unknown as {
     cluster_id: number;
-    clusters: { first_seen_at: string; size: number; is_video: boolean; rep: { sources: { weight: number } | null } | null };
+    clusters: {
+      first_seen_at: string;
+      size: number;
+      is_video: boolean;
+      rep: { views: number | null; hn_points: number | null; published_at: string | null; sources: { weight: number } | null } | null;
+    };
   }[];
   if (!rows.length) return [];
   const topics = must(
@@ -74,17 +79,21 @@ async function summarizedCandidates(): Promise<RankCandidate[]> {
   ) as { cluster_id: number; topic_id: string; relevance: number }[];
   const byCluster = new Map<number, { topicId: string; relevance: number }[]>();
   for (const t of topics) (byCluster.get(t.cluster_id) ?? byCluster.set(t.cluster_id, []).get(t.cluster_id)!).push({ topicId: t.topic_id, relevance: t.relevance });
-  const now = Date.now();
+  const now = new Date();
   return rows
     .filter((r) => byCluster.has(r.cluster_id))
-    .map((r) => ({
-      id: r.cluster_id,
-      ageHours: (now - Date.parse(r.clusters.first_seen_at)) / HOUR,
-      sourceWeight: r.clusters.rep?.sources?.weight ?? 1,
-      size: r.clusters.size,
-      isVideo: r.clusters.is_video,
-      topics: byCluster.get(r.cluster_id)!,
-    }));
+    .map((r) => {
+      const rep = r.clusters.rep;
+      return {
+        id: r.cluster_id,
+        ageHours: (now.getTime() - Date.parse(r.clusters.first_seen_at)) / HOUR,
+        sourceWeight: rep?.sources?.weight ?? 1,
+        popularity: rep ? popularityBoost({ sourceWeight: 1, views: rep.views, hnPoints: rep.hn_points, publishedAt: rep.published_at }, now) : 1,
+        size: r.clusters.size,
+        isVideo: r.clusters.is_video,
+        topics: byCluster.get(r.cluster_id)!,
+      };
+    });
 }
 
 async function buildToday(profile: Profile, date: string): Promise<FeedRow[]> {
