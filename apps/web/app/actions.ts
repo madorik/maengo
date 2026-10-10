@@ -85,7 +85,10 @@ export async function completeOnboarding(formData: FormData) {
     );
   }
   // 분야는 이미 넣었으니 기타가 막히면 다시 제출할 때 같은 분야를 덮어쓴다
-  if (etcText && (await addCustomTopics(profile, etcText)).tone === "warn") redirect("/onboarding?error=etc");
+  if (etcText) {
+    const r = await addCustomTopics(profile, etcText);
+    if (r.tone === "warn") redirect(`/onboarding?error=${r.code === "adult" ? "adult" : "etc"}`);
+  }
   must(await db.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", profile.id), "profiles onboarded");
   redirect("/today");
 }

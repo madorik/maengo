@@ -3,6 +3,7 @@ import { josa } from '@maengo/core/josa';
 import {
   childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS,
 } from '@maengo/core/topics';
+import { screener, screenModel } from './ai';
 import { db, must } from './db';
 import type { TopicGroupView, TopicResult, UserTopic } from '../types';
 import { entitlements, type Profile } from './profile';
@@ -103,6 +104,25 @@ export async function removeTopic(profile: Profile, id: string): Promise<TopicRe
   return { tone: 'ok', message: `${obj([hit.name])} 뺐어요. 내일 아침 피드부터 ${hit.custom ? '이 주제' : '이 분야'} 소식은 덜 나와요.` };
 }
 
+const ADULT: TopicResult = { tone: 'warn', code: 'adult', message: '성인 관련 관심사는 넣을 수 없어요.' };
+
+/**
+ * 금칙어 목록을 통과한 새 기타 관심사를 Gemini에 한 번 더 묻는다(은어·우회 표기).
+ * 누가 이미 넣어 둔 말은 검사를 통과한 것이라 다시 묻지 않는다. Gemini가 안 되면(한도·시간 초과) 통과시킨다.
+ */
+async function looksAdult(custom: { id: string; name: string }[]): Promise<boolean> {
+  if (!custom.length) return false;
+  const known = must(await db.from('topics').select('id').in('id', custom.map((c) => c.id)), 'topics known') as { id: string }[];
+  const fresh = custom.filter((c) => !known.some((k) => k.id === c.id));
+  if (!fresh.length) return false;
+  try {
+    return (await screener.screenInterest({ model: screenModel(), phrases: fresh.map((c) => c.name) })).adult;
+  } catch (e) {
+    console.warn('[screen] 관심사 검사 실패, 통과시킴:', (e as Error).message);
+    return false;
+  }
+}
+
 /**
  * 기타에 적기(온보딩·설정). 쉼표 등으로 나눈 말(최대 3개)을 적은 그대로 올린다.
  * 목록에 같은 이름·별칭이 있으면 그 관심사로 넣고('종부세' → 부동산 정책·세금, 기타 개수에 안 셈),
@@ -111,7 +131,7 @@ export async function removeTopic(profile: Profile, id: string): Promise<TopicRe
 export async function addCustomTopics(profile: Profile, raw: string): Promise<TopicResult> {
   const text = raw.trim().slice(0, 200);
   if (!text) return { tone: 'warn', message: '기타에 한 단어 이상 적어 주세요.' };
-  if (isAdultInterest(text)) return { tone: 'warn', message: '성인 관련 관심사는 넣을 수 없어요.' };
+  if (isAdultInterest(text)) return ADULT;
   const phrases = splitInterests(text);
   if (!phrases.length) return { tone: 'warn', message: '기타에 한 단어 이상 적어 주세요.' };
   const ids: string[] = [];
@@ -141,6 +161,7 @@ export async function addCustomTopics(profile: Profile, raw: string): Promise<To
     if (!ids.length) return { tone: 'warn', message: msg };
     limitNote = ` ${msg}`;
   }
+  if (await looksAdult(custom)) return ADULT;
   if (custom.length) {
     // 같은 말을 누가 먼저 넣었으면 그 이름을 그대로 둔다
     must(

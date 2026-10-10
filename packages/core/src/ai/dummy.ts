@@ -1,8 +1,9 @@
 import { estimateTimeline } from '../audio/personas';
 import { classifyByKeywords } from '../categories';
+import { isAdultInterest } from '../topics/interests';
 import { matchTopics } from '../topics/match';
 import { templateScript } from './script';
-import type { AiClient, ClassifyInput, MapTopicsInput, ScriptInput, SpeakInput, SpeakOutput, WhyInput } from './types';
+import type { AiClient, ClassifyInput, MapTopicsInput, ScreenInterestInput, ScriptInput, SpeakInput, SpeakOutput, WhyInput } from './types';
 
 // API 키 없이 화면과 흐름을 끝까지 돌려 보기 위한 더미. 같은 입력이면 늘 같은 결과를 낸다.
 // 음성은 실제 말 대신 항목 시작에 차임, 문장마다 짧은 신호음을 넣고 나머지는 무음으로 채운다.
@@ -56,6 +57,9 @@ export function createDummyAi(canned: DummyCanned = {}): AiClient {
     },
     async mapTopics(input: MapTopicsInput) {
       return matchTopics(input.text, input.dictionary);
+    },
+    async screenInterest(input: ScreenInterestInput) {
+      return { adult: input.phrases.some(isAdultInterest) };
     },
     async script(input: ScriptInput) {
       return templateScript(input);

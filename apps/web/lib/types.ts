@@ -114,7 +114,7 @@ export interface LibraryData {
 }
 
 /** 관심 토픽 고치기 결과(설정 화면 안내 문구) */
-export type TopicResult = { tone: 'ok' | 'warn'; message: string };
+export type TopicResult = { tone: 'ok' | 'warn'; message: string; /** 막힌 까닭(온보딩이 알맞은 안내를 고른다) */ code?: 'adult' };
 
 export interface UserTopic {
   /** 기타(목록에 없어 직접 적은 관심사)인지 */
