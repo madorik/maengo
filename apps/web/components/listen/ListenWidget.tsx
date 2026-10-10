@@ -14,6 +14,7 @@ import { minutesLabel } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { Queue, Switch } from "./controls";
+import { Script } from "./Script";
 
 /**
  * 오른쪽 아래에 떠 있는 "오늘 맹고 전체 듣기". 챗봇 창처럼 누르면 듣기 창이 펼쳐진다.
@@ -26,6 +27,8 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
   const profile = useProfile();
   const { game } = useToday();
   const [open, setOpen] = useState(false);
+  /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
+  const [tab, setTab] = useState<"queue" | "script">("queue");
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
@@ -196,11 +199,38 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
                 </button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto border-t-2 border-line px-3 pb-3">
-              <div className="px-1">
-                <Switch label="다음 소식 자동 재생" checked={p.autoNext} onChange={p.setAutoNext} />
-              </div>
-              <Queue />
+            <div role="tablist" aria-label="듣기 창 보기" className="flex gap-5 border-y-2 border-line px-5">
+              {(
+                [
+                  ["queue", "재생 목록"],
+                  ["script", "대본"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`listen-tab-${id}`}
+                  aria-selected={tab === id}
+                  aria-controls="listen-tab-panel"
+                  onClick={() => setTab(id)}
+                  className={`-mb-0.5 border-b-[3px] py-2.5 text-[14px] font-extrabold ${tab === id ? "border-sky text-ink" : "border-transparent text-faint hover:text-sub"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div id="listen-tab-panel" role="tabpanel" aria-labelledby={`listen-tab-${tab}`} className="flex min-h-0 flex-1 flex-col">
+              {tab === "script" ? (
+                <Script />
+              ) : (
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+                  <div className="px-1">
+                    <Switch label="다음 소식 자동 재생" checked={p.autoNext} onChange={p.setAutoNext} />
+                  </div>
+                  <Queue />
+                </div>
+              )}
             </div>
             <footer className="border-t-2 border-line px-4 py-3 text-center">
               {p.playlist ? (
