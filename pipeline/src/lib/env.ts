@@ -15,7 +15,7 @@ const num = (name: string, fallback: number) => {
 };
 
 export const env = {
-  supabaseUrl: required('SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'),
+  supabaseUrl: required('NEXT_PUBLIC_SUPABASE_URL'),
   serviceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY'),
   geminiKey: required('GEMINI_API_KEY'),
   /** 503이 계속될 때 대신 쓸 모델. 별칭이라 버전이 바뀌어도 사라지지 않는다 */

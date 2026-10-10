@@ -44,7 +44,7 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 키는 받았다(위). 플러스 유저에게 상위 모델 요약을 주려면 [AI Studio](https://aistudio.google.com/apikey)에서 결제를 연결한다. 그 전까지는 모두 Flash 요약이다.
 
 ### R2 키 — 5분
-버킷 `maengo-storage`(계정 `ace834d6e28e47b5fbb47974fd7d6c6a`)는 만들어 두셨다. 2026-10-09 키를 받아 `.env.local`에 넣었는데 **읽기 전용 토큰**이라 업로드가 403이다. 권한을 Object Read & Write로 바꿔야 한다(그 전까지 개발 서버는 `AUDIO_STORE=local`).
+버킷 `maengo-storage`(계정 `ace834d6e28e47b5fbb47974fd7d6c6a`)는 만들어 두셨다. 2026-10-10 키(Object Read & Write)를 `.env.local`과 Vercel에 넣었고 동작 확인함.
 1. Cloudflare 대시보드 → R2 Object Storage → API Tokens(Manage) → Create API Token
 2. 권한 **Object Read & Write**, 버킷은 **maengo-storage만**
 3. 나오는 Access Key ID·Secret Access Key(한 번만 보임)를 `.env.local`의 `R2_ACCESS_KEY_ID`·`R2_SECRET_ACCESS_KEY`에
@@ -52,11 +52,11 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 버킷은 비공개로 둔다. 웹이 서명 URL을 만들어 `<audio>`가 R2에서 바로 받는다(CORS 설정 필요 없음).
 
 ### GitHub Actions 시크릿 — 일일 배치를 켤 때
-`.github/workflows/daily.yml`이 매일 04:00 KST에 돈다. 저장소 Settings → Secrets and variables → Actions에 넣는다.
+`.github/workflows/daily.yml`이 매일 04:00 KST에 돈다. 저장소 Settings → Secrets and variables → Actions에 넣는다. 이름과 값은 `.env.local`과 같다.
 
 | 이름 | 종류 | 값 |
 | --- | --- | --- |
-| `SUPABASE_URL` | 시크릿 | `.env.local`의 `NEXT_PUBLIC_SUPABASE_URL`과 같다 |
+| `NEXT_PUBLIC_SUPABASE_URL` | 시크릿 | `.env.local`과 같다 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 시크릿 | `.env.local`과 같다 |
 | `GEMINI_API_KEY` | 시크릿 | `.env.local`과 같다 |
 | `PIPELINE_SUMMARIZE_LIMIT` | 변수(선택) | 비우면 5. 출시 때 40 안팎으로 |
@@ -109,13 +109,12 @@ pnpm setup:auth     # 구글·애플 로그인을 Supabase에 켠다(애플 시�
 
 | 변수 | 받는 곳 | 단계 |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | 직접 정한다(예: `https://maengo.kr`) | 배포. 공유 카드·사이트맵·canonical. 바꾸면 다시 빌드 |
+| `NEXT_PUBLIC_SITE_URL` | 지금 `https://maengo.vercel.app`. 도메인을 사면 바꾼다 | 공유 카드·사이트맵·canonical. 바꾸면 다시 빌드 |
 | `GOOGLE_SITE_VERIFICATION`, `NAVER_SITE_VERIFICATION` | Google Search Console, 네이버 서치어드바이저(HTML 태그 방식) | 배포 후 검색 등록 |
 | `SEARCH_API_KEY` | Exa 또는 Tavily | 수집 파이프라인 |
 | `RESEND_API_KEY`, `MAIL_FROM` | Resend(발신 도메인 DNS 인증) | 이메일 알림 |
 | `PORTONE_*` | 포트원 콘솔(PG 심사 1~2주) | 웹 정기결제 |
 | `CRON_SECRET` | 직접 만든다: `openssl rand -hex 32` | 알림·결제 크론 |
-| `GITHUB_DISPATCH_TOKEN` | GitHub fine-grained 토큰(Actions 쓰기만) | 에피소드 재조립 |
 | `ALERT_WEBHOOK_URL`, `DAILY_USD_CAP` | 텔레그램 봇 또는 슬랙 웹훅 / 하루 비용 상한 | 일일 리포트·비용 가드 |
 | 플레이 콘솔 | Google Play Console(1회 $25) | Android 출시 |
 
