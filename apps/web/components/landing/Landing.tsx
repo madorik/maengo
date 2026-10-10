@@ -19,7 +19,7 @@ const FAQ: [string, string][] = [
   ["어떤 소식을 모아요?", "AI·Tech 공식 블로그, 경제·코인 매체, 반도체·로봇 전문지, 그리고 주요 언론사의 정치·경제·사회·생활/문화·IT/과학·세계 뉴스를 매일 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 뉴스는 여러 언론사가 함께 다룬 헤드라인만 골라요."],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
-  ["무료로 얼마나 쓸 수 있나요?", `지금은 베타 기간이라 가입하면 모든 기능(Premium)을 무료로 써요. 정식 출시 후에는 Free(하루 1개 소식)와 Premium(${PREMIUM_PRICE}, 하루 최대 10개와 오디오 듣기)으로 나뉘어요. 유료로 바뀌기 전에 미리 알려 드리고, 동의하지 않으면 결제되지 않아요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `지금은 베타 기간이라 가입하면 모든 기능(Premium)을 무료로 써요. 정식 출시 후 모든 사용자는 Free 플랜(하루 1개 소식)으로 돌아가요. Premium(${PREMIUM_PRICE}, 하루 최대 10개와 오디오 듣기)은 원하는 분이 직접 결제해서 써요.`],
 ];
 
 type Sample = { category: CategoryId; source: string; video?: boolean; title: string; short: string; author: string; date: string; coverage?: string };
@@ -232,7 +232,7 @@ export function Landing() {
             <h2 id="pricing-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
               요금
             </h2>
-            {BETA && <p className="mt-3 text-center text-[15px] font-bold text-sub">베타 기간에는 모든 회원이 Premium을 무료로 써요. 정식 출시 후 유료로 바뀌어요.</p>}
+            {BETA && <p className="mt-3 text-center text-[15px] font-bold text-sub">지금은 베타 기간이라 모든 기능(Premium)을 무료로 써요. 정식 출시 후 모든 사용자는 Free 플랜으로 돌아가요.</p>}
             <div className="mt-10 grid gap-5 md:grid-cols-2">
               <Plan
                 name="Free"
@@ -416,7 +416,7 @@ function Plan({
         )}
         <span className="text-[30px]">{price}</span>
       </p>
-      {was && <p className="text-[13px] font-bold text-mango-deep">베타 기간 동안 무료, 정식 출시 후 유료로 바뀌어요</p>}
+      {was && <p className="text-[13px] font-bold text-mango-deep">베타 기간 동안 무료, 정식 출시 후에는 Free로 돌아가요</p>}
       <ul className="mt-5 flex flex-1 flex-col gap-2.5">
         {items.map((it) => (
           <li key={it} className="flex items-start gap-2 text-[15px] font-semibold">
