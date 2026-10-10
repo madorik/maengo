@@ -14,9 +14,28 @@ import { formatClock, startIndex } from "@/lib/player/machine";
 import { Queue, Switch, VoicePicker } from "./controls";
 import { PlusLock } from "./PlusLock";
 
+/** 듣기 화면(오늘 피드). 보관함 플레이리스트를 듣는 중이면 오늘로 돌아가는 버튼만 보여 준다(대본 화면은 오늘 피드용) */
+export function ListenScreen() {
+  const p = usePlayer();
+  if (!p.playlist) return <TodayListenScreen />;
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center gap-5 px-6 text-center">
+      <Mascot mood="listen" className="size-28" />
+      <h1 className="text-[22px] font-black">보관함 플레이리스트를 듣고 있어요</h1>
+      <div className="flex flex-wrap justify-center gap-2">
+        <button type="button" onClick={p.exitPlaylist} className="btn btn-sky">
+          오늘 맹고 듣기로 돌아가기
+        </button>
+        <Link href="/library" className="btn btn-ghost">
+          보관함
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 /** 듣기 화면. 망고가 헤드폰을 쓰고, 지금 읽는 문장이 말풍선으로 쌓인다 */
-export function ListenScreen() {
+function TodayListenScreen() {
   const p = usePlayer();
   const { data, read, game } = useToday();
   const [sheet, setSheet] = useState<"voice" | "queue" | null>(null);

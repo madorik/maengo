@@ -90,8 +90,8 @@ function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
   const p = usePlayer();
   const profile = useProfile();
   const done = consumed(item.clusterId);
-  // 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 플레이어로, 아니면 이 소식 하나만 만들어 듣는다
-  const viaPlayer = p.audioReady || p.preparing || p.status !== "idle";
+  // 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 플레이어로, 아니면 이 소식 하나만 만들어 듣는다(플레이리스트를 듣는 중이면 하나만)
+  const viaPlayer = !p.playlist && (p.audioReady || p.preparing || p.status !== "idle");
   const single = useItemAudio(item.clusterId, p.enabled && !viaPlayer);
   const current = viaPlayer ? p.cur === index && p.status !== "done" : single.ctl.state === "playing" || single.ctl.state === "paused";
   const preparing = viaPlayer ? current && p.preparing : !!single.ctl.preparing;

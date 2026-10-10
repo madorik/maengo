@@ -46,7 +46,7 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
   const next = index >= 0 ? data.items[index + 1] : undefined;
 
   const p = usePlayer();
-  const viaPlayer = index >= 0 && (p.audioReady || p.preparing || p.status !== "idle");
+  const viaPlayer = index >= 0 && !p.playlist && (p.audioReady || p.preparing || p.status !== "idle");
   const today = useTodayAudio(index, next);
   const single = useItemAudio(item.clusterId, profile.audio && !viaPlayer);
   // 무료면 오늘 쪽 막대가 잠금 안내를 보여 준다

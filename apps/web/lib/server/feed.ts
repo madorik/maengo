@@ -313,6 +313,23 @@ async function itemsFor(profile: Profile, rows: FeedRow[], date: string): Promis
   });
 }
 
+/** 보관함 플레이리스트: 받은 피드(보여 준 것)에 있는 소식만, 고른 순서대로 */
+export async function playlistItems(profile: Profile, ids: number[]): Promise<FeedItem[]> {
+  const want = new Set(ids);
+  const byDate = new Map<string, FeedRow[]>();
+  const seen = new Set<number>();
+  for (const day of await allDays(profile)) {
+    for (const row of visibleRows(day)) {
+      if (!want.has(row.clusterId) || seen.has(row.clusterId)) continue;
+      seen.add(row.clusterId);
+      (byDate.get(day.date) ?? byDate.set(day.date, []).get(day.date)!).push(row);
+    }
+  }
+  const items = (await Promise.all([...byDate].map(([date, rows]) => itemsFor(profile, rows, date)))).flat();
+  const byId = new Map(items.map((i) => [i.clusterId, i]));
+  return ids.flatMap((id) => byId.get(id) ?? []);
+}
+
 export async function feedItems(profile: Profile, date = kstDate()): Promise<FeedItem[]> {
   const day = date === kstDate() ? await todayFeed(profile) : await readDay(profile.id, date);
   return itemsFor(profile, visibleRows(day), date);
