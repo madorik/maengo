@@ -103,7 +103,11 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="account" title="계정">
-          <p>데모 계정으로 들어왔어요. Apple·Google 연동은 다음 단계에서 붙여요.</p>
+          <p>
+            {view.demo
+              ? "데모 계정으로 들어왔어요. Apple 연동은 다음 단계에서 붙여요."
+              : `${view.provider === "apple" ? "Apple" : "Google"} 계정${view.email ? `(${view.email})` : ""}으로 로그인했어요.`}
+          </p>
           <form action={signOut} className="mt-3">
             <button type="submit" className="btn btn-ghost min-h-11 px-4 text-[14px]">
               로그아웃

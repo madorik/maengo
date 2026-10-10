@@ -407,6 +407,8 @@ export function toProfileView(p: Profile): ProfileView {
   return {
     displayName: p.displayName,
     provider: p.provider,
+    email: p.email,
+    demo: p.demo,
     plan: p.plan,
     trialDaysLeft: trialDaysLeft(p),
     audio: entitlements(p).audio,

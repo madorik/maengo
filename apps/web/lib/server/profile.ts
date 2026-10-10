@@ -7,6 +7,11 @@ export interface Profile {
   id: string;
   displayName: string | null;
   provider: Provider;
+  email: string | null;
+  /** 애플 연동 전까지 쓰는 데모 계정으로 들어왔는지 */
+  demo: boolean;
+  /** 관심사 고르기를 마쳤는지. 안 마쳤으면 /onboarding으로 보낸다 */
+  onboarded: boolean;
   notifyAt: string;
   plan: Plan;
   trialEndsAt: number | null;
@@ -28,11 +33,12 @@ interface ProfileRow {
   voice: Voice;
   auto_next: boolean;
   skip_read: boolean;
+  onboarded_at: string | null;
 }
 
-export async function loadProfile(userId: string, provider: Provider): Promise<Profile | null> {
+export async function loadProfile(userId: string, who: { provider: Provider; email: string | null; demo: boolean }): Promise<Profile | null> {
   const row = must(
-    await db.from('profiles').select('id,display_name,notify_at,plan,trial_ends_at,persona,voice,auto_next,skip_read').eq('id', userId).maybeSingle(),
+    await db.from('profiles').select('id,display_name,notify_at,plan,trial_ends_at,persona,voice,auto_next,skip_read,onboarded_at').eq('id', userId).maybeSingle(),
     'profiles',
   ) as ProfileRow | null;
   if (!row) return null;
@@ -42,7 +48,8 @@ export async function loadProfile(userId: string, provider: Provider): Promise<P
   return {
     id: row.id,
     displayName: row.display_name,
-    provider,
+    ...who,
+    onboarded: row.onboarded_at !== null,
     notifyAt: row.notify_at.slice(0, 5),
     plan,
     trialEndsAt,

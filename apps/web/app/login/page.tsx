@@ -7,7 +7,10 @@ import { LoginButtons } from "./LoginButtons";
 
 export const metadata: Metadata = { title: "로그인", robots: { index: false, follow: true } };
 
-export default function LoginPage() {
+type Props = { searchParams: Promise<{ error?: string }> };
+
+export default async function LoginPage({ searchParams }: Props) {
+  const { error } = await searchParams;
   return (
     <div className="mx-auto flex min-h-dvh max-w-[440px] flex-col px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(32px,env(safe-area-inset-top))]">
       <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
@@ -29,11 +32,16 @@ export default function LoginPage() {
       </div>
 
       <form action={signIn} className="flex flex-col gap-3">
+        {error === "google" && (
+          <p role="alert" className="text-center text-[14px] font-bold text-orange">
+            구글 로그인을 마치지 못했어요. 다시 눌러 주세요.
+          </p>
+        )}
         <LoginButtons />
         <p className="mt-2 text-center text-[12px] font-medium leading-relaxed text-sub">
           계속하면 이용약관과 개인정보 처리방침에 동의하게 돼요.
           <br />
-          지금은 데모 계정으로 들어가요. Apple·Google 연동은 곧 붙여요.
+          Apple 로그인은 준비 중이라 지금은 데모 계정으로 들어가요.
         </p>
       </form>
     </div>
