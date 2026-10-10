@@ -24,6 +24,8 @@ import { tag } from './jobs/tag';
 export type InstantProgress =
   | { stage: 'finding' }
   | { stage: 'collecting' }
+  /** 고른 소식 중 이미 요약된 것(ready)과 지금 요약할 것(toMake) */
+  | { stage: 'found'; ready: number; toMake: number }
   | { stage: 'summarizing'; done: number; total: number }
   | { stage: 'saving' }
   | { stage: 'done'; items: number }
@@ -67,6 +69,7 @@ export async function buildTodayFeedNow(
     if (picked.length) ctx.log(`관심사에 맞는 소식이 없어 큰 분류까지 넓혀 ${picked.length}개 고름`);
   }
   const toSummarize = picked.filter((r) => !candidates.find((c) => c.id === r.clusterId)!.summarized).slice(0, maxSummaries);
+  if (picked.length) onProgress({ stage: 'found', ready: picked.length - picked.filter((r) => !candidates.find((c) => c.id === r.clusterId)!.summarized).length, toMake: toSummarize.length });
 
   if (toSummarize.length) {
     let done = 0;

@@ -113,6 +113,13 @@ async function readDay(userId: string, date: string): Promise<FeedDay | null> {
   return { date, rows, visible: d.visible };
 }
 
+/** 전에 받은 피드가 있는지. 가입하고 아직 한 번도 받지 않았으면 false */
+const hadFeedBefore = cache(async (userId: string, date: string): Promise<boolean> => {
+  const { count, error } = await db.from('feed_days').select('date', { count: 'exact', head: true }).eq('user_id', userId).lt('date', date);
+  if (error) throw new Error(`feed_days: ${error.message}`);
+  return (count ?? 0) > 0;
+});
+
 /** 오늘 피드. 보여 주는 개수는 지금 플랜을 따른다(체험을 시작하면 바로 10개로 늘어난다) */
 const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   const date = kstDate();
@@ -123,6 +130,8 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
     if (visible !== day.visible) must(await db.from('feed_days').update({ visible }).eq('user_id', profile.id).eq('date', date), 'feed_days visible');
     return { ...day, visible };
   }
+  // 가입하고 처음 온 사람은 저절로 채우지 않는다. '오늘 맹고 받기'를 눌러야 가져오거나 만든다(진행 상황을 보여 주려고)
+  if (!(await hadFeedBefore(profile.id, date))) return { date, rows: [], visible: 0 };
   // 아직 오늘 피드가 없다. 이미 요약된 소식으로 임시 피드를 만든다(배치가 돌면 새 소식으로 다시 만든다)
   const rows = await buildToday(profile, date);
   const visible = Math.min(rows.length, limit);
@@ -334,7 +343,13 @@ async function batchRanToday(date: string): Promise<boolean> {
 export async function getTodayData(profile: Profile): Promise<TodayData> {
   const day = await todayFeed(profile);
   const [items, { reads, feedback }] = await Promise.all([itemsFor(profile, visibleRows(day), day.date), readsAndFeedback(profile.id)]);
-  const emptyReason = items.length ? null : (await batchRanToday(day.date)) ? 'exhausted' : 'waiting';
+  const emptyReason = items.length
+    ? null
+    : !(await hadFeedBefore(profile.id, day.date))
+      ? 'first'
+      : (await batchRanToday(day.date))
+        ? 'exhausted'
+        : 'waiting';
   const topicNames = [...new Set(items.map((i) => i.topicName))].slice(0, 3);
   return {
     date: day.date,
