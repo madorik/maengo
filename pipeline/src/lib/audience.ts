@@ -19,6 +19,8 @@ export interface Audience {
   exclude: Set<number>;
   /** 이미 알아요를 누른 소식(비슷한 소식도 뺀다) */
   known: number[];
+  /** 알림 받을 시각(KST 'HH:MM'). 이 시각이 되면 오늘 피드를 만든다(slot.ts) */
+  notifyAt: string;
 }
 
 /** 체험 기간이 끝났으면 무료로 본다(결제 단계가 plan을 바꾸기 전까지) */
@@ -27,17 +29,22 @@ function effectivePlan(plan: Plan, premiumUntil: string | null, now: Date): Plan
   return plan;
 }
 
-/** 관심사를 고른 유저들. onlyUserId를 주면 그 한 명만(웹에서 "오늘 맹고 받기"를 누른 사람) */
-export async function loadAudience(ctx: Ctx, onlyUserId?: string): Promise<Audience[]> {
-  let query = db.from('profiles').select('id,plan,premium_until').not('onboarded_at', 'is', null);
-  if (onlyUserId) query = query.eq('id', onlyUserId);
-  const profiles = check(await query, 'profiles') as { id: string; plan: Plan; premium_until: string | null }[];
+/**
+ * 관심사를 고른 유저들. only를 주면 그 사람(들)만:
+ * 웹에서 "오늘 맹고 받기"를 누른 한 명, 30분 작업(slot.ts)에서 알림 시각이 된 사람들
+ */
+export async function loadAudience(ctx: Ctx, only?: string | string[]): Promise<Audience[]> {
+  if (Array.isArray(only) && !only.length) return [];
+  let query = db.from('profiles').select('id,plan,premium_until,notify_at').not('onboarded_at', 'is', null);
+  if (typeof only === 'string') query = query.eq('id', only);
+  else if (only) query = query.in('id', only);
+  const profiles = check(await query, 'profiles') as { id: string; plan: Plan; premium_until: string | null; notify_at: string }[];
   if (!profiles.length) return [];
   const ids = profiles.map((p) => p.id);
   const byId = new Map<string, Audience>();
   for (const p of profiles) {
     const plan = effectivePlan(p.plan, p.premium_until, ctx.now);
-    byId.set(p.id, { id: p.id, plan, tier: tierOf(plan), dailyItems: dailyItemsFor(plan), weights: {}, exclude: new Set(), known: [] });
+    byId.set(p.id, { id: p.id, plan, tier: tierOf(plan), dailyItems: dailyItemsFor(plan), weights: {}, exclude: new Set(), known: [], notifyAt: String(p.notify_at).slice(0, 5) });
   }
   const topics = await selectAll<{ user_id: string; topic_id: string; weight: number }>((f, t) => db.from('user_topics').select('user_id,topic_id,weight').in('user_id', ids).range(f, t));
   for (const r of topics) byId.get(r.user_id)!.weights[r.topic_id] = r.weight;

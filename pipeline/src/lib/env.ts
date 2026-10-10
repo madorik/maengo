@@ -25,4 +25,6 @@ export const env = {
   /** 한 번 실행에서 요약할 영상 수 상한(영상은 토큰이 많이 든다) */
   videoLimit: num('PIPELINE_VIDEO_LIMIT', 2),
   maxVideoMinutes: num('PIPELINE_MAX_VIDEO_MINUTES', 20),
+  /** 알림을 눌렀을 때 열 사이트 주소(웹 푸시 링크) */
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://maengo.vercel.app',
 };

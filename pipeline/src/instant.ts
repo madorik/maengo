@@ -117,7 +117,7 @@ const FRESH_MAX_ITEMS = 50;
  * 처리 안 된 글 전체는 새벽 배치가 한다(무료 등급 임베딩 한도 때문에 화면에서 기다릴 수 없다). LLM 요약은 여기서 하지 않는다.
  * 여러 사람이 동시에 누르면 한 서버만 하고 나머지는 끝나기를 기다렸다 고른다.
  */
-async function prepareFresh(base: Ctx, a: Audience) {
+export async function prepareFresh(base: Ctx, a: Audience, { collectAfter = COLLECT_AFTER }: { collectAfter?: number } = {}) {
   // 이미 태그한 묶음은 다시 태그하지 않는다(즉석 피드의 force는 오늘 피드를 다시 만든다는 뜻이라 여기선 끈다)
   const ctx: Ctx = { ...base, force: false };
   if (!(await tryLock(FRESH_LOCK, FRESH_LOCK_STALE))) {
@@ -128,7 +128,7 @@ async function prepareFresh(base: Ctx, a: Audience) {
   try {
     const { data } = await db.from('items').select('fetched_at').order('fetched_at', { ascending: false }).limit(1);
     const newest = data?.[0] ? Date.parse((data[0] as { fetched_at: string }).fetched_at) : 0;
-    if (ctx.now.getTime() - newest > COLLECT_AFTER) await collect(ctx);
+    if (ctx.now.getTime() - newest > collectAfter) await collect(ctx);
 
     const mine = new Set(Object.keys(a.weights));
     const words = (await dictionary(ctx))
@@ -165,7 +165,7 @@ function matcher(words: string[]): (text: string) => boolean {
 }
 
 /** 상세 관심사의 큰 분류를 절반 가중치로 더한다(이미 고른 큰 분류는 그대로). 직접 적은 관심사는 큰 분류가 없다 */
-function widenToGroups(weights: Record<string, number>): Record<string, number> {
+export function widenToGroups(weights: Record<string, number>): Record<string, number> {
   const out = { ...weights };
   for (const [id, w] of Object.entries(weights)) {
     const g = groupOf(id);
