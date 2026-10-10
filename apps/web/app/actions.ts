@@ -2,34 +2,73 @@
 
 import type { Persona, Plan, Voice } from "@maengo/core/types";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
 import { rebuildFeed } from "@/lib/server/feed";
+import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
 import { addTopics, addTopicsFromText, removeTopic } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
+import { supabaseAuth } from "@/lib/supabase/server";
+import { TOPIC_BY_ID } from "@maengo/core/topics";
 import type { TopicResult } from "@/lib/types";
 
+const cookieOpts = { sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 } as const;
+
+/** 지금 요청의 주소(구글 로그인 뒤 돌아올 곳). 배포 뒤에는 프록시 헤더를 따른다 */
+async function origin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3100";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 /**
- * 데모 로그인: 애플·구글 버튼 모두 OAuth 없이 Supabase 데모 계정(DEMO_USER_ID)으로 들어간다.
- * 세션 쿠키는 서명한 토큰이라 고쳐 쓰면 로그인이 풀린다. 애플·구글 연동이 붙으면 signInWithOAuth로 바뀐다.
+ * 구글: Supabase OAuth로 구글 로그인 화면에 보낸다. 돌아오면 /auth/callback이 세션을 만든다.
+ * 애플: 연동 전까지 OAuth 없이 Supabase 데모 계정(DEMO_USER_ID)으로 들어간다(서명한 세션 쿠키).
  */
 export async function signIn(formData: FormData) {
-  const provider = formData.get("provider") === "apple" ? "apple" : "google";
   const jar = await cookies();
-  const opts = { sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 } as const;
-  jar.set(SESSION_COOKIE, await signSession({ userId: demoUserId(), provider }), { ...opts, httpOnly: true });
-  jar.set(SIGNED_IN_HINT, "1", opts);
+  if (formData.get("provider") === "google") {
+    const supabase = await supabaseAuth();
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${await origin()}/auth/callback`, queryParams: { prompt: "select_account" } },
+    });
+    if (error || !data.url) redirect("/login?error=google");
+    redirect(data.url);
+  }
+  jar.set(SESSION_COOKIE, await signSession({ userId: demoUserId(), provider: "apple" }), { ...cookieOpts, httpOnly: true });
+  jar.set(SIGNED_IN_HINT, "1", cookieOpts);
   redirect("/today");
 }
 
 export async function signOut() {
+  const supabase = await supabaseAuth();
+  await supabase.auth.signOut();
   const jar = await cookies();
   jar.delete(SESSION_COOKIE);
   jar.delete(SIGNED_IN_HINT);
   redirect("/login");
+}
+
+/** 처음 고른 관심 토픽을 저장하고 오늘 피드로 간다(PLAN.md 5.2) */
+export async function completeOnboarding(formData: FormData) {
+  const profile = await requireProfile();
+  const limit = entitlements(profile).topicLimit;
+  const picked = [...new Set(formData.getAll("topic").map(String))].filter((id) => TOPIC_BY_ID.has(id)).slice(0, limit);
+  if (!picked.length) redirect("/onboarding?error=empty");
+  must(
+    await db.from("user_topics").upsert(
+      picked.map((topic_id) => ({ user_id: profile.id, topic_id, weight: 1, source: "onboarding" })),
+      { onConflict: "user_id,topic_id" },
+    ),
+    "user_topics onboarding",
+  );
+  must(await db.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", profile.id), "profiles onboarded");
+  redirect("/today");
 }
 
 const PERSONAS: Persona[] = ["announcer", "teacher", "dialogue"];

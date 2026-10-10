@@ -55,10 +55,13 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 | `PIPELINE_VIDEO_LIMIT` | 변수(선택) | 비우면 0. 영상 요약을 켤 때 2 안팎으로 |
 
 ### 2. 구글 로그인 — 15분
+> 2026-10-10: 클라이언트 ID·시크릿은 `.env.local`에 있고 `pnpm setup:auth`로 Supabase에 켰다. 웹 흐름(로그인 → `/auth/callback` → 처음이면 `/onboarding`)도 붙였다.
+> **남은 것**: 구글 화면이 `400 redirect_uri_mismatch`를 낸다. 아래 3번의 리디렉션 URI(`https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback`)를 등록하고, 동의 화면이 "테스트 중"이면 테스트 사용자에 본인 계정을 넣는다.
+
 1. [Google Cloud Console](https://console.cloud.google.com/)에서 프로젝트 만들기(이름 `maengo`)
 2. API 및 서비스 → OAuth 동의 화면: 외부, 앱 이름 `맹고`, 범위는 기본(email·profile·openid)만
 3. 사용자 인증 정보 → OAuth 클라이언트 ID → 웹 애플리케이션
-   - 승인된 JavaScript 원본: `http://localhost:3000`, 운영 주소(예: `https://maengo.kr`)
+   - 승인된 JavaScript 원본: 이 흐름(Supabase 리디렉션)에서는 필요 없다
    - 승인된 리디렉션 URI: 위 Supabase 콜백 주소
 4. `.env.local`: `GOOGLE_CLIENT_ID=…`, `GOOGLE_CLIENT_SECRET=…`
 5. 앱(iOS·Android)에서 구글 로그인을 띄울 때는 iOS·Android 클라이언트 ID를 더 만든다 → `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID`(앱 단계에서)
