@@ -1,14 +1,16 @@
 import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
+import Link from "next/link";
 import { CustomTopicEditor } from "@/components/settings/CustomTopicEditor";
+import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { TopicEditor } from "@/components/settings/TopicEditor";
 import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
 import { toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
-import { demoToolsEnabled } from "@/lib/server/demo";
+import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { topicGroups, userTopics } from "@/lib/server/topics";
 
@@ -80,6 +82,18 @@ export default async function SettingsPage() {
 
         <Section id="notify" title="알림">
           <NotifyTimePicker current={profile.notifyAt} />
+        </Section>
+
+        <Section id="account" title="계정">
+          <p className="flex flex-wrap gap-x-5 gap-y-1 text-[15px] font-bold">
+            <Link href="/terms" className="text-sub no-underline hover:text-ink hover:underline">
+              이용약관
+            </Link>
+            <Link href="/privacy" className="text-sub no-underline hover:text-ink hover:underline">
+              개인정보 처리방침
+            </Link>
+          </p>
+          <DeleteAccount demo={isDemoAccount(profile.id)} />
         </Section>
 
         {demoTools && (

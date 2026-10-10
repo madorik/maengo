@@ -40,7 +40,7 @@
 | 알림 데이터 | `device_tokens(token, user_id, platform android·ios·web, app_version, last_seen_at)`, `notifications_log(user_id, date, channel)` 표가 이미 있다. `profiles.notify_at`은 06:00~23:30, 30분 단위(설정 화면에서 고름) |
 | 듣기 | `<audio>` 하나 + Media Session(잠금 화면 제목·조작)을 이미 쓴다(`components/providers/PlayerProvider.tsx`). Free는 듣기 잠금, Premium은 제한 없음 |
 | 오늘 피드 | 가입 후 첫 방문은 "오늘 맹고 받기"를 눌러야 받는다. 그 뒤로는 새벽 4시 배치(GitHub Actions)가 채운다 |
-| 스토어에 없는 것 | 계정 삭제(애플 5.1.1(v) 필수), 이용약관·개인정보처리방침 페이지 |
+| 스토어 필수 문서·기능 | 있음(2026-10-10): `/terms`, `/privacy`, `/delete-account`(공개 페이지, 구글 플레이 '계정 삭제 URL'에 쓴다), 설정 > 계정 > 계정 삭제. 운영자·문의 메일·시행일은 `apps/web/lib/site.ts` |
 | 개발 도구 | Xcode 26.3(iOS는 SPM, CocoaPods 안 씀). Android Studio 2025.3 있음(SDK는 안 잡혀 있음). SDK·에뮬레이터는 Homebrew `android-commandlinetools`(`/opt/homebrew/share/android-commandlinetools`)를 CLI 빌드에 쓴다. JDK는 Android Studio 내장 JBR 21. 맹고용 에뮬레이터 `maengo_api36`(Pixel 8, Android 16, Play) |
 | 앱 버전 | Capacitor 8.5.3, @capacitor/app 8.1.2, browser 8.0.5, splash-screen 8.0.2(2026-10-10 최신 안정판). 웹과 앱에 같은 버전으로 넣는다 |
 
@@ -123,8 +123,8 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 
 ### 5단계. 스토어 준비(3~5일, 테스트 기간은 별도)
 
-- [ ] **계정 삭제**(애플 필수): 설정 맨 아래 "계정 삭제" → 확인 → 서버에서 `auth.admin.deleteUser`(프로필·관심사·피드는 cascade로 지워진다) → `/auth/signout`. 웹에도 같이 둔다
-- [ ] **이용약관·개인정보처리방침**: `/terms`, `/privacy` 페이지. 로그인 화면·설정·스토어 등록 정보에 링크. 개인정보 항목: 이메일, 이름, 프로필 사진, 관심사, 읽음·피드백, 기기 토큰
+- [x] **계정 삭제**(애플 필수): 설정 > 계정 > 계정 삭제 → 확인 → `deleteAccount`(app/actions.ts). 2026-10-10 완료
+- [x] **이용약관·개인정보 처리방침·계정 삭제 안내**: `/terms`, `/privacy`, `/delete-account`(2026-10-10). 앱에서 새로 처리하는 정보가 생기면(예: 분석 도구) `/privacy`와 시행일을 고친다. 스토어 등록 정보에 이 주소들을 건다
 - [ ] 앱 안에서 결제·가격 안내를 보이지 않게(iOS). Premium 상태 표시(왕관)는 그대로 둬도 된다
 - [ ] 스토어 등록 정보: 스크린샷(6.7·6.5인치 아이폰, 안드로이드 폰), 설명, 키워드, 연령 등급, 애플 개인정보 라벨, 플레이 데이터 보안 양식
 - [ ] 심사 메모: 로그인은 애플·구글뿐이라 심사자가 자기 계정으로 가입할 수 있다고 적는다. 첫 화면에서 "오늘 맹고 받기"를 눌러야 소식이 나온다고 적는다

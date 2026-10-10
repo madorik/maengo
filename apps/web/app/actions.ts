@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
 import { rebuildFeed } from "@/lib/server/feed";
-import { demoLoginEnabled, demoToolsEnabled } from "@/lib/server/demo";
+import { demoLoginEnabled, demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
 import { addCustomTopics, addTopics, removeTopic } from "@/lib/server/topics";
@@ -91,6 +91,27 @@ export async function completeOnboarding(formData: FormData) {
   }
   must(await db.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", profile.id), "profiles onboarded");
   redirect("/today");
+}
+
+/**
+ * 계정 삭제(설정 > 계정). auth 사용자를 지우면 프로필·관심사·피드·읽음·피드백·기기 토큰이 함께 지워진다(on delete cascade).
+ * 아무도 안 쓰게 된 기타 관심사 문구도 지운다(이미 소식 분류에 쓰였으면 FK 때문에 남는다). 데모 계정은 지우지 않는다.
+ */
+export async function deleteAccount() {
+  const profile = await requireProfile();
+  if (isDemoAccount(profile.id)) redirect("/settings#account");
+  const custom = (must(await db.from("user_topics").select("topic_id").eq("user_id", profile.id).like("topic_id", "c-%"), "user_topics custom") as { topic_id: string }[]).map((r) => r.topic_id);
+  const { error } = await db.auth.admin.deleteUser(profile.id);
+  if (error) throw new Error(`계정 삭제: ${error.message}`);
+  for (const id of custom) {
+    const { count } = await db.from("user_topics").select("user_id", { count: "exact", head: true }).eq("topic_id", id);
+    if (!count) await db.from("topics").delete().eq("id", id);
+  }
+  const jar = await cookies();
+  for (const c of jar.getAll()) if (c.name.startsWith("sb-")) jar.delete(c.name);
+  jar.delete(SESSION_COOKIE);
+  jar.delete(SIGNED_IN_HINT);
+  redirect("/login?deleted=1");
 }
 
 export interface NotifyResult {
