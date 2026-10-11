@@ -248,19 +248,20 @@ function RangeBar({ range, today }: { range: AdminRange; today: string }) {
         })}
       </nav>
       {/* 빠른 기간을 눌러도 칸이 새 값으로 바뀌게 기간이 바뀌면 다시 그린다 */}
-      <form key={`${range.from}~${range.to}`} action="/admin" className="flex w-full items-center gap-1.5 sm:ml-auto sm:w-auto">
+      {/* 좁은 화면에선 날짜 두 칸이 한 줄을 다 쓰고 보기 버튼은 아래 줄로, 아주 좁으면(360px 미만) 날짜도 한 줄에 하나 */}
+      <form key={`${range.from}~${range.to}`} action="/admin" className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1.5 max-[359px]:grid-cols-1 sm:ml-auto sm:flex sm:w-auto">
         <label htmlFor="range-from" className="sr-only">
           시작일
         </label>
-        <input id="range-from" type="date" name="from" defaultValue={range.from} max={today} required className="tile min-h-11 min-w-0 flex-1 px-3 text-[16px] font-bold tabular-nums sm:flex-none" />
-        <span aria-hidden="true" className="font-bold text-faint">
+        <input id="range-from" type="date" name="from" defaultValue={range.from} max={today} required className="tile min-h-11 min-w-0 px-2.5 text-[16px] font-bold tabular-nums sm:px-3" />
+        <span aria-hidden="true" className="font-bold text-faint max-[359px]:hidden">
           ~
         </span>
         <label htmlFor="range-to" className="sr-only">
           종료일
         </label>
-        <input id="range-to" type="date" name="to" defaultValue={range.to} max={today} required className="tile min-h-11 min-w-0 flex-1 px-3 text-[16px] font-bold tabular-nums sm:flex-none" />
-        <button type="submit" className="btn btn-ink min-h-11 shrink-0 px-4 text-[14px]">
+        <input id="range-to" type="date" name="to" defaultValue={range.to} max={today} required className="tile min-h-11 min-w-0 px-2.5 text-[16px] font-bold tabular-nums sm:px-3" />
+        <button type="submit" className="btn btn-ink col-span-full min-h-11 shrink-0 px-4 text-[14px]">
           보기
         </button>
       </form>
