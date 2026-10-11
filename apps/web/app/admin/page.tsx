@@ -95,9 +95,9 @@ export default async function AdminPage() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <Bars title="활동한 사람" data={s.daily.map((d) => ({ date: d.date, v: d.active }))} />
-          <Bars title="가입" data={s.daily.map((d) => ({ date: d.date, v: d.signups }))} />
-          <Bars title="읽음 + 들음" data={s.daily.map((d) => ({ date: d.date, v: d.reads + d.listens }))} />
+          <Trend title="활동한 사람" data={s.daily.map((d) => ({ date: d.date, v: d.active }))} />
+          <Trend title="가입" data={s.daily.map((d) => ({ date: d.date, v: d.signups }))} />
+          <Trend title="읽음 + 들음" data={s.daily.map((d) => ({ date: d.date, v: d.reads + d.listens }))} />
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
@@ -214,27 +214,54 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** 최근 14일 막대(오른쪽 끝이 오늘) */
-function Bars({ title, data }: { title: string; data: { date: string; v: number }[] }) {
+/** 최근 14일 추이(선 그래프, 오른쪽 끝이 오늘). 날짜 위에 마우스를 올리면 그날 값이 보인다 */
+function Trend({ title, data }: { title: string; data: { date: string; v: number }[] }) {
+  const W = 300;
+  const H = 100;
+  const PAD = 8;
   const max = Math.max(1, ...data.map((d) => d.v));
+  const step = data.length > 1 ? W / (data.length - 1) : W;
+  const x = (i: number) => (data.length > 1 ? i * step : W / 2);
+  const y = (v: number) => PAD + (1 - v / max) * (H - PAD * 2);
+  const line = `M${data.map((d, i) => `${x(i).toFixed(1)},${y(d.v).toFixed(1)}`).join(" L")}`;
+  const base = y(0);
+  const area = `${line} L${x(data.length - 1).toFixed(1)},${base} L${x(0).toFixed(1)},${base} Z`;
+  const last = data.at(-1);
   return (
     <section className="tile p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-[13px] font-extrabold text-sub">{title}</h2>
-        <span className="font-round text-[20px] font-black tabular-nums">{num(data.at(-1)?.v ?? 0)}</span>
+        <span className="font-round text-[20px] font-black tabular-nums">{num(last?.v ?? 0)}</span>
       </div>
-      <div className="mt-3 flex h-24 items-end gap-1" role="img" aria-label={`${title}, 최근 14일: ${data.map((d) => `${d.date.slice(5)} ${d.v}`).join(", ")}`}>
-        {data.map((d) => (
-          <div
-            key={d.date}
-            title={`${d.date} ${d.v}`}
-            className={`flex-1 rounded-t ${d.v ? "bg-sky" : "bg-line"}`}
-            style={{ height: d.v ? `${Math.max(6, (d.v / max) * 100)}%` : "3px" }}
+      <div className="relative mt-3 h-24">
+        {/* 가로로 늘려 그리고(preserveAspectRatio none) 선 굵기는 그대로 둔다(non-scaling-stroke) */}
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="absolute inset-0 h-full w-full overflow-visible"
+          role="img"
+          aria-label={`${title}, 최근 14일: ${data.map((d) => `${d.date.slice(5)} ${d.v}`).join(", ")}`}
+        >
+          <line x1={0} y1={base} x2={W} y2={base} className="stroke-line" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+          <path d={area} className="fill-sky-tint" />
+          <path d={line} fill="none" className="stroke-sky" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          {data.map((d, i) => (
+            <rect key={d.date} x={x(i) - step / 2} y={0} width={step} height={H} fill="transparent">
+              <title>{`${d.date} ${d.v}`}</title>
+            </rect>
+          ))}
+        </svg>
+        {last && (
+          <span
+            aria-hidden="true"
+            className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sky"
+            style={{ left: `${(x(data.length - 1) / W) * 100}%`, top: `${(y(last.v) / H) * 100}%` }}
           />
-        ))}
+        )}
       </div>
       <div className="mt-1 flex justify-between text-[11px] font-bold text-faint">
         <span>{data[0]?.date.slice(5).replace("-", "/")}</span>
+        <span>최고 {num(max)}</span>
         <span>오늘</span>
       </div>
     </section>
