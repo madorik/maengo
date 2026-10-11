@@ -94,10 +94,11 @@ export default async function AdminPage() {
           <Stat label="알림 켬" value={num(s.users.pushOn)} sub={Object.entries(s.users.plans).map(([p, n]) => `${PLAN_LABEL[p] ?? p} ${num(n)}`).join(" · ")} />
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Trend title="활동한 사람" data={s.daily.map((d) => ({ date: d.date, v: d.active }))} />
           <Trend title="가입" data={s.daily.map((d) => ({ date: d.date, v: d.signups }))} />
-          <Trend title="읽음 + 들음" data={s.daily.map((d) => ({ date: d.date, v: d.reads + d.listens }))} />
+          <Trend title="읽음(글을 연 소식)" data={s.daily.map((d) => ({ date: d.date, v: d.reads }))} />
+          <Trend title="들음(음성으로 들은 소식)" data={s.daily.map((d) => ({ date: d.date, v: d.listens }))} />
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
