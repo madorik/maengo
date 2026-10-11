@@ -9,8 +9,9 @@ import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "관리자", robots: { index: false, follow: false } };
 
-// 관리자 통계(TODO.md 1번). 숫자는 DB 함수 admin_stats(supabase/migrations/…_admin_stats_range.sql) 한 번으로 모은다. 날짜는 한국 시간.
+// 관리자 통계(TODO.md 1번). 숫자는 DB 함수 admin_stats(supabase/migrations/…_visits_dau_mau.sql) 한 번으로 모은다. 날짜는 한국 시간.
 // 기간(?from=&to=, 기본 오늘까지 14일)은 활동·가입·콘텐츠·비용·알림 결과에 걸린다. 회원 수·관심사·작업 상태는 지금 값.
+// 활동 = 그날 앱을 열었거나(visits) 읽었거나 들은 사람. DAU는 마지막 날, MAU는 마지막 날까지 30일.
 // 개인을 알아볼 수 있는 값(이메일·이름)은 보여 주지 않는다.
 
 const KRW_PER_USD = 1400;
@@ -35,13 +36,18 @@ interface Stats {
   users: { total: number; onboarded: number; signups: number; pushOn: number; plans: Record<string, number> };
   activity: {
     active: number;
+    /** 마지막 날(to) 활동한 사람 */
+    dau: number;
+    /** 마지막 날까지 30일 동안 활동한 사람 */
+    mau: number;
     reads: number;
     listens: number;
     fed: number;
     feedback: Record<string, number>;
     feedbackAll: Record<string, number>;
   };
-  daily: { date: string; signups: number; active: number; reads: number; listens: number }[];
+  /** active = 그날 DAU, mau = 그날까지 30일 */
+  daily: { date: string; signups: number; active: number; mau: number; reads: number; listens: number }[];
   content: { items: number; summaries: number; summariesTotal: number; topics: { id: string; name: string; custom: boolean; users: number }[] };
   cost: { geminiUsd: number; geminiMonthUsd: number; ttsMonthChars: number; ttsMonthUsd: number; voices: number };
   ops: {
@@ -81,6 +87,12 @@ export default async function AdminPage({ searchParams }: Props) {
   const topMax = Math.max(1, ...s.content.topics.map((t) => t.users));
   const activeAvg = s.daily.reduce((n, d) => n + d.active, 0) / spanDays(range);
   const activePeak = Math.max(0, ...s.daily.map((d) => d.active));
+  // DAU/MAU(고착도): 날마다 그날 DAU ÷ 그날까지 30일 MAU. MAU가 0인 날은 평균에서 뺀다
+  const sticky = s.daily.map((d) => ({ date: d.date, v: d.mau ? Math.round((d.active / d.mau) * 100) : 0 }));
+  const stickyDays = s.daily.filter((d) => d.mau > 0);
+  const stickyAvg = stickyDays.length ? stickyDays.reduce((n, d) => n + d.active / d.mau, 0) / stickyDays.length : null;
+  const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
+  const endLabel = range.to === today ? "오늘" : md(range.to);
   const trend = { range, today };
 
   return (
@@ -100,15 +112,19 @@ export default async function AdminPage({ searchParams }: Props) {
       <main className="mx-auto flex max-w-[1100px] flex-col gap-6 px-5 py-6">
         <RangeBar range={range} today={today} />
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="회원" value={num(s.users.total)} sub={`가입 +${num(s.users.signups)} · 온보딩 ${num(s.users.onboarded)}`} />
-          <Stat label="활동한 사람" value={num(s.activity.active)} sub={`가장 많은 날 ${num(activePeak)}명`} />
-          <Stat label="맹고 받은 사람" value={num(s.activity.fed)} sub={`읽음 ${num(s.activity.reads)} · 들음 ${num(s.activity.listens)}`} />
+          <Stat label="DAU" value={num(s.activity.dau)} sub={`${endLabel} · 최고 ${num(activePeak)}명`} />
+          <Stat label="MAU" value={num(s.activity.mau)} sub={`DAU/MAU ${pct(s.activity.mau ? s.activity.dau / s.activity.mau : null)}`} />
+          <Stat label="활동한 사람" value={num(s.activity.active)} sub={`읽음 ${num(s.activity.reads)} · 들음 ${num(s.activity.listens)}`} />
+          <Stat label="맹고 받은 사람" value={num(s.activity.fed)} sub={`알림 보냄 ${num(s.ops.deliveries.sent ?? 0)}`} />
           <Stat label="알림 켬" value={num(s.users.pushOn)} sub={Object.entries(s.users.plans).map(([p, n]) => `${PLAN_LABEL[p] ?? p} ${num(n)}`).join(" · ")} />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Trend {...trend} title="활동한 사람" caption="하루 평균" value={activeAvg < 10 ? activeAvg.toFixed(1) : num(Math.round(activeAvg))} data={s.daily.map((d) => ({ date: d.date, v: d.active }))} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Trend {...trend} title="DAU" caption="하루 평균" value={activeAvg < 10 ? activeAvg.toFixed(1) : num(Math.round(activeAvg))} data={s.daily.map((d) => ({ date: d.date, v: d.active }))} />
+          <Trend {...trend} title="MAU(그날까지 30일)" caption={endLabel} value={num(s.activity.mau)} data={s.daily.map((d) => ({ date: d.date, v: d.mau }))} />
+          <Trend {...trend} title="DAU/MAU" caption="평균" value={pct(stickyAvg)} unit="%" data={sticky} />
           <Trend {...trend} title="가입" caption="합계" value={num(s.users.signups)} data={s.daily.map((d) => ({ date: d.date, v: d.signups }))} />
           <Trend {...trend} title="읽음(글을 연 소식)" caption="합계" value={num(s.activity.reads)} data={s.daily.map((d) => ({ date: d.date, v: d.reads }))} />
           <Trend {...trend} title="들음(음성으로 들은 소식)" caption="합계" value={num(s.activity.listens)} data={s.daily.map((d) => ({ date: d.date, v: d.listens }))} />
@@ -274,6 +290,7 @@ function Trend({
   title,
   caption,
   value,
+  unit = "",
   data,
   range,
   today,
@@ -281,6 +298,8 @@ function Trend({
   title: string;
   caption: string;
   value: string;
+  /** 값 뒤에 붙일 단위(예: %) */
+  unit?: string;
   data: { date: string; v: number }[];
   range: AdminRange;
   today: string;
@@ -312,14 +331,14 @@ function Trend({
           preserveAspectRatio="none"
           className="absolute inset-0 h-full w-full overflow-visible"
           role="img"
-          aria-label={`${title}, ${range.from}~${range.to}: ${data.map((d) => `${md(d.date)} ${d.v}`).join(", ")}`}
+          aria-label={`${title}, ${range.from}~${range.to}: ${data.map((d) => `${md(d.date)} ${d.v}${unit}`).join(", ")}`}
         >
           <line x1={0} y1={base} x2={W} y2={base} className="stroke-line" strokeWidth={2} vectorEffect="non-scaling-stroke" />
           <path d={area} className="fill-sky-tint" />
           <path d={line} fill="none" className="stroke-sky" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
           {data.map((d, i) => (
             <rect key={d.date} x={x(i) - step / 2} y={0} width={step} height={H} fill="transparent">
-              <title>{`${d.date} ${d.v}`}</title>
+              <title>{`${d.date} ${d.v}${unit}`}</title>
             </rect>
           ))}
         </svg>
@@ -333,7 +352,10 @@ function Trend({
       </div>
       <div className="mt-1 flex justify-between text-[11px] font-bold text-faint">
         <span>{md(range.from)}</span>
-        <span>최고 {num(max)}</span>
+        <span>
+          최고 {num(max)}
+          {unit}
+        </span>
         <span>{range.to === today ? "오늘" : md(range.to)}</span>
       </div>
     </section>
