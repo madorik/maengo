@@ -24,14 +24,6 @@ const CHOICES: { kind: FeedbackKind; label: string; note: string; Icon: typeof I
   { kind: "skip", label: "싫어요", note: "이런 소식은 덜 골라 드릴게요.", Icon: IconThumbDown },
 ];
 
-function host(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
 /**
  * 상세: 전체 글, 출처 링크, 영상이면 썸네일. 듣는 동안 지금 읽는 문단을 짚어 준다.
  * 오늘 글은 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 오늘 브리핑 플레이어로 듣는다.
@@ -146,23 +138,23 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
           </section>
         )}
 
-        <section aria-labelledby="source-title" className="tile mt-8 p-5">
-          <h2 id="source-title" className="text-[14px] font-black text-sub">
-            출처
-          </h2>
-          <p className="mt-2 text-[16px] font-extrabold">{item.author}</p>
-          <p className="text-[14px] font-semibold text-sub">
+        {/* 출처: 한 줄(누가, 어느 매체, 언제 + 원문 링크) */}
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="tile mt-8 flex min-h-12 items-center gap-3 px-4 py-2.5 no-underline transition-colors hover:bg-snow"
+        >
+          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-sub">
+            {item.author && item.author !== item.sourceLabel && <span className="font-extrabold text-ink">{item.author}, </span>}
             {item.sourceLabel}, {item.publishedLabel}
-          </p>
-          <a href={item.url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost mt-4 w-full justify-between px-4 text-[15px]">
-            <span className="truncate font-bold text-sub">{host(item.url)}</span>
-            <span className="inline-flex shrink-0 items-center gap-1.5">
-              {sourceLink}
-              <IconExternal className="size-4" />
-            </span>
-            <span className="sr-only">(새 탭에서 열림)</span>
-          </a>
-        </section>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 text-[14px] font-extrabold">
+            {sourceLink}
+            <IconExternal className="size-4" />
+          </span>
+          <span className="sr-only">(새 탭에서 열림)</span>
+        </a>
 
         <section aria-labelledby="fb-title" className="mt-8">
           <h2 id="fb-title" className="text-[17px] font-black">
