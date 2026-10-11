@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { kstDate } from "@maengo/core/kst";
+import { type AdminRange, adminPresets, parseAdminRange, spanDays } from "@/lib/admin-range";
 import { isAdmin } from "@/lib/server/admin";
 import { db, must } from "@/lib/server/db";
 import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "관리자", robots: { index: false, follow: false } };
 
-// 관리자 통계(TODO.md 1번). 숫자는 DB 함수 admin_stats(supabase/migrations/…_admin_stats.sql) 한 번으로 모은다. 날짜는 한국 시간.
+// 관리자 통계(TODO.md 1번). 숫자는 DB 함수 admin_stats(supabase/migrations/…_admin_stats_range.sql) 한 번으로 모은다. 날짜는 한국 시간.
+// 기간(?from=&to=, 기본 오늘까지 14일)은 활동·가입·콘텐츠·비용·알림 결과에 걸린다. 회원 수·관심사·작업 상태는 지금 값.
 // 개인을 알아볼 수 있는 값(이메일·이름)은 보여 주지 않는다.
 
 const KRW_PER_USD = 1400;
@@ -29,19 +32,18 @@ const DELIVERY_LABEL: Record<string, string> = {
 
 interface Stats {
   today: string;
-  users: { total: number; onboarded: number; today: number; pushOn: number; plans: Record<string, number> };
+  users: { total: number; onboarded: number; signups: number; pushOn: number; plans: Record<string, number> };
   activity: {
-    dau: number;
-    wau: number;
-    readsToday: number;
-    listensToday: number;
-    feedToday: number;
+    active: number;
+    reads: number;
+    listens: number;
+    fed: number;
     feedback: Record<string, number>;
-    feedback7d: Record<string, number>;
+    feedbackAll: Record<string, number>;
   };
   daily: { date: string; signups: number; active: number; reads: number; listens: number }[];
-  content: { itemsToday: number; summariesToday: number; summariesTotal: number; topics: { id: string; name: string; custom: boolean; users: number }[] };
-  cost: { geminiTodayUsd: number; geminiMonthUsd: number; ttsMonthChars: number; ttsMonthUsd: number; voicesMonth: number };
+  content: { items: number; summaries: number; summariesTotal: number; topics: { id: string; name: string; custom: boolean; users: number }[] };
+  cost: { geminiUsd: number; geminiMonthUsd: number; ttsMonthChars: number; ttsMonthUsd: number; voices: number };
   ops: {
     tasks: {
       name: string;
@@ -53,24 +55,33 @@ interface Stats {
       lastStatus: string | null;
       lastError: string | null;
     }[];
-    deliveriesToday: Record<string, number>;
+    deliveries: Record<string, number>;
     devices: Record<string, number>;
   };
 }
+
+type Props = { searchParams: Promise<{ from?: string | string[]; to?: string | string[] }> };
 
 const num = (n: number) => n.toLocaleString("ko-KR");
 const won = (usd: number) => `${Math.round(usd * KRW_PER_USD).toLocaleString("ko-KR")}원`;
 const kst = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
 const when = (iso: string | null) => (iso ? kst.format(new Date(iso)) : "—");
+/** 'YYYY-MM-DD' → 'MM/DD' */
+const md = (date: string) => date.slice(5).replace("-", "/");
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: Props) {
   const profile = await requireProfile();
   if (!isAdmin(profile)) notFound();
-  const s = must(await db.rpc("admin_stats", { p_days: 14 }), "admin_stats") as Stats;
+  const today = kstDate();
+  const range = parseAdminRange(await searchParams, today);
+  const s = must(await db.rpc("admin_stats", { p_from: range.from, p_to: range.to }), "admin_stats") as Stats;
   const ttsShare = Math.min(1, s.cost.ttsMonthChars / TTS_FREE_CHARS);
   const ttsBill = (Math.max(0, s.cost.ttsMonthChars - TTS_FREE_CHARS) * 30) / 1e6;
   const fbTotal = (s.activity.feedback.more ?? 0) + (s.activity.feedback.skip ?? 0);
   const topMax = Math.max(1, ...s.content.topics.map((t) => t.users));
+  const activeAvg = s.daily.reduce((n, d) => n + d.active, 0) / spanDays(range);
+  const activePeak = Math.max(0, ...s.daily.map((d) => d.active));
+  const trend = { range, today };
 
   return (
     <div className="min-h-dvh bg-snow">
@@ -87,27 +98,29 @@ export default async function AdminPage() {
       </header>
 
       <main className="mx-auto flex max-w-[1100px] flex-col gap-6 px-5 py-6">
+        <RangeBar range={range} today={today} />
+
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="회원" value={num(s.users.total)} sub={`오늘 +${num(s.users.today)} · 온보딩 ${num(s.users.onboarded)}`} />
-          <Stat label="오늘 활동" value={num(s.activity.dau)} sub={`최근 7일 ${num(s.activity.wau)}명`} />
-          <Stat label="오늘 맹고 받은 사람" value={num(s.activity.feedToday)} sub={`읽음 ${num(s.activity.readsToday)} · 들음 ${num(s.activity.listensToday)}`} />
+          <Stat label="회원" value={num(s.users.total)} sub={`가입 +${num(s.users.signups)} · 온보딩 ${num(s.users.onboarded)}`} />
+          <Stat label="활동한 사람" value={num(s.activity.active)} sub={`가장 많은 날 ${num(activePeak)}명`} />
+          <Stat label="맹고 받은 사람" value={num(s.activity.fed)} sub={`읽음 ${num(s.activity.reads)} · 들음 ${num(s.activity.listens)}`} />
           <Stat label="알림 켬" value={num(s.users.pushOn)} sub={Object.entries(s.users.plans).map(([p, n]) => `${PLAN_LABEL[p] ?? p} ${num(n)}`).join(" · ")} />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Trend title="활동한 사람" data={s.daily.map((d) => ({ date: d.date, v: d.active }))} />
-          <Trend title="가입" data={s.daily.map((d) => ({ date: d.date, v: d.signups }))} />
-          <Trend title="읽음(글을 연 소식)" data={s.daily.map((d) => ({ date: d.date, v: d.reads }))} />
-          <Trend title="들음(음성으로 들은 소식)" data={s.daily.map((d) => ({ date: d.date, v: d.listens }))} />
+          <Trend {...trend} title="활동한 사람" caption="하루 평균" value={activeAvg < 10 ? activeAvg.toFixed(1) : num(Math.round(activeAvg))} data={s.daily.map((d) => ({ date: d.date, v: d.active }))} />
+          <Trend {...trend} title="가입" caption="합계" value={num(s.users.signups)} data={s.daily.map((d) => ({ date: d.date, v: d.signups }))} />
+          <Trend {...trend} title="읽음(글을 연 소식)" caption="합계" value={num(s.activity.reads)} data={s.daily.map((d) => ({ date: d.date, v: d.reads }))} />
+          <Trend {...trend} title="들음(음성으로 들은 소식)" caption="합계" value={num(s.activity.listens)} data={s.daily.map((d) => ({ date: d.date, v: d.listens }))} />
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <Card title="비용(이번 달, 추정)">
-            <Row label="Gemini 요약·임베딩" value={`$${s.cost.geminiMonthUsd.toFixed(2)} (${won(s.cost.geminiMonthUsd)})`} />
-            <Row label="오늘" value={`$${s.cost.geminiTodayUsd.toFixed(2)}`} />
-            <Row label="새로 만든 음성" value={`${num(s.cost.voicesMonth)}개`} />
+          <Card title="비용(추정)">
+            <Row label="Gemini 요약·임베딩" value={`$${s.cost.geminiUsd.toFixed(2)} (${won(s.cost.geminiUsd)})`} />
+            <Row label="Gemini 이번 달" value={`$${s.cost.geminiMonthUsd.toFixed(2)}`} />
+            <Row label="새로 만든 음성" value={`${num(s.cost.voices)}개`} />
             <p className="mt-3 text-[13px] font-bold text-sub">
-              TTS {num(s.cost.ttsMonthChars)}자 / 무료 {num(TTS_FREE_CHARS)}자
+              TTS 이번 달 {num(s.cost.ttsMonthChars)}자 / 무료 {num(TTS_FREE_CHARS)}자
             </p>
             <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-line" role="img" aria-label={`TTS 무료 한도의 ${Math.round(ttsShare * 100)}%`}>
               <div className={`h-full rounded-full ${ttsShare > 0.8 ? "bg-orange" : "bg-sky"}`} style={{ width: `${Math.max(1, ttsShare * 100)}%` }} />
@@ -115,13 +128,13 @@ export default async function AdminPage() {
             <p className="mt-1 text-[12px] font-semibold text-faint">무료 한도를 넘으면 100만 자당 $30. 지금 청구 예상 ${ttsBill.toFixed(2)}</p>
           </Card>
           <Card title="콘텐츠">
-            <Row label="오늘 새로 모은 글" value={num(s.content.itemsToday)} />
-            <Row label="오늘 요약" value={num(s.content.summariesToday)} />
+            <Row label="새로 모은 글" value={num(s.content.items)} />
+            <Row label="요약" value={num(s.content.summaries)} />
             <Row label="요약 전체" value={num(s.content.summariesTotal)} />
           </Card>
           <Card title="좋아요·싫어요">
-            <Row label="좋아요" value={`${num(s.activity.feedback.more ?? 0)} (7일 ${num(s.activity.feedback7d.more ?? 0)})`} />
-            <Row label="싫어요" value={`${num(s.activity.feedback.skip ?? 0)} (7일 ${num(s.activity.feedback7d.skip ?? 0)})`} />
+            <Row label="좋아요" value={`${num(s.activity.feedback.more ?? 0)} (전체 ${num(s.activity.feedbackAll.more ?? 0)})`} />
+            <Row label="싫어요" value={`${num(s.activity.feedback.skip ?? 0)} (전체 ${num(s.activity.feedbackAll.skip ?? 0)})`} />
             <Row label="좋아요 비율" value={fbTotal ? `${Math.round(((s.activity.feedback.more ?? 0) / fbTotal) * 100)}%` : "—"} />
           </Card>
         </div>
@@ -176,8 +189,8 @@ export default async function AdminPage() {
                 ))}
               </tbody>
             </table>
-            <p className="mt-4 text-[13px] font-extrabold text-sub">오늘 알림</p>
-            <Chips data={s.ops.deliveriesToday} labels={DELIVERY_LABEL} />
+            <p className="mt-4 text-[13px] font-extrabold text-sub">알림 결과</p>
+            <Chips data={s.ops.deliveries} labels={DELIVERY_LABEL} />
             <p className="mt-3 text-[13px] font-extrabold text-sub">알림 기기</p>
             <Chips data={s.ops.devices} labels={{ web: "웹", ios: "iOS", android: "Android" }} />
           </Card>
@@ -215,8 +228,62 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** 최근 14일 추이(선 그래프, 오른쪽 끝이 오늘). 날짜 위에 마우스를 올리면 그날 값이 보인다 */
-function Trend({ title, data }: { title: string; data: { date: string; v: number }[] }) {
+/** 빠른 기간 + 날짜 두 칸. 폼은 GET이라 주소(?from=&to=)만 바뀐다 */
+function RangeBar({ range, today }: { range: AdminRange; today: string }) {
+  return (
+    <section className="flex flex-wrap items-center gap-2" aria-label="기간">
+      <nav className="flex flex-wrap gap-1.5" aria-label="빠른 기간">
+        {adminPresets(today).map((p) => {
+          const on = p.from === range.from && p.to === range.to;
+          return (
+            <Link
+              key={p.label}
+              href={`/admin?from=${p.from}&to=${p.to}`}
+              aria-current={on ? "true" : undefined}
+              className={`flex min-h-11 items-center rounded-xl border-2 px-3 text-[14px] font-extrabold ${on ? "border-ink bg-ink text-white" : "border-line bg-white text-sub hover:text-ink"}`}
+            >
+              {p.label}
+            </Link>
+          );
+        })}
+      </nav>
+      {/* 빠른 기간을 눌러도 칸이 새 값으로 바뀌게 기간이 바뀌면 다시 그린다 */}
+      <form key={`${range.from}~${range.to}`} action="/admin" className="flex w-full items-center gap-1.5 sm:ml-auto sm:w-auto">
+        <label htmlFor="range-from" className="sr-only">
+          시작일
+        </label>
+        <input id="range-from" type="date" name="from" defaultValue={range.from} max={today} required className="tile min-h-11 min-w-0 flex-1 px-3 text-[16px] font-bold tabular-nums sm:flex-none" />
+        <span aria-hidden="true" className="font-bold text-faint">
+          ~
+        </span>
+        <label htmlFor="range-to" className="sr-only">
+          종료일
+        </label>
+        <input id="range-to" type="date" name="to" defaultValue={range.to} max={today} required className="tile min-h-11 min-w-0 flex-1 px-3 text-[16px] font-bold tabular-nums sm:flex-none" />
+        <button type="submit" className="btn btn-ink min-h-11 shrink-0 px-4 text-[14px]">
+          보기
+        </button>
+      </form>
+    </section>
+  );
+}
+
+/** 기간 추이(선 그래프, 오른쪽 끝이 마지막 날). 날짜 위에 마우스를 올리면 그날 값이 보인다 */
+function Trend({
+  title,
+  caption,
+  value,
+  data,
+  range,
+  today,
+}: {
+  title: string;
+  caption: string;
+  value: string;
+  data: { date: string; v: number }[];
+  range: AdminRange;
+  today: string;
+}) {
   const W = 300;
   const H = 100;
   const PAD = 8;
@@ -230,9 +297,12 @@ function Trend({ title, data }: { title: string; data: { date: string; v: number
   const last = data.at(-1);
   return (
     <section className="tile p-4">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-[13px] font-extrabold text-sub">{title}</h2>
-        <span className="font-round text-[20px] font-black tabular-nums">{num(last?.v ?? 0)}</span>
+        <p className="shrink-0 whitespace-nowrap">
+          <span className="mr-1 text-[11px] font-bold text-faint">{caption}</span>
+          <span className="font-round text-[20px] font-black tabular-nums">{value}</span>
+        </p>
       </div>
       <div className="relative mt-3 h-24">
         {/* 가로로 늘려 그리고(preserveAspectRatio none) 선 굵기는 그대로 둔다(non-scaling-stroke) */}
@@ -241,7 +311,7 @@ function Trend({ title, data }: { title: string; data: { date: string; v: number
           preserveAspectRatio="none"
           className="absolute inset-0 h-full w-full overflow-visible"
           role="img"
-          aria-label={`${title}, 최근 14일: ${data.map((d) => `${d.date.slice(5)} ${d.v}`).join(", ")}`}
+          aria-label={`${title}, ${range.from}~${range.to}: ${data.map((d) => `${md(d.date)} ${d.v}`).join(", ")}`}
         >
           <line x1={0} y1={base} x2={W} y2={base} className="stroke-line" strokeWidth={2} vectorEffect="non-scaling-stroke" />
           <path d={area} className="fill-sky-tint" />
@@ -261,9 +331,9 @@ function Trend({ title, data }: { title: string; data: { date: string; v: number
         )}
       </div>
       <div className="mt-1 flex justify-between text-[11px] font-bold text-faint">
-        <span>{data[0]?.date.slice(5).replace("-", "/")}</span>
+        <span>{md(range.from)}</span>
         <span>최고 {num(max)}</span>
-        <span>오늘</span>
+        <span>{range.to === today ? "오늘" : md(range.to)}</span>
       </div>
     </section>
   );
