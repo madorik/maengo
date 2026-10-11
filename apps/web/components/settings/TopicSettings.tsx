@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useId, useMemo, useOptimistic, useRef, useState } from "react";
 import { editTopics } from "@/app/actions";
+import { track } from "@/lib/analytics";
 import { IconCheck, IconChevronDown, IconClose } from "@/components/icons";
 import { topicTone } from "@/components/TopicGroupIcon";
 import type { TopicGroupView, TopicResult, UserTopic } from "@/lib/types";
@@ -49,7 +50,14 @@ export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView
     if ("text" in fields && r?.tone !== "warn") setText("");
     return r;
   }, null);
-  const send = (fields: Record<string, string>, op?: Op) => startTransition(() => dispatch({ fields, op }));
+  const send = (fields: Record<string, string>, op?: Op) => {
+    // 분석: 무엇을 했는지만(직접 적은 말은 남기지 않는다)
+    if ("group" in fields) track("topic_edit", { action: "group", group: fields.group, picks: fields.pick ? fields.pick.split(",").filter(Boolean).length : 0 });
+    else if ("add" in fields) track("topic_edit", { action: "add", topic: fields.add });
+    else if ("remove" in fields) track("topic_edit", { action: "remove", topic: fields.remove.startsWith("c-") ? "custom" : fields.remove });
+    else if ("text" in fields) track("topic_edit", { action: "text" });
+    startTransition(() => dispatch({ fields, op }));
+  };
 
   /** 분야 하나에서 고른 것을 통째로 정한다. 상세를 다 고르면 전체로 */
   const setGroup = (g: TopicGroupView, next: "all" | string[]) => {

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
+import { Analytics } from "@/components/Analytics";
 import { NativeShell } from "@/components/NativeShell";
 import { NavProgress } from "@/components/NavProgress";
 import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, siteUrl } from "@/lib/site";
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <NavProgress />
         {children}
         <NativeShell />
+        <Analytics />
       </body>
     </html>
   );

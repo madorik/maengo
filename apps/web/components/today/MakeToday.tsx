@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -133,6 +134,7 @@ export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted
   const [state, setState] = useState<State>({ kind: "idle" });
 
   const start = async () => {
+    track("today_build", { reason: reason ?? "none" });
     setState({ kind: "running", p: { stage: "finding" } });
     let shownAt = Date.now();
     const show = async (next: State) => {

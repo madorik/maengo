@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
+import { track } from "@/lib/analytics";
 import { isAppUserAgent } from "@/lib/app-client";
 
 type Provider = "google" | "apple";
@@ -30,7 +31,10 @@ export function LoginButtons({ demo }: { demo: boolean }) {
     setAppError(result === "error");
   };
   // 앱이면 폼을 보내지 않고 앱 로그인을 연다
-  const appProps = (provider: Provider) => (inApp ? { type: "button" as const, onClick: () => void appLogin(provider) } : { type: "submit" as const });
+  const appProps = (provider: Provider) =>
+    inApp
+      ? { type: "button" as const, onClick: () => (track("login_start", { provider }), void appLogin(provider)) }
+      : { type: "submit" as const, onClick: () => track("login_start", { provider }) };
 
   return (
     <>

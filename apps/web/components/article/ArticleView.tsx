@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/analytics";
 import type { FeedbackKind } from "@maengo/core/types";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
@@ -48,6 +49,11 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
 
   // 글을 열면 읽음으로 친다
   const id = item.clusterId;
+  useEffect(() => {
+    track("item_open", { category: item.category, kind: item.kind, today: index >= 0 });
+    // 소식이 바뀔 때만 센다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
   useEffect(() => {
     markRead(id);
   }, [id, markRead]);
@@ -141,7 +147,13 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
         {/* 출처: 어느 매체인지만. 매체 이름을 누르면 원문이 열린다 */}
         <p className="mt-8 text-[15px] font-semibold text-sub">
           출처{" "}
-          <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-extrabold text-ink underline-offset-4 hover:underline">
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track("source_open", { category: item.category, kind: item.kind })}
+            className="inline-flex items-center gap-1 font-extrabold text-ink underline-offset-4 hover:underline"
+          >
             {item.sourceLabel}
             <IconExternal className="size-4" />
             <span className="sr-only">{sourceLink}(새 탭에서 열림)</span>

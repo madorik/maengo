@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { setPushEnabled } from "@/app/actions";
+import { track } from "@/lib/analytics";
 import { Toggle } from "@/components/ui/Switch";
 import { isAppUserAgent } from "@/lib/app-client";
 import { registeredHere, registerThisBrowser, type RegisterResult } from "@/lib/web-push";
@@ -42,6 +43,7 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
       }
       const res = await setPushEnabled(next);
       setOn(res.enabled);
+      track("notify_toggle", { on: res.enabled });
       setError(res.error ?? null);
     });
 

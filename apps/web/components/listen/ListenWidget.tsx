@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { flushSync } from "react-dom";
 import { IconChevronDown, IconClose, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
@@ -213,7 +214,10 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
                   id={`listen-tab-${id}`}
                   aria-selected={tab === id}
                   aria-controls="listen-tab-panel"
-                  onClick={() => setTab(id)}
+                  onClick={() => {
+                    setTab(id);
+                    if (id === "script") track("script_tab_open", { mode: p.playlist ? "playlist" : "today" });
+                  }}
                   className={`-mb-0.5 border-b-[3px] py-2.5 text-[14px] font-extrabold ${tab === id ? "border-sky text-ink" : "border-transparent text-faint hover:text-sub"}`}
                 >
                   {label}

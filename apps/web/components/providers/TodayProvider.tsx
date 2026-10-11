@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/analytics";
 import type { FeedbackKind } from "@maengo/core/types";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { TodayData } from "@/lib/types";
@@ -49,6 +50,7 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
   }, []);
 
   const setFeedback = useCallback((id: number, kind: FeedbackKind | null) => {
+    track("feedback", { kind: kind ?? "clear" });
     setFeedbackState((prev) => {
       const next = { ...prev };
       if (kind) next[id] = kind;

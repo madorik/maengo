@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/analytics";
 import type { Chapter } from "@maengo/core/types";
 import { useEffect, useRef, useState } from "react";
 import { usePlayer } from "@/components/providers/PlayerProvider";
@@ -33,7 +34,10 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     const onTime = () => setPosMs(a.currentTime * 1000);
     const onPlay = () => setStatus("playing");
     const onPause = () => setStatus((s) => (s === "done" ? s : "paused"));
-    const onEnded = () => setStatus("done");
+    const onEnded = () => {
+      setStatus("done");
+      track("listen_complete", { mode: "item" });
+    };
     const onPlaying = () => setPreparing(false);
     // 파일이 열린 뒤에 대본 시각표를 받는다(그때는 음성이 다 만들어져 있어 실제 시각이 나온다)
     const onMeta = () => {
@@ -102,6 +106,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
       setError(null);
     }
     if (status === "done") a.currentTime = 0;
+    if (status === "idle" || status === "done") track("listen_start", { mode: "item" });
     a.playbackRate = rate;
     a.play().catch(() => {});
   };

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { NEWS_SECTIONS, TOPIC_GROUPS } from "@maengo/core/topics";
 import { completeOnboarding } from "../actions";
+import { OnboardingSubmit } from "./OnboardingSubmit";
 import { IconCheck } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
@@ -84,9 +85,7 @@ export default async function OnboardingPage({ searchParams }: Props) {
           </p>
         )}
         <div className="mt-auto pt-8">
-          <button type="submit" className="btn w-full">
-            고른 분야로 시작하기
-          </button>
+          <OnboardingSubmit />
         </div>
       </form>
     </div>

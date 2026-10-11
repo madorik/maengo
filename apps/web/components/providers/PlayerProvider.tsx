@@ -7,6 +7,7 @@ import {
   isSkipped, lineAt, nextPlayable, prevPlayable, progress as progressOf, startIndex, tick, type Progress,
 } from "@/lib/player/machine";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
+import { track } from "@/lib/analytics";
 import { PLAYLIST_MAX, playlistAudioUrl, playlistQuery } from "@/lib/playlist";
 import type { EpisodeData, ProfileView } from "@/lib/types";
 import { useToday } from "./TodayProvider";
@@ -221,10 +222,12 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     }
     goTo(index);
     onceRef.current = index;
+    track("listen_start", { mode: "today_one" });
   };
 
   const play = () => {
     if (!episode || !chapters.length) return;
+    if (status === "idle" || status === "done") track("listen_start", { mode: playlistRef.current ? "playlist" : "today" });
     onceRef.current = null;
     if (status === "done" || cur < 0 || needsFile()) {
       goTo(status === "done" || cur < 0 ? startIndex(chapters, readSet, skip) : cur);
@@ -268,6 +271,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const setVoice = (v: Voice) => {
     if (v === voice) return;
+    track("voice_change", { voice: v });
     setVoiceState(v);
     void savePlayerPrefs({ voice: v });
     if (persona !== "dialogue") void load(persona, v, { index: cur, resume: status === "playing" });
@@ -287,6 +291,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     const audio = audioRef.current;
     const list = ids.slice(0, PLAYLIST_MAX);
     if (!audio || !profile.audio || !list.length) return;
+    track("listen_start", { mode: "playlist", count: list.length });
     playlistRef.current = list;
     setPlaylist(list);
     const seq = ++loadSeq.current;
@@ -349,6 +354,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         enter(t.index);
         break;
       case "end":
+        track("listen_complete", { mode: playlistRef.current ? "playlist" : "today" });
         audio.pause();
         setStatus("done");
         setCur(-1);

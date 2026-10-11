@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/login", "/onboarding", "/today/:path*", "/article/:path*", "/listen/:path*", "/library/:path*", "/settings/:path*",
+    "/login", "/onboarding", "/today/:path*", "/article/:path*", "/listen/:path*", "/library/:path*", "/settings/:path*", "/admin/:path*",
     // 앱에서 연 소개 페이지만(lib/app-client.ts의 APP_UA_MARK와 같은 값이어야 한다. matcher는 상수만 된다)
     { source: "/", has: [{ type: "header", key: "user-agent", value: ".*MaengoApp/.*" }] },
   ],
