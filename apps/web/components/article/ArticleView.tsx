@@ -138,23 +138,15 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
           </section>
         )}
 
-        {/* 출처: 한 줄(누가, 어느 매체, 언제 + 원문 링크) */}
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="tile mt-8 flex min-h-12 items-center gap-3 px-4 py-2.5 no-underline transition-colors hover:bg-snow"
-        >
-          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-sub">
-            {item.author && item.author !== item.sourceLabel && <span className="font-extrabold text-ink">{item.author}, </span>}
-            {item.sourceLabel}, {item.publishedLabel}
-          </span>
-          <span className="inline-flex shrink-0 items-center gap-1 text-[14px] font-extrabold">
-            {sourceLink}
+        {/* 출처: 어느 매체인지만. 매체 이름을 누르면 원문이 열린다 */}
+        <p className="mt-8 text-[15px] font-semibold text-sub">
+          출처{" "}
+          <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-extrabold text-ink underline-offset-4 hover:underline">
+            {item.sourceLabel}
             <IconExternal className="size-4" />
-          </span>
-          <span className="sr-only">(새 탭에서 열림)</span>
-        </a>
+            <span className="sr-only">{sourceLink}(새 탭에서 열림)</span>
+          </a>
+        </p>
 
         <section aria-labelledby="fb-title" className="mt-8">
           <h2 id="fb-title" className="text-[17px] font-black">
