@@ -1,5 +1,4 @@
 import type { PlanLimits } from "@maengo/core/plans";
-import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
 import Link from "next/link";
@@ -9,9 +8,8 @@ import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { ManageSubscription } from "@/components/premium/StoreParts";
 import { PushToggle } from "@/components/settings/PushToggle";
 import { TopicSettings } from "@/components/settings/TopicSettings";
-import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
+import { demoRebuildFeed, demoReset } from "@/app/actions";
 import { toProfileView } from "@/lib/server/feed";
-import { getPlans } from "@/lib/server/plans";
 import { syncWallet } from "@/lib/server/wallet";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
@@ -22,8 +20,6 @@ export const metadata: Metadata = { title: "설정" };
 
 /** 플랜 한 줄 설명(값은 plans 표) */
 const planDesc = (l: PlanLimits) => `하루 맹고 ${l.dailyItems}개${l.audio ? ", 음성 듣기" : ""}${l.canBuyMaengo ? ", 맹고 추가 구매" : ""}.`;
-/** 데모 도구의 플랜 바꾸기 버튼 순서 */
-const PLAN_IDS: Plan[] = ["free", "plus"];
 
 
 /** 설정 한 묶음. action은 제목 오른쪽에 둔다(알림 켜고 끄기) */
@@ -44,7 +40,7 @@ function Section({ id, title, action, children }: { id: string; title: string; a
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const demoTools = demoToolsEnabled();
-  const [topics, webTokens, wallet, plans] = await Promise.all([userTopics(profile), webPushTokens(profile.id), syncWallet(profile.id), getPlans()]);
+  const [topics, webTokens, wallet] = await Promise.all([userTopics(profile), webPushTokens(profile.id), syncWallet(profile.id)]);
   const view = toProfileView(profile);
   const { dailyItems } = entitlements(profile);
 
@@ -54,7 +50,22 @@ export default async function SettingsPage() {
 
       <div className="mt-6">
         <Section id="plan" title="플랜">
-          <p className="text-sub">{planDesc(profile.limits)}</p>
+          {/* 내 플랜 이름, 오른쪽 끝에 Free면 Premium 알아보기(결제는 /premium), Premium이면 구독 관리(앱에서만) */}
+          <div className="flex min-h-12 items-center justify-between gap-3">
+            <p className="inline-flex items-center gap-1.5 text-[22px] font-black tracking-[-0.02em]">
+              {view.plan !== "free" && <Crown className="size-6" />}
+              {profile.limits.name}
+            </p>
+            {view.plan === "free" ? (
+              <Link href="/premium" className="btn min-h-11 shrink-0 px-4 text-[14px]">
+                <Crown className="size-4" />
+                Premium 알아보기
+              </Link>
+            ) : (
+              <ManageSubscription uid={profile.id} />
+            )}
+          </div>
+          <p className="mt-1 text-sub">{planDesc(profile.limits)}</p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="tile p-4">
               <p className="text-[13px] font-extrabold text-sub">하루 맹고</p>
@@ -77,34 +88,6 @@ export default async function SettingsPage() {
             </div>
           </div>
           <p className="mt-2 text-[13px] leading-relaxed text-sub">하루 맹고보다 더 받을 때 지갑에서 1맹고씩 써요. 지갑의 맹고(가입 선물·추가 구매한 맹고)는 사라지지 않아요.</p>
-          {/* 결제는 /premium(유튜브처럼 설정과 따로). 여기는 내 플랜만 */}
-          {view.plan === "free" ? (
-            <Link href="/premium" className="btn mt-4">
-              <Crown className="size-5" />
-              Premium 알아보기
-            </Link>
-          ) : (
-            <ManageSubscription uid={profile.id} />
-          )}
-          {demoTools && (
-            <>
-              <form action={demoSetPlan} className="mt-4 grid grid-cols-2 gap-2">
-                {PLAN_IDS.map((id) => plans.get(id)!).map((p) => (
-                  <button
-                    key={p.id}
-                    type="submit"
-                    name="plan"
-                    value={p.id}
-                    aria-pressed={view.plan === p.id}
-                    className={`tile inline-flex min-h-12 items-center justify-center gap-1 px-1 text-[15px] font-extrabold ${view.plan === p.id ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
-                  >
-                    {p.id !== "free" && <Crown className="size-4" />}
-                    {p.name}
-                  </button>
-                ))}
-              </form>
-            </>
-          )}
         </Section>
 
         <Section id="topics" title="관심사">

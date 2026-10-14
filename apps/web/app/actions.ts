@@ -1,6 +1,6 @@
 "use server";
 
-import type { Persona, Plan, Voice } from "@maengo/core/types";
+import type { Persona, Voice } from "@maengo/core/types";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -195,16 +195,7 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
   return result;
 }
 
-// ---- 데모 도구(설정 화면). 결제가 붙으면 지운다. ----
-
-export async function demoSetPlan(formData: FormData) {
-  const plan = formData.get("plan") as Plan;
-  if (!demoToolsEnabled() || !["free", "plus"].includes(plan)) return;
-  const profile = await requireProfile();
-  // 데모 전환의 Premium은 결제한 것처럼 기한 없이 둔다
-  must(await db.from("profiles").update({ plan, premium_until: null }).eq("id", profile.id), "profiles plan");
-  revalidatePath("/", "layout");
-}
+// ---- 데모 도구(설정 화면, 로컬 개발만). 플랜 바꾸기는 결제가 붙어 지웠다(2026-10-14) ----
 
 /** 오늘 피드를 이미 요약된 소식으로 다시 고른다(LLM 호출 없음) */
 export async function demoRebuildFeed() {

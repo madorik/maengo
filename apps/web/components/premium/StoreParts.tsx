@@ -212,7 +212,7 @@ function RestoreButton({ uid }: { uid: string }) {
   );
 }
 
-/** 설정 > 플랜: Premium이면 스토어의 구독 관리를 연다(앱에서만) */
+/** 설정 > 플랜 이름 오른쪽: Premium이면 스토어의 구독 관리를 연다(앱에서만) */
 export function ManageSubscription({ uid }: { uid: string }) {
   const inApp = useInApp();
   if (!inApp) return null;
@@ -222,8 +222,8 @@ export function ManageSubscription({ uid }: { uid: string }) {
 function ManageButton({ uid }: { uid: string }) {
   const s = useStore(uid);
   return (
-    <div className="mt-4">
-      <button type="button" onClick={() => s.run("manage", (b) => b.openManage(uid), "구독 관리를 열지 못했어요.")} disabled={s.busy !== null} className="btn btn-ghost">
+    <div className="shrink-0 text-right">
+      <button type="button" onClick={() => s.run("manage", (b) => b.openManage(uid), "구독 관리를 열지 못했어요.")} disabled={s.busy !== null} className="btn btn-ghost min-h-11 px-4 text-[14px]">
         구독 관리
       </button>
       <ErrorText text={s.error} />
