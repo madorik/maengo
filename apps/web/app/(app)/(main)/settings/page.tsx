@@ -83,7 +83,6 @@ export default async function SettingsPage() {
               <p className="font-round text-[26px] font-black leading-tight tabular-nums">{wallet.toLocaleString("ko-KR")}</p>
             </div>
           </div>
-          <p className="mt-2 text-[13px] leading-relaxed text-sub">하루 맹고보다 더 받을 때 지갑에서 1맹고씩 써요. 지갑의 맹고(가입 선물·추가 구매한 맹고)는 사라지지 않아요.</p>
         </Section>
 
         <Section id="topics" title="관심사">
