@@ -8,7 +8,7 @@ import { ManageSubscription } from "@/components/premium/StoreParts";
 import { PushToggle } from "@/components/settings/PushToggle";
 import { TopicSettings } from "@/components/settings/TopicSettings";
 import { demoRebuildFeed, demoReset } from "@/app/actions";
-import { toProfileView } from "@/lib/server/feed";
+import { dailyMaengoUsage, toProfileView } from "@/lib/server/feed";
 import { syncWallet } from "@/lib/server/wallet";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
@@ -37,9 +37,8 @@ function Section({ id, title, action, children }: { id: string; title: string; a
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const demoTools = demoToolsEnabled();
-  const [topics, webTokens, wallet] = await Promise.all([userTopics(profile), webPushTokens(profile.id), syncWallet(profile.id)]);
+  const [topics, webTokens, wallet, usage] = await Promise.all([userTopics(profile), webPushTokens(profile.id), syncWallet(profile.id), dailyMaengoUsage(profile)]);
   const view = toProfileView(profile);
-  const { dailyItems } = entitlements(profile);
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
@@ -65,9 +64,10 @@ export default async function SettingsPage() {
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="tile p-4">
               <p className="text-[13px] font-extrabold text-sub">하루 맹고</p>
+              {/* 오늘 남은 하루 맹고 / 플랜의 하루 맹고 */}
               <p className="font-round text-[26px] font-black leading-tight tabular-nums">
-                {dailyItems}
-                <span className="text-[16px] text-faint">개</span>
+                {usage.left}
+                <span className="text-[16px] text-faint">/{usage.daily}</span>
               </p>
             </div>
             <div className="tile p-4">

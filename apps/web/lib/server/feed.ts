@@ -56,9 +56,9 @@ async function weightsOf(userId: string): Promise<Record<string, number>> {
   return Object.fromEntries(rows.map((r) => [r.topic_id, r.weight]));
 }
 
-/** 지난 7일 안에 요약이 끝난 소식 */
-async function summarizedCandidates(): Promise<RankCandidate[]> {
-  const since = new Date(Date.now() - 7 * 24 * HOUR).toISOString();
+/** 지난 days일(기본 7일) 안에 요약이 끝난 소식 */
+async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
+  const since = new Date(Date.now() - days * 24 * HOUR).toISOString();
   const rows = must(
     await db
       .from('summaries')
@@ -157,12 +157,17 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   return { date, rows, visible, extra: 0 };
 });
 
-export type MoreResult = { ok: true; charged: boolean } | { ok: false; error: 'no_feed' | 'no_more' | 'no_balance' | 'busy' };
+export type MoreResult = { ok: true; charged: boolean } | { ok: false; error: 'no_feed' | 'no_more' | 'no_balance' | 'busy' | 'blocked' };
+
+/** '하나 더 받기'가 찾아보는 기간: 최근 한 달 */
+const MORE_DAYS = 30;
 
 /**
- * 오늘 맹고 하나 더 받기. 골라 두고 안 보여 준 소식이 있으면 그것부터(Free는 10개를 골라 3개만 보여 준다),
- * 없으면 이미 요약된 소식에서 하나 더 고른다. 하루 맹고(플랜의 하루 소식 수)를 다 채웠으면 지갑에서 1맹고를 쓴다(못 붙이면 돌려준다).
- * 웹에서는 LLM을 부르지 않으므로 요약이 없는 소식은 고르지 않는다.
+ * 오늘 맹고 하나 더 받기. 준 적 없는 소식만, 이 순서로 찾는다(2026-10-14 사용자 결정):
+ *   1. 오늘 골라 두고 안 보여 준 소식(Free는 10개를 골라 3개만 보여 준다)
+ *   2. 최근 한 달 안에 요약이 끝났지만 이 사람에게 준 적 없는 소식
+ *   3. 그래도 없으면 최근 한 달 안에 모아 둔 묶음을 지금 요약해서(pipeline makeOneMore, AI를 부른다)
+ * 하루 맹고(플랜의 하루 소식 수)를 다 채웠으면 지갑에서 1맹고를 쓴다(못 붙이면 돌려준다). 잔액은 AI를 부르기 전에 본다.
  */
 export async function receiveMore(profile: Profile): Promise<MoreResult> {
   const date = kstDate();
@@ -171,15 +176,25 @@ export async function receiveMore(profile: Profile): Promise<MoreResult> {
   const limit = entitlements(profile).dailyItems;
   const visible = Math.min(day.rows.length, limit + day.extra);
   const charged = visible >= limit;
+  // 지갑에서 써야 하는데 모자라면 찾기·요약 전에 멈춘다
+  if (charged && (await syncWallet(profile.id)) < 1) return { ok: false, error: 'no_balance' };
 
   let row = day.rows[visible];
   const fresh = !row;
   if (fresh) {
-    const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(), weightsOf(profile.id), exclusions(profile.id, date)]);
+    const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), weightsOf(profile.id), exclusions(profile.id, date)]);
     for (const r of day.rows) exclude.add(r.clusterId);
     const [next] = rankFeed(candidates, weights, exclude, { limit: 1 });
-    if (!next) return { ok: false, error: 'no_more' };
-    row = { rank: (day.rows.at(-1)?.rank ?? 0) + 1, clusterId: next.clusterId, topicId: next.topicId };
+    let pick = next ? { clusterId: next.clusterId, topicId: next.topicId } : null;
+    if (!pick) {
+      // 요약된 게 다 떨어졌다: 한 달 안의 묶음을 지금 요약한다(파이프라인은 무거워서 여기서만 불러온다)
+      const { makeOneMore } = await import('@maengo/pipeline/instant');
+      const made = await makeOneMore(profile.id, [...exclude]);
+      if (made === 'blocked') return { ok: false, error: 'blocked' };
+      if (made === 'none') return { ok: false, error: 'no_more' };
+      pick = made;
+    }
+    row = { rank: (day.rows.at(-1)?.rank ?? 0) + 1, ...pick };
   }
 
   // 같은 자리를 두 번 누르면 하나만 붙는다(feed_days.extra 조건). 진 쪽은 돌려받는다
@@ -219,6 +234,16 @@ export async function rebuildFeed(profile: Profile) {
   const date = kstDate();
   must(await db.from('feeds').delete().eq('user_id', profile.id).eq('date', date), 'feeds delete');
   must(await db.from('feed_days').delete().eq('user_id', profile.id).eq('date', date), 'feed_days delete');
+}
+
+/**
+ * 하루 맹고 사용량(설정 > 플랜): 오늘 받은 소식 중 하루 맹고에서 나간 수만큼 뺀다. 지갑으로 더 받은 건 세지 않는다.
+ * Free 3개 중 3개를 받았으면 0/3. 오늘 피드가 아직 없으면 3/3
+ */
+export async function dailyMaengoUsage(profile: Profile): Promise<{ left: number; daily: number }> {
+  const daily = entitlements(profile).dailyItems;
+  const day = await todayFeed(profile);
+  return { left: Math.max(0, daily - Math.min(day.visible, daily)), daily };
 }
 
 /** 보관함에서 볼 수 있는 가장 오래된 날(Free는 최근 7일). null이면 전부 */

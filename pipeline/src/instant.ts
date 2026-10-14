@@ -121,6 +121,52 @@ export async function buildTodayFeedNow(
   return visible;
 }
 
+/** '하나 더 받기'가 찾아보는 기간: 최근 한 달 */
+const MORE_WINDOW_HOURS = 30 * 24;
+
+/**
+ * '하나 더 받기'(웹)에서 요약된 소식이 다 떨어졌을 때: 최근 한 달 안에 모아 둔 묶음 중 이 사람 관심사에 맞고
+ * 준 적 없는 것(지난 피드·읽음·싫어요·비슷한 것 빼고, alsoExclude도 빼고)을 골라 지금 요약해서 돌려준다.
+ * 이미 요약된 게 걸리면 그대로 준다. AI가 막혀 있으면 'blocked', 맞는 게 없으면 'none'. 요약은 많아야 3번 시도한다.
+ */
+export async function makeOneMore(userId: string, alsoExclude: number[]): Promise<{ clusterId: number; topicId: string } | 'none' | 'blocked'> {
+  const log = (m: string) => console.log(`[more] ${m}`);
+  const ctx: Ctx = {
+    date: kstDate(),
+    now: new Date(),
+    ai: guardAi(createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log })),
+    log,
+    stats: {},
+    force: false,
+    windowHours: MORE_WINDOW_HOURS,
+  };
+  const [a] = await loadAudience(ctx, userId);
+  if (!a) return 'none';
+  const candidates = await loadCandidates(ctx, { centroids: a.known.length > 0, sinceHours: MORE_WINDOW_HOURS });
+  const exclude = await withSimilarExcluded(a, candidates);
+  for (const id of alsoExclude) exclude.add(id);
+  let picked = rankFeed(candidates, a.weights, exclude, { limit: 3 });
+  if (!picked.length) picked = rankFeed(candidates, widenToGroups(a.weights), exclude, { limit: 3 });
+  try {
+    for (const r of picked) {
+      if (candidates.find((c) => c.id === r.clusterId)?.summarized) return { clusterId: r.clusterId, topicId: r.topicId };
+      if (await aiBlockedReason()) return 'blocked';
+      try {
+        if ((await summarizeCluster(ctx, r.clusterId, 'basic', { videos: 0 })) === 'ok') {
+          log(`한 달 안의 소식 #${r.clusterId}를 지금 요약해 줌`);
+          return { clusterId: r.clusterId, topicId: r.topicId };
+        }
+      } catch (e) {
+        if (isAiBlocked(e)) return 'blocked';
+        log(`요약 실패 #${r.clusterId}: ${String((e as Error).message ?? e).slice(0, 160)}`);
+      }
+    }
+    return 'none';
+  } finally {
+    await flushUsage();
+  }
+}
+
 const FRESH_LOCK = 'pipeline:fresh';
 const FRESH_LOCK_STALE = 4 * 60_000;
 /** 마지막 수집이 이보다 오래됐으면 지금 다시 모은다 */

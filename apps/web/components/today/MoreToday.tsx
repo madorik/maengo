@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { receiveMoreAction } from "@/app/actions";
 import { IconPlus } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
@@ -9,7 +9,8 @@ import { useProfile } from "@/components/providers/ProfileProvider";
 import { track } from "@/lib/analytics";
 
 const ERRORS = {
-  no_more: "지금은 더 받을 소식이 없어요. 새 소식이 모이면 다시 눌러 주세요.",
+  no_more: "최근 한 달 동안 관심사에 맞는 새 소식이 없어요. 관심사를 넓혀 보세요.",
+  blocked: "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요.",
   no_balance: "맹고가 모자라요.",
   busy: "다시 눌러 주세요.",
   no_feed: "오늘 맹고를 먼저 받아 주세요.",
@@ -23,12 +24,20 @@ const ERRORS = {
 export function MoreToday({ cost, kept, hidden }: { cost: number; kept: number; hidden: number }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<keyof typeof ERRORS | null>(null);
+  // 1.5초 넘게 걸리면 지금 새로 요약하는 중이다(최근 한 달 묶음에서 만들기, 10~20초)
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!pending) return;
+    const t = setTimeout(() => setSlow(true), 1500);
+    return () => clearTimeout(t);
+  }, [pending]);
   const short = cost > kept;
   // 맹고 추가 구매를 못 하는 플랜(Free)은 Premium 안내로 보낸다
   const canBuy = useProfile().canBuyMaengo;
   const fill = canBuy ? { href: "/premium#maengo", label: "맹고 채우기" } : { href: "/premium", label: "Premium 알아보기" };
 
-  const more = () =>
+  const more = () => {
+    setSlow(false);
     start(async () => {
       setError(null);
       try {
@@ -39,6 +48,7 @@ export function MoreToday({ cost, kept, hidden }: { cost: number; kept: number; 
         setError("failed");
       }
     });
+  };
 
   return (
     <div className="mt-4">
@@ -59,7 +69,7 @@ export function MoreToday({ cost, kept, hidden }: { cost: number; kept: number; 
         ) : (
           <button type="button" onClick={more} disabled={pending} className="btn shrink-0">
             <IconPlus className="size-5" />
-            {pending ? "받는 중" : "하나 더 받기"}
+            {pending ? (slow ? "새 맹고 만드는 중" : "받는 중") : "하나 더 받기"}
             {cost > 0 && <span className="font-round text-[14px] opacity-80">{cost}맹고</span>}
           </button>
         )}

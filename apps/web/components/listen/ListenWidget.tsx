@@ -106,10 +106,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow">
               <Mascot mood="listen" className="size-10 opacity-60" />
             </span>
-            <span className="min-w-0">
-              <span className="block truncate text-[15px] font-black text-sub">오늘 맹고 전체 듣기</span>
-              <span className="block truncate text-[12px] font-bold text-faint">Premium에서 들을 수 있어요</span>
-            </span>
+            <span className="min-w-0 truncate text-[15px] font-black text-sub">오늘 맹고 전체 듣기</span>
             <PremiumBadge />
           </Link>
           {foldButton}

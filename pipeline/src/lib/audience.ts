@@ -89,8 +89,9 @@ function popularityOf(rep: RepItem | undefined, now: Date): number {
  * 지난 7일 묶음 중 토픽이 붙은 것. 요약이 없는 것은 freshHours 안의 것만.
  * 중심 벡터(묶음당 수 KB)는 "이미 알아요"와 비슷한 소식을 뺄 때만 필요해서 centroids로 고른다.
  */
-export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, centroids = true } = {}): Promise<Candidate[]> {
-  const since = new Date(ctx.now.getTime() - 7 * 24 * HOUR).toISOString();
+export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, centroids = true, sinceHours = 7 * 24 } = {}): Promise<Candidate[]> {
+  // 묶음은 sinceHours(기본 7일) 안의 것, 요약이 아직 없는 묶음은 freshHours 안의 것만 후보로 둔다
+  const since = new Date(ctx.now.getTime() - sinceHours * HOUR).toISOString();
   const cols = `id,first_seen_at,size,is_video,rep_item_id${centroids ? ',centroid' : ''}`;
   const clusters = await selectAll<{ id: number; first_seen_at: string; size: number; is_video: boolean; rep_item_id: number | null; centroid?: unknown }>((f, t) =>
     db.from('clusters').select(cols).is('skip_reason', null).gte('first_seen_at', since).order('id').range(f, t),
