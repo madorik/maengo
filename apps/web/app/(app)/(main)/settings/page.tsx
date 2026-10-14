@@ -1,4 +1,3 @@
-import type { PlanLimits } from "@maengo/core/plans";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
 import Link from "next/link";
@@ -18,8 +17,6 @@ import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 
 export const metadata: Metadata = { title: "설정" };
 
-/** 플랜 한 줄 설명(값은 plans 표) */
-const planDesc = (l: PlanLimits) => `하루 맹고 ${l.dailyItems}개${l.audio ? ", 음성 듣기" : ""}${l.canBuyMaengo ? ", 맹고 추가 구매" : ""}.`;
 
 
 /** 설정 한 묶음. action은 제목 오른쪽에 둔다(알림 켜고 끄기) */
@@ -65,7 +62,6 @@ export default async function SettingsPage() {
               <ManageSubscription uid={profile.id} />
             )}
           </div>
-          <p className="mt-1 text-sub">{planDesc(profile.limits)}</p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="tile p-4">
               <p className="text-[13px] font-extrabold text-sub">하루 맹고</p>
@@ -91,10 +87,6 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="topics" title="관심사">
-          {/* 관심사를 많이 골라도 하루 개수(dailyItems)만큼만 오니, 고른 관심사가 매일 다 나오지 않는다는 걸 미리 알린다(사용자 요청) */}
-          <p className="mb-3 text-[14px] text-sub">
-            관심사는 여러 개 골라도 돼요. 다만 하루 기본 맹고는 {dailyItems}개라, 고른 관심사 중 그날 중요한 소식부터 {dailyItems}개만 골라 드려요. 그래서 고른 관심사가 매일 모두 나오지는 않아요.
-          </p>
           <TopicSettings
             groups={topicGroups(topics)}
             news={newsSections(topics)}
