@@ -10,3 +10,7 @@
 *.p8
 *.p12
 *service-account*.json
+# 앱 네이티브 프로젝트(웹 배포에 필요 없음). 빌드 캐시(ios/DerivedData 등)가 수 GB라 올리면 크기 제한에 걸린다
+apps/mobile/ios
+apps/mobile/android
+apps/mobile/www
