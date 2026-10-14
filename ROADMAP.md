@@ -45,7 +45,9 @@
 - [x] **나** 안드로이드 에뮬레이터 확인: 권한 창 → 토큰 등록 → 서버 `sendPush`로 보낸 알림이 알림창에 뜸 → 누르면 오늘 화면. 앱을 보고 있을 때 온 알림은 안드로이드가 알림창에 안 띄운다
 - [ ] **나** iOS: Xcode에서 Push Notifications·Background Modes(remote notification) 켜기, 시뮬레이터 확인(위 APNs 키가 먼저)
 - [x] **나** 앱 1.1.0 빌드(2026-10-14): 안드로이드 AAB `~/Desktop/maengo-1.1.0-2.aab`(버전 코드 2, 업로드 키 서명 확인), iOS 1.1.0(빌드 2) App Store Connect 업로드 성공. iOS 시뮬레이터 푸시는 아직 확인 못 함
-- [ ] **사용자** Play Console 내부 테스트에 AAB 올리기, TestFlight에서 수출 규정 답·내부 테스터 추가. TestFlight 빌드는 Production APNs 환경이라 Firebase에 Production용 키가 있어야 알림이 온다
+- [x] Play 내부 테스트 1.1.0(2) 출시(사용자 업로드, 출시 노트는 API)·TestFlight 내부 그룹 `내부 테스터`(본인)·외부 그룹 `베타 테스터`(공개 링크 https://testflight.apple.com/join/GgY3qsZ7)·테스트 정보(2026-10-15). 배포 키: `~/.maengo/AuthKey_8MTQYTB587_Connect.p8`(App Store Connect API), `~/.maengo/play-service-account.json`(Play)
+- [ ] **사용자** TestFlight 외부 베타 심사용 연락처 전화번호 → **나** 심사 제출
+- [ ] **사용자** Play 내부 테스트 테스터 이메일 목록·참여 링크 확인(콘솔). TestFlight 빌드는 Production APNs 환경이라 Firebase에 APNs 인증 키(.p8)가 있어야 알림이 온다
 
 ## 3. 인앱 결제 출시
 
