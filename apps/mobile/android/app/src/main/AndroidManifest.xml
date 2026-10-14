@@ -35,6 +35,11 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- 앱 알림(FCM): 상태 표시줄 아이콘·색, 채널(앱이 'daily'를 '오늘의 맹고'로 만든다, apps/web/lib/native/push.ts) -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_maengo" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/maengo_mango" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="daily" />
     </application>
 
     <!-- Permissions -->

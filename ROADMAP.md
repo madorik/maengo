@@ -27,8 +27,10 @@
 설정 > 알림 스위치가 앱에서 "앱 알림은 다음 앱 업데이트부터 켤 수 있어요"라고 뜨는 원인. 앱 안 FCM 등록을 아직 안 만들었다([APP_PLAN.md](APP_PLAN.md) 3단계).
 
 - [ ] **사용자** Firebase에 iOS APNs 인증 키(.p8) 올리기(키 파일은 `~/.maengo/`에 있음)
-- [ ] **나** `@capacitor-firebase/messaging` 붙이기: 권한 요청(스위치를 켤 때만) → FCM 토큰 → `POST /api/devices`(ios·android), 알림 누르면 `/today?from=push`, 로그아웃 때 토큰 삭제
-- [ ] **나** 에뮬레이터·시뮬레이터에서 받기 확인(서버 스케줄러가 보내는 실제 알림)
+- [x] **나** `@capacitor-firebase/messaging` 8.5.2 붙이기(2026-10-14, 커밋 전): 스위치를 켤 때만 권한 요청 → FCM 토큰 → `POST /api/devices`(android·ios), 앱을 열 때 다시 등록, 알림 누르면 `/today?from=push`, 알림 끄기·로그아웃 때 이 기기 토큰 정리, 플러그인 없는 예전 빌드는 '앱을 업데이트하면 켤 수 있어요'. 안드로이드 알림 아이콘(망고 실루엣)·색·채널 '오늘의 맹고'(`apps/web/lib/native/push.ts`)
+- [x] **나** 안드로이드 에뮬레이터 확인: 권한 창 → 토큰 등록 → 서버 `sendPush`로 보낸 알림이 알림창에 뜸 → 누르면 오늘 화면. 앱을 보고 있을 때 온 알림은 안드로이드가 알림창에 안 띄운다
+- [ ] **나** iOS: Xcode에서 Push Notifications·Background Modes(remote notification) 켜기, 시뮬레이터 확인(위 APNs 키가 먼저)
+- [ ] **나** 스토어에 낼 앱 빌드에 들어가야 사용자가 쓴다(3·4번 앱 1.1과 같이)
 
 ## 3. 인앱 결제 출시
 

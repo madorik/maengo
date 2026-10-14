@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/actions";
+import { isAppUserAgent } from "@/lib/app-client";
 import { Crown, IconChevronDown } from "@/components/icons";
 import { useProfile } from "@/components/providers/ProfileProvider";
 
@@ -41,6 +42,11 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
   const name = p.displayName ?? (p.demo ? "데모 계정" : "맹고 사용자");
   const premium = p.plan === "plus";
   const account = p.demo ? "공용 데모 계정(로컬 개발용)" : `${p.provider === "apple" ? "Apple" : "Google"} 계정${p.email ? ` · ${p.email}` : ""}`;
+  // 앱이면 로그아웃 전에 이 기기의 알림 토큰을 지운다(다음 사람이 이 기기로 로그인해도 앞사람 알림이 오지 않게)
+  const logout = async () => {
+    if (isAppUserAgent(navigator.userAgent)) await (await import("@/lib/native/push")).unregisterApp();
+    await signOut();
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -112,7 +118,7 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
               </Link>
             </div>
           )}
-          <form action={signOut} className="border-t-2 border-line pt-2">
+          <form action={logout} className="border-t-2 border-line pt-2">
             <button type="submit" className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-[15px] font-extrabold text-orange hover:bg-snow">
               로그아웃
             </button>

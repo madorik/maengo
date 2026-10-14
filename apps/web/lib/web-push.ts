@@ -8,7 +8,7 @@ const SW_PATH = "/push-sw.js";
 /** 이 브라우저가 등록한 토큰(서버 목록과 비교해 '이 브라우저도 받는지' 표시) */
 const TOKEN_KEY = "maengo_push_token";
 
-export type RegisterResult = { ok: true } | { ok: false; reason: "unsupported" | "denied" | "app" | "failed" };
+export type RegisterResult = { ok: true } | { ok: false; reason: "unsupported" | "denied" | "update" | "failed" };
 
 export function storedToken(): string | null {
   try {
@@ -26,8 +26,8 @@ export function registeredHere(serverTokens: string[]): boolean {
 }
 
 export async function registerThisBrowser(): Promise<RegisterResult> {
-  // 앱은 네이티브 푸시(@capacitor-firebase/messaging)로 등록한다. APP_PLAN.md 3단계에서 여기를 채운다
-  if (isAppUserAgent(navigator.userAgent)) return { ok: false, reason: "app" };
+  // 앱은 네이티브 푸시(@capacitor-firebase/messaging)로 등록한다(lib/native/push.ts). 플러그인 코드는 앱에서만 받는다
+  if (isAppUserAgent(navigator.userAgent)) return (await import("@/lib/native/push")).registerApp();
   if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return { ok: false, reason: "unsupported" };
   if ((await Notification.requestPermission()) !== "granted") return { ok: false, reason: "denied" };
   try {

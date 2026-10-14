@@ -2,6 +2,7 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
+import { startAppPush } from "./push";
 
 // 앱다운 마감(APP_PLAN.md 1단계). components/NativeShell.tsx가 앱 안에서만 불러온다.
 // 플러그인의 네이티브 쪽은 apps/mobile에 같은 버전으로 설치돼 있어야 한다.
@@ -40,8 +41,14 @@ export function startNativeShell(): () => void {
     else void App.minimizeApp();
   });
 
+  // 앱 알림: 알림을 누르면 그 화면으로, 알림을 켠 기기면 토큰을 다시 등록(lib/native/push.ts)
+  const stopPush = startAppPush((path) => {
+    if (location.pathname + location.search !== path) location.assign(path);
+  });
+
   return () => {
     document.removeEventListener("click", onClick);
     void back.then((h) => h.remove());
+    stopPush();
   };
 }

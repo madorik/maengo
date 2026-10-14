@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 앱 알림(APNs). 개발 빌드는 development, 스토어로 내보낼 때 배포 프로필이 production으로 바꾼다 -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

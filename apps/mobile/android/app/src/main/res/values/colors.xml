@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 알림 아이콘 색(망고색, 웹 globals.css의 color-mango와 같다) -->
+    <color name="maengo_mango">#FFC23D</color>
+</resources>

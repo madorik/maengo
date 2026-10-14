@@ -27,11 +27,15 @@ const config: CapacitorConfig = {
   // 웹이 앱 요청을 알아보는 표시(apps/web/lib/app-client.ts)
   ios: { appendUserAgent: `MaengoApp/${version} (ios)` },
   android: { appendUserAgent: `MaengoApp/${version} (android)` },
+  // @capacitor-firebase/messaging의 SwiftPM 패키지 이름 충돌을 피한다(플러그인 README, Capacitor CLI 8.4+)
+  experimental: { ios: { spm: { packageOptions: { "@capacitor-firebase/messaging": { symlink: true } } } } },
   plugins: {
     // 웹은 이미 viewport-fit=cover + env(safe-area-inset-*)를 쓴다. native는 그 값을 맞게 채워 준다(옛 웹뷰는 여백으로 대신)
     SystemBars: { insetsHandling: "native", initialViewportFitValueHint: "cover", style: "LIGHT" },
     // 웹이 화면에 붙으면 바로 숨긴다(apps/web/lib/native/shell.ts). 웹을 못 불러와도 3초 뒤엔 숨는다
     SplashScreen: { launchShowDuration: 3000, launchAutoHide: true, launchFadeOutDuration: 200, backgroundColor: "#FFC23D", showSpinner: false },
+    // 앱 알림(FCM). 앱을 보고 있을 때 온 알림도 iOS에서 배너·소리로 보여 준다(apps/web/lib/native/push.ts)
+    FirebaseMessaging: { presentationOptions: ["badge", "sound", "alert"] },
   },
 };
 

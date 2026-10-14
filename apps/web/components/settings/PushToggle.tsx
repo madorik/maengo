@@ -11,9 +11,12 @@ import { registeredHere, registerThisBrowser, type RegisterResult } from "@/lib/
 const FAIL: Record<Extract<RegisterResult, { ok: false }>["reason"], string> = {
   unsupported: "이 브라우저는 알림을 받을 수 없어요. Chrome·Edge·Firefox나 맥의 Safari에서 켜 주세요.",
   denied: "브라우저가 이 사이트의 알림을 막고 있어요. 주소창 왼쪽의 사이트 설정에서 알림을 허용한 뒤 다시 켜 주세요.",
-  app: "앱 알림은 다음 앱 업데이트부터 켤 수 있어요.",
+  update: "앱을 최신 버전으로 업데이트하면 알림을 켤 수 있어요.",
   failed: "알림을 켜지 못했어요. 잠시 뒤 다시 켜 주세요.",
 };
+
+/** 앱에서 알림 권한을 거절했을 때(브라우저 안내 대신) */
+const APP_DENIED = "휴대폰 설정 > 앱 > 맹고 > 알림에서 허용한 뒤 다시 켜 주세요.";
 
 const noSubscribe = () => () => {};
 
@@ -37,11 +40,13 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
       if (next) {
         const r = await registerThisBrowser();
         if (!r.ok) {
-          setError(FAIL[r.reason]);
+          setError(r.reason === "denied" && isAppUserAgent(navigator.userAgent) ? APP_DENIED : FAIL[r.reason]);
           return;
         }
       }
       const res = await setPushEnabled(next);
+      // 끄면 서버가 이 사람의 기기 토큰을 모두 지운다. 앱은 다음에 열 때 다시 등록하지 않게 잊는다
+      if (!res.enabled && isAppUserAgent(navigator.userAgent)) (await import("@/lib/native/push")).forgetApp();
       setOn(res.enabled);
       track("notify_toggle", { on: res.enabled });
       setError(res.error ?? null);
