@@ -131,7 +131,7 @@ const MIN_STAGE_MS = 700;
 const DONE_HOLD_MS = 1200;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted" | null }) {
+export function MakeToday({ reason, notifyLabel }: { reason: "first" | "scheduled" | "waiting" | "exhausted" | null; notifyLabel: string }) {
   const router = useRouter();
   const [state, setState] = useState<State>({ kind: "idle" });
 
@@ -180,6 +180,21 @@ export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted
 
   if (state.kind === "running" || state.kind === "done") {
     return <Making p={state.kind === "done" ? { stage: "done", items: state.items } : state.p} />;
+  }
+
+  // 알림 시각 전: 오늘 맹고는 그때 지급한다(받기 버튼 없음)
+  if (reason === "scheduled") {
+    return (
+      <div className="mt-10 flex items-end gap-3">
+        <Mascot mood="happy" className="size-24 shrink-0" />
+        <Bubble className="mb-6 flex-1">
+          <p className="text-[15px] font-bold leading-relaxed">오늘의 맹고는 {notifyLabel}에 와요.</p>
+          <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
+            지난 맹고 보기
+          </Link>
+        </Bubble>
+      </div>
+    );
   }
 
   return (

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { receiveMoreAction } from "@/app/actions";
 import { IconPlus } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { track } from "@/lib/analytics";
 
@@ -21,7 +20,7 @@ const ERRORS = {
  * 오늘 목록 아래 '하나 더 받기'. 하루 맹고(플랜의 하루 소식 수)를 넘으면 지갑에서 1맹고를 쓴다.
  * 골라 둔 소식이 있으면 그것부터, 없으면 서버가 요약된 소식에서 하나 더 고른다. 붙으면 액션이 오늘 화면을 새로 그린다.
  */
-export function MoreToday({ cost, kept, hidden }: { cost: number; kept: number; hidden: number }) {
+export function MoreToday({ cost, kept }: { cost: number; kept: number }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<keyof typeof ERRORS | null>(null);
   // 1.5초 넘게 걸리면 지금 새로 요약하는 중이다(최근 한 달 묶음에서 만들기, 10~20초)
@@ -31,10 +30,9 @@ export function MoreToday({ cost, kept, hidden }: { cost: number; kept: number; 
     const t = setTimeout(() => setSlow(true), 1500);
     return () => clearTimeout(t);
   }, [pending]);
+  // 하루 맹고를 다 받았고 지갑도 비었으면 '하나 더 받기' 대신 '맹고 추가 구매하기'(Free는 구매가 Premium 기능이라 Premium 안내로)
   const short = cost > kept;
-  // 맹고 추가 구매를 못 하는 플랜(Free)은 Premium 안내로 보낸다
-  const canBuy = useProfile().canBuyMaengo;
-  const fill = canBuy ? { href: "/premium#maengo", label: "맹고 채우기" } : { href: "/premium", label: "Premium 알아보기" };
+  const buy = useProfile().canBuyMaengo ? "/premium#maengo" : "/premium";
 
   const more = () => {
     setSlow(false);
@@ -52,34 +50,23 @@ export function MoreToday({ cost, kept, hidden }: { cost: number; kept: number; 
 
   return (
     <div className="mt-4">
-      <div className="tile flex flex-col gap-4 border-dashed p-5 sm:flex-row sm:items-center">
-        <div className="flex flex-1 items-center gap-3">
-          <Mascot mood="happy" className="size-14 shrink-0" />
-          <div>
-            <p className="text-[16px] font-black">{hidden > 0 ? `골라 둔 소식이 ${hidden}개 더 있어요` : "오늘 맹고 더 받기"}</p>
-            <p className="mt-0.5 text-[14px] font-semibold text-sub">
-              지갑 <span className="font-round font-black tabular-nums text-ink">{kept.toLocaleString("ko-KR")}</span>
-            </p>
-          </div>
-        </div>
-        {short ? (
-          <Link href={fill.href} className="btn shrink-0">
-            {fill.label}
-          </Link>
-        ) : (
-          <button type="button" onClick={more} disabled={pending} className="btn shrink-0">
-            <IconPlus className="size-5" />
-            {pending ? (slow ? "새 맹고 만드는 중" : "받는 중") : "하나 더 받기"}
-            {cost > 0 && <span className="font-round text-[14px] opacity-80">{cost}맹고</span>}
-          </button>
-        )}
-      </div>
+      {short ? (
+        <Link href={buy} className="btn w-full">
+          맹고 추가 구매하기
+        </Link>
+      ) : (
+        <button type="button" onClick={more} disabled={pending} className="btn w-full">
+          <IconPlus className="size-5" />
+          {pending ? (slow ? "새 맹고 만드는 중" : "받는 중") : "하나 더 받기"}
+          {cost > 0 && <span className="font-round text-[14px] opacity-80">{cost}맹고</span>}
+        </button>
+      )}
       {error && (
         <p role="alert" className="mt-2 px-1 text-[14px] font-bold text-orange">
           {ERRORS[error]}
           {error === "no_balance" && (
-            <Link href={fill.href} className="ml-2 underline">
-              {fill.label}
+            <Link href={buy} className="ml-2 underline">
+              맹고 추가 구매하기
             </Link>
           )}
         </p>

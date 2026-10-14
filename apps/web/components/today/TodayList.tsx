@@ -2,25 +2,29 @@
 
 import Link from "next/link";
 import { IconCheck, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
-import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { useItemAudio } from "@/components/article/useItemAudio";
 import { MakeToday } from "./MakeToday";
 import { MoreToday } from "./MoreToday";
+import { TermsNotice } from "./TermsNotice";
 import type { FeedItem } from "@/lib/types";
 
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로 */
 export function TodayList() {
   const { data, game } = useToday();
+  // 오늘 받은 맹고 / 하루 맹고(플랜). 맹고를 써서 더 받은 건 +N으로 붙인다
+  const daily = useProfile().dailyItems;
+  const received = Math.min(game.total, daily);
+  const more = game.total - received;
   return (
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
+        {data.termsNotice && <TermsNotice />}
         <section aria-labelledby="today-title" className="rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
           <p className="text-[13px] font-extrabold text-ink/70">{data.greetingDate}</p>
           <h1 id="today-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
@@ -33,9 +37,10 @@ export function TodayList() {
           )}
           {game.total > 0 && (
             <div className="mt-4 flex items-center gap-3">
-              <ProgressBar value={game.done / game.total} tone="leaf" label="오늘 읽은 소식" className="h-4 flex-1" track="bg-white/60" />
+              <ProgressBar value={received / daily} tone="leaf" label="오늘 받은 맹고" className="h-4 flex-1" track="bg-white/60" />
               <span className="font-round text-[17px] font-black">
-                {game.done}/{game.total}
+                {received}/{daily}
+                {more > 0 && ` +${more}`}
               </span>
             </div>
           )}
@@ -48,23 +53,11 @@ export function TodayList() {
             ))}
           </ol>
         ) : (
-          <MakeToday reason={data.emptyReason} />
+          <MakeToday reason={data.emptyReason} notifyLabel={data.notifyLabel} />
         )}
 
-        {game.total > 0 && <MoreToday cost={data.moreCost} kept={data.wallet} hidden={data.hiddenCount} />}
+        {game.total > 0 && <MoreToday cost={data.moreCost} kept={data.wallet} />}
 
-        {game.total > 0 && (
-          <div className="mt-10 flex items-end gap-3">
-            <Mascot mood={game.allDone ? "cheer" : "happy"} className="size-24 shrink-0" />
-            <Bubble className="mb-6 flex-1">
-              <p className="text-[15px] font-bold leading-relaxed">
-                {game.allDone
-                  ? `오늘은 여기까지예요! 내일 ${data.notifyLabel}에 새로 고른 소식으로 만나요.`
-                  : `${game.total - game.done}개 남았어요. 다 보면 오늘은 끝이에요. 나머지 소식은 몰라도 괜찮아요.`}
-              </p>
-            </Bubble>
-          </div>
-        )}
       </div>
     </div>
   );

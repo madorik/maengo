@@ -1,5 +1,7 @@
 import { buildTodayFeedNow, type InstantProgress } from "@maengo/pipeline/instant";
 import { NextResponse } from "next/server";
+import { waitingForNotify } from "@/lib/server/feed";
+import { entitlements } from "@/lib/server/profile";
 import { currentProfile } from "@/lib/server/session";
 
 // "오늘 맹고 받기": 오늘 피드가 비었을 때 이 사람 것을 지금 만든다. 진행 상황을 한 줄에 하나씩(NDJSON) 흘려보낸다.
@@ -12,6 +14,8 @@ export async function POST() {
   const profile = await currentProfile();
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!profile.onboarded) return NextResponse.json({ error: "not_onboarded" }, { status: 400 });
+  // 하루 맹고는 알림 시각에 지급한다(그 전에는 스케줄러도 화면도 만들지 않는다)
+  if (await waitingForNotify(profile)) return NextResponse.json({ error: "scheduled" }, { status: 409 });
   if (running.has(profile.id)) return NextResponse.json({ error: "already_running" }, { status: 409 });
   running.add(profile.id);
 
@@ -25,7 +29,8 @@ export async function POST() {
         } catch {}
       };
       try {
-        await buildTodayFeedNow(profile.id, send, { maxSummaries: Math.min(5, profile.plan === "free" ? 1 : 5) });
+        // 하루 맹고만큼 새로 요약한다(Free 3, Premium은 시간 때문에 5까지. 모자란 건 오늘 화면을 열 때 채운다)
+        await buildTodayFeedNow(profile.id, send, { maxSummaries: Math.min(5, entitlements(profile).dailyItems) });
       } catch (e) {
         console.error("[instant] 실패", String((e as Error)?.message ?? e).slice(0, 300));
         send({ stage: "error" });

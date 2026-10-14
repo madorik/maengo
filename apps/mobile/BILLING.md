@@ -15,11 +15,15 @@
 
 | ID | 종류 | 맹고 | 가격 |
 |---|---|---|---|
-| `maengo_premium_monthly` | 자동 갱신 구독 1개월(플레이는 기본 요금제 `monthly`) | 하루 맹고 10(plans 표) | ₩5,900 |
-| `maengo_pack_10` | 소모성 | 10 | 정할 것 |
-| `maengo_pack_30` | 소모성 | 30 | 정할 것 |
-| `maengo_pack_50` | 소모성 | 50 | 정할 것 |
-| `maengo_pack_100` | 소모성 | 100 | 정할 것 |
+| `maengo_premium_monthly` | 자동 갱신 구독 1개월(플레이는 기본 요금제 `monthly`), **첫 구독 7일 무료** | 하루 맹고 10(plans 표) | ₩5,900 |
+| `maengo_pack_10` | 소모성 | 10 | ₩1,100(맹고당 110원) |
+| `maengo_pack_30` | 소모성 | 30 | ₩2,900(97원) |
+| `maengo_pack_50` | 소모성 | 50 | ₩4,400(88원) |
+| `maengo_pack_100` | 소모성 | 100 | ₩7,900(79원) |
+
+묶음 가격(결정 D1, 2026-10-14): 많이 살수록 조금 싸게, 100맹고는 Premium 한 달(₩5,900)보다 싸지 않게. 애플에 같은 가격이 없으면 가장 가까운 가격으로 하고 이 표를 고친다. 화면은 스토어가 준 가격을 그대로 보여 준다.
+
+무료 체험(결정 D3): 스토어가 처리한다(첫 구독만, 스토어 계정마다 한 번). 앱은 상품에 0원 첫 기간이 있고 받을 수 있는 사람이면 버튼을 "7일 무료로 시작"으로 바꾸고 체험 뒤 결제 금액을 적는다(`lib/native/billing.ts` `trialDays`). iOS는 RevenueCat에 받을 수 있는지 따로 묻는다. 약관 6조에 체험 조항이 있다.
 
 맹고 추가 구매는 Premium만(화면에서 막는다). 스토어 결제에 수량 지정이 없어서 수량마다 상품을 하나씩 둔다. 수량을 바꾸려면 `packages/core/src/plans.ts`의 `MAENGO_PACKS`와 세 곳의 상품을 같이 바꾼다.
 
@@ -28,7 +32,7 @@
 ### 1. App Store Connect
 1. 계약·세금·금융: 유료 앱 계약(Paid Apps)에 서명, 은행·세금 정보. 스몰 비즈니스 프로그램(수수료 15%) 신청
 2. 앱 만들기(번들 `kr.maengo.app`, STORE.md의 iOS 순서. Xcode에 애플 계정 로그인이 먼저)
-3. 구독 그룹 `맹고 Premium` → 자동 갱신 구독 `maengo_premium_monthly`(1개월, ₩5,900, 한국어 표시 이름·설명, 심사용 스크린숏)
+3. 구독 그룹 `맹고 Premium` → 자동 갱신 구독 `maengo_premium_monthly`(1개월, ₩5,900, 한국어 표시 이름·설명, 심사용 스크린숏) → 구독 가격 → **유입 혜택(Introductory Offer)**: 무료, 1주, 모든 국가
 4. 앱 내 구입 → 소모성 `maengo_pack_10`·`30`·`50`·`100`
 5. 사용자 및 액세스 → 통합 → **앱 내 구입 키**(.p8) 만들기 → RevenueCat에 올림
 6. 앱 정보 → App Store 서버 알림 V2 URL에 RevenueCat이 알려 주는 주소
@@ -37,7 +41,7 @@
 ### 2. Play Console
 1. 결제 프로필(판매자 계정) 만들기
 2. **BILLING 권한이 든 새 AAB**를 비공개 테스트에 올린다(예전 `maengo-1.0.0-1.aab`에는 없음 → 버전 코드 올려 다시 빌드). 올려야 상품을 만들 수 있다
-3. 수익 창출 → 구독 `maengo_premium_monthly`, 기본 요금제 `monthly`(매월 자동 갱신, ₩5,900)
+3. 수익 창출 → 구독 `maengo_premium_monthly`, 기본 요금제 `monthly`(매월 자동 갱신, ₩5,900) → **혜택 추가**: 무료 체험 7일, 자격은 '신규 고객'(이 구독을 산 적 없는 사람)
 4. 인앱 상품 `maengo_pack_10`·`30`·`50`·`100`
 5. Google Cloud 서비스 계정(Play Developer API) JSON → Play Console 사용자 권한(재무 데이터 보기·주문 관리) → RevenueCat에 올림
 6. 실시간 개발자 알림(Pub/Sub)은 RevenueCat 안내대로 연결

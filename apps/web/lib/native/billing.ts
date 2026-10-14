@@ -1,6 +1,6 @@
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
-import { Purchases, type PurchasesPackage } from "@revenuecat/purchases-capacitor";
+import { INTRO_ELIGIBILITY_STATUS, Purchases, type PurchasesPackage } from "@revenuecat/purchases-capacitor";
 import { MAENGO_PACKS, PREMIUM_PRODUCT } from "@maengo/core/plans";
 
 // 앱 안 결제(RevenueCat → 애플 인앱 결제·구글 플레이 결제). 웹 브라우저에서는 쓰지 않는다.
@@ -31,9 +31,27 @@ export interface StoreItem {
   price: string;
   /** 맹고 묶음이면 맹고 수, Premium이면 null */
   maengo: number | null;
+  /** 이 사람이 받을 수 있는 무료 체험 일수(스토어 첫 구독 7일 무료, 결정 D3). 없거나 이미 써 봤으면 null */
+  trialDays: number | null;
 }
 
 const baseId = (id: string) => id.split(":")[0]!;
+
+const UNIT_DAYS: Record<string, number> = { DAY: 1, WEEK: 7, MONTH: 30, YEAR: 365 };
+
+/** 스토어에 걸어 둔 무료 체험(0원 첫 기간) 일수 */
+function trialOf(pkg: PurchasesPackage): number | null {
+  const intro = pkg.product.introPrice;
+  if (!intro || intro.price !== 0) return null;
+  return (UNIT_DAYS[intro.periodUnit] ?? 0) * intro.periodNumberOfUnits * Math.max(1, intro.cycles) || null;
+}
+
+/** iOS는 체험을 이미 써 본 사람에게도 상품에 체험이 붙어 와서 따로 묻는다(구글은 받을 수 있는 체험만 준다) */
+async function trialEligible(productId: string): Promise<boolean> {
+  if (Capacitor.getPlatform() !== "ios") return true;
+  const res = await Purchases.checkTrialOrIntroductoryPriceEligibility({ productIdentifiers: [productId] }).catch(() => null);
+  return res?.[productId]?.status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE;
+}
 
 /** 지금 오퍼링에서 Premium과 맹고 묶음을 꺼낸다(가격은 스토어가 그 나라 통화로 준다) */
 export async function loadStore(userId: string): Promise<{ premium: StoreItem | null; packs: StoreItem[] }> {
@@ -42,10 +60,15 @@ export async function loadStore(userId: string): Promise<{ premium: StoreItem | 
   const pkgs = offerings.current?.availablePackages ?? [];
   const items = pkgs.map((pkg): StoreItem => {
     const productId = baseId(pkg.product.identifier);
-    return { pkg, productId, price: pkg.product.priceString, maengo: MAENGO_PACKS[productId] ?? null };
+    return { pkg, productId, price: pkg.product.priceString, maengo: MAENGO_PACKS[productId] ?? null, trialDays: null };
   });
+  const premium = items.find((i) => i.productId === PREMIUM_PRODUCT) ?? null;
+  if (premium) {
+    const days = trialOf(premium.pkg);
+    if (days && (await trialEligible(premium.pkg.product.identifier))) premium.trialDays = days;
+  }
   return {
-    premium: items.find((i) => i.productId === PREMIUM_PRODUCT) ?? null,
+    premium,
     packs: items.filter((i) => i.maengo !== null).sort((a, b) => a.maengo! - b.maengo!),
   };
 }

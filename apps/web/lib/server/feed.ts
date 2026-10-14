@@ -3,7 +3,8 @@ import { cache } from 'react';
 import { modelFor, tierOf } from '@maengo/core/ai';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
-import { kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
+import { LEGAL_CHANGED_ON } from '../site';
+import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { daysBefore } from '@maengo/core/plans';
 import { whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
@@ -137,7 +138,9 @@ const hadFeedBefore = cache(async (userId: string, date: string): Promise<boolea
 const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   const date = kstDate();
   const limit = entitlements(profile).dailyItems;
-  const day = await readDay(profile.id, date);
+  let day = await readDay(profile.id, date);
+  // 오늘 피드가 하루 맹고(+ 더 받은 것)보다 적으면(AI가 막혔던 때 만든 피드 등) 이미 요약된 소식으로 모자란 만큼 채운다
+  if (day && day.rows.length < limit + day.extra) day = await topUp(profile, day, limit + day.extra - day.rows.length);
   if (day) {
     const visible = Math.min(day.rows.length, limit + day.extra);
     if (visible !== day.visible) must(await db.from('feed_days').update({ visible }).eq('user_id', profile.id).eq('date', date), 'feed_days visible');
@@ -145,7 +148,9 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   }
   // 가입하고 처음 온 사람은 저절로 채우지 않는다. '오늘 맹고 받기'를 눌러야 가져오거나 만든다(진행 상황을 보여 주려고)
   if (!(await hadFeedBefore(profile.id, date))) return { date, rows: [], visible: 0, extra: 0 };
-  // 아직 오늘 피드가 없다. 이미 요약된 소식으로 임시 피드를 만든다(배치가 돌면 새 소식으로 다시 만든다)
+  // 하루 맹고는 알림 시각에 지급한다(서버 스케줄러가 30분 전에 만든다). 그 전에는 만들지 않는다
+  if (beforeNotify(profile.notifyAt)) return { date, rows: [], visible: 0, extra: 0 };
+  // 알림 시각이 지났는데 오늘 피드가 없다(스케줄러가 못 만든 날). 이미 요약된 소식으로 만든다. 스케줄러는 있는 피드를 건너뛴다
   const rows = await buildToday(profile, date);
   const visible = Math.min(rows.length, limit);
   if (rows.length) {
@@ -156,6 +161,27 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   }
   return { date, rows, visible, extra: 0 };
 });
+
+/**
+ * 오늘 피드를 need개까지 채운다: 최근 한 달 안에 요약이 끝났지만 준 적 없는 소식만(지난 피드·읽음·싫어요·오늘 것 빼고).
+ * AI는 부르지 않는다. 같은 자리에 두 번 들어가면 뒤의 것은 무시된다(순번 충돌).
+ */
+async function topUp(profile: Profile, day: FeedDay, need: number): Promise<FeedDay> {
+  const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), weightsOf(profile.id), exclusions(profile.id, day.date)]);
+  for (const r of day.rows) exclude.add(r.clusterId);
+  const picked = rankFeed(candidates, weights, exclude, { limit: need });
+  if (!picked.length) return day;
+  let rank = day.rows.at(-1)?.rank ?? 0;
+  const rows = picked.map((p) => ({ rank: ++rank, clusterId: p.clusterId, topicId: p.topicId }));
+  const { error } = await db
+    .from('feeds')
+    .upsert(rows.map((r) => ({ user_id: profile.id, date: day.date, rank: r.rank, cluster_id: r.clusterId, topic_id: r.topicId })), { onConflict: 'user_id,date,rank', ignoreDuplicates: true });
+  if (error) {
+    console.error('feeds top-up', error.message);
+    return day;
+  }
+  return (await readDay(profile.id, day.date)) ?? day;
+}
 
 export type MoreResult = { ok: true; charged: boolean } | { ok: false; error: 'no_feed' | 'no_more' | 'no_balance' | 'busy' | 'blocked' };
 
@@ -237,13 +263,13 @@ export async function rebuildFeed(profile: Profile) {
 }
 
 /**
- * 하루 맹고 사용량(설정 > 플랜): 오늘 받은 소식 중 하루 맹고에서 나간 수만큼 뺀다. 지갑으로 더 받은 건 세지 않는다.
- * Free 3개 중 3개를 받았으면 0/3. 오늘 피드가 아직 없으면 3/3
+ * 하루 맹고(설정 > 플랜): 오늘 하루 맹고에서 지급한 수 / 플랜의 하루 맹고. 맹고 = 소식(2026-10-14 사용자 정책).
+ * Free 3개 중 2개를 받았으면 2/3. 지갑으로 더 받은 건 세지 않는다. 오늘 피드가 아직 없으면 0/3
  */
-export async function dailyMaengoUsage(profile: Profile): Promise<{ left: number; daily: number }> {
+export async function dailyMaengoUsage(profile: Profile): Promise<{ given: number; daily: number }> {
   const daily = entitlements(profile).dailyItems;
   const day = await todayFeed(profile);
-  return { left: Math.max(0, daily - Math.min(day.visible, daily)), daily };
+  return { given: Math.min(day.visible, daily), daily };
 }
 
 /** 보관함에서 볼 수 있는 가장 오래된 날(Free는 최근 7일). null이면 전부 */
@@ -455,6 +481,11 @@ async function readsAndFeedback(userId: string) {
   };
 }
 
+/** 알림 시각 전이라 오늘 맹고를 아직 만들면 안 되는지(전에 받은 적 있는 사람만. 처음 받는 사람은 바로 만든다) */
+export async function waitingForNotify(profile: Profile): Promise<boolean> {
+  return beforeNotify(profile.notifyAt) && (await hadFeedBefore(profile.id, kstDate()));
+}
+
 /** 오늘 날짜로 배치가 성공한 적이 있는지(없으면 아직 오늘 소식을 고르기 전) */
 async function batchRanToday(date: string): Promise<boolean> {
   const { count } = await db.from('pipeline_runs').select('id', { count: 'exact', head: true }).eq('date', date).eq('ok', true);
@@ -469,7 +500,9 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     ? null
     : !(await hadFeedBefore(profile.id, day.date))
       ? 'first'
-      : (await batchRanToday(day.date))
+      : beforeNotify(profile.notifyAt)
+        ? 'scheduled'
+        : (await batchRanToday(day.date))
         ? 'exhausted'
         : 'waiting';
   const topicNames = [...new Set(items.map((i) => i.topicName))].slice(0, 3);
@@ -481,10 +514,10 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     readMinutes: readMinutes(items),
     notifyLabel: notifyTimeLabel(profile.notifyAt),
     dailyLimit,
-    hiddenCount: day.rows.length - day.visible,
     moreCost: day.visible >= dailyLimit ? 1 : 0,
     wallet,
     emptyReason,
+    termsNotice: profile.createdAt < Date.parse(`${LEGAL_CHANGED_ON}T00:00:00+09:00`),
     items,
     read: reads.filter((r) => r.read_at).map((r) => r.cluster_id),
     listened: reads.filter((r) => r.listened_at).map((r) => r.cluster_id),

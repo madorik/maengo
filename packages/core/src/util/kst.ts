@@ -5,7 +5,17 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 function kstParts(now: Date) {
   const k = new Date(now.getTime() + KST_OFFSET_MS);
-  return { y: k.getUTCFullYear(), m: k.getUTCMonth() + 1, d: k.getUTCDate(), wd: k.getUTCDay(), h: k.getUTCHours() };
+  return { y: k.getUTCFullYear(), m: k.getUTCMonth() + 1, d: k.getUTCDate(), wd: k.getUTCDay(), h: k.getUTCHours(), min: k.getUTCMinutes() };
+}
+
+/**
+ * 오늘(KST) 알림 시각('08:00') 전인지. 하루 맹고는 알림 시각에 지급하므로(2026-10-14 사용자 결정)
+ * 00시가 지나도 알림 시각 전에는 오늘 맹고를 만들지 않는다. 처음 받는 사람은 예외(바로 받기)
+ */
+export function beforeNotify(notifyAt: string, now: Date = new Date()): boolean {
+  const [h = 0, m = 0] = notifyAt.split(':').map(Number);
+  const k = kstParts(now);
+  return k.h * 60 + k.min < h * 60 + m;
 }
 
 /** 'YYYY-MM-DD'에 n일을 더한다(KST 날짜 문자열 그대로 계산) */

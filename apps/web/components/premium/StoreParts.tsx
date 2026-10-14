@@ -63,10 +63,12 @@ export function PremiumBuy({ uid, plan }: { uid: string; plan: Plan }) {
   return (
     <div>
       <button type="button" onClick={buy} disabled={s.busy !== null} className="btn min-h-14 w-full text-[17px]">
-        {s.busy === premium.productId ? "결제 중" : `Premium 시작 · 월 ${premium.price}`}
+        {s.busy === premium.productId ? "결제 중" : premium.trialDays ? `${premium.trialDays}일 무료로 시작` : `Premium 시작 · 월 ${premium.price}`}
       </button>
       <p className="mt-2 text-center text-[12px] leading-relaxed text-faint">
-        매달 자동으로 갱신되고, 스토어의 구독 관리에서 언제든 해지할 수 있어요.{" "}
+        {premium.trialDays
+          ? `무료 체험이 끝나면 월 ${premium.price}이 자동으로 결제되고 매달 갱신돼요. 체험 중에 해지하면 결제되지 않아요. `
+          : "매달 자동으로 갱신되고, 스토어의 구독 관리에서 언제든 해지할 수 있어요. "}
         <Link href="/terms" className="underline">
           이용약관
         </Link>{" "}

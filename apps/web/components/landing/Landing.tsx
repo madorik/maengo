@@ -248,7 +248,7 @@ export async function Landing() {
                 featured
                 name="Premium"
                 price={monthlyPrice(plus)}
-                items={[`하루 맹고 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `맹고 추가 구매, 목록에 없는 관심사 ${plus.customLimit}개`, "더 좋은 AI 모델로 요약", `보관함 전체, 관심사 ${plus.topicLimit}개`]}
+                items={[`하루 맹고 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `맹고 추가 구매, 목록에 없는 관심사 ${plus.customLimit}개`, `보관함 전체, 관심사 ${plus.topicLimit}개`]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={{ signedOut: START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
               />

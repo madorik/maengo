@@ -26,6 +26,8 @@ export const OPERATOR_NAME = "정민균";
 export const SUPPORT_EMAIL = "wandeung.help@gmail.com";
 /** 이용약관·개인정보 처리방침 시행일. 내용을 바꾸면 날짜도 바꾸고 변경 공지를 한다 */
 export const LEGAL_EFFECTIVE_DATE = "2026년 10월 14일";
+/** 약관이 바뀐 날(KST). 이 날 전에 가입한 회원에게 앱 안에서 한 번 알린다(결정 D4). 약관을 또 바꾸면 이 값과 위 날짜를 같이 바꾼다 */
+export const LEGAL_CHANGED_ON = "2026-10-14";
 
 /**
  * 문의 메일. 빈 메일로 문서를 공개하지 않도록 운영에서는 비어 있으면 null(문서 페이지가 404로 숨는다).

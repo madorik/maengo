@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addDays, isNotifyTime, kstDate, kstDayLabel, kstGreetingDate, NOTIFY_TIMES, notifyTimeLabel, publishedLabel } from '../util/kst';
+import { addDays, beforeNotify, isNotifyTime, kstDate, kstDayLabel, kstGreetingDate, NOTIFY_TIMES, notifyTimeLabel, publishedLabel } from '../util/kst';
 
 test('KST 날짜는 UTC 15시에 넘어간다', () => {
   assert.equal(kstDate(new Date('2026-10-08T14:59:00Z')), '2026-10-08');
@@ -42,6 +42,15 @@ test('피드 날짜 묶음 이름', () => {
   assert.equal(kstDayLabel('2026-10-09', now), '오늘');
   assert.equal(kstDayLabel('2026-10-08', now), '어제');
   assert.equal(kstDayLabel('2026-10-05', now), '10월 5일 월요일');
+});
+
+test('알림 시각 전인지는 KST로 본다', () => {
+  // 2026-10-14 07:59 KST = 2026-10-13T22:59Z
+  assert.equal(beforeNotify('08:00', new Date('2026-10-13T22:59:00Z')), true);
+  assert.equal(beforeNotify('08:00', new Date('2026-10-13T23:00:00Z')), false);
+  // 00시 1분(KST)은 아침 6시 전
+  assert.equal(beforeNotify('06:00', new Date('2026-10-13T15:01:00Z')), true);
+  assert.equal(beforeNotify('21:30', new Date('2026-10-14T12:30:00Z')), false);
 });
 
 test('날짜 더하기는 월말·연말을 넘는다', () => {

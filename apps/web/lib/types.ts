@@ -41,14 +41,15 @@ export interface TodayData {
   notifyLabel: string;
   /** 하루 맹고(플랜의 하루 소식 수, plans 표) */
   dailyLimit: number;
-  /** 오늘 골라 뒀지만 아직 안 보여 준 소식 수(더 받기로 먼저 꺼낸다) */
-  hiddenCount: number;
   /** 하나 더 받을 때 쓰는 맹고(기본 개수를 다 채우기 전이면 0) */
   moreCost: number;
   /** 지갑 맹고(가입 선물·추가 구매한 맹고, 사라지지 않음). 하루 맹고보다 더 받을 때 1맹고씩 쓴다 */
   wallet: number;
   /** 오늘 소식이 비었을 때 왜 비었는지. first = 가입하고 아직 한 번도 안 받았다(눌러야 받는다), waiting = 오늘 배치가 아직 안 돌았다, exhausted = 토픽에서 안 본 소식을 다 썼다 */
-  emptyReason: 'first' | 'waiting' | 'exhausted' | null;
+  /** 약관이 바뀌기 전에 가입한 회원이라 바뀐 약관을 알려야 하는지(한 번 닫으면 이 기기에서는 다시 안 보인다) */
+  termsNotice: boolean;
+  /** scheduled = 알림 시각 전이라 오늘 맹고를 아직 지급하지 않았다 */
+  emptyReason: 'first' | 'scheduled' | 'waiting' | 'exhausted' | null;
   items: FeedItem[];
   read: number[];
   listened: number[];
