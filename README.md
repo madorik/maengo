@@ -40,7 +40,7 @@ pnpm build
 - XP: 읽거나 들은 소식 10, 의견 5(`lib/gamify.ts`). 오늘 목표·연속 기록은 뺐다.
 - 데모 계정은 어제까지 무료로 14일을 썼고(하루 1개, 보관함에 쌓여 있음) 오늘 체험을 시작한 상태다(`lib/server/store.ts`).
 - 유튜브 썸네일: 주소에서 영상 ID를 뽑아 `i.ytimg.com` 썸네일을 쓴다(`packages/core/src/util/youtube.ts`). 데모 영상은 ID가 없어 썸네일을 그려서 보여 준다.
-- 플랜별 AI 모델: 무료는 `GEMINI_MODEL_FREE`(Gemini Flash), 플러스·체험은 `GEMINI_MODEL_PLUS`(상위 모델). "왜 중요한가" 캐시도 등급별로 따로 둔다. 무료는 듣기가 잠긴다.
+- AI 모델: 모든 플랜이 같은 요약(고정 버전 `gemini-3.1-flash-lite`, `packages/core/src/ai/models.ts`). `-latest` 별칭과 Pro 모델은 쓰지 않는다. Free는 듣기가 잠긴다.
 - 설정(`/settings`): 데모용 플랜 전환, 지금 쓰는 모델, 토픽 가중치, 피드 다시 고르기, 로그아웃.
 
 **외부 서비스**(자세한 건 [API_KEYS.md](./API_KEYS.md))

@@ -1,9 +1,7 @@
 import { rankFeed } from '@maengo/core/feed';
-import { GeminiQuotaError } from '@maengo/core/gemini';
-import { db, check, inChunks } from '../lib/db';
+import { db, check } from '../lib/db';
 import { loadAudience, loadCandidates, withSimilarExcluded } from '../lib/audience';
 import type { Ctx } from '../lib/ctx';
-import { summarizeCluster } from './summarize';
 
 /** 지금부터 30분 뒤의 KST 시각('HH:MM'). 알림 시각이 이보다 이르거나 같으면 오늘 피드를 만들 때가 됐다. 자정을 넘기면 23:59 */
 export function dueClock(now: Date): string {
@@ -13,7 +11,7 @@ export function dueClock(now: Date): string {
 }
 
 // 8. rank: 유저마다 오늘 피드를 만든다. 랭킹은 늘 10개까지 저장하고, 보여 줄 개수(feed_days.visible)만 플랜으로 정한다.
-// 후보는 요약이 끝난 묶음(AI가 붙인 토픽)뿐이다. 플러스·체험 유저의 보이는 소식은 상위 모델 요약도 만든다.
+// 후보는 요약이 끝난 묶음(AI가 붙인 토픽)뿐이다. 모든 플랜이 같은 기본 요약을 본다(Pro 요약은 만들지 않는다, 2026-10-14).
 const MAX_DAILY = 10;
 
 export async function rank(ctx: Ctx) {
@@ -29,7 +27,6 @@ export async function rank(ctx: Ctx) {
 
   let built = 0;
   let empty = 0;
-  const proNeeded = new Set<number>();
   for (const a of audience) {
     if (done.has(a.id) && !ctx.force) continue;
     const exclude = await withSimilarExcluded(a, candidates);
@@ -49,32 +46,9 @@ export async function rank(ctx: Ctx) {
     );
     const visible = Math.min(ranked.length, a.dailyItems);
     check(await db.from('feed_days').insert({ user_id: a.id, date: ctx.date, visible }), 'feed_days insert');
-    if (a.tier === 'pro') for (const r of ranked.slice(0, visible)) proNeeded.add(r.clusterId);
     built++;
   }
 
-  // 상위 모델 요약(플러스·체험). 할당량이 없으면(무료 등급 키) 기본 요약으로 보여 준다
-  const have = new Set<number>();
-  await inChunks([...proNeeded], 200, async (ids) => {
-    const rows = check(await db.from('summaries').select('cluster_id').eq('tier', 'pro').in('cluster_id', ids), 'pro summaries') as { cluster_id: number }[];
-    for (const r of rows) have.add(r.cluster_id);
-  });
-  const proTodo = [...proNeeded].filter((id) => !have.has(id));
-  let proOk = 0;
-  let proNote = '';
-  for (const id of proTodo) {
-    try {
-      if ((await summarizeCluster(ctx, id, 'pro', { videos: 1 })) === 'ok') proOk++;
-    } catch (e) {
-      if (e instanceof GeminiQuotaError) {
-        proNote = `상위 모델(${e.model}) 할당량 없음 → 기본 요약으로 보여 줌`;
-        break;
-      }
-      ctx.log(`  상위 모델 요약 실패 #${id}: ${String((e as Error).message ?? e).slice(0, 160)}`);
-    }
-  }
-
-  ctx.stats.rank = { users: audience.length, built, empty, candidates: candidates.length, proTodo: proTodo.length, proOk, proNote };
+  ctx.stats.rank = { users: audience.length, built, empty, candidates: candidates.length };
   ctx.log(`rank: 유저 ${audience.length}명 중 ${built}명 피드 생성(빈 피드 ${empty}) · 후보 ${candidates.length}개`);
-  if (proTodo.length) ctx.log(`rank: 상위 모델 요약 ${proOk}/${proTodo.length}${proNote ? ` · ${proNote}` : ''}`);
 }

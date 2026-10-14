@@ -1,6 +1,7 @@
 import { GoogleGenAI, MediaResolution, Modality, ThinkingLevel, type Part, type SpeechConfig } from '@google/genai';
 import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
 import { parseWav } from '../audio/wav';
+import { GEMINI_MODELS } from './models';
 import { templateScript } from './script';
 import { CLASSIFY_SYSTEM, MAP_TOPICS_SYSTEM, SCREEN_INTEREST_SYSTEM, SUMMARIZE_SYSTEM, WHY_SYSTEM } from './prompts';
 import type {
@@ -71,6 +72,12 @@ export interface GeminiOptions {
   log?: (msg: string) => void;
   maxAttempts?: number;
 }
+
+/**
+ * 요약의 생각 단계. 생각 토큰은 출력 요금이라 요약 비용의 대부분이 된다.
+ * 2026-10-14 같은 기사로 비교: 3.1-flash-lite 낮음 ₩6.7·8.3초, 최소 ₩2.9·3.2초. 내용은 비슷하고 최소는 말투가 섞여서 프롬프트 v7에 '~요'로 끝내기를 넣었다
+ */
+const SUMMARY_THINKING = ThinkingLevel.MINIMAL;
 
 export interface GeminiAi extends AiClient {
   summarize(input: SummarizeInput): Promise<SummarizeOutput & { model: string }>;
@@ -173,7 +180,7 @@ function dictionaryBlock(input: SummarizeInput): string {
 export function createGeminiAi(opts: GeminiOptions): GeminiAi {
   const client = new GoogleGenAI({ apiKey: opts.apiKey });
   const maxAttempts = opts.maxAttempts ?? 5;
-  const embedModel = opts.embedModel ?? 'gemini-embedding-001';
+  const embedModel = opts.embedModel ?? GEMINI_MODELS.embed;
   const log = opts.log ?? (() => {});
 
   /** 재시도: 429는 서버가 알려 준 만큼 기다리고, 5xx는 지수 백오프. 하루 할당량이 없으면 바로 GeminiQuotaError, 크레딧이 없으면 GeminiBlockedError */
@@ -261,7 +268,7 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
         system: SUMMARIZE_SYSTEM,
         parts,
         schema: summarizeSchema(topicIds, video),
-        thinking: ThinkingLevel.LOW,
+        thinking: SUMMARY_THINKING,
         video,
       });
       const known = new Set(topicIds);

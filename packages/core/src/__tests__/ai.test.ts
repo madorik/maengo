@@ -1,17 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DEFAULT_MODELS, modelFor, modelForPlan, tierOf } from '../ai/models';
+import { GEMINI_MODELS } from '../ai/models';
 import { createDummyAi } from '../ai/dummy';
 import { templateScript } from '../ai/script';
 import { layoutChapters } from '../audio/chapters';
 import { concatWav } from '../audio/wav';
 
-test('무료는 Flash, 플러스와 체험은 상위 모델', () => {
-  assert.equal(tierOf('free'), 'basic');
-  assert.equal(modelForPlan('free', {}), DEFAULT_MODELS.basic);
-  assert.equal(modelForPlan('plus', {}), DEFAULT_MODELS.pro);
-  assert.equal(modelFor('pro', { GEMINI_MODEL_PLUS: ' gemini-x-pro ' }), 'gemini-x-pro');
-  assert.equal(modelFor('basic', { GEMINI_MODEL_FREE: '' }), DEFAULT_MODELS.basic);
+test('Gemini 모델은 고정 버전만(-latest 별칭·Pro 금지)', () => {
+  for (const id of Object.values(GEMINI_MODELS)) {
+    assert.doesNotMatch(id, /latest/);
+    assert.doesNotMatch(id, /-pro/);
+  }
 });
 
 const item = {

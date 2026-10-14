@@ -72,8 +72,6 @@ export interface ProfileView {
   voice: Voice;
   autoNext: boolean;
   skipRead: boolean;
-  /** 이 계정이 지금 쓰는 요약·문구 모델 */
-  model: string;
   aiProvider: 'dummy' | 'gemini';
 }
 

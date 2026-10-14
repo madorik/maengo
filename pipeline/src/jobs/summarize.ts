@@ -1,4 +1,4 @@
-import { modelFor } from '@maengo/core/ai';
+import { GEMINI_MODELS } from '@maengo/core/ai';
 import { credibilityLabel, itemQuality, rankFeed } from '@maengo/core/feed';
 import { GeminiQuotaError, PROMPT_VERSION } from '@maengo/core/gemini';
 import { isNewsSection, NEWS_SECTIONS, TOPIC_BY_ID, whyLead, withParents } from '@maengo/core/topics';
@@ -104,7 +104,7 @@ export async function summarizeCluster(
   const sections = new Set(headline.map((r) => r.topic_id));
   const topicDict = (await dictionary(ctx)).filter((t) => !isNewsSection(t.id) || sections.has(t.id));
   const nameOf = new Map(topicDict.map((t) => [t.id, t.name]));
-  const out = await ctx.ai.summarize({ model: modelFor(tier), kind: rep.kind, sources, videoUrl, dictionary: topicDict });
+  const out = await ctx.ai.summarize({ model: GEMINI_MODELS.summary, kind: rep.kind, sources, videoUrl, dictionary: topicDict });
   if (out.skip || !out.title || !out.body.length) {
     if (tier === 'basic') await db.from('clusters').update({ skip_reason: out.skip ?? '요약이 비어 있음' }).eq('id', clusterId);
     return 'skipped';

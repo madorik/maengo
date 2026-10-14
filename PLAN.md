@@ -252,7 +252,7 @@ score(u, c)     = relevance(u, c) · base(c)
 ### 6.4 LLM 호출 규칙
 
 **모델 고르기** (`packages/core/src/ai/models.ts`, 구현됨)
-- `tierOf(plan)`: free → `basic`, trial·plus → `pro`. `modelFor(tier)`는 env `GEMINI_MODEL_FREE`(기본 `gemini-flash-latest`)와 `GEMINI_MODEL_PLUS`(기본 `gemini-pro-latest`)를 읽는다.
+- 2026-10-14 바뀜: 고정 버전만 쓰고 모든 플랜이 같은 기본 요약을 본다(`GEMINI_MODELS`, 요약 `gemini-3.1-flash-lite`). `-latest` 별칭·Pro 모델·모델 환경 변수는 없앴다. 아래 등급별 규칙은 예전 설계다.
 - 유저 단계 호출(why 캐시 미스, 문장→토픽)은 그 유저의 등급 모델을 쓴다. 오디오 대본은 플러스 전용이라 늘 `pro`다.
 - 요약과 why는 등급마다 따로 캐시한다. 같은 소식이라도 무료와 플러스의 문구가 다를 수 있다.
 
@@ -422,8 +422,6 @@ Android·iOS 앱과 웹(PWA)을 모두 FCM 하나로 보낸다. 서버는 `fireb
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | web | 클라이언트 |
 | `SUPABASE_SERVICE_ROLE_KEY` | web(서버), pipeline | RLS를 우회하는 쓰기 |
 | `GEMINI_API_KEY` | web(서버), pipeline | 모든 AI 호출 |
-| `GEMINI_MODEL_FREE`, `GEMINI_MODEL_PLUS` | web(서버), pipeline | 등급별 요약·why·대본·토픽 매핑 모델 |
-| `GEMINI_EMBED_MODEL`, `GEMINI_TTS_MODEL` | pipeline | 임베딩·TTS |
 | `SEARCH_API_KEY` | pipeline | 오픈 웹 검색 |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BUCKET`, `R2_PRIVATE_BUCKET`, `R2_PUBLIC_BASE_URL` | web, pipeline | 파일 |
 | `NEXT_PUBLIC_FIREBASE_API_KEY`, `…_AUTH_DOMAIN`, `…_PROJECT_ID`, `…_MESSAGING_SENDER_ID`, `…_APP_ID`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | web(브라우저) | 웹 FCM 토큰 받기 |

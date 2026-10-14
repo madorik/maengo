@@ -131,12 +131,16 @@ pnpm setup:auth     # 구글·애플 로그인을 Supabase에 켠다(애플 시�
 | `ALERT_WEBHOOK_URL`, `DAILY_USD_CAP` | 텔레그램 봇 또는 슬랙 웹훅 / 하루 비용 상한 | 일일 리포트·비용 가드 |
 | 플레이 콘솔 | Google Play Console(1회 $25) | Android 출시 |
 
-## AI 모델 이름(키 아님)
+## AI 모델(키 아님)
 
-| 변수 | 기본값 | 누가 쓰나 |
+2026-10-14부터 **고정 버전만** 쓴다(사용자 결정: `-latest` 별칭과 Pro 모델 금지, 지금 제일 싼 버전). 환경 변수로 바꾸지 않고 `packages/core/src/ai/models.ts`의 `GEMINI_MODELS`만 고친다(추정 단가는 `pipeline/src/lib/usage.ts`, `apps/web/lib/server/ai.ts`).
+
+| 용도 | 모델 | 100만 토큰당(2026-10-14) |
 | --- | --- | --- |
-| `GEMINI_MODEL_FREE` | `gemini-flash-latest` | 무료 플랜의 요약·문구 |
-| `GEMINI_MODEL_PLUS` | `gemini-pro-latest` | 플러스·체험의 요약·문구, 오디오 대본 |
-| `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` | 음성 합성(플러스 전용). 2026-10-09 무료 등급으로 동작 확인, 더 싼 `gemini-3.8-flash-lite-tts`도 됨 |
+| 요약(모든 플랜, 생각 최소) | `gemini-3.1-flash-lite` | $0.25 / $1.50, 한 건 약 ₩3 |
+| 요약 대체(503·500) | `gemini-3.5-flash-lite` | $0.30 / $2.50 |
+| 기타 관심사 검사 | `gemini-3.1-flash-lite` | $0.25 / $1.50 |
+| 임베딩 | `gemini-embedding-001` | $0.15 |
+| 음성(Google Cloud TTS 키가 없을 때만) | `gemini-3.8-flash-lite-tts` | $0.50 / 오디오 $6(2027-01-01부터 $1 / $12) |
 
-`-latest` 별칭은 Google이 새 버전으로 자동으로 바꾼다. 결과가 갑자기 달라지는 게 싫으면 키를 넣는 날 고정 버전으로 바꾼다.
+운영 음성은 Google Cloud TTS Chirp 3 HD(`GOOGLE_TTS_API_KEY`)라 Gemini TTS는 대체로만 쓴다. 더 싼 `gemini-2.5-flash-lite`($0.10 / $0.40)는 2026-10-14 "새 사용자는 쓸 수 없음"(404)이라 못 쓴다.

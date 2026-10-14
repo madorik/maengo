@@ -1,3 +1,4 @@
+import { GEMINI_MODELS } from '@maengo/core/ai';
 // 로컬은 apps/web/.env.local을, GitHub Actions는 저장소 시크릿을 읽는다(package.json의 --env-file-if-exists).
 
 function required(name: string, ...alts: string[]): string {
@@ -18,8 +19,8 @@ export const env = {
   supabaseUrl: required('NEXT_PUBLIC_SUPABASE_URL'),
   serviceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY'),
   geminiKey: required('GEMINI_API_KEY'),
-  /** 503이 계속될 때 대신 쓸 모델. 별칭이라 버전이 바뀌어도 사라지지 않는다 */
-  geminiFallback: process.env.GEMINI_MODEL_FALLBACK?.trim() || 'gemini-flash-lite-latest',
+  /** 503이 계속될 때 대신 쓸 모델(고정 버전, core/ai/models.ts) */
+  geminiFallback: GEMINI_MODELS.fallback,
   /** 한 번 실행에서 요약할 클러스터 수 상한(무료 등급 하루 요청 한도를 지키려고) */
   summarizeLimit: num('PIPELINE_SUMMARIZE_LIMIT', 40),
   /** 하루(KST) Gemini 추정 지출 상한(달러). 넘으면 그날 요약·임베딩을 멈춘다(lib/ai-guard.ts) */

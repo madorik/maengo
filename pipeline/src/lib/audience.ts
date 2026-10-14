@@ -1,7 +1,6 @@
 import { excludesCluster, popularityBoost, type RankCandidate } from '@maengo/core/feed';
-import { tierOf } from '@maengo/core/ai';
 import { TOPICS } from '@maengo/core/topics';
-import type { FeedbackKind, Plan, Tier, Topic } from '@maengo/core/types';
+import type { FeedbackKind, Plan, Topic } from '@maengo/core/types';
 import { db, check, fromVector, inChunks, selectAll } from './db';
 import { getPlans } from './plans';
 import { cosine } from './vec';
@@ -12,7 +11,6 @@ import { HOUR, type Ctx } from './ctx';
 export interface Audience {
   id: string;
   plan: Plan;
-  tier: Tier;
   /** 하루 소식 수: 무료 1, 플러스·체험 10 (웹 entitlements와 같다) */
   dailyItems: number;
   weights: Record<string, number>;
@@ -46,7 +44,7 @@ export async function loadAudience(ctx: Ctx, only?: string | string[]): Promise<
   const plans = await getPlans();
   for (const p of profiles) {
     const plan = effectivePlan(p.plan, p.premium_until, ctx.now);
-    byId.set(p.id, { id: p.id, plan, tier: tierOf(plan), dailyItems: plans.get(plan)!.dailyItems, weights: {}, exclude: new Set(), known: [], notifyAt: String(p.notify_at).slice(0, 5) });
+    byId.set(p.id, { id: p.id, plan, dailyItems: plans.get(plan)!.dailyItems, weights: {}, exclude: new Set(), known: [], notifyAt: String(p.notify_at).slice(0, 5) });
   }
   const topics = await selectAll<{ user_id: string; topic_id: string; weight: number }>((f, t) => db.from('user_topics').select('user_id,topic_id,weight').in('user_id', ids).range(f, t));
   for (const r of topics) byId.get(r.user_id)!.weights[r.topic_id] = r.weight;

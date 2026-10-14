@@ -1,6 +1,5 @@
 import 'server-only';
 import { cache } from 'react';
-import { modelFor, tierOf } from '@maengo/core/ai';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
 import { LEGAL_CHANGED_ON } from '../site';
@@ -346,11 +345,11 @@ interface SummaryRow {
   scenes: { t: string; label: string }[] | null;
 }
 
-/** 소식 여러 개를 한 번에 읽는다. 등급 요약이 없으면 기본(basic) 요약을 쓴다 */
-async function clusterInfo(ids: number[], tier: Tier): Promise<Map<number, ClusterInfo>> {
+/** 소식 여러 개를 한 번에 읽는다. 모든 플랜이 기본(basic) 요약을 본다(Pro 요약은 만들지 않는다, 2026-10-14) */
+async function clusterInfo(ids: number[]): Promise<Map<number, ClusterInfo>> {
   const out = new Map<number, ClusterInfo>();
   if (!ids.length) return out;
-  const tiers: Tier[] = tier === 'pro' ? ['pro', 'basic'] : ['basic'];
+  const tiers: Tier[] = ['basic'];
   const [summaries, whys, clusters, items] = await Promise.all([
     db.from('summaries').select('cluster_id,tier,title,short,body,category,author,published_at,scenes').in('cluster_id', ids).in('tier', tiers),
     db.from('cluster_why').select('cluster_id,topic_id,tier,why').in('cluster_id', ids).in('tier', tiers),
@@ -426,7 +425,7 @@ function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date, names: Ma
 
 async function itemsFor(profile: Profile, rows: FeedRow[], date: string): Promise<FeedItem[]> {
   // 직접 입력한 관심사(사전에 없는 토픽)의 이름은 DB에서 찾는다
-  const [info, names] = await Promise.all([clusterInfo(rows.map((r) => r.clusterId), tierOf(profile.plan)), topicNames(rows.map((r) => r.topicId))]);
+  const [info, names] = await Promise.all([clusterInfo(rows.map((r) => r.clusterId)), topicNames(rows.map((r) => r.topicId))]);
   const now = new Date();
   return rows.flatMap((r) => {
     const c = info.get(r.clusterId);
@@ -532,7 +531,7 @@ export async function getLibrary(profile: Profile, { page, category }: { page: n
   const now = new Date();
   const days = await allDays(profile);
   const rows = days.flatMap((d) => visibleRows(d).map((row) => ({ row, date: d.date })));
-  const [info, { reads }] = await Promise.all([clusterInfo([...new Set(rows.map((r) => r.row.clusterId))], tierOf(profile.plan)), readsAndFeedback(profile.id)]);
+  const [info, { reads }] = await Promise.all([clusterInfo([...new Set(rows.map((r) => r.row.clusterId))]), readsAndFeedback(profile.id)]);
   const readMap = new Map(reads.map((r) => [r.cluster_id, r]));
   const all: LibraryEntry[] = rows.flatMap(({ row, date }) => {
     const c = info.get(row.clusterId);
@@ -592,7 +591,6 @@ export function toProfileView(p: Profile): ProfileView {
     voice: p.voice,
     autoNext: p.autoNext,
     skipRead: p.skipRead,
-    model: modelFor(tierOf(p.plan)),
     aiProvider: ai.provider,
   };
 }
