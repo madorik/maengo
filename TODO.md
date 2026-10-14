@@ -34,7 +34,7 @@
 ## 3. 광고(AdMob)
 
 **정한 것(2026-10-11 사용자)**
-- 누구에게: 베타 동안은 모두에게 보인다. 정식 출시 후에는 Free에게만(Premium은 광고 없음). → `packages/core/src/plans.ts`에 `showAdsFor(plan)` 하나로 둔다(`BETA`면 true, 아니면 `plan === 'free'`)
+- 누구에게: Free에게만(Premium은 광고 없음, 2026-10-14 베타 종료). → `packages/core/src/plans.ts`에 `showAdsFor(plan)` 하나로 둔다(`plan === 'free'`)
 - 어디에: 사용성을 해치지 않는 곳. 아래 원칙과 자리로 시작하고, 2번 분석에서 이탈이 늘면 줄인다
 
 **원칙**

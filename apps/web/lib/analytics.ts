@@ -16,7 +16,10 @@ export type AnalyticsEvent =
   | "topic_edit"
   | "notify_toggle"
   | "push_open"
-  | "voice_change";
+  | "voice_change"
+  | "more_receive"
+  | "purchase_start"
+  | "purchase_complete";
 
 type Params = Record<string, string | number | boolean | null | undefined>;
 

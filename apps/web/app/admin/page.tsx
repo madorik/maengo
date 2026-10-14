@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { kstDate } from "@maengo/core/kst";
 import { type AdminRange, adminPresets, parseAdminRange, spanDays } from "@/lib/admin-range";
 import { isAdmin } from "@/lib/server/admin";
+import { adminAlerts } from "@/lib/server/admin-alerts";
 import { db, must } from "@/lib/server/db";
 import { requireProfile } from "@/lib/server/session";
 
@@ -80,7 +81,8 @@ export default async function AdminPage({ searchParams }: Props) {
   if (!isAdmin(profile)) notFound();
   const today = kstDate();
   const range = parseAdminRange(await searchParams, today);
-  const s = must(await db.rpc("admin_stats", { p_from: range.from, p_to: range.to }), "admin_stats") as Stats;
+  const [stats, alerts] = await Promise.all([db.rpc("admin_stats", { p_from: range.from, p_to: range.to }), adminAlerts()]);
+  const s = must(stats, "admin_stats") as Stats;
   const ttsShare = Math.min(1, s.cost.ttsMonthChars / TTS_FREE_CHARS);
   const ttsBill = (Math.max(0, s.cost.ttsMonthChars - TTS_FREE_CHARS) * 30) / 1e6;
   const fbTotal = (s.activity.feedback.more ?? 0) + (s.activity.feedback.skip ?? 0);
@@ -110,6 +112,12 @@ export default async function AdminPage({ searchParams }: Props) {
       </header>
 
       <main className="mx-auto flex max-w-[1100px] flex-col gap-6 px-5 py-6">
+        {alerts.map((a) => (
+          <div key={a.title} role="alert" className="rounded-2xl border-2 border-orange bg-[#FFF1E6] px-5 py-4">
+            <p className="text-[16px] font-black text-orange">{a.title}</p>
+            <p className="mt-1 text-[14px] font-semibold text-ink">{a.detail}</p>
+          </div>
+        ))}
         <RangeBar range={range} today={today} />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

@@ -3,7 +3,9 @@
 import { startTransition, useActionState, useEffect, useId, useMemo, useOptimistic, useRef, useState } from "react";
 import { editTopics } from "@/app/actions";
 import { track } from "@/lib/analytics";
+import Link from "next/link";
 import { IconCheck, IconChevronDown, IconClose } from "@/components/icons";
+import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { topicTone } from "@/components/TopicGroupIcon";
 import type { TopicGroupView, TopicResult, UserTopic } from "@/lib/types";
 
@@ -20,7 +22,7 @@ type Chip = { id: string; name: string; tone: string; remove: () => void };
  *   상세를 다 켜면 전체로 합친다. 서버도 같은 규칙으로 저장한다(setGroupPicks).
  * - 누르는 즉시 라벨·체크가 바뀐다(useOptimistic). 서버가 막으면(한도 등) 되돌아가고 까닭을 보여 준다.
  */
-export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView[]; news: Section[]; custom: UserTopic[] }) {
+export function TopicSettings({ groups, news, custom, customAllowed }: { groups: TopicGroupView[]; news: Section[]; custom: UserTopic[]; customAllowed: boolean }) {
   const panelId = useId();
   const boxRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -184,7 +186,16 @@ export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView
               </>
             )}
             {open === "news" && news.map((n) => <CheckRow key={n.id} label={n.name} checked={picked.has(n.id)} onClick={() => toggleOne(n.id)} />)}
-            {open === "etc" && (
+            {open === "etc" && !customAllowed && (
+              // 기타 직접 적기는 Premium만. Free가 전에 넣어 둔 기타는 라벨로 남아 있고 ✕로 뺄 수 있다
+              <div className="flex items-center justify-between gap-3 p-3">
+                <span className="text-[15px] font-bold text-sub">목록에 없는 관심사 넣기</span>
+                <Link href="/premium" className="no-underline" aria-label="목록에 없는 관심사 넣기, Premium에서 쓸 수 있어요">
+                  <PremiumBadge />
+                </Link>
+              </div>
+            )}
+            {open === "etc" && customAllowed && (
               <form
                 className="flex gap-2 p-1.5"
                 onSubmit={(e) => {

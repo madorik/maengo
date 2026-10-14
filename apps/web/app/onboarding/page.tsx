@@ -7,6 +7,7 @@ import { IconCheck } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { Bubble } from "@/components/ui/Bubble";
+import { entitlements } from "@/lib/server/profile";
 import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "관심사 고르기", robots: { index: false, follow: false } };
@@ -27,6 +28,8 @@ export default async function OnboardingPage({ searchParams }: Props) {
   if (profile.onboarded) redirect("/today");
   const { error } = await searchParams;
   const name = profile.displayName?.split(" ")[0];
+  // 기타(목록에 없는 관심사 직접 적기)는 Premium만이라 Free(새로 가입하면 Free)에게는 보이지 않는다
+  const customAllowed = entitlements(profile).customLimit > 0;
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-[560px] flex-col px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(28px,env(safe-area-inset-top))]">
@@ -51,25 +54,27 @@ export default async function OnboardingPage({ searchParams }: Props) {
             {TOPIC_GROUPS.map((g) => (
               <Choice key={g.id} id={g.id} name={g.name} />
             ))}
-            <Choice id="etc" name="기타" inputName="etc" defaultChecked={error === "etc" || error === "adult"} />
+            {customAllowed && <Choice id="etc" name="기타" inputName="etc" defaultChecked={error === "etc" || error === "adult"} />}
           </div>
-          <div className="mt-2 hidden group-has-[#pick-etc:checked]/etc:block">
-            <label htmlFor="etc-text" className="sr-only">
-              관심 있는 것
-            </label>
-            <input
-              id="etc-text"
-              name="etcText"
-              maxLength={200}
-              autoComplete="off"
-              aria-describedby="etc-text-hint"
-              placeholder="예: 드론, 게임, 부동산"
-              className="tile min-h-12 w-full px-4 text-[15px] font-semibold placeholder:text-faint"
-            />
-            <p id="etc-text-hint" className="mt-1 px-1 text-[13px] font-semibold text-sub">
-              쉼표로 나눠 3개까지 적을 수 있어요.
-            </p>
-          </div>
+          {customAllowed && (
+            <div className="mt-2 hidden group-has-[#pick-etc:checked]/etc:block">
+              <label htmlFor="etc-text" className="sr-only">
+                관심 있는 것
+              </label>
+              <input
+                id="etc-text"
+                name="etcText"
+                maxLength={200}
+                autoComplete="off"
+                aria-describedby="etc-text-hint"
+                placeholder="예: 드론, 게임, 부동산"
+                className="tile min-h-12 w-full px-4 text-[15px] font-semibold placeholder:text-faint"
+              />
+              <p id="etc-text-hint" className="mt-1 px-1 text-[13px] font-semibold text-sub">
+                쉼표로 나눠 3개까지 적을 수 있어요.
+              </p>
+            </div>
+          )}
         </fieldset>
         <fieldset className="mt-6 min-w-0">
           <legend className="text-[15px] font-black">뉴스 헤드라인</legend>

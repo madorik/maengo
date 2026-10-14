@@ -97,12 +97,12 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
     </button>
   );
 
-  // Free: 전체 듣기 자리는 두고 막아 둔다. Premium 배지로 안내하고 창은 열지 않는다
+  // Free: 전체 듣기 자리는 두고, 누르면 결제 페이지로(창은 열지 않는다)
   if (locked) {
     return (
       <div className="pointer-events-none fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-3 z-40 lg:bottom-6 lg:right-6">
         <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
-          <div aria-disabled="true" title="듣기는 Premium에서 쓸 수 있어요" className="flex min-w-0 cursor-not-allowed items-center gap-2.5 pr-1">
+          <Link href="/premium" aria-label="오늘 맹고 전체 듣기, Premium에서 들을 수 있어요" className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow">
               <Mascot mood="listen" className="size-10 opacity-60" />
             </span>
@@ -111,7 +111,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
               <span className="block truncate text-[12px] font-bold text-faint">Premium에서 들을 수 있어요</span>
             </span>
             <PremiumBadge />
-          </div>
+          </Link>
           {foldButton}
         </div>
       </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { BETA } from "@/lib/site";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/actions";
 import { Crown, IconChevronDown } from "@/components/icons";
@@ -103,12 +102,11 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
             <p className="mx-2 mb-2 inline-flex items-center gap-1 rounded-lg bg-mango-tint px-2 py-0.5 text-[12px] font-extrabold text-mango-deep">
               <Crown className="size-3.5" />
               Premium
-              {p.premiumDaysLeft !== null ? ` · ${p.premiumDaysLeft}일 남음` : BETA ? " · 베타 무료" : ""}
             </p>
           ) : (
             <div className="mx-2 mb-2 flex items-center justify-between gap-2">
               <span className="rounded-lg bg-snow px-2 py-0.5 text-[12px] font-extrabold text-sub">Free</span>
-              <Link href="/settings#plan" onClick={() => setOpen(false)} className="inline-flex items-center gap-1 text-[13px] font-extrabold text-mango-deep no-underline hover:underline">
+              <Link href="/premium" onClick={() => setOpen(false)} className="inline-flex items-center gap-1 text-[13px] font-extrabold text-mango-deep no-underline hover:underline">
                 <Crown className="size-3.5" />
                 Premium 알아보기
               </Link>

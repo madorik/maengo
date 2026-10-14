@@ -51,6 +51,17 @@ export class GeminiQuotaError extends Error {
   }
 }
 
+/**
+ * 돈 때문에 막혔다: 선불 크레딧 소진(402, credits) 또는 우리가 정한 하루 지출 상한(budget).
+ * 할당량 오류의 한 갈래라 GeminiQuotaError로 잡던 곳(요약 반복 멈춤 등)이 그대로 멈춘다.
+ */
+export class GeminiBlockedError extends GeminiQuotaError {
+  constructor(model: string, message: string, readonly reason: 'credits' | 'budget') {
+    super(model, message, null);
+    this.name = 'GeminiBlockedError';
+  }
+}
+
 export interface GeminiOptions {
   apiKey: string;
   /** 503(혼잡)이 계속되면 이 모델로 한 번 더 시도한다 */
@@ -74,12 +85,14 @@ interface ApiErrorShape {
 
 function parseError(e: unknown): { status: number; daily: boolean; retryMs: number | null; text: string } {
   const err = e as ApiErrorShape;
-  const status = typeof err?.status === 'number' ? err.status : 0;
+  let status = typeof err?.status === 'number' ? err.status : 0;
   const text = String(err?.message ?? e);
   let daily = false;
   let retryMs: number | null = null;
   try {
-    const body = JSON.parse(text) as { error?: { details?: { '@type'?: string; retryDelay?: string; violations?: { quotaId?: string }[] }[] } };
+    const body = JSON.parse(text) as { error?: { code?: number; details?: { '@type'?: string; retryDelay?: string; violations?: { quotaId?: string }[] }[] } };
+    // 상태 코드가 오류 객체에 없으면 본문의 error.code를 쓴다(402 크레딧 소진이 이렇게 온다)
+    if (!status && typeof body.error?.code === 'number') status = body.error.code;
     for (const d of body.error?.details ?? []) {
       if (d['@type']?.endsWith('RetryInfo') && d.retryDelay) retryMs = Math.ceil(parseFloat(d.retryDelay) * 1000);
       if (d['@type']?.endsWith('QuotaFailure')) daily ||= (d.violations ?? []).some((v) => /PerDay/.test(v.quotaId ?? ''));
@@ -163,7 +176,7 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
   const embedModel = opts.embedModel ?? 'gemini-embedding-001';
   const log = opts.log ?? (() => {});
 
-  /** 재시도: 429는 서버가 알려 준 만큼 기다리고, 5xx는 지수 백오프. 하루 할당량이 없으면 바로 GeminiQuotaError */
+  /** 재시도: 429는 서버가 알려 준 만큼 기다리고, 5xx는 지수 백오프. 하루 할당량이 없으면 바로 GeminiQuotaError, 크레딧이 없으면 GeminiBlockedError */
   async function withRetry<T>(model: string, call: () => Promise<T>): Promise<T> {
     for (let attempt = 1; ; attempt++) {
       try {
@@ -171,6 +184,8 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       } catch (e) {
         const { status, daily, retryMs, text } = parseError(e);
         if (status === 429 && daily) throw new GeminiQuotaError(model, text.slice(0, 300), retryMs);
+        // 402: 선불 크레딧이 바닥났다. 다시 불러도 소용없다
+        if (status === 402) throw new GeminiBlockedError(model, text.slice(0, 300), 'credits');
         const retryable = status === 429 || status === 500 || status === 503 || status === 504;
         if (!retryable || attempt >= maxAttempts) throw e;
         const wait = status === 429 ? Math.min(retryMs ?? 15_000, 65_000) : Math.min(2000 * 2 ** (attempt - 1), 30_000);

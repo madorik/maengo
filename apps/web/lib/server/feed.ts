@@ -4,14 +4,16 @@ import { modelFor, tierOf } from '@maengo/core/ai';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
 import { kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
+import { daysBefore } from '@maengo/core/plans';
 import { whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import type { FeedbackKind, Tier } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, ProfileView, TodayData } from '../types';
 import { ai } from './ai';
 import { db, must } from './db';
-import { entitlements, premiumDaysLeft, type Profile } from './profile';
+import { entitlements, type Profile } from './profile';
 import { topicNames } from './topics';
+import { refundMaengo, spendMaengo, syncWallet } from './wallet';
 
 // 피드 읽기. 소식(요약·why·토픽)은 일일 파이프라인(pipeline/)이 Supabase에 만들어 두고, 웹은 읽기만 한다.
 // 웹에서는 LLM을 부르지 않는다. 오늘 피드가 아직 없으면(배치 전·토픽 변경 후 다시 만들기) 이미 요약된 소식으로 바로 랭킹한다.
@@ -30,6 +32,8 @@ interface FeedDay {
   date: string;
   rows: FeedRow[];
   visible: number;
+  /** 맹고를 써서 더 받은 개수 */
+  extra: number;
 }
 
 // ---- 오늘 피드 만들기(파이프라인 rank 단계와 같은 규칙. 알아요와 비슷한 소식 빼기는 배치에서만 한다) ----
@@ -113,13 +117,13 @@ async function buildToday(profile: Profile, date: string): Promise<FeedRow[]> {
 
 async function readDay(userId: string, date: string): Promise<FeedDay | null> {
   const [day, feeds] = await Promise.all([
-    db.from('feed_days').select('visible').eq('user_id', userId).eq('date', date).maybeSingle(),
+    db.from('feed_days').select('visible,extra').eq('user_id', userId).eq('date', date).maybeSingle(),
     db.from('feeds').select('rank,cluster_id,topic_id').eq('user_id', userId).eq('date', date).order('rank'),
   ]);
-  const d = must(day, 'feed_days') as { visible: number } | null;
+  const d = must(day, 'feed_days') as { visible: number; extra: number } | null;
   if (!d) return null;
   const rows = (must(feeds, 'feeds') as { rank: number; cluster_id: number; topic_id: string }[]).map((r) => ({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id }));
-  return { date, rows, visible: d.visible };
+  return { date, rows, visible: d.visible, extra: d.extra };
 }
 
 /** 전에 받은 피드가 있는지. 가입하고 아직 한 번도 받지 않았으면 false */
@@ -129,18 +133,18 @@ const hadFeedBefore = cache(async (userId: string, date: string): Promise<boolea
   return (count ?? 0) > 0;
 });
 
-/** 오늘 피드. 보여 주는 개수는 지금 플랜을 따른다(체험을 시작하면 바로 10개로 늘어난다) */
+/** 오늘 피드. 보여 주는 개수는 지금 플랜 기본 + 맹고로 더 받은 개수(체험을 시작하면 바로 늘어난다) */
 const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   const date = kstDate();
   const limit = entitlements(profile).dailyItems;
   const day = await readDay(profile.id, date);
   if (day) {
-    const visible = Math.min(day.rows.length, limit);
+    const visible = Math.min(day.rows.length, limit + day.extra);
     if (visible !== day.visible) must(await db.from('feed_days').update({ visible }).eq('user_id', profile.id).eq('date', date), 'feed_days visible');
     return { ...day, visible };
   }
   // 가입하고 처음 온 사람은 저절로 채우지 않는다. '오늘 맹고 받기'를 눌러야 가져오거나 만든다(진행 상황을 보여 주려고)
-  if (!(await hadFeedBefore(profile.id, date))) return { date, rows: [], visible: 0 };
+  if (!(await hadFeedBefore(profile.id, date))) return { date, rows: [], visible: 0, extra: 0 };
   // 아직 오늘 피드가 없다. 이미 요약된 소식으로 임시 피드를 만든다(배치가 돌면 새 소식으로 다시 만든다)
   const rows = await buildToday(profile, date);
   const visible = Math.min(rows.length, limit);
@@ -150,8 +154,64 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
       'feed_days insert',
     );
   }
-  return { date, rows, visible };
+  return { date, rows, visible, extra: 0 };
 });
+
+export type MoreResult = { ok: true; charged: boolean } | { ok: false; error: 'no_feed' | 'no_more' | 'no_balance' | 'busy' };
+
+/**
+ * 오늘 맹고 하나 더 받기. 골라 두고 안 보여 준 소식이 있으면 그것부터(Free는 10개를 골라 3개만 보여 준다),
+ * 없으면 이미 요약된 소식에서 하나 더 고른다. 하루 맹고(플랜의 하루 소식 수)를 다 채웠으면 지갑에서 1맹고를 쓴다(못 붙이면 돌려준다).
+ * 웹에서는 LLM을 부르지 않으므로 요약이 없는 소식은 고르지 않는다.
+ */
+export async function receiveMore(profile: Profile): Promise<MoreResult> {
+  const date = kstDate();
+  const day = await readDay(profile.id, date);
+  if (!day || !day.rows.length) return { ok: false, error: 'no_feed' };
+  const limit = entitlements(profile).dailyItems;
+  const visible = Math.min(day.rows.length, limit + day.extra);
+  const charged = visible >= limit;
+
+  let row = day.rows[visible];
+  const fresh = !row;
+  if (fresh) {
+    const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(), weightsOf(profile.id), exclusions(profile.id, date)]);
+    for (const r of day.rows) exclude.add(r.clusterId);
+    const [next] = rankFeed(candidates, weights, exclude, { limit: 1 });
+    if (!next) return { ok: false, error: 'no_more' };
+    row = { rank: (day.rows.at(-1)?.rank ?? 0) + 1, clusterId: next.clusterId, topicId: next.topicId };
+  }
+
+  // 같은 자리를 두 번 누르면 하나만 붙는다(feed_days.extra 조건). 진 쪽은 돌려받는다
+  const ref = `${date}:${day.extra + 1}:${crypto.randomUUID().slice(0, 8)}`;
+  if (charged && !(await spendMaengo(profile.id, 1, ref))) return { ok: false, error: 'no_balance' };
+  const undo = async () => {
+    if (charged) await refundMaengo(profile.id, ref);
+  };
+  try {
+    if (fresh) {
+      const { error } = await db.from('feeds').insert({ user_id: profile.id, date, rank: row!.rank, cluster_id: row!.clusterId, topic_id: row!.topicId });
+      if (error) {
+        await undo();
+        return { ok: false, error: 'busy' };
+      }
+    }
+    const extra = day.extra + (charged ? 1 : 0);
+    const updated = must(
+      await db.from('feed_days').update({ extra, visible: visible + 1 }).eq('user_id', profile.id).eq('date', date).eq('extra', day.extra).select('date'),
+      'feed_days more',
+    ) as { date: string }[];
+    if (!updated.length) {
+      if (fresh) await db.from('feeds').delete().eq('user_id', profile.id).eq('date', date).eq('rank', row!.rank);
+      await undo();
+      return { ok: false, error: 'busy' };
+    }
+  } catch (e) {
+    await undo();
+    throw e;
+  }
+  return { ok: true, charged };
+}
 
 const visibleRows = (day: FeedDay | null) => (day ? day.rows.slice(0, day.visible) : []);
 
@@ -161,30 +221,40 @@ export async function rebuildFeed(profile: Profile) {
   must(await db.from('feed_days').delete().eq('user_id', profile.id).eq('date', date), 'feed_days delete');
 }
 
-/** 받은 피드 전체(최신순). 오늘 것은 지금 플랜 기준 */
+/** 보관함에서 볼 수 있는 가장 오래된 날(Free는 최근 7일). null이면 전부 */
+function archiveFrom(profile: Profile, today: string): string | null {
+  const days = entitlements(profile).archiveDays;
+  return days === null ? null : daysBefore(today, days - 1);
+}
+
+/** 받은 피드 전체(최신순). 오늘 것은 지금 플랜 기준, 지난 날은 플랜이 보여 주는 기간만 */
 async function allDays(profile: Profile): Promise<FeedDay[]> {
   const today = await todayFeed(profile);
-  const [days, feeds] = await Promise.all([
-    db.from('feed_days').select('date,visible').eq('user_id', profile.id).neq('date', today.date).order('date', { ascending: false }),
-    db.from('feeds').select('date,rank,cluster_id,topic_id').eq('user_id', profile.id).neq('date', today.date).order('rank'),
-  ]);
+  const from = archiveFrom(profile, today.date);
+  let dayQuery = db.from('feed_days').select('date,visible,extra').eq('user_id', profile.id).neq('date', today.date);
+  let feedQuery = db.from('feeds').select('date,rank,cluster_id,topic_id').eq('user_id', profile.id).neq('date', today.date);
+  if (from) {
+    dayQuery = dayQuery.gte('date', from);
+    feedQuery = feedQuery.gte('date', from);
+  }
+  const [days, feeds] = await Promise.all([dayQuery.order('date', { ascending: false }), feedQuery.order('rank')]);
   const rowsByDate = new Map<string, FeedRow[]>();
   for (const r of must(feeds, 'feeds') as { date: string; rank: number; cluster_id: number; topic_id: string }[]) {
     (rowsByDate.get(r.date) ?? rowsByDate.set(r.date, []).get(r.date)!).push({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id });
   }
-  const past = (must(days, 'feed_days') as { date: string; visible: number }[]).map((d) => ({ date: d.date, visible: d.visible, rows: rowsByDate.get(d.date) ?? [] }));
+  const past = (must(days, 'feed_days') as { date: string; visible: number; extra: number }[]).map((d) => ({ date: d.date, visible: d.visible, extra: d.extra, rows: rowsByDate.get(d.date) ?? [] }));
   return [today, ...past];
 }
 
-/** 받은 피드 어디에서든 이 소식을 찾는다(보여 준 것만) */
+/** 받은 피드 어디에서든 이 소식을 찾는다(보여 준 것만, 플랜이 보여 주는 기간만) */
 async function findRow(profile: Profile, clusterId: number): Promise<{ row: FeedRow; date: string } | null> {
   const today = await todayFeed(profile);
   const hitToday = visibleRows(today).find((r) => r.clusterId === clusterId);
   if (hitToday) return { row: hitToday, date: today.date };
-  const rows = must(
-    await db.from('feeds').select('date,rank,topic_id').eq('user_id', profile.id).eq('cluster_id', clusterId).neq('date', today.date).order('date', { ascending: false }),
-    'feeds',
-  ) as { date: string; rank: number; topic_id: string }[];
+  const from = archiveFrom(profile, today.date);
+  let query = db.from('feeds').select('date,rank,topic_id').eq('user_id', profile.id).eq('cluster_id', clusterId).neq('date', today.date);
+  if (from) query = query.gte('date', from);
+  const rows = must(await query.order('date', { ascending: false }), 'feeds') as { date: string; rank: number; topic_id: string }[];
   for (const r of rows) {
     const day = must(await db.from('feed_days').select('visible').eq('user_id', profile.id).eq('date', r.date).maybeSingle(), 'feed_days') as { visible: number } | null;
     if (day && r.rank <= day.visible) return { row: { rank: r.rank, clusterId, topicId: r.topic_id }, date: r.date };
@@ -368,7 +438,8 @@ async function batchRanToday(date: string): Promise<boolean> {
 
 export async function getTodayData(profile: Profile): Promise<TodayData> {
   const day = await todayFeed(profile);
-  const [items, { reads, feedback }] = await Promise.all([itemsFor(profile, visibleRows(day), day.date), readsAndFeedback(profile.id)]);
+  const [items, { reads, feedback }, wallet] = await Promise.all([itemsFor(profile, visibleRows(day), day.date), readsAndFeedback(profile.id), syncWallet(profile.id)]);
+  const dailyLimit = entitlements(profile).dailyItems;
   const emptyReason = items.length
     ? null
     : !(await hadFeedBefore(profile.id, day.date))
@@ -384,8 +455,10 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     topicNames,
     readMinutes: readMinutes(items),
     notifyLabel: notifyTimeLabel(profile.notifyAt),
-    dailyLimit: entitlements(profile).dailyItems,
+    dailyLimit,
     hiddenCount: day.rows.length - day.visible,
+    moreCost: day.visible >= dailyLimit ? 1 : 0,
+    wallet,
     emptyReason,
     items,
     read: reads.filter((r) => r.read_at).map((r) => r.cluster_id),
@@ -454,9 +527,9 @@ export function toProfileView(p: Profile): ProfileView {
     avatarUrl: p.avatarUrl,
     demo: p.demo,
     plan: p.plan,
-    premiumDaysLeft: premiumDaysLeft(p),
     audio: entitlements(p).audio,
     dailyItems: entitlements(p).dailyItems,
+    canBuyMaengo: entitlements(p).canBuyMaengo,
     persona: p.persona,
     voice: p.voice,
     autoNext: p.autoNext,

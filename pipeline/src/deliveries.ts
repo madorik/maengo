@@ -6,6 +6,7 @@ import { prepareFresh, widenToGroups } from './instant';
 import { loadAudience, loadCandidates, withSimilarExcluded, type Audience } from './lib/audience';
 import { HOUR, type Ctx } from './lib/ctx';
 import { check, db } from './lib/db';
+import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
 import { env } from './lib/env';
 import { fcmReady, sendPush } from './lib/fcm';
 import { mapLimit } from './lib/limit';
@@ -16,6 +17,7 @@ import { flushUsage, recordUsage } from './lib/usage';
 //   1. 오늘 줄 채우기(plan_deliveries) — 알림 시각을 바꿨으면 대기 중인 줄의 시각도 맞춘다
 //   2. 10분 넘게 멈춘 줄 되돌리기(reclaim_stuck_deliveries)
 //   3. 만들 시각(알림 30분 전)이 된 줄을 가져가 피드를 만든다 → ready / empty, 실패하면 다시 pending(세 번이면 failed)
+//      AI가 막혀(크레딧 소진·지출 상한) 만들 게 없으면 'empty'가 아니라 30분 뒤 다시(그날 안에서만), 날이 넘어가면 failed
 //   4. 보낼 시각이 된 ready 줄을 가져가 FCM으로 보낸다 → sent / no_device
 // 새벽 GitHub 배치는 수집·요약을 미리 해 두는 일만 한다(사람별 피드는 여기서 만든다).
 
@@ -27,6 +29,8 @@ const TIME_BUDGET_MS = 150_000;
 const COLLECT_AFTER = HOUR;
 const BUILD_BATCH = 50;
 const SEND_BATCH = 200;
+/** AI가 막혀 못 만들었을 때 다시 해 볼 간격 */
+const BLOCKED_RETRY_MS = 30 * 60_000;
 
 type JobRow = { user_id: string; date: string; attempts: number };
 
@@ -36,6 +40,8 @@ export interface DeliveryResult {
   built: number;
   empty: number;
   failed: number;
+  /** AI가 막혀 못 만들어 나중에 다시 할 사람 */
+  blocked: number;
   sent: number;
   noDevice: number;
   /** 알림을 꺼 둬서 보내지 않음 */
@@ -48,7 +54,7 @@ function makeCtx(now: Date): Ctx {
   return {
     date: kstDate(now),
     now,
-    ai: createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log }),
+    ai: guardAi(createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log })),
     log,
     stats: {},
     force: false,
@@ -59,10 +65,10 @@ function makeCtx(now: Date): Ctx {
 /**
  * 이 사람들의 오늘 피드를 만든다. 관심사를 합쳐 최근 글을 처리하고(실패해도 이미 요약된 소식으로 계속),
  * 고른 소식 중 요약이 없는 것만 원하는 사람이 많은 순으로 요약한 뒤 저장한다.
- * 결과: built 새로 만듦, empty 맞는 소식 없음, had 이미 오늘 피드가 있었음(웹에서 받음 등)
+ * 결과: built 새로 만듦, empty 맞는 소식 없음, had 이미 오늘 피드가 있었음(웹에서 받음 등), blocked AI가 막혀 만들 게 없음
  */
-export async function buildFeedsFor(ctx: Ctx, userIds: string[]): Promise<{ result: Map<string, 'built' | 'empty' | 'had'>; summarized: number }> {
-  const result = new Map<string, 'built' | 'empty' | 'had'>();
+export async function buildFeedsFor(ctx: Ctx, userIds: string[]): Promise<{ result: Map<string, 'built' | 'empty' | 'had' | 'blocked'>; summarized: number }> {
+  const result = new Map<string, 'built' | 'empty' | 'had' | 'blocked'>();
   const today = check(await db.from('feed_days').select('user_id').eq('date', ctx.date).in('user_id', userIds), 'feed_days today') as { user_id: string }[];
   for (const r of today) result.set(r.user_id, 'had');
   const audience = await loadAudience(ctx, userIds.filter((id) => !result.has(id)));
@@ -71,11 +77,15 @@ export async function buildFeedsFor(ctx: Ctx, userIds: string[]): Promise<{ resu
   if (!audience.length) return { result, summarized: 0 };
 
   const union: Audience = { ...audience[0]!, weights: Object.assign({}, ...audience.map((a) => a.weights)) };
-  try {
-    await prepareFresh(ctx, union, { collectAfter: COLLECT_AFTER });
-  } catch (e) {
-    // Gemini 임베딩이 막혀도(한도·결제) 이미 요약된 소식으로 피드는 만든다
-    ctx.log(`최근 글 처리 실패, 있는 소식으로 계속: ${String((e as Error).message ?? e).slice(0, 160)}`);
+  // AI가 막혀 있으면(크레딧 소진·지출 상한) 새로 처리·요약하지 않고 이미 요약된 소식으로만 만든다
+  let aiBlocked = (await aiBlockedReason()) !== null;
+  if (!aiBlocked) {
+    try {
+      await prepareFresh(ctx, union, { collectAfter: COLLECT_AFTER });
+    } catch (e) {
+      if (isAiBlocked(e)) aiBlocked = true;
+      ctx.log(`최근 글 처리 실패, 있는 소식으로 계속: ${String((e as Error).message ?? e).slice(0, 160)}`);
+    }
   }
 
   let candidates = await loadCandidates(ctx, { centroids: audience.some((a) => a.known.length > 0) });
@@ -97,10 +107,11 @@ export async function buildFeedsFor(ctx: Ctx, userIds: string[]): Promise<{ resu
   const t0 = Date.now();
   let summarized = 0;
   await mapLimit(todo, 3, async (id) => {
-    if (Date.now() - t0 > TIME_BUDGET_MS) return;
+    if (aiBlocked || Date.now() - t0 > TIME_BUDGET_MS) return;
     try {
       if ((await summarizeCluster(ctx, id, 'basic', { videos: 0 })) === 'ok') summarized++;
     } catch (e) {
+      if (isAiBlocked(e)) aiBlocked = true;
       ctx.log(`요약 실패 #${id}: ${String((e as Error).message ?? e).slice(0, 160)}`);
     }
   });
@@ -111,7 +122,7 @@ export async function buildFeedsFor(ctx: Ctx, userIds: string[]): Promise<{ resu
     const { weights, exclude } = picks.get(a.id)!;
     const ranked = rankFeed(candidates, weights, exclude, { limit: 10 });
     if (!ranked.length) {
-      result.set(a.id, 'empty');
+      result.set(a.id, aiBlocked ? 'blocked' : 'empty');
       continue;
     }
     const { data: already } = await db.from('feed_days').select('user_id').eq('user_id', a.id).eq('date', ctx.date).maybeSingle();
@@ -149,7 +160,7 @@ const setStatus = (job: JobRow, patch: Record<string, unknown>) =>
 
 export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
   const ctx = makeCtx(now);
-  const out: DeliveryResult = { planned: 0, reclaimed: 0, built: 0, empty: 0, failed: 0, sent: 0, noDevice: 0, muted: 0, summarized: 0 };
+  const out: DeliveryResult = { planned: 0, reclaimed: 0, built: 0, empty: 0, failed: 0, blocked: 0, sent: 0, noDevice: 0, muted: 0, summarized: 0 };
   out.planned = Number(check(await db.rpc('plan_deliveries', { p_date: ctx.date }), 'plan_deliveries') ?? 0);
   out.reclaimed = Number(check(await db.rpc('reclaim_stuck_deliveries'), 'reclaim') ?? 0);
 
@@ -162,9 +173,23 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       out.summarized = summarized;
       for (const job of builds) {
         const r = result.get(job.user_id) ?? 'empty';
-        if (r === 'empty') out.empty++;
-        else out.built++;
-        await setStatus(job, r === 'empty' ? { status: 'empty' } : { status: 'ready', built_at: new Date().toISOString(), last_error: null });
+        if (r === 'blocked') {
+          // AI가 막혀 못 만들었다: 그날 안이면 30분 뒤 다시, 날이 넘어가면 failed(관리자에서 '맞는 소식 없음'과 구분된다)
+          out.blocked++;
+          const retryAt = new Date(Date.now() + BLOCKED_RETRY_MS);
+          await setStatus(
+            job,
+            kstDate(retryAt) === job.date
+              ? { status: 'pending', build_at: retryAt.toISOString(), last_error: 'AI가 막혀 다시 시도' }
+              : { status: 'failed', last_error: 'AI가 막혀 그날 만들지 못함' },
+          );
+        } else if (r === 'empty') {
+          out.empty++;
+          await setStatus(job, { status: 'empty' });
+        } else {
+          out.built++;
+          await setStatus(job, { status: 'ready', built_at: new Date().toISOString(), last_error: null });
+        }
       }
     } catch (e) {
       const msg = String((e as Error).message ?? e).slice(0, 300);

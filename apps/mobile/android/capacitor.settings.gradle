@@ -10,3 +10,6 @@ project(':capacitor-browser').projectDir = new File('../../../node_modules/.pnpm
 
 include ':capacitor-splash-screen'
 project(':capacitor-splash-screen').projectDir = new File('../../../node_modules/.pnpm/@capacitor+splash-screen@8.0.2_@capacitor+core@8.5.3/node_modules/@capacitor/splash-screen/android')
+
+include ':revenuecat-purchases-capacitor'
+project(':revenuecat-purchases-capacitor').projectDir = new File('../../../node_modules/.pnpm/@revenuecat+purchases-capacitor@13.6.1_@capacitor+core@8.5.3/node_modules/@revenuecat/purchases-capacitor/android')

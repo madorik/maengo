@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Crown, IconCheck, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
+import { IconCheck, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
@@ -12,12 +12,12 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { useItemAudio } from "@/components/article/useItemAudio";
 import { MakeToday } from "./MakeToday";
+import { MoreToday } from "./MoreToday";
 import type { FeedItem } from "@/lib/types";
 
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로 */
 export function TodayList() {
   const { data, game } = useToday();
-  const profile = useProfile();
   return (
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
@@ -51,22 +51,7 @@ export function TodayList() {
           <MakeToday reason={data.emptyReason} />
         )}
 
-        {/* 하루 개수를 넘는 소식 안내는 Free에게만(베타 동안 Premium도 5개라 숨긴 소식이 생긴다) */}
-        {data.hiddenCount > 0 && profile.plan === "free" && (
-          <div className="tile mt-4 flex flex-col gap-4 border-dashed p-5 sm:flex-row sm:items-center">
-            <div className="flex flex-1 items-center gap-3">
-              <Mascot mood="listen" className="size-14 shrink-0" />
-              <div>
-                <p className="text-[16px] font-black">오늘 고른 소식이 {data.hiddenCount}개 더 있어요</p>
-                <p className="mt-0.5 text-[14px] font-semibold text-sub">Free는 하루 {data.dailyLimit}개, Premium은 하루 최대 10개를 받아요.</p>
-              </div>
-            </div>
-            <Link href="/settings#plan" className="btn shrink-0">
-              <Crown className="size-5" />
-              Premium으로 다 보기
-            </Link>
-          </div>
-        )}
+        {game.total > 0 && <MoreToday cost={data.moreCost} kept={data.wallet} hidden={data.hiddenCount} />}
 
         {game.total > 0 && (
           <div className="mt-10 flex items-end gap-3">
@@ -135,18 +120,16 @@ function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
           <span className="ml-2 font-semibold text-faint">{item.publishedLabel}</span>
         </p>
         {!profile.audio ? (
-          // Free: 듣기 자리는 두고 막아 둔다(Premium 배지로 안내, 팝업은 띄우지 않는다)
-          <button
-            type="button"
-            disabled
-            title="듣기는 Premium에서 쓸 수 있어요"
+          // Free: 듣기 자리는 두고, 누르면 결제 페이지로(막힌 기능에서 안내하는 자리)
+          <Link
+            href="/premium"
             aria-label={`${item.title} 듣기, Premium에서 쓸 수 있어요`}
-            className="relative z-10 ml-auto inline-flex min-h-10 shrink-0 cursor-not-allowed items-center gap-1.5 rounded-xl border-2 border-line px-3 text-[14px] font-extrabold text-faint"
+            className="relative z-10 ml-auto inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border-2 border-line px-3 text-[14px] font-extrabold text-faint no-underline hover:bg-snow"
           >
             <IconSpeaker className="size-5" />
             듣기
             <PremiumBadge />
-          </button>
+          </Link>
         ) : p.enabled && (
           <button
             type="button"

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { signIn } from "../actions";
 import { MangoIcon } from "@/components/MangoIcon";
-import { BetaBadge } from "@/components/ui/BetaBadge";
 import { demoLoginEnabled } from "@/lib/server/demo";
 import { LoginButtons } from "./LoginButtons";
 
@@ -19,7 +18,6 @@ export default async function LoginPage({ searchParams }: Props) {
         <MangoIcon className="size-16" />
         <span className="mt-3 inline-flex items-center gap-2 text-[32px] font-black tracking-[-0.04em] text-mango-deep">
           맹고
-          <BetaBadge />
         </span>
       </Link>
       <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">관심 분야 소식을 매일 아침 골라 드려요</h1>

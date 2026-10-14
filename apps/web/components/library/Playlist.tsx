@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { createContext, useContext, useState } from "react";
 import { IconHeadphones, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
@@ -59,11 +60,11 @@ export function LibraryHeader({ total }: { total: number }) {
   let controls: React.ReactNode = null;
   if (total > 0 && !profile.audio) {
     controls = (
-      <span aria-disabled="true" title="골라 듣기는 Premium에서 쓸 수 있어요" className="inline-flex min-h-11 cursor-not-allowed items-center gap-1.5 text-[14px] font-extrabold text-faint">
+      <Link href="/premium" aria-label="골라 듣기, Premium에서 쓸 수 있어요" className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-extrabold text-faint no-underline">
         <IconHeadphones className="size-4" />
         골라 듣기
         <PremiumBadge />
-      </span>
+      </Link>
     );
   } else if (pick.picking) {
     controls = (

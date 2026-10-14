@@ -160,7 +160,7 @@ async function looksAdult(custom: { id: string; name: string }[]): Promise<boole
 /**
  * 기타에 적기(온보딩·설정). 쉼표 등으로 나눈 말(최대 3개)을 적은 그대로 올린다.
  * 목록에 같은 이름·별칭이 있으면 그 관심사로 넣고('종부세' → 부동산 정책·세금, 기타 개수에 안 셈),
- * 없으면 custom 토픽을 만든다(Free 1개, Premium 10개). 성인 키워드는 받지 않는다.
+ * 없으면 custom 토픽을 만든다(Premium만 10개, Free는 목록에 있는 말만 들어간다). 성인 키워드는 받지 않는다.
  */
 export async function addCustomTopics(profile: Profile, raw: string): Promise<TopicResult> {
   const text = raw.trim().slice(0, 200);
@@ -179,7 +179,7 @@ export async function addCustomTopics(profile: Profile, raw: string): Promise<To
       ids.push(id);
     }
   }
-  // 기타 개수 한도(Free 1개, Premium 10개). 이미 넣은 말은 다시 세지 않는다
+  // 기타 개수 한도(Premium 10개, Free 0개). 이미 넣은 말은 다시 세지 않는다
   const limit = entitlements(profile).customLimit;
   const weights = await weightsOf(profile.id);
   const mineCustom = Object.keys(weights).filter((id) => isCustomTopicId(id) && weights[id]! > 0);
@@ -190,8 +190,7 @@ export async function addCustomTopics(profile: Profile, raw: string): Promise<To
     const drop = new Set(freshCustom.slice(room).map((c) => c.id));
     for (const id of drop) ids.splice(ids.indexOf(id), 1);
     custom.splice(0, custom.length, ...custom.filter((c) => !drop.has(c.id)));
-    const plan = profile.plan === 'free' ? 'Free는' : 'Premium은';
-    const msg = `${plan} 기타에 ${limit}개까지 적을 수 있어요.${profile.plan === 'free' ? ' Premium은 10개까지예요.' : ''} 하나를 빼고 다시 적어 주세요.`;
+    const msg = limit === 0 ? '목록에 없는 관심사는 Premium에서 넣을 수 있어요.' : `기타에는 ${limit}개까지 적을 수 있어요. 하나를 빼고 다시 적어 주세요.`;
     if (!ids.length) return { tone: 'warn', message: msg };
     limitNote = msg;
   }

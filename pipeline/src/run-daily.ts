@@ -1,6 +1,7 @@
 import { kstDate } from '@maengo/core/kst';
 import { createGeminiAi } from '@maengo/core/gemini';
 import { db } from './lib/db';
+import { guardAi } from './lib/ai-guard';
 import { env } from './lib/env';
 import { flushUsage, recordUsage, usageSummary } from './lib/usage';
 import type { Ctx } from './lib/ctx';
@@ -40,7 +41,7 @@ async function main() {
   const ctx: Ctx = {
     date: arg('date') ?? kstDate(),
     now: new Date(),
-    ai: createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log }),
+    ai: guardAi(createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log })),
     log,
     stats: {},
     force: arg('force') === 'true',

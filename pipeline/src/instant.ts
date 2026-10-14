@@ -1,14 +1,15 @@
 import { createGeminiAi } from '@maengo/core/gemini';
 import { rankFeed } from '@maengo/core/feed';
 import { kstDate } from '@maengo/core/kst';
-import { groupOf, isNewsSection } from '@maengo/core/topics';
+import { groupOf } from '@maengo/core/topics';
 import { db, check } from './lib/db';
+import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
 import { tryLock, unlock, waitUnlock } from './lib/lock';
 import { env } from './lib/env';
 import { mapLimit } from './lib/limit';
-import { dictionary, loadAudience, loadCandidates, withSimilarExcluded, type Audience } from './lib/audience';
+import { loadAudience, loadCandidates, withSimilarExcluded, type Audience } from './lib/audience';
 import { flushUsage, recordUsage } from './lib/usage';
-import { SECTION_BY_SOURCE_URL } from './lib/headline';
+import { interestFilter } from './lib/interest';
 import { HOUR, type Ctx } from './lib/ctx';
 import { cluster } from './jobs/cluster';
 import { collect } from './jobs/collect';
@@ -30,7 +31,9 @@ export type InstantProgress =
   | { stage: 'summarizing'; done: number; total: number }
   | { stage: 'saving' }
   | { stage: 'done'; items: number }
-  | { stage: 'empty' };
+  | { stage: 'empty' }
+  /** AI가 막혀(크레딧 소진·지출 상한) 새로 만들 수 없고, 이미 요약된 소식 중에도 고를 게 없다 */
+  | { stage: 'blocked' };
 
 export async function buildTodayFeedNow(
   userId: string,
@@ -40,7 +43,7 @@ export async function buildTodayFeedNow(
   const ctx: Ctx = {
     date: kstDate(),
     now: new Date(),
-    ai: createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log: (m) => console.log(`[instant] ${m}`) }),
+    ai: guardAi(createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log: (m) => console.log(`[instant] ${m}`) })),
     log: (m) => console.log(`[instant] ${m}`),
     stats: {},
     force: true,
@@ -57,9 +60,17 @@ export async function buildTodayFeedNow(
   const want = a.dailyItems;
   let weights = a.weights;
   let picked = rankFeed(candidates, weights, exclude, { limit: want });
-  if (picked.length < Math.min(want, 3)) {
+  // AI가 막혀 있으면(크레딧 소진·지출 상한) 새로 처리·요약하지 않고, 처리하다 막혀도 이미 요약된 소식으로 계속한다
+  let aiBlocked = (await aiBlockedReason()) !== null;
+  if (picked.length < Math.min(want, 3) && !aiBlocked) {
     onProgress({ stage: 'collecting' });
-    await prepareFresh(ctx, a);
+    try {
+      await prepareFresh(ctx, a);
+    } catch (e) {
+      if (!isAiBlocked(e)) throw e;
+      aiBlocked = true;
+      ctx.log(`최근 글 처리 중 AI가 막힘, 있는 소식으로 계속: ${String((e as Error).message ?? e).slice(0, 160)}`);
+    }
     candidates = await loadCandidates(ctx, { centroids: a.known.length > 0 });
     exclude = await withSimilarExcluded(a, candidates);
     picked = rankFeed(candidates, weights, exclude, { limit: want });
@@ -69,7 +80,7 @@ export async function buildTodayFeedNow(
     picked = rankFeed(candidates, weights, exclude, { limit: want });
     if (picked.length) ctx.log(`관심사에 맞는 소식이 없어 큰 분류까지 넓혀 ${picked.length}개 고름`);
   }
-  const toSummarize = picked.filter((r) => !candidates.find((c) => c.id === r.clusterId)!.summarized).slice(0, maxSummaries);
+  const toSummarize = aiBlocked ? [] : picked.filter((r) => !candidates.find((c) => c.id === r.clusterId)!.summarized).slice(0, maxSummaries);
   if (picked.length) onProgress({ stage: 'found', ready: picked.length - picked.filter((r) => !candidates.find((c) => c.id === r.clusterId)!.summarized).length, toMake: toSummarize.length });
 
   if (toSummarize.length) {
@@ -77,8 +88,9 @@ export async function buildTodayFeedNow(
     onProgress({ stage: 'summarizing', done, total: toSummarize.length });
     await mapLimit(toSummarize, 3, async (r) => {
       try {
-        await summarizeCluster(ctx, r.clusterId, 'basic', { videos: 0 });
+        if (!aiBlocked) await summarizeCluster(ctx, r.clusterId, 'basic', { videos: 0 });
       } catch (e) {
+        if (isAiBlocked(e)) aiBlocked = true;
         ctx.log(`요약 실패 #${r.clusterId}: ${String((e as Error).message ?? e).slice(0, 160)}`);
       }
       onProgress({ stage: 'summarizing', done: ++done, total: toSummarize.length });
@@ -90,18 +102,21 @@ export async function buildTodayFeedNow(
   onProgress({ stage: 'saving' });
   candidates = (await loadCandidates(ctx, { centroids: false })).filter((c) => c.summarized);
   const ranked = rankFeed(candidates, weights, exclude, { limit: 10 });
+  // 맹고로 더 받은 개수는 새로 만들어도 지킨다
+  const prev = (await db.from('feed_days').select('extra').eq('user_id', userId).eq('date', ctx.date).maybeSingle()).data as { extra: number } | null;
+  const extra = prev?.extra ?? 0;
   check(await db.from('feeds').delete().eq('user_id', userId).eq('date', ctx.date), 'feeds delete');
   check(await db.from('feed_days').delete().eq('user_id', userId).eq('date', ctx.date), 'feed_days delete');
   if (!ranked.length) {
-    onProgress({ stage: 'empty' });
+    onProgress({ stage: aiBlocked ? 'blocked' : 'empty' });
     return 0;
   }
   check(
     await db.from('feeds').insert(ranked.map((r, i) => ({ user_id: userId, date: ctx.date, rank: i + 1, cluster_id: r.clusterId, topic_id: r.topicId }))),
     'feeds insert',
   );
-  const visible = Math.min(ranked.length, a.dailyItems);
-  check(await db.from('feed_days').insert({ user_id: userId, date: ctx.date, visible, built_by: 'web' }), 'feed_days insert');
+  const visible = Math.min(ranked.length, a.dailyItems + extra);
+  check(await db.from('feed_days').insert({ user_id: userId, date: ctx.date, visible, extra, built_by: 'web' }), 'feed_days insert');
   onProgress({ stage: 'done', items: visible });
   return visible;
 }
@@ -131,25 +146,14 @@ export async function prepareFresh(base: Ctx, a: Audience, { collectAfter = COLL
     const newest = data?.[0] ? Date.parse((data[0] as { fetched_at: string }).fetched_at) : 0;
     if (ctx.now.getTime() - newest > collectAfter) await collect(ctx);
 
-    const mine = new Set(Object.keys(a.weights));
-    const words = (await dictionary(ctx))
-      .filter((t) => !isNewsSection(t.id) && (mine.has(t.id) || (t.parent && mine.has(t.parent))))
-      .flatMap((t) => [t.name, ...t.aliases]);
-    const hits = matcher(words);
-    // 뉴스 분야는 낱말 대신 그 분야 섹션 피드의 글을 처리한다(헤드라인은 언론사 여럿의 기사가 한 묶음에 모여야 한다)
-    const sections = new Set([...mine].filter(isNewsSection));
-    const sectionSources = new Set<number>();
-    if (sections.size) {
-      const rows = check(await db.from('sources').select('id,url'), 'sources') as { id: number; url: string }[];
-      for (const r of rows) if (sections.has(SECTION_BY_SOURCE_URL.get(r.url) ?? '')) sectionSources.add(r.id);
-    }
+    const wanted = await interestFilter(ctx, new Set(Object.keys(a.weights)));
     const since = new Date(ctx.now.getTime() - ctx.windowHours * HOUR).toISOString();
     const fresh = check(
       await db.from('items').select('id,title,excerpt,source_id').is('embedding', null).gte('fetched_at', since).order('published_at', { ascending: false }).limit(2000),
       'items fresh',
     ) as { id: number; title: string; excerpt: string | null; source_id: number | null }[];
     const todo = fresh
-      .filter((i) => hits(`${i.title} ${i.excerpt ?? ''}`) || sectionSources.has(i.source_id ?? -1))
+      .filter(wanted)
       .slice(0, FRESH_MAX_ITEMS)
       .map(({ id, title, excerpt }) => ({ id, title, excerpt }));
     ctx.log(`최근 글 ${fresh.length}개 중 관심사 단어가 들었거나 고른 뉴스 분야의 글 ${todo.length}개를 먼저 처리`);
@@ -159,20 +163,6 @@ export async function prepareFresh(base: Ctx, a: Audience, { collectAfter = COLL
   } finally {
     await unlock(FRESH_LOCK);
   }
-}
-
-/** 글에 관심사 단어가 들었는지. 영문은 낱말 단위로(AI가 said에 걸리지 않게), 한글은 그대로 찾는다 */
-function matcher(words: string[]): (text: string) => boolean {
-  const ascii: RegExp[] = [];
-  const other: string[] = [];
-  for (const w of new Set(words.map((x) => x.trim().toLowerCase()).filter((x) => x.length >= 2))) {
-    if (/^[\x00-\x7f]+$/.test(w)) ascii.push(new RegExp(`(^|[^a-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z0-9]|$)`));
-    else other.push(w);
-  }
-  return (text) => {
-    const t = text.toLowerCase();
-    return other.some((w) => t.includes(w)) || ascii.some((r) => r.test(t));
-  };
 }
 
 /** 상세 관심사의 큰 분류를 절반 가중치로 더한다(이미 고른 큰 분류는 그대로). 직접 적은 관심사는 큰 분류가 없다 */

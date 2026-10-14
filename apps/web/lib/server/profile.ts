@@ -1,9 +1,10 @@
 import 'server-only';
 import { PERSONA } from '@maengo/core/audio';
-import { dailyItemsFor } from '@maengo/core/plans';
+import type { PlanLimits } from '@maengo/core/plans';
 import type { Persona, Plan, Voice } from '@maengo/core/types';
 import type { Provider } from '../session-token';
 import { db, must } from './db';
+import { planLimits } from './plans';
 
 export interface Profile {
   id: string;
@@ -20,7 +21,9 @@ export interface Profile {
   /** 푸시 알림을 켰는지(설정 > 알림). 꺼 두면 맹고는 만들어 두되 알리지 않는다 */
   pushEnabled: boolean;
   plan: Plan;
-  /** Premium이 끝나는 시각(가입 1주일 또는 결제 기간). null이면 기한 없음 */
+  /** 이 플랜의 값(plans 표, 1분 캐시) */
+  limits: PlanLimits;
+  /** Premium이 끝나는 시각(스토어 구독 기간). null이면 기한 없음 */
   premiumUntil: number | null;
   persona: Persona;
   voice: Voice;
@@ -28,7 +31,6 @@ export interface Profile {
   skipRead: boolean;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface ProfileRow {
   id: string;
@@ -70,6 +72,7 @@ export async function loadProfile(
     notifyAt: row.notify_at.slice(0, 5),
     pushEnabled: row.push_enabled,
     plan,
+    limits: await planLimits(plan),
     premiumUntil,
     // 말투는 아나운서 하나로 고정(DB 값은 쓰지 않는다)
     persona: PERSONA,
@@ -85,23 +88,17 @@ export async function webPushTokens(userId: string): Promise<string[]> {
   return rows.map((r) => r.token);
 }
 
-/** Premium 남은 날(기한이 있을 때만). 가입 1주일 Premium이면 7 → 0 */
-export function premiumDaysLeft(p: Profile, now = Date.now()): number | null {
-  if (p.plan !== 'plus' || !p.premiumUntil) return null;
-  return Math.max(0, Math.ceil((p.premiumUntil - now) / DAY_MS));
-}
-
-/** PLAN.md 9.1 entitlements. 권한은 여기 한 곳에서만 판단한다. */
+/** 권한. 값은 plans 표(프로필을 읽을 때 붙여 둔 limits)에서 온다. 권한은 여기 한 곳에서만 판단한다 */
 export function entitlements(p: Profile) {
-  const paid = p.plan !== 'free';
-  // 하루 소식 수: Free 1개, Premium 최대 10개
+  const l = p.limits;
   return {
-    audio: paid,
-    podcast: paid,
-    pack: paid,
-    topicLimit: paid ? 20 : 5,
-    dailyItems: dailyItemsFor(p.plan),
-    // 기타(목록에 없어 직접 적은 관심사, custom 토픽) 개수. 목록 관심사와 따로 센다
-    customLimit: paid ? 10 : 1,
+    audio: l.audio,
+    topicLimit: l.topicLimit,
+    /** 하루 맹고(하루에 받는 소식 수). 더 받기는 지갑에서 */
+    dailyItems: l.dailyItems,
+    // 기타(목록에 없어 직접 적은 관심사, custom 토픽) 개수. 목록 관심사와 따로 센다. Free가 전에 넣은 건 그대로 둔다
+    customLimit: l.customLimit,
+    canBuyMaengo: l.canBuyMaengo,
+    archiveDays: l.archiveDays,
   };
 }

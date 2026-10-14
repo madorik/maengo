@@ -1,9 +1,9 @@
-import { dailyItemsFor } from '@maengo/core/plans';
 import { excludesCluster, popularityBoost, type RankCandidate } from '@maengo/core/feed';
 import { tierOf } from '@maengo/core/ai';
 import { TOPICS } from '@maengo/core/topics';
 import type { FeedbackKind, Plan, Tier, Topic } from '@maengo/core/types';
 import { db, check, fromVector, inChunks, selectAll } from './db';
+import { getPlans } from './plans';
 import { cosine } from './vec';
 import { HOUR, type Ctx } from './ctx';
 
@@ -42,9 +42,11 @@ export async function loadAudience(ctx: Ctx, only?: string | string[]): Promise<
   if (!profiles.length) return [];
   const ids = profiles.map((p) => p.id);
   const byId = new Map<string, Audience>();
+  // 하루 맹고(소식 수)는 plans 표 값
+  const plans = await getPlans();
   for (const p of profiles) {
     const plan = effectivePlan(p.plan, p.premium_until, ctx.now);
-    byId.set(p.id, { id: p.id, plan, tier: tierOf(plan), dailyItems: dailyItemsFor(plan), weights: {}, exclude: new Set(), known: [], notifyAt: String(p.notify_at).slice(0, 5) });
+    byId.set(p.id, { id: p.id, plan, tier: tierOf(plan), dailyItems: plans.get(plan)!.dailyItems, weights: {}, exclude: new Set(), known: [], notifyAt: String(p.notify_at).slice(0, 5) });
   }
   const topics = await selectAll<{ user_id: string; topic_id: string; weight: number }>((f, t) => db.from('user_topics').select('user_id,topic_id,weight').in('user_id', ids).range(f, t));
   for (const r of topics) byId.get(r.user_id)!.weights[r.topic_id] = r.weight;

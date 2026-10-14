@@ -6,7 +6,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
-import { rebuildFeed } from "@/lib/server/feed";
+import { rebuildFeed, receiveMore, type MoreResult } from "@/lib/server/feed";
 import { demoLoginEnabled, demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
@@ -152,6 +152,14 @@ export async function setPushEnabled(enabled: boolean): Promise<PushResult> {
   if (!on) must(await db.from("device_tokens").delete().eq("user_id", profile.id), "device_tokens");
   revalidatePath("/", "layout");
   return { enabled: on };
+}
+
+/** 오늘 맹고 하나 더 받기(하루 맹고를 넘으면 지갑에서 1맹고). 붙으면 오늘 화면을 새로 그린다 */
+export async function receiveMoreAction(): Promise<MoreResult> {
+  const profile = await requireProfile();
+  const res = await receiveMore(profile);
+  if (res.ok) revalidatePath("/today");
+  return res;
 }
 
 const VOICES: Voice[] = ["f", "m"];

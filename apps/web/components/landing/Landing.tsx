@@ -1,12 +1,13 @@
 import type { CategoryId } from "@maengo/core/categories";
+import { SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
 import Link from "next/link";
 import { Crown, IconCheck, IconDoc, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
-import { BetaBadge } from "@/components/ui/BetaBadge";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
-import { BETA, PREMIUM_PRICE, PREMIUM_PRICE_KRW, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
+import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AuthLink } from "./AuthLink";
 
 // 소개(메인) 페이지. 로그인 전에 맹고가 무엇인지 보여 준다. 그림 대신 실제 화면 조각을 그대로 쓴다.
@@ -15,11 +16,13 @@ import { AuthLink } from "./AuthLink";
 const START = { href: "/login", label: "무료로 시작하기" };
 const OPEN = { href: "/today", label: "오늘 맹고 열기" };
 
-const FAQ: [string, string][] = [
+/** 자주 묻는 질문. 플랜 숫자는 plans 표 값 */
+const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["어떤 소식을 모아요?", "AI·Tech 공식 블로그, 경제·코인 매체, 반도체·로봇 전문지, 그리고 주요 언론사의 정치·경제·사회·생활/문화·IT/과학·세계 뉴스를 매일 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 뉴스는 여러 언론사가 함께 다룬 헤드라인만 골라요."],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
-  ["무료로 얼마나 쓸 수 있나요?", `지금은 베타 기간이라 가입하면 모든 기능(Premium)을 무료로 써요. 정식 출시 후 모든 사용자는 Free 플랜(하루 1개 소식)으로 돌아가요. Premium(${PREMIUM_PRICE}, 하루 최대 10개와 오디오 듣기)은 원하는 분이 직접 결제해서 써요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 맹고 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 맹고 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["맹고는 뭐예요?", `맹고는 하루에 받는 소식이에요. Free는 하루 ${free.dailyItems}개, Premium은 ${plus.dailyItems}개를 받아요. 더 받고 싶으면 지갑의 맹고를 하나씩 써서 소식을 하나씩 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. 맹고 추가 구매는 Premium에서 할 수 있어요.`],
 ];
 
 type Sample = { category: CategoryId; source: string; video?: boolean; title: string; short: string; author: string; date: string; coverage?: string };
@@ -45,16 +48,19 @@ const SAMPLES: Sample[] = [
   },
 ];
 
-export function Landing() {
+export async function Landing() {
+  const plans = await getPlans();
+  const free = plans.get("free")!;
+  const plus = plans.get("plus")!;
+  const FAQ = faq(free, plus);
   return (
     <div className="min-h-dvh bg-white">
-      <JsonLd />
+      <JsonLd faq={FAQ} premiumKrw={plus.priceKrw} />
       <header className="sticky top-0 z-20 border-b-2 border-line bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1100px] items-center justify-between gap-3 px-5">
           <Link href="/" className="flex items-center gap-2 no-underline">
             <MangoIcon className="size-9" />
             <span className="text-[26px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
-            <BetaBadge />
           </Link>
           <nav aria-label="소개 메뉴" className="flex items-center gap-1">
             <a href="#features" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
@@ -84,7 +90,6 @@ export function Landing() {
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
               <AuthLink signedOut={{ href: "/login", label: "이미 계정이 있어요" }} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
-            <p className="mt-4 text-[13px] font-semibold text-sub">지금은 베타라 가입하면 Premium(하루 5개 소식, 오디오 듣기)을 무료로 써요. 정식 출시 후 유료로 바뀌기 전에 미리 알려 드려요.</p>
           </div>
 
           <div aria-hidden="true" className="mx-auto w-full max-w-[460px] md:order-1">
@@ -232,23 +237,20 @@ export function Landing() {
             <h2 id="pricing-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
               요금
             </h2>
-            {BETA && <p className="mt-3 text-center text-[15px] font-bold text-sub">지금은 베타 기간이라 모든 기능(Premium)을 무료로 써요. 정식 출시 후 모든 사용자는 Free 플랜으로 돌아가요.</p>}
             <div className="mt-10 grid gap-5 md:grid-cols-2">
               <Plan
                 name="Free"
                 price="0원"
-                items={["하루 1개 소식", "요약, 왜 중요한가, 전체 글", "보관함과 카테고리", "관심사 5개, 기타 1개"]}
+                items={[`하루 맹고 ${free.dailyItems}개`, `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${free.archiveDays ?? 0}일, 관심사 ${free.topicLimit}개`]}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan
                 featured
                 name="Premium"
-                price={BETA ? "0원" : PREMIUM_PRICE}
-                was={BETA ? PREMIUM_PRICE : undefined}
-                badge={BETA ? "베타 이벤트" : undefined}
-                items={[BETA ? "하루 최대 10개 소식(베타 기간 5개)" : "하루 최대 10개 소식", "오디오로 이어 듣기, 여성·남성 목소리", "더 좋은 AI 모델로 요약", "관심사 20개, 기타 10개"]}
+                price={monthlyPrice(plus)}
+                items={[`하루 맹고 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `맹고 추가 구매, 목록에 없는 관심사 ${plus.customLimit}개`, "더 좋은 AI 모델로 요약", `보관함 전체, 관심사 ${plus.topicLimit}개`]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
-                cta={BETA ? { signedOut: { href: "/login", label: "무료로 시작하기" }, signedIn: OPEN } : { signedOut: START, signedIn: { href: "/settings#plan", label: "플랜 보기" } }}
+                cta={{ signedOut: START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
               />
             </div>
           </div>
@@ -357,7 +359,7 @@ function ListenPill() {
       </span>
       <span className="pr-1">
         <span className="block text-[14px] font-black">오늘 맹고 전체 듣기</span>
-        <span className="block text-[12px] font-bold text-sky">{BETA ? "5개, 약 6분" : "10개, 약 11분"}</span>
+        <span className="block text-[12px] font-bold text-sky">10개, 약 11분</span>
       </span>
       <span className="flex size-11 items-center justify-center rounded-full bg-sky text-white shadow-[0_3px_0_var(--color-sky-dark)]">
         <IconPlay className="size-5" />
@@ -381,7 +383,6 @@ function ScriptLine({ who, text, right = false, current = false }: { who: string
 function Plan({
   name,
   price,
-  was,
   items,
   cta,
   badge,
@@ -390,8 +391,6 @@ function Plan({
 }: {
   name: string;
   price: string;
-  /** 원래 가격(이벤트로 깎았을 때 취소선을 그어 보여 준다) */
-  was?: string;
   items: string[];
   cta: { signedOut: { href: string; label: string }; signedIn: { href: string; label: string }; ghost?: boolean };
   badge?: string;
@@ -408,15 +407,8 @@ function Plan({
         {badge && <span className="rounded-lg bg-mango px-2 py-0.5 text-[12px] font-black">{badge}</span>}
       </div>
       <p className="mt-2 flex flex-wrap items-baseline gap-x-2 font-round font-black tracking-[-0.02em]">
-        {was && (
-          <s className="text-[18px] text-faint">
-            <span className="sr-only">원래 가격 </span>
-            {was}
-          </s>
-        )}
         <span className="text-[30px]">{price}</span>
       </p>
-      {was && <p className="text-[13px] font-bold text-mango-deep">베타 기간 동안 무료, 정식 출시 후에는 Free로 돌아가요</p>}
       <ul className="mt-5 flex flex-1 flex-col gap-2.5">
         {items.map((it) => (
           <li key={it} className="flex items-start gap-2 text-[15px] font-semibold">
@@ -432,7 +424,7 @@ function Plan({
 }
 
 /** 검색엔진용 구조화 데이터: 사이트, 서비스(웹앱과 요금), 자주 묻는 질문 */
-function JsonLd() {
+function JsonLd({ faq, premiumKrw }: { faq: [string, string][]; premiumKrw: number }) {
   const url = siteUrl().toString();
   const data = [
     { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url, inLanguage: "ko-KR", description: SITE_DESCRIPTION },
@@ -447,13 +439,13 @@ function JsonLd() {
       description: SITE_DESCRIPTION,
       offers: [
         { "@type": "Offer", name: "Free", price: "0", priceCurrency: "KRW" },
-        { "@type": "Offer", name: "Premium", price: BETA ? "0" : String(PREMIUM_PRICE_KRW), priceCurrency: "KRW" },
+        { "@type": "Offer", name: "Premium", price: String(premiumKrw), priceCurrency: "KRW" },
       ],
     },
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
-      mainEntity: FAQ.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+      mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
     },
   ];
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />;

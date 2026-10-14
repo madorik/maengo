@@ -1,3 +1,4 @@
+import type { PlanLimits } from "@maengo/core/plans";
 import type { Plan } from "@maengo/core/types";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
@@ -5,22 +6,25 @@ import Link from "next/link";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
+import { ManageSubscription } from "@/components/premium/StoreParts";
 import { PushToggle } from "@/components/settings/PushToggle";
 import { TopicSettings } from "@/components/settings/TopicSettings";
 import { demoRebuildFeed, demoReset, demoSetPlan } from "@/app/actions";
 import { toProfileView } from "@/lib/server/feed";
+import { getPlans } from "@/lib/server/plans";
+import { syncWallet } from "@/lib/server/wallet";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements, webPushTokens } from "@/lib/server/profile";
-import { BETA } from "@/lib/site";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 
 export const metadata: Metadata = { title: "설정" };
 
-const PLANS: { id: Plan; label: string; desc: string }[] = [
-  { id: "free", label: "Free", desc: "하루 1개를 글로 읽어요." },
-  { id: "plus", label: "Premium", desc: "하루 최대 10개, 오디오 이어 듣기, 팟캐스트, 스터디 팩." },
-];
+/** 플랜 한 줄 설명(값은 plans 표) */
+const planDesc = (l: PlanLimits) => `하루 맹고 ${l.dailyItems}개${l.audio ? ", 음성 듣기" : ""}${l.canBuyMaengo ? ", 맹고 추가 구매" : ""}.`;
+/** 데모 도구의 플랜 바꾸기 버튼 순서 */
+const PLAN_IDS: Plan[] = ["free", "plus"];
+
 
 /** 설정 한 묶음. action은 제목 오른쪽에 둔다(알림 켜고 끄기) */
 function Section({ id, title, action, children }: { id: string; title: string; action?: React.ReactNode; children: React.ReactNode }) {
@@ -39,9 +43,9 @@ function Section({ id, title, action, children }: { id: string; title: string; a
 
 export default async function SettingsPage() {
   const profile = await requireProfile();
-  const view = toProfileView(profile);
   const demoTools = demoToolsEnabled();
-  const [topics, webTokens] = await Promise.all([userTopics(profile), webPushTokens(profile.id)]);
+  const [topics, webTokens, wallet, plans] = await Promise.all([userTopics(profile), webPushTokens(profile.id), syncWallet(profile.id), getPlans()]);
+  const view = toProfileView(profile);
   const { dailyItems } = entitlements(profile);
 
   return (
@@ -50,18 +54,42 @@ export default async function SettingsPage() {
 
       <div className="mt-6">
         <Section id="plan" title="플랜">
-          {BETA ? (
-            <p className="text-sub">지금은 베타 기간이라 모든 기능(Premium)을 무료로 써요. 정식 출시 후 모든 사용자는 Free 플랜으로 돌아가요.</p>
+          <p className="text-sub">{planDesc(profile.limits)}</p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="tile p-4">
+              <p className="text-[13px] font-extrabold text-sub">하루 맹고</p>
+              <p className="font-round text-[26px] font-black leading-tight tabular-nums">
+                {dailyItems}
+                <span className="text-[16px] text-faint">개</span>
+              </p>
+            </div>
+            <div className="tile p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[13px] font-extrabold text-sub">지갑</p>
+                {/* 맹고 추가 구매를 할 수 있는 플랜만(plans 표) */}
+                {view.canBuyMaengo && (
+                  <Link href="/premium#maengo" className="text-[13px] font-extrabold text-mango-deep no-underline hover:underline">
+                    채우기
+                  </Link>
+                )}
+              </div>
+              <p className="font-round text-[26px] font-black leading-tight tabular-nums">{wallet.toLocaleString("ko-KR")}</p>
+            </div>
+          </div>
+          <p className="mt-2 text-[13px] leading-relaxed text-sub">하루 맹고보다 더 받을 때 지갑에서 1맹고씩 써요. 지갑의 맹고(가입 선물·추가 구매한 맹고)는 사라지지 않아요.</p>
+          {/* 결제는 /premium(유튜브처럼 설정과 따로). 여기는 내 플랜만 */}
+          {view.plan === "free" ? (
+            <Link href="/premium" className="btn mt-4">
+              <Crown className="size-5" />
+              Premium 알아보기
+            </Link>
           ) : (
-            <p className="text-sub">{PLANS.find((p) => p.id === view.plan)!.desc}</p>
-          )}
-          {view.premiumDaysLeft !== null && (
-            <p className="mt-1 text-[14px] font-bold text-sky-dark">가입 기념 Premium이 {view.premiumDaysLeft}일 남았어요. 지나면 Free로 바뀌어요.</p>
+            <ManageSubscription uid={profile.id} />
           )}
           {demoTools && (
             <>
               <form action={demoSetPlan} className="mt-4 grid grid-cols-2 gap-2">
-                {PLANS.map((p) => (
+                {PLAN_IDS.map((id) => plans.get(id)!).map((p) => (
                   <button
                     key={p.id}
                     type="submit"
@@ -71,7 +99,7 @@ export default async function SettingsPage() {
                     className={`tile inline-flex min-h-12 items-center justify-center gap-1 px-1 text-[15px] font-extrabold ${view.plan === p.id ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
                   >
                     {p.id !== "free" && <Crown className="size-4" />}
-                    {p.label}
+                    {p.name}
                   </button>
                 ))}
               </form>
@@ -82,12 +110,13 @@ export default async function SettingsPage() {
         <Section id="topics" title="관심사">
           {/* 관심사를 많이 골라도 하루 개수(dailyItems)만큼만 오니, 고른 관심사가 매일 다 나오지 않는다는 걸 미리 알린다(사용자 요청) */}
           <p className="mb-3 text-[14px] text-sub">
-            관심사는 여러 개 골라도 돼요. 다만 하루에 받는 맹고는 {dailyItems}개라, 고른 관심사 중 그날 중요한 소식부터 {dailyItems}개만 골라 드려요. 그래서 고른 관심사가 매일 모두 나오지는 않아요.
+            관심사는 여러 개 골라도 돼요. 다만 하루 기본 맹고는 {dailyItems}개라, 고른 관심사 중 그날 중요한 소식부터 {dailyItems}개만 골라 드려요. 그래서 고른 관심사가 매일 모두 나오지는 않아요.
           </p>
           <TopicSettings
             groups={topicGroups(topics)}
             news={newsSections(topics)}
             custom={topics.filter((t) => t.custom)}
+            customAllowed={entitlements(profile).customLimit > 0}
           />
         </Section>
 

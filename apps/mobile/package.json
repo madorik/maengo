@@ -16,7 +16,8 @@
     "@capacitor/browser": "8.0.5",
     "@capacitor/core": "8.5.3",
     "@capacitor/ios": "8.5.3",
-    "@capacitor/splash-screen": "8.0.2"
+    "@capacitor/splash-screen": "8.0.2",
+    "@revenuecat/purchases-capacitor": "13.6.1"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3",

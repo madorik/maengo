@@ -1,15 +1,83 @@
 import type { Plan } from './types';
 
-// 플랜별 한도 중 웹과 새벽 배치가 함께 쓰는 것. 여기 한 곳에서만 정한다.
+// 플랜과 맹고에 관한 공용 정의. 플랜별 숫자는 DB plans 표에 있고(PlanLimits), 여기에는 플랜과 상관없는 값과 상품 ID만 둔다.
+// DB 함수(wallet_sync 등)는 숫자를 갖고 있지 않고 여기 값을 인자로 받는다.
 
 /**
- * 베타 기간(결제를 받기 전, 2026-10-10~): 모든 회원이 기한 없는 Premium이고 로고 옆에 Beta를 단다.
- * 정식 출시 때 false로 바꾸고, 가입 트리거·기존 회원 플랜(supabase/migrations/…_beta_all_premium.sql)과 이용약관 6조를 다시 정한다.
+ * 플랜별 값(plans 표 한 줄). 값은 DB plans 표가 정하고(supabase/migrations/20261014120000_plans.sql)
+ * 웹·파이프라인이 1분 캐시로 읽는다. 배포 없이 표만 고치면 바뀐다.
+ * 맹고 = 하루에 받는 소식 수(dailyItems). 더 받기는 지갑(가입 선물·추가 구매한 맹고)에서 1맹고씩 쓴다.
  */
-export const BETA = true;
+export interface PlanLimits {
+  id: Plan;
+  name: string;
+  /** 보여 주는 월 가격(원). 실제 결제 금액은 스토어에 정한 값 */
+  priceKrw: number;
+  /** 하루 맹고(하루에 받는 소식 수) */
+  dailyItems: number;
+  audio: boolean;
+  /** 목록에서 고르는 관심사 수 */
+  topicLimit: number;
+  /** 기타(목록에 없는 걸 직접 적는) 관심사 수. 0이면 못 넣는다 */
+  customLimit: number;
+  canBuyMaengo: boolean;
+  /** 보관함에서 볼 수 있는 날 수(오늘 포함). null이면 전부 */
+  archiveDays: number | null;
+}
 
-/** 하루에 받는 맹고 수. Free 1개, Premium 10개. 베타 동안은 Premium도 5개 */
-export function dailyItemsFor(plan: Plan): number {
-  if (plan === 'free') return 1;
-  return BETA ? 5 : 10;
+export interface PlanRow {
+  id: Plan;
+  name: string;
+  price_krw: number;
+  daily_items: number;
+  audio: boolean;
+  topic_limit: number;
+  custom_limit: number;
+  can_buy_maengo: boolean;
+  archive_days: number | null;
+}
+
+export const PLAN_COLUMNS = 'id,name,price_krw,daily_items,audio,topic_limit,custom_limit,can_buy_maengo,archive_days';
+
+export function planFromRow(r: PlanRow): PlanLimits {
+  return {
+    id: r.id,
+    name: r.name,
+    priceKrw: r.price_krw,
+    dailyItems: r.daily_items,
+    audio: r.audio,
+    topicLimit: r.topic_limit,
+    customLimit: r.custom_limit,
+    canBuyMaengo: r.can_buy_maengo,
+    archiveDays: r.archive_days,
+  };
+}
+
+/** 가입하면 한 번 지갑에 넣어 주는 맹고(플랜과 상관없음) */
+export const SIGNUP_BONUS = 100;
+
+/** 'YYYY-MM-DD'에서 n일 전(날짜 계산만, 시간대 무관) */
+export function daysBefore(date: string, n: number): string {
+  const t = Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))) - n * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/**
+ * 인앱 상품. App Store Connect·Play Console·RevenueCat에 같은 ID로 만든다(apps/mobile/BILLING.md).
+ * Premium은 자동 갱신 구독. 맹고 추가 구매는 수량마다 소모성 상품 하나다(스토어 결제에 수량 지정이 없어서).
+ * 결제가 끝나면 서버가 RevenueCat에서 거래를 읽어 그 수량만큼 지갑에 넣는다.
+ */
+export const PREMIUM_PRODUCT = 'maengo_premium_monthly';
+/** RevenueCat 권한(entitlement) ID. Premium 구독 상품을 여기에 붙인다 */
+export const PREMIUM_ENTITLEMENT = 'premium';
+export const MAENGO_PACKS: Record<string, number> = {
+  maengo_pack_10: 10,
+  maengo_pack_30: 30,
+  maengo_pack_50: 50,
+  maengo_pack_100: 100,
+};
+
+/** 스토어 상품 ID → 맹고 수. 플레이 구독처럼 'id:기본요금제' 꼴로 와도 앞부분으로 찾는다 */
+export function packAmount(productId: string): number | null {
+  return MAENGO_PACKS[productId.split(':')[0]!] ?? null;
 }

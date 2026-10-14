@@ -9,6 +9,7 @@ import { summarize } from './jobs/summarize';
 import { tag } from './jobs/tag';
 import type { Ctx } from './lib/ctx';
 import { check, db } from './lib/db';
+import { guardAi } from './lib/ai-guard';
 import { env } from './lib/env';
 import { flushUsage, recordUsage } from './lib/usage';
 
@@ -30,7 +31,7 @@ function makeCtx(now: Date, deadline: number, config: Record<string, number>): C
   return {
     date: kstDate(now),
     now,
-    ai: createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log }),
+    ai: guardAi(createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log })),
     log,
     stats: {},
     force: false,

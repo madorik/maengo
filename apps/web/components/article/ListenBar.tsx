@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -29,18 +30,17 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
 
   let body: React.ReactNode;
   if (ctl.state === "locked") {
-    // Free: 듣기 버튼을 막아 두고 Premium 배지로 안내한다(팝업 없음)
+    // Free: 듣기 자리는 두고, 누르면 결제 페이지로
     body = (
-      <button
-        type="button"
-        disabled
+      <Link
+        href="/premium"
         aria-label="이 글 듣기, Premium에서 쓸 수 있어요"
-        className="flex min-h-14 w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl border-2 border-line bg-snow text-[17px] font-extrabold text-faint"
+        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-line bg-snow text-[17px] font-extrabold text-faint no-underline"
       >
         <IconSpeaker className="size-6" />
         이 글 듣기
         <PremiumBadge />
-      </button>
+      </Link>
     );
   } else if (ctl.preparing) {
     body = (

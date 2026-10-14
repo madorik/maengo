@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { MangoIcon } from "@/components/MangoIcon";
-import { BetaBadge } from "@/components/ui/BetaBadge";
 import { AccountMenu } from "./AccountMenu";
 import { MobileNav } from "./MobileNav";
 
@@ -15,7 +14,6 @@ export function TopBar() {
         <Link href="/" aria-label="맹고 소개" className="flex items-center gap-2 no-underline">
           <MangoIcon className="size-9" />
           <span className="text-[26px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
-          <BetaBadge />
         </Link>
         <div className="ml-auto">
           <AccountMenu placement="down" />

@@ -22,6 +22,8 @@ export const env = {
   geminiFallback: process.env.GEMINI_MODEL_FALLBACK?.trim() || 'gemini-flash-lite-latest',
   /** 한 번 실행에서 요약할 클러스터 수 상한(무료 등급 하루 요청 한도를 지키려고) */
   summarizeLimit: num('PIPELINE_SUMMARIZE_LIMIT', 40),
+  /** 하루(KST) Gemini 추정 지출 상한(달러). 넘으면 그날 요약·임베딩을 멈춘다(lib/ai-guard.ts) */
+  geminiDailyCapUsd: num('GEMINI_DAILY_USD_CAP', 1),
   /** 한 번 실행에서 요약할 영상 수 상한(영상은 토큰이 많이 든다) */
   videoLimit: num('PIPELINE_VIDEO_LIMIT', 2),
   maxVideoMinutes: num('PIPELINE_MAX_VIDEO_MINUTES', 20),

@@ -15,9 +15,11 @@ type Progress =
   | { stage: "saving" }
   | { stage: "done"; items: number }
   | { stage: "empty" }
+  /** AI가 막혀(크레딧 소진·지출 상한) 새로 만들 수 없다 */
+  | { stage: "blocked" }
   | { stage: "error" };
 
-type State = { kind: "idle" } | { kind: "running"; p: Progress } | { kind: "empty" } | { kind: "error" } | { kind: "done"; items: number };
+type State = { kind: "idle" } | { kind: "running"; p: Progress } | { kind: "empty" } | { kind: "blocked" } | { kind: "error" } | { kind: "done"; items: number };
 
 /** 단계마다 진행 바가 머무를 구간. 서버 알림이 없는 동안에도 다음 구간 직전까지 조금씩 차오른다 */
 function rangeOf(p: Progress): [number, number] {
@@ -160,6 +162,7 @@ export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted
           if (!line.trim()) continue;
           last = JSON.parse(line) as Progress;
           if (last.stage === "empty") await show({ kind: "empty" });
+          else if (last.stage === "blocked") await show({ kind: "blocked" });
           else if (last.stage === "error") await show({ kind: "error" });
           else if (last.stage === "done") await show({ kind: "done", items: last.items });
           else await show({ kind: "running", p: last });
@@ -169,7 +172,7 @@ export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted
         await sleep(DONE_HOLD_MS);
         router.refresh();
       }
-      else if (!last || (last.stage !== "empty" && last.stage !== "error")) setState({ kind: "error" });
+      else if (!last || (last.stage !== "empty" && last.stage !== "blocked" && last.stage !== "error")) setState({ kind: "error" });
     } catch {
       setState({ kind: "error" });
     }
@@ -181,7 +184,7 @@ export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted
 
   return (
     <div className="mt-10 flex items-end gap-3">
-      <Mascot mood={state.kind === "error" ? "happy" : "cheer"} className="size-24 shrink-0" />
+      <Mascot mood={state.kind === "error" || state.kind === "blocked" ? "happy" : "cheer"} className="size-24 shrink-0" />
       <Bubble className="mb-6 flex-1">
         {state.kind === "empty" ? (
           <>
@@ -195,7 +198,9 @@ export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted
         ) : (
           <>
             <p className="text-[15px] font-bold leading-relaxed">
-              {state.kind === "error"
+              {state.kind === "blocked"
+                ? "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요."
+                : state.kind === "error"
                 ? "오늘의 맹고를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
                 : reason === "first"
                   ? "첫 맹고를 받아 볼까요? 누르면 관심사에 맞는 소식을 찾아 오고, 없으면 바로 만들어 드려요."
@@ -204,7 +209,7 @@ export function MakeToday({ reason }: { reason: "first" | "waiting" | "exhausted
                     : "아직 오늘의 맹고가 없어요. 지금 바로 만들어 드릴까요?"}
             </p>
             <button type="button" onClick={start} className="btn mt-3 w-full">
-              {state.kind === "error" ? "다시 받기" : "오늘 맹고 받기"}
+              {state.kind === "error" || state.kind === "blocked" ? "다시 받기" : "오늘 맹고 받기"}
             </button>
           </>
         )}
