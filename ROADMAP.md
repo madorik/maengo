@@ -30,7 +30,8 @@
 - [x] **나** `@capacitor-firebase/messaging` 8.5.2 붙이기(2026-10-14, 커밋 전): 스위치를 켤 때만 권한 요청 → FCM 토큰 → `POST /api/devices`(android·ios), 앱을 열 때 다시 등록, 알림 누르면 `/today?from=push`, 알림 끄기·로그아웃 때 이 기기 토큰 정리, 플러그인 없는 예전 빌드는 '앱을 업데이트하면 켤 수 있어요'. 안드로이드 알림 아이콘(망고 실루엣)·색·채널 '오늘의 맹고'(`apps/web/lib/native/push.ts`)
 - [x] **나** 안드로이드 에뮬레이터 확인: 권한 창 → 토큰 등록 → 서버 `sendPush`로 보낸 알림이 알림창에 뜸 → 누르면 오늘 화면. 앱을 보고 있을 때 온 알림은 안드로이드가 알림창에 안 띄운다
 - [ ] **나** iOS: Xcode에서 Push Notifications·Background Modes(remote notification) 켜기, 시뮬레이터 확인(위 APNs 키가 먼저)
-- [ ] **나** 스토어에 낼 앱 빌드에 들어가야 사용자가 쓴다(3·4번 앱 1.1과 같이)
+- [x] **나** 앱 1.1.0 빌드(2026-10-14): 안드로이드 AAB `~/Desktop/maengo-1.1.0-2.aab`(버전 코드 2, 업로드 키 서명 확인), iOS 1.1.0(빌드 2) App Store Connect 업로드 성공. iOS 시뮬레이터 푸시는 아직 확인 못 함
+- [ ] **사용자** Play Console 내부 테스트에 AAB 올리기, TestFlight에서 수출 규정 답·내부 테스터 추가. TestFlight 빌드는 Production APNs 환경이라 Firebase에 Production용 키가 있어야 알림이 온다
 
 ## 3. 인앱 결제 출시
 
