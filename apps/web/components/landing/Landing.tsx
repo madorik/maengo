@@ -1,5 +1,5 @@
 import type { CategoryId } from "@maengo/core/categories";
-import { SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
+import { discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
 import Link from "next/link";
 import { Crown, IconCheck, IconDoc, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
@@ -21,7 +21,7 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["어떤 소식을 모아요?", "AI·Tech 공식 블로그, 경제·코인 매체, 반도체·로봇 전문지, 그리고 주요 언론사의 정치·경제·사회·생활/문화·IT/과학·세계 뉴스를 매일 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 뉴스는 여러 언론사가 함께 다룬 헤드라인만 골라요."],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
-  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 맹고 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 맹고 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 맹고 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 맹고 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["맹고는 뭐예요?", `맹고는 하루에 받는 소식이에요. Free는 하루 ${free.dailyItems}개, Premium은 ${plus.dailyItems}개를 받아요. 더 받고 싶으면 지갑의 맹고를 하나씩 써서 소식을 하나씩 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. 맹고 추가 구매는 Premium에서 할 수 있어요.`],
 ];
 
@@ -248,6 +248,8 @@ export async function Landing() {
                 featured
                 name="Premium"
                 price={monthlyPrice(plus)}
+                listPrice={discountPct(plus) > 0 ? `${plus.listPriceKrw!.toLocaleString("ko-KR")}원` : undefined}
+                discount={discountPct(plus)}
                 items={[`하루 맹고 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `맹고 추가 구매, 목록에 없는 관심사 ${plus.customLimit}개`, `보관함 전체, 관심사 ${plus.topicLimit}개`]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={{ signedOut: START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
@@ -383,6 +385,8 @@ function ScriptLine({ who, text, right = false, current = false }: { who: string
 function Plan({
   name,
   price,
+  listPrice,
+  discount = 0,
   items,
   cta,
   badge,
@@ -391,6 +395,9 @@ function Plan({
 }: {
   name: string;
   price: string;
+  /** 취소선으로 보여 줄 정가(할인할 때만) */
+  listPrice?: string;
+  discount?: number;
   items: string[];
   cta: { signedOut: { href: string; label: string }; signedIn: { href: string; label: string }; ghost?: boolean };
   badge?: string;
@@ -406,7 +413,13 @@ function Plan({
         </h3>
         {badge && <span className="rounded-lg bg-mango px-2 py-0.5 text-[12px] font-black">{badge}</span>}
       </div>
-      <p className="mt-2 flex flex-wrap items-baseline gap-x-2 font-round font-black tracking-[-0.02em]">
+      {listPrice && (
+        <p className="mt-2 flex items-center gap-2 font-round">
+          <del className="text-[16px] font-bold text-faint">{listPrice}</del>
+          <span className="rounded-lg bg-orange px-2 py-0.5 text-[12px] font-black text-white">{discount}% 할인</span>
+        </p>
+      )}
+      <p className={`${listPrice ? "mt-0.5" : "mt-2"} flex flex-wrap items-baseline gap-x-2 font-round font-black tracking-[-0.02em]`}>
         <span className="text-[30px]">{price}</span>
       </p>
       <ul className="mt-5 flex flex-1 flex-col gap-2.5">

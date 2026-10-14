@@ -11,8 +11,10 @@ import type { Plan } from './types';
 export interface PlanLimits {
   id: Plan;
   name: string;
-  /** 보여 주는 월 가격(원). 실제 결제 금액은 스토어에 정한 값 */
+  /** 보여 주는 월 가격(원, 할인가). 스토어 상품 가격과 같게 둔다 */
   priceKrw: number;
+  /** 취소선으로 보여 주는 정가(원). null이면 할인 없음 */
+  listPriceKrw: number | null;
   /** 하루 맹고(하루에 받는 소식 수) */
   dailyItems: number;
   audio: boolean;
@@ -29,6 +31,7 @@ export interface PlanRow {
   id: Plan;
   name: string;
   price_krw: number;
+  list_price_krw: number | null;
   daily_items: number;
   audio: boolean;
   topic_limit: number;
@@ -37,13 +40,14 @@ export interface PlanRow {
   archive_days: number | null;
 }
 
-export const PLAN_COLUMNS = 'id,name,price_krw,daily_items,audio,topic_limit,custom_limit,can_buy_maengo,archive_days';
+export const PLAN_COLUMNS = 'id,name,price_krw,list_price_krw,daily_items,audio,topic_limit,custom_limit,can_buy_maengo,archive_days';
 
 export function planFromRow(r: PlanRow): PlanLimits {
   return {
     id: r.id,
     name: r.name,
     priceKrw: r.price_krw,
+    listPriceKrw: r.list_price_krw,
     dailyItems: r.daily_items,
     audio: r.audio,
     topicLimit: r.topic_limit,
@@ -51,6 +55,12 @@ export function planFromRow(r: PlanRow): PlanLimits {
     canBuyMaengo: r.can_buy_maengo,
     archiveDays: r.archive_days,
   };
+}
+
+/** 정가 대비 할인율(%). 실제보다 크게 보이지 않게 내림한다(5,900 → 3,800은 35.6% → 35). 할인이 없으면 0 */
+export function discountPct(p: Pick<PlanLimits, 'priceKrw' | 'listPriceKrw'>): number {
+  if (!p.listPriceKrw || p.listPriceKrw <= p.priceKrw) return 0;
+  return Math.floor(((p.listPriceKrw - p.priceKrw) / p.listPriceKrw) * 100);
 }
 
 /** 가입하면 한 번 지갑에 넣어 주는 맹고(플랜과 상관없음) */

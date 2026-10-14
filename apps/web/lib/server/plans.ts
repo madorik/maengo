@@ -21,5 +21,5 @@ export async function planLimits(plan: Plan): Promise<PlanLimits> {
   return (await getPlans()).get(plan)!;
 }
 
-/** '월 5,900원' */
+/** '월 3,800원'(할인가. 정가는 ListPrice로 취소선) */
 export const monthlyPrice = (p: PlanLimits) => `월 ${p.priceKrw.toLocaleString('ko-KR')}원`;

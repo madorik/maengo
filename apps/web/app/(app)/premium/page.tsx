@@ -1,4 +1,4 @@
-import type { PlanLimits } from "@maengo/core/plans";
+import { discountPct, type PlanLimits } from "@maengo/core/plans";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
@@ -59,7 +59,13 @@ export default async function PremiumPage() {
               <Mascot mood="listen" className="size-[76px]" />
             </span>
           </div>
-          <p className="relative mt-6 flex items-baseline gap-1.5">
+          {discountPct(plus) > 0 && (
+            <p className="relative mt-6 flex items-center gap-2">
+              <del className="font-round text-[17px] font-bold text-white/50">{plus.listPriceKrw!.toLocaleString("ko-KR")}원</del>
+              <span className="rounded-lg bg-orange px-2 py-0.5 font-round text-[13px] font-black text-white">{discountPct(plus)}% 할인</span>
+            </p>
+          )}
+          <p className={`relative flex items-baseline gap-1.5 ${discountPct(plus) > 0 ? "mt-1.5" : "mt-6"}`}>
             <span className="font-round text-[34px] font-black leading-none tracking-[-0.02em] text-mango">{plus.priceKrw.toLocaleString("ko-KR")}원</span>
             <span className="text-[15px] font-bold text-white/60">/ 월</span>
           </p>
