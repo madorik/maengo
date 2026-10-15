@@ -8,7 +8,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 
-// 보관함 골라 듣기(Premium). '골라 듣기'를 누르고 카드를 고르면 고른 순서대로 번호가 붙는다(2026-10-15 정리: 위는 선택, 아래는 동작).
+// 보관함 골라 듣기(Premium). '골라 듣기'를 누르고 카드를 고르면 체크가 붙는다. 듣기·담기는 고른 순서대로(2026-10-15 정리: 위는 선택, 아래는 동작).
 //   위(제목 줄, 위에 붙음): ✕ 그만두기 · 'n개 선택' · ☐ 전체(지금 거른 소식 전부. 안 읽은 것만은 '안 읽음'으로 거른 뒤 전체)
 //   아래(고른 게 있을 때만 고정 막대): 담기(플레이리스트로) · n개 듣기. 막대가 오른쪽 아래 듣기 창 자리를 덮는다
 // 재생은 오늘 듣기와 같은 플레이어(PlayerProvider.playPlaylist)라 화면을 옮겨도 이어지고, 많으면 20개씩 이어 튼다.
@@ -136,25 +136,24 @@ export function PickBar() {
   );
 }
 
-/** 고르는 중에 카드 위에 덮는 고르기 버튼. 고른 카드에는 고른 순서가 붙는다(카드의 읽음 표시는 data-pick으로 감춘다) */
+/** 고르는 중에 카드 위에 덮는 고르기 버튼. 고른 카드에는 체크가 붙는다(카드의 읽음 표시는 data-pick으로 감춘다) */
 export function PickTarget({ id, title }: { id: number; title: string }) {
   const pick = usePick();
   if (!pick.picking) return null;
-  const order = pick.ids.indexOf(id) + 1;
-  const on = order > 0;
+  const on = pick.ids.includes(id);
   return (
     <button
       type="button"
       data-pick
       aria-pressed={on}
-      aria-label={on ? `${title}, ${order}번째` : title}
+      aria-label={title}
       onClick={() => pick.toggle(id)}
       className={`absolute inset-0 z-10 rounded-2xl disabled:cursor-not-allowed ${on ? "bg-sky-tint mix-blend-multiply ring-2 ring-sky ring-inset" : "enabled:hover:bg-snow enabled:hover:mix-blend-multiply"}`}
     >
       <span
-        className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 font-round text-[15px] font-black ${on ? "border-sky bg-sky text-white" : "border-line bg-white"}`}
+        className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 ${on ? "border-sky bg-sky text-white" : "border-line bg-white"}`}
       >
-        {on ? order : ""}
+        {on && <IconCheck className="size-5 [stroke-width:3.5]" />}
       </span>
     </button>
   );

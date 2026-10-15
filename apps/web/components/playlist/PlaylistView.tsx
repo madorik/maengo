@@ -91,12 +91,12 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
       ) : (
         <DndContext id="playlist" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ announcements, screenReaderInstructions: SR_INSTRUCTIONS }}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-            <ol className="mt-6 flex flex-col gap-3">
-              {ids.map((id, i) => {
+            <ul className="mt-6 flex flex-col gap-3">
+              {ids.map((id) => {
                 const e = byId.get(id);
-                return e ? <Row key={id} entry={e} index={i} busy={busy} onRemove={() => start(() => playlistRemove(id))} /> : null;
+                return e ? <Row key={id} entry={e} busy={busy} onRemove={() => start(() => playlistRemove(id))} /> : null;
               })}
-            </ol>
+            </ul>
           </SortableContext>
         </DndContext>
       )}
@@ -104,7 +104,7 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
   );
 }
 
-function Row({ entry: e, index, busy, onRemove }: { entry: LibraryEntry; index: number; busy: boolean; onRemove: () => void }) {
+function Row({ entry: e, busy, onRemove }: { entry: LibraryEntry; busy: boolean; onRemove: () => void }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: e.clusterId });
   return (
     <li
@@ -123,7 +123,6 @@ function Row({ entry: e, index, busy, onRemove }: { entry: LibraryEntry; index: 
       >
         <IconGrip className="size-5" />
       </button>
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sky-tint font-round text-[15px] font-black text-sky-dark">{index + 1}</span>
       <div className="min-w-0 flex-1 pl-1">
         <div className="flex items-center gap-2 text-[13px] font-extrabold">
           <CategoryChip category={e.category} />
