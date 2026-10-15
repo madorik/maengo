@@ -63,8 +63,8 @@ export default async function SettingsPage() {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="tile p-4">
-              <p className="text-[13px] font-extrabold text-sub">하루 맹고</p>
-              {/* 오늘 지급한 맹고 / 플랜의 하루 맹고 */}
+              <p className="text-[13px] font-extrabold text-sub">하루 소식</p>
+              {/* 오늘 지급한 소식 / 플랜의 하루 소식 */}
               <p className="font-round text-[26px] font-black leading-tight tabular-nums">
                 {usage.given}
                 <span className="text-[16px] text-faint">/{usage.daily}</span>

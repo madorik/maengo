@@ -127,6 +127,60 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
     }));
 }
 
+/**
+ * 이 관심사들에 붙은 묶음만, untilHours 전 ~ sinceHours 전 사이에서 최근 것부터 limit개(요약 여부 상관없이). 알림 시각에 고를 게 모자랄 때
+ * 기간을 넓혀(사흘~일주일 → 일주일~한 달 → 한 달~석 달) 더 오래된 쪽을 차례로 찾는 데 쓴다. 최근 것이 많아도 오래된 쪽까지 닿게 구간으로 읽는다.
+ * loadCandidates는 기간 안의 묶음을 전부 읽어서 넓은 기간엔 무겁다
+ */
+export async function loadTopicCandidates(
+  ctx: Ctx,
+  topicIds: string[],
+  { sinceHours, untilHours = 0, limit = 400, centroids = false }: { sinceHours: number; untilHours?: number; limit?: number; centroids?: boolean },
+): Promise<Candidate[]> {
+  if (!topicIds.length) return [];
+  const since = new Date(ctx.now.getTime() - sinceHours * HOUR).toISOString();
+  const until = new Date(ctx.now.getTime() - untilHours * HOUR).toISOString();
+  type Row = { cluster_id: number; topic_id: string; relevance: number; clusters: { id: number; first_seen_at: string; size: number; is_video: boolean; rep_item_id: number | null; centroid?: unknown } };
+  const rows = check(
+    await db
+      .from('cluster_topics')
+      .select(`cluster_id,topic_id,relevance,clusters!inner(id,first_seen_at,size,is_video,rep_item_id,skip_reason${centroids ? ',centroid' : ''})`)
+      .in('topic_id', topicIds)
+      .gte('clusters.first_seen_at', since)
+      .lt('clusters.first_seen_at', until)
+      .is('clusters.skip_reason', null)
+      .order('cluster_id', { ascending: false })
+      .limit(limit),
+    'topic candidates',
+  ) as unknown as Row[];
+  const byCluster = new Map<number, { c: Row['clusters']; topics: { topicId: string; relevance: number }[] }>();
+  for (const r of rows) (byCluster.get(r.cluster_id) ?? byCluster.set(r.cluster_id, { c: r.clusters, topics: [] }).get(r.cluster_id)!).topics.push({ topicId: r.topic_id, relevance: r.relevance });
+  const ids = [...byCluster.keys()];
+  const summarized = new Set<number>();
+  const repItems = new Map<number, RepItem>();
+  await inChunks(ids, 200, async (chunk) => {
+    const s = check(await db.from('summaries').select('cluster_id').eq('tier', 'basic').in('cluster_id', chunk), 'summaries') as { cluster_id: number }[];
+    for (const r of s) summarized.add(r.cluster_id);
+  });
+  const repIds = [...byCluster.values()].map((v) => v.c.rep_item_id).filter((x): x is number => x != null);
+  await inChunks(repIds, 200, async (chunk) => {
+    const items = check(await db.from('items').select('id,source_id,views,hn_points,published_at').in('id', chunk), 'items') as RepItem[];
+    for (const r of items) repItems.set(r.id, r);
+  });
+  const weights = new Map((check(await db.from('sources').select('id,weight'), 'sources') as { id: number; weight: number }[]).map((x) => [x.id, x.weight]));
+  return [...byCluster.values()].map(({ c, topics }) => ({
+    id: c.id,
+    ageHours: (ctx.now.getTime() - Date.parse(c.first_seen_at)) / HOUR,
+    sourceWeight: weights.get(repItems.get(c.rep_item_id ?? -1)?.source_id ?? -1) ?? 1,
+    popularity: popularityOf(repItems.get(c.rep_item_id ?? -1), ctx.now),
+    size: c.size,
+    isVideo: c.is_video,
+    topics,
+    summarized: summarized.has(c.id),
+    centroid: fromVector(c.centroid),
+  }));
+}
+
 /** 알아요를 누른 소식과 코사인 ≥ 0.9인 후보도 뺀다(PLAN.md 6.3) */
 export async function withSimilarExcluded(a: Audience, candidates: Candidate[]): Promise<Set<number>> {
   if (!a.known.length) return a.exclude;

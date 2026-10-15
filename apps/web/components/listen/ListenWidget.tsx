@@ -18,7 +18,7 @@ import { Queue, Switch } from "./controls";
 import { Script } from "./Script";
 
 /**
- * 오른쪽 아래에 떠 있는 "오늘 맹고 전체 듣기". 챗봇 창처럼 누르면 듣기 창이 펼쳐진다.
+ * 오른쪽 아래에 떠 있는 "오늘 소식 전체 듣기". 챗봇 창처럼 누르면 듣기 창이 펼쳐진다.
  * 재생·멈춤은 펼치지 않고 버튼에서 바로 할 수 있다. 플레이어는 (app) 레이아웃에 있어 화면을 옮겨도 이어진다.
  * 보관함 플레이리스트를 듣는 동안은 "플레이리스트"로 바뀌고, 맨 아래 버튼으로 오늘 맹고 듣기로 돌아온다.
  * ✕로 작은 망고 버튼으로 접고, 그 버튼을 누르면 다시 편다. 접어 둔 상태는 쿠키에 두어 다음에 열어도 그대로다.
@@ -52,7 +52,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
 
   const locked = !profile.audio;
   const playing = p.status === "playing";
-  const heading = p.playlist ? "플레이리스트" : "오늘 맹고 전체 듣기";
+  const heading = p.playlist ? "플레이리스트" : "오늘 소식 전체 듣기";
   const total = p.playlist ? p.chapters.length || p.playlist.length : game.total;
   const doneText = p.playlist ? "플레이리스트를 다 들었어요" : "오늘 소식을 다 들었어요";
 
@@ -102,11 +102,11 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
     return (
       <div className="pointer-events-none fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-3 z-40 lg:bottom-6 lg:right-6">
         <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
-          <Link href="/premium" aria-label="오늘 맹고 전체 듣기, Premium에서 들을 수 있어요" className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
+          <Link href="/premium" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow">
               <Mascot mood="listen" className="size-10 opacity-60" />
             </span>
-            <span className="min-w-0 truncate text-[15px] font-black text-sub">오늘 맹고 전체 듣기</span>
+            <span className="min-w-0 truncate text-[15px] font-black text-sub">오늘 소식 전체 듣기</span>
             <PremiumBadge />
           </Link>
           {foldButton}
@@ -236,7 +236,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
             <footer className="border-t-2 border-line px-4 py-3 text-center">
               {p.playlist ? (
                 <button type="button" onClick={p.exitPlaylist} className="text-[14px] font-extrabold text-sky hover:underline">
-                  오늘 맹고 듣기로 돌아가기
+                  오늘 소식 듣기로 돌아가기
                 </button>
               ) : (
                 <Link href="/listen" className="text-[14px] font-extrabold text-sky no-underline hover:underline">

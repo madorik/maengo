@@ -24,7 +24,7 @@ export function ListenScreen() {
       <h1 className="text-[22px] font-black">보관함 플레이리스트를 듣고 있어요</h1>
       <div className="flex flex-wrap justify-center gap-2">
         <button type="button" onClick={p.exitPlaylist} className="btn btn-sky">
-          오늘 맹고 듣기로 돌아가기
+          오늘 소식 듣기로 돌아가기
         </button>
         <Link href="/library" className="btn btn-ghost">
           보관함

@@ -1,36 +1,46 @@
-import { rankFeed } from '@maengo/core/feed';
+import { rankFeed, type RankedItem } from '@maengo/core/feed';
 import { createGeminiAi } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
+import { widenToGroups } from './instant';
 import { summarizeCluster } from './jobs/summarize';
-import { prepareFresh, widenToGroups } from './instant';
-import { loadAudience, loadCandidates, withSimilarExcluded, type Audience } from './lib/audience';
+import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
+import { loadAudience, loadCandidates, loadTopicCandidates, withSimilarExcluded, type Candidate } from './lib/audience';
 import { HOUR, type Ctx } from './lib/ctx';
 import { check, db } from './lib/db';
-import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
 import { env } from './lib/env';
 import { fcmReady, sendPush } from './lib/fcm';
 import { mapLimit } from './lib/limit';
 import { flushUsage, recordUsage } from './lib/usage';
 
-// 알림 시각에 맹고를 만들고 보낸다(서버 스케줄러). 서버 스케줄러(scheduler.ts)의 deliveries 작업으로 5분마다 돈다.
-// 할 일은 delivery_jobs 표(사람·날짜마다 한 줄)로 관리한다:
-//   1. 오늘 줄 채우기(plan_deliveries) — 알림 시각을 바꿨으면 대기 중인 줄의 시각도 맞춘다
+// 알림 시각에 소식을 지급하고 알린다(2026-10-15 사용자 결정: 소식 만들기와 따로, 요약은 이때 만든다).
+// Supabase pg_cron이 1분마다 /api/cron/deliveries를 부른다(runDeliveryTick). 서버 스케줄러는 3시간마다 수집·임베딩·묶기·태그만 해 둔다.
+// 할 일은 delivery_jobs 표(사람·날짜마다 한 줄):
+//   1. 오늘 줄 채우기(plan_deliveries) — 만들 시각 = 알림 시각. 알림 시각을 바꿨으면 대기 중인 줄의 시각도 맞춘다
 //   2. 10분 넘게 멈춘 줄 되돌리기(reclaim_stuck_deliveries)
-//   3. 만들 시각(알림 30분 전)이 된 줄을 가져가 피드를 만든다 → ready / empty, 실패하면 다시 pending(세 번이면 failed)
-//      AI가 막혀(크레딧 소진·지출 상한) 만들 게 없으면 'empty'가 아니라 30분 뒤 다시(그날 안에서만), 날이 넘어가면 failed
-//   4. 보낼 시각이 된 ready 줄을 가져가 FCM으로 보낸다 → sent / no_device
-// 새벽 GitHub 배치는 수집·요약을 미리 해 두는 일만 한다(사람별 피드는 여기서 만든다).
+//   3. 알림 시각이 된(지난) 줄 중 오늘 소식을 못 받은 사람만, 그 사람 관심사에 맞는 소식을 골라 요약이 없으면 지금 요약해 오늘 피드를 만든다 → ready
+//      고를 게 모자라면 기간을 넓혀(사흘 → 일주일 → 한 달 → 석 달) 찾는다. 같은 소식은 여러 사람에게 한 번만 요약한다
+//      이미 오늘 소식을 받았으면 had(다시 알리지 않음), 석 달 안에도 맞는 게 없으면 한 시간 뒤 다시(그날 세 번까지) → empty
+//      AI가 막혔으면(크레딧 소진·지출 상한) 이미 요약된 소식으로만, 그것도 없으면 30분 뒤 다시. 시간 안에 못 한 사람은 다음 실행이 잇는다
+//   4. ready 줄을 FCM으로 보낸다 → sent / no_device / muted(알림 꺼 둠). 만든 그 실행에서 바로 보낸다
+// 서버가 잠깐 멈췄어도 그날 안이면 다음 실행이 알림 시각이 지난 사람을 이어서 챙긴다.
 
-/** 한 번에 요약할 소식 수. 남은 것은 다음 실행이 한다 */
-const MAX_SUMMARIES = 15;
-/** Vercel 함수 300초 안에 끝나게, 이만큼 지나면 요약을 더 시작하지 않는다 */
-const TIME_BUDGET_MS = 150_000;
-/** 5분마다 도니 수집은 한 시간에 한 번이면 된다 */
-const COLLECT_AFTER = HOUR;
-const BUILD_BATCH = 50;
+const BUILD_BATCH = 100;
 const SEND_BATCH = 200;
+/** 고를 소식을 찾는 기간(시간): 사흘 → 일주일 → 한 달 → 석 달 */
+const WINDOWS_H = [72, 7 * 24, 30 * 24, 90 * 24];
+/** 요약이 '소식 아님'으로 빠질 때를 대비해 하루 소식보다 더 골라 둔다 */
+const SPARE = 3;
+/** 한 실행에서 새 요약을 시작하는 마감(Vercel 300초 안, 보내기 시간을 남긴다) */
+const BUILD_BUDGET_MS = 200_000;
+/** 동시에 돌리는 요약 수(모든 사람을 통틀어) */
+const SUMMARY_CONCURRENCY = 4;
 /** AI가 막혀 못 만들었을 때 다시 해 볼 간격 */
 const BLOCKED_RETRY_MS = 30 * 60_000;
+/** 석 달 안에도 맞는 소식이 없을 때 다시 해 볼 간격과 횟수(새 글은 3시간마다 들어온다) */
+const EMPTY_RETRY_MS = HOUR;
+const EMPTY_TRIES = 3;
+/** 1분마다 도는데 한 번이 길어져도 겹치지 않게(이보다 오래 붙잡고 있으면 죽은 것으로 보고 넘겨받는다) */
+const TICK_STALE_MS = 5 * 60_000;
 
 type JobRow = { user_id: string; date: string; attempts: number };
 
@@ -38,15 +48,19 @@ export interface DeliveryResult {
   planned: number;
   reclaimed: number;
   built: number;
+  /** 이미 오늘 소식이 있던 사람(알리지 않음) */
+  had: number;
   empty: number;
-  failed: number;
   /** AI가 막혀 못 만들어 나중에 다시 할 사람 */
   blocked: number;
+  /** 이번 실행 시간 안에 못 해 다음 실행으로 넘긴 사람 */
+  later: number;
+  summarized: number;
+  failed: number;
   sent: number;
   noDevice: number;
   /** 알림을 꺼 둬서 보내지 않음 */
   muted: number;
-  summarized: number;
 }
 
 function makeCtx(now: Date): Ctx {
@@ -62,13 +76,14 @@ function makeCtx(now: Date): Ctx {
   };
 }
 
+type BuildResult = 'built' | 'empty' | 'had' | 'blocked' | 'later';
+
 /**
- * 이 사람들의 오늘 피드를 만든다. 관심사를 합쳐 최근 글을 처리하고(실패해도 이미 요약된 소식으로 계속),
- * 고른 소식 중 요약이 없는 것만 원하는 사람이 많은 순으로 요약한 뒤 저장한다.
- * 결과: built 새로 만듦, empty 맞는 소식 없음, had 이미 오늘 피드가 있었음(웹에서 받음 등), blocked AI가 막혀 만들 게 없음
+ * 이 사람들의 오늘 피드를 만든다. 사람마다 관심사로 소식을 골라(모자라면 기간을 넓혀 석 달까지), 위에서부터 요약해 하루 소식만큼 모은다.
+ * 요약이 없는 소식은 지금 요약한다(같은 소식은 한 번만, 동시에 SUMMARY_CONCURRENCY개). deadline이 지나면 새 요약을 시작하지 않는다.
  */
-export async function buildFeedsFor(ctx: Ctx, userIds: string[]): Promise<{ result: Map<string, 'built' | 'empty' | 'had' | 'blocked'>; summarized: number }> {
-  const result = new Map<string, 'built' | 'empty' | 'had' | 'blocked'>();
+export async function buildFeedsFor(ctx: Ctx, userIds: string[], deadline: number): Promise<{ result: Map<string, BuildResult>; summarized: number }> {
+  const result = new Map<string, BuildResult>();
   const today = check(await db.from('feed_days').select('user_id').eq('date', ctx.date).in('user_id', userIds), 'feed_days today') as { user_id: string }[];
   for (const r of today) result.set(r.user_id, 'had');
   const audience = await loadAudience(ctx, userIds.filter((id) => !result.has(id)));
@@ -76,71 +91,92 @@ export async function buildFeedsFor(ctx: Ctx, userIds: string[]): Promise<{ resu
   for (const id of userIds) if (!result.has(id) && !audience.some((a) => a.id === id)) result.set(id, 'empty');
   if (!audience.length) return { result, summarized: 0 };
 
-  const union: Audience = { ...audience[0]!, weights: Object.assign({}, ...audience.map((a) => a.weights)) };
-  // AI가 막혀 있으면(크레딧 소진·지출 상한) 새로 처리·요약하지 않고 이미 요약된 소식으로만 만든다
   let aiBlocked = (await aiBlockedReason()) !== null;
-  if (!aiBlocked) {
-    try {
-      await prepareFresh(ctx, union, { collectAfter: COLLECT_AFTER });
-    } catch (e) {
-      if (isAiBlocked(e)) aiBlocked = true;
-      ctx.log(`최근 글 처리 실패, 있는 소식으로 계속: ${String((e as Error).message ?? e).slice(0, 160)}`);
-    }
-  }
+  const base = await loadCandidates(ctx, { centroids: audience.some((a) => a.known.length > 0), sinceHours: WINDOWS_H[0], freshHours: WINDOWS_H[0] });
+  /** 지금까지 본 후보(넓힌 기간에서 찾은 것까지). 요약을 마치면 summarized를 켠다 */
+  const seen = new Map<number, Candidate>(base.map((c) => [c.id, c]));
 
-  let candidates = await loadCandidates(ctx, { centroids: audience.some((a) => a.known.length > 0) });
-  const ready0 = new Set(candidates.filter((c) => c.summarized).map((c) => c.id));
-  const picks = new Map<string, { weights: Record<string, number>; exclude: Set<number> }>();
-  const want = new Map<number, number>();
-  for (const a of audience) {
-    const exclude = await withSimilarExcluded(a, candidates);
-    let weights = a.weights;
-    let picked = rankFeed(candidates, weights, exclude, { limit: a.dailyItems });
-    if (!picked.length) {
-      weights = widenToGroups(a.weights);
-      picked = rankFeed(candidates, weights, exclude, { limit: a.dailyItems });
-    }
-    picks.set(a.id, { weights, exclude });
-    for (const r of picked) if (!ready0.has(r.clusterId)) want.set(r.clusterId, (want.get(r.clusterId) ?? 0) + 1);
-  }
-  const todo = [...want.entries()].sort((x, y) => y[1] - x[1]).slice(0, MAX_SUMMARIES).map(([id]) => id);
-  const t0 = Date.now();
+  // 요약: 같은 소식은 한 번만, 모든 사람을 통틀어 동시에 SUMMARY_CONCURRENCY개
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  const acquire = () => (active < SUMMARY_CONCURRENCY ? (active++, Promise.resolve()) : new Promise<void>((r) => waiting.push(() => (active++, r()))));
+  const release = () => {
+    active--;
+    waiting.shift()?.();
+  };
   let summarized = 0;
-  await mapLimit(todo, 3, async (id) => {
-    if (aiBlocked || Date.now() - t0 > TIME_BUDGET_MS) return;
-    try {
-      if ((await summarizeCluster(ctx, id, 'basic', { videos: 0 })) === 'ok') summarized++;
-    } catch (e) {
-      if (isAiBlocked(e)) aiBlocked = true;
-      ctx.log(`요약 실패 #${id}: ${String((e as Error).message ?? e).slice(0, 160)}`);
+  const once = new Map<number, Promise<boolean>>();
+  const ensureSummary = (id: number): Promise<boolean> => {
+    if (seen.get(id)?.summarized) return Promise.resolve(true);
+    let p = once.get(id);
+    if (!p) {
+      p = (async () => {
+        await acquire();
+        try {
+          if (aiBlocked || Date.now() > deadline) return false;
+          const r = await summarizeCluster(ctx, id, 'basic', { videos: 0 });
+          if (r !== 'ok') return false;
+          summarized++;
+          const c = seen.get(id);
+          if (c) c.summarized = true;
+          return true;
+        } catch (e) {
+          if (isAiBlocked(e)) aiBlocked = true;
+          ctx.log(`요약 실패 #${id}: ${String((e as Error).message ?? e).slice(0, 160)}`);
+          return false;
+        } finally {
+          release();
+        }
+      })();
+      once.set(id, p);
     }
-  });
-  await flushUsage();
+    return p;
+  };
 
-  candidates = (await loadCandidates(ctx, { centroids: false })).filter((c) => c.summarized);
-  for (const a of audience) {
-    const { weights, exclude } = picks.get(a.id)!;
-    const ranked = rankFeed(candidates, weights, exclude, { limit: 10 });
-    if (!ranked.length) {
-      result.set(a.id, aiBlocked ? 'blocked' : 'empty');
-      continue;
+  await mapLimit(audience, 4, async (a) => {
+    if (Date.now() > deadline) return void result.set(a.id, 'later');
+    const exclude = await withSimilarExcluded(a, base);
+    const want = a.dailyItems;
+    const widened = widenToGroups(a.weights);
+    // AI가 막혔으면 이미 요약된 것만 고른다. 고른 관심사로 모자라면 같은 분야 전체로 넓혀 본다
+    const pick = (): RankedItem[] => {
+      const pool = [...seen.values()].filter((c) => !aiBlocked || c.summarized);
+      const narrow = rankFeed(pool, a.weights, exclude, { limit: want + SPARE });
+      if (narrow.length >= want) return narrow;
+      const wide = rankFeed(pool, widened, exclude, { limit: want + SPARE });
+      return wide.length > narrow.length ? wide : narrow;
+    };
+    let ranked = pick();
+    // 모자라면 이 사람 관심사의 더 오래된 소식을 구간별로 더 찾는다(사흘~일주일 → 일주일~한 달 → 한 달~석 달)
+    for (let w = 1; w < WINDOWS_H.length && ranked.length < want; w++) {
+      for (const c of await loadTopicCandidates(ctx, Object.keys(widened), { sinceHours: WINDOWS_H[w]!, untilHours: WINDOWS_H[w - 1]! })) if (!seen.has(c.id)) seen.set(c.id, c);
+      ranked = pick();
     }
+    // 위에서부터 요약해 하루 소식만큼 모은다. '소식 아님'으로 빠지면 다음 것으로 채운다
+    const got: RankedItem[] = [];
+    for (let i = 0; i < ranked.length && got.length < want; ) {
+      const batch = ranked.slice(i, i + (want - got.length));
+      i += batch.length;
+      const ok = await Promise.all(batch.map((r) => ensureSummary(r.clusterId)));
+      batch.forEach((r, k) => ok[k] && got.push(r));
+      if (Date.now() > deadline) break;
+    }
+    if (!got.length) return void result.set(a.id, Date.now() > deadline ? 'later' : aiBlocked ? 'blocked' : 'empty');
+    // 그사이 웹에서 먼저 받았으면 그쪽을 둔다
     const { data: already } = await db.from('feed_days').select('user_id').eq('user_id', a.id).eq('date', ctx.date).maybeSingle();
-    if (already) {
-      result.set(a.id, 'had');
-      continue;
-    }
+    if (already) return void result.set(a.id, 'had');
     check(
-      await db.from('feeds').insert(ranked.map((r, i) => ({ user_id: a.id, date: ctx.date, rank: i + 1, cluster_id: r.clusterId, topic_id: r.topicId }))),
+      await db.from('feeds').insert(got.map((r, i) => ({ user_id: a.id, date: ctx.date, rank: i + 1, cluster_id: r.clusterId, topic_id: r.topicId }))),
       'feeds insert',
     );
-    check(await db.from('feed_days').insert({ user_id: a.id, date: ctx.date, visible: Math.min(ranked.length, a.dailyItems) }), 'feed_days insert');
+    check(await db.from('feed_days').insert({ user_id: a.id, date: ctx.date, visible: Math.min(got.length, want) }), 'feed_days insert');
     result.set(a.id, 'built');
-  }
+  });
+  await flushUsage();
   return { result, summarized };
 }
 
-/** 오늘 맹고 알림 문구: 1번 소식 제목과 개수 */
+/** 오늘 소식 알림 문구: 1번 소식 제목과 개수 */
 async function messageFor(userId: string, date: string): Promise<{ title: string; body: string; path: string }> {
   const day = (await db.from('feed_days').select('visible').eq('user_id', userId).eq('date', date).maybeSingle()).data as { visible: number } | null;
   const first = (await db.from('feeds').select('cluster_id').eq('user_id', userId).eq('date', date).order('rank').limit(1).maybeSingle()).data as { cluster_id: number } | null;
@@ -149,7 +185,7 @@ async function messageFor(userId: string, date: string): Promise<{ title: string
     : null;
   const n = day?.visible ?? 0;
   return {
-    title: '오늘의 맹고가 도착했어요',
+    title: '오늘의 소식이 도착했어요',
     body: title ? (n > 1 ? `${title} 외 ${n - 1}개` : title) : `관심사로 고른 소식 ${n}개가 준비됐어요`,
     path: '/today?from=push',
   };
@@ -160,21 +196,26 @@ const setStatus = (job: JobRow, patch: Record<string, unknown>) =>
 
 export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
   const ctx = makeCtx(now);
-  const out: DeliveryResult = { planned: 0, reclaimed: 0, built: 0, empty: 0, failed: 0, blocked: 0, sent: 0, noDevice: 0, muted: 0, summarized: 0 };
+  const out: DeliveryResult = { planned: 0, reclaimed: 0, built: 0, had: 0, empty: 0, blocked: 0, later: 0, summarized: 0, failed: 0, sent: 0, noDevice: 0, muted: 0 };
+  const deadline = Date.now() + BUILD_BUDGET_MS;
   out.planned = Number(check(await db.rpc('plan_deliveries', { p_date: ctx.date }), 'plan_deliveries') ?? 0);
   out.reclaimed = Number(check(await db.rpc('reclaim_stuck_deliveries'), 'reclaim') ?? 0);
 
-  // 만들기
+  // 만들기: 알림 시각이 된(지난) 사람 중 아직 못 받은 사람만
   const builds = (check(await db.rpc('claim_build_jobs', { p_now: now.toISOString(), p_limit: BUILD_BATCH }), 'claim_build_jobs') ?? []) as JobRow[];
   if (builds.length) {
-    ctx.log(`만들 차례 ${builds.length}명`);
+    ctx.log(`알림 시각이 된 사람 ${builds.length}명`);
     try {
-      const { result, summarized } = await buildFeedsFor(ctx, builds.map((j) => j.user_id));
+      const { result, summarized } = await buildFeedsFor(ctx, builds.map((j) => j.user_id), deadline);
       out.summarized = summarized;
       for (const job of builds) {
         const r = result.get(job.user_id) ?? 'empty';
-        if (r === 'blocked') {
-          // AI가 막혀 못 만들었다: 그날 안이면 30분 뒤 다시, 날이 넘어가면 failed(관리자에서 '맞는 소식 없음'과 구분된다)
+        if (r === 'later') {
+          // 이번 실행 시간 안에 못 했다: 다음 실행(1분 뒤)이 잇는다(시도 횟수는 세지 않는다)
+          out.later++;
+          await setStatus(job, { status: 'pending', attempts: Math.max(0, job.attempts - 1) });
+        } else if (r === 'blocked') {
+          // AI가 막혀 고를 게 없었다: 그날 안이면 30분 뒤 다시, 날이 넘어가면 failed
           out.blocked++;
           const retryAt = new Date(Date.now() + BLOCKED_RETRY_MS);
           await setStatus(
@@ -183,9 +224,19 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
               ? { status: 'pending', build_at: retryAt.toISOString(), last_error: 'AI가 막혀 다시 시도' }
               : { status: 'failed', last_error: 'AI가 막혀 그날 만들지 못함' },
           );
+        } else if (r === 'had') {
+          out.had++;
+          await setStatus(job, { status: 'had', last_error: null });
         } else if (r === 'empty') {
+          // 석 달 안에도 이 사람 관심사에 맞는 소식이 없다: 그날 안이면 한 시간 뒤 다시(새 글은 3시간마다 들어온다)
           out.empty++;
-          await setStatus(job, { status: 'empty' });
+          const retryAt = new Date(Date.now() + EMPTY_RETRY_MS);
+          await setStatus(
+            job,
+            job.attempts < EMPTY_TRIES && kstDate(retryAt) === job.date
+              ? { status: 'pending', build_at: retryAt.toISOString(), last_error: '맞는 소식이 없어 다시 시도' }
+              : { status: 'empty', last_error: null },
+          );
         } else {
           out.built++;
           await setStatus(job, { status: 'ready', built_at: new Date().toISOString(), last_error: null });
@@ -200,7 +251,6 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       }
     }
   }
-
   // 보내기
   const sends = (check(await db.rpc('claim_send_jobs', { p_now: now.toISOString(), p_limit: SEND_BATCH }), 'claim_send_jobs') ?? []) as JobRow[];
   // 알림을 꺼 둔 사람은 보내지 않는다(보낼 때 다시 읽어 직전에 끈 것도 지킨다)
@@ -237,4 +287,31 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
   }
   if (builds.length || sends.length) ctx.log(JSON.stringify(out));
   return out;
+}
+
+/**
+ * 1분마다 한 번(/api/cron/deliveries). scheduler_tasks의 deliveries 줄을 잠금으로 써서 겹쳐 돌지 않게 하고 결과를 남긴다.
+ * 그 줄은 enabled=false라 서버 스케줄러(3시간 작업들)는 가져가지 않는다.
+ */
+export async function runDeliveryTick(now = new Date()): Promise<DeliveryResult | 'busy'> {
+  const stale = new Date(now.getTime() - TICK_STALE_MS).toISOString();
+  const claimed = check(
+    await db
+      .from('scheduler_tasks')
+      .update({ running_since: now.toISOString(), last_started_at: now.toISOString() })
+      .eq('name', 'deliveries')
+      .or(`running_since.is.null,running_since.lt.${stale}`)
+      .select('name'),
+    'deliveries claim',
+  ) as { name: string }[];
+  if (!claimed.length) return 'busy';
+  try {
+    const out = await runDeliveries(now);
+    await db.from('scheduler_tasks').update({ running_since: null, last_finished_at: new Date().toISOString(), last_status: 'ok', last_error: null, last_stats: out }).eq('name', 'deliveries');
+    return out;
+  } catch (e) {
+    const msg = String((e as Error).message ?? e).slice(0, 300);
+    await db.from('scheduler_tasks').update({ running_since: null, last_finished_at: new Date().toISOString(), last_status: 'error', last_error: msg }).eq('name', 'deliveries');
+    throw e;
+  }
 }

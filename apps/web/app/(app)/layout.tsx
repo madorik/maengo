@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Metadata } from "next";
 import { after } from "next/server";
 import { AnalyticsSession } from "@/components/AnalyticsSession";
+import { AppPushSync } from "@/components/app/AppPushSync";
 import { PlayerProvider } from "@/components/providers/PlayerProvider";
 import { ProfileProvider } from "@/components/providers/ProfileProvider";
 import { TodayProvider } from "@/components/providers/TodayProvider";
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <ProfileProvider profile={view}>
       <TodayProvider key={today.signature} initial={today}>
         <PlayerProvider profile={view}>{children}</PlayerProvider>
+        <AppPushSync enabled={profile.pushEnabled} />
         {/* 분석용 사용자 ID는 회원 id의 해시만 보낸다(이메일·이름은 보내지 않는다) */}
         <AnalyticsSession uid={createHash("sha256").update(`maengo:${profile.id}`).digest("hex").slice(0, 24)} plan={profile.plan} />
       </TodayProvider>

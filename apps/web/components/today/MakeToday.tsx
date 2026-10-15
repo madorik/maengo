@@ -47,19 +47,19 @@ function cheersOf(p: Progress): string[] {
   if (p.stage === "collecting") return ["따끈한 새 소식을 모으고 있어요", "여기저기서 소식을 주워 담는 중이에요", "조금만 기다려 주세요~", "맹고가 열심히 뛰어다니고 있어요"];
   if (p.stage === "summarizing")
     return [
-      `맹고 ${p.total}개를 만들고 있어요~`,
+      `소식 ${p.total}개를 만들고 있어요~`,
       "맹고가 열심히 기사를 읽고 있어요",
       "핵심만 쏙쏙 골라 담는 중이에요",
       "조금만 기다려 주세요~",
-      p.done === 0 ? "첫 번째 맹고를 빚는 중이에요" : p.done < p.total ? `${p.done}개 완성! 나머지도 금방이에요` : "다 만들었어요! 담는 중이에요",
+      p.done === 0 ? "첫 번째 소식을 정리하는 중이에요" : p.done < p.total ? `${p.done}개 완성! 나머지도 금방이에요` : "다 만들었어요! 담는 중이에요",
     ];
   if (p.stage === "found")
     return p.toMake
-      ? [`맹고 ${p.ready + p.toMake}개를 찾았어요! ${p.toMake}개는 지금 새로 만들게요`]
-      : [`이미 준비된 맹고 ${p.ready}개를 찾았어요!`, "오늘 목록에 예쁘게 담는 중이에요"];
+      ? [`소식 ${p.ready + p.toMake}개를 찾았어요! ${p.toMake}개는 지금 새로 만들게요`]
+      : [`이미 준비된 소식 ${p.ready}개를 찾았어요!`, "오늘 목록에 예쁘게 담는 중이에요"];
   if (p.stage === "saving") return ["거의 다 됐어요! 오늘 목록에 담는 중이에요"];
-  if (p.stage === "done") return [`오늘의 맹고 ${p.items}개가 준비됐어요!`];
-  return ["오늘의 맹고를 만들고 있어요"];
+  if (p.stage === "done") return [`오늘의 소식 ${p.items}개가 준비됐어요!`];
+  return ["오늘의 소식을 만들고 있어요"];
 }
 
 /** 스크린리더에는 돌아가는 말 대신 단계만 알린다 */
@@ -68,7 +68,7 @@ function stageLabel(p: Progress): string {
   if (p.stage === "summarizing") return `소식 ${p.total}개 중 ${p.done}개 요약함`;
   if (p.stage === "found") return `소식 ${p.ready + p.toMake}개 찾음`;
   if (p.stage === "saving") return "오늘 목록에 담는 중";
-  if (p.stage === "done") return `오늘의 맹고 ${p.items}개 준비됨`;
+  if (p.stage === "done") return `오늘의 소식 ${p.items}개 준비됨`;
   return "관심사에 맞는 소식을 찾는 중";
 }
 
@@ -110,7 +110,7 @@ function Making({ p }: { p: Progress }) {
         </div>
       </div>
       <div className="mt-4 flex items-center gap-3">
-        <div role="progressbar" aria-label="오늘의 맹고 만드는 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="h-4 flex-1 overflow-hidden rounded-full bg-line">
+        <div role="progressbar" aria-label="오늘의 소식 만드는 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="h-4 flex-1 overflow-hidden rounded-full bg-line">
           <div className={`h-full rounded-full bg-sky transition-[width] duration-300 ease-out ${done ? "" : "stripes"}`} style={{ width: `${pct}%` }} />
         </div>
         <span className="w-10 text-right font-round text-[14px] font-black tabular-nums text-sky-dark" aria-hidden>
@@ -122,7 +122,7 @@ function Making({ p }: { p: Progress }) {
 }
 
 /**
- * 오늘의 맹고가 비었을 때(가입 직후 첫 방문은 늘, 그 뒤엔 새벽 배치 전): "오늘 맹고 받기"를 누르면 이미 요약된 소식을 가져오고 없으면 지금 만든다.
+ * 오늘의 맹고가 비었을 때(가입 직후 첫 방문은 늘, 그 뒤엔 새벽 배치 전): "오늘 소식 받기"를 누르면 이미 요약된 소식을 가져오고 없으면 지금 만든다.
  * 서버가 보내는 진행 상황(찾기 → (고를 게 없으면) 새 소식 모으기 → 요약 n/N → 담기)에 맞춰 진행 바와 말을 바꾸고, 끝나면 화면을 새로 그린다.
  */
 /** 단계마다 최소 이만큼은 보여 준다(이미 준비된 소식을 가져오면 1초도 안 걸려 진행이 안 보이므로) */
@@ -131,9 +131,15 @@ const MIN_STAGE_MS = 700;
 const DONE_HOLD_MS = 1200;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function MakeToday({ reason, notifyLabel }: { reason: "first" | "scheduled" | "waiting" | "exhausted" | null; notifyLabel: string }) {
+export function MakeToday({ reason, notifyLabel }: { reason: "first" | "scheduled" | "arriving" | "waiting" | "exhausted" | null; notifyLabel: string }) {
   const router = useRouter();
   const [state, setState] = useState<State>({ kind: "idle" });
+  // 알림 시각이 돼 배송이 만드는 중이면 20초마다 다시 본다(보통 1~2분 안에 온다)
+  useEffect(() => {
+    if (reason !== "arriving") return;
+    const t = setInterval(() => router.refresh(), 20_000);
+    return () => clearInterval(t);
+  }, [reason, router]);
 
   const start = async () => {
     track("today_build", { reason: reason ?? "none" });
@@ -182,15 +188,15 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
     return <Making p={state.kind === "done" ? { stage: "done", items: state.items } : state.p} />;
   }
 
-  // 알림 시각 전: 오늘 맹고는 그때 지급한다(받기 버튼 없음)
-  if (reason === "scheduled") {
+  // 알림 시각 전: 오늘 소식은 그때 지급한다. 알림 시각이 됐으면 배송이 만드는 중(받기 버튼 없음)
+  if (reason === "scheduled" || reason === "arriving") {
     return (
       <div className="mt-10 flex items-end gap-3">
         <Mascot mood="happy" className="size-24 shrink-0" />
         <Bubble className="mb-6 flex-1">
-          <p className="text-[15px] font-bold leading-relaxed">오늘의 맹고는 {notifyLabel}에 와요.</p>
+          <p className="text-[15px] font-bold leading-relaxed">{reason === "arriving" ? "오늘의 소식을 준비하고 있어요. 곧 도착해요." : `오늘의 소식은 ${notifyLabel}에 와요.`}</p>
           <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
-            지난 맹고 보기
+            지난 소식 보기
           </Link>
         </Bubble>
       </div>
@@ -216,15 +222,15 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
               {state.kind === "blocked"
                 ? "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요."
                 : state.kind === "error"
-                ? "오늘의 맹고를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
+                ? "오늘의 소식을 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
                 : reason === "first"
-                  ? "첫 맹고를 받아 볼까요? 누르면 관심사에 맞는 소식을 찾아 오고, 없으면 바로 만들어 드려요."
+                  ? "첫 소식을 받아 볼까요? 누르면 관심사에 맞는 소식을 찾아 오고, 없으면 바로 만들어 드려요."
                   : reason === "exhausted"
                     ? "관심사에서 고른 소식을 다 봤어요. 새로 들어온 소식이 있는지 찾아볼까요?"
-                    : "아직 오늘의 맹고가 없어요. 지금 바로 만들어 드릴까요?"}
+                    : "아직 오늘의 소식이 없어요. 지금 바로 만들어 드릴까요?"}
             </p>
             <button type="button" onClick={start} className="btn mt-3 w-full">
-              {state.kind === "error" || state.kind === "blocked" ? "다시 받기" : "오늘 맹고 받기"}
+              {state.kind === "error" || state.kind === "blocked" ? "다시 받기" : "오늘 소식 받기"}
             </button>
           </>
         )}

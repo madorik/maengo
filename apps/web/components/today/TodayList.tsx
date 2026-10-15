@@ -17,7 +17,7 @@ import type { FeedItem } from "@/lib/types";
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로 */
 export function TodayList() {
   const { data, game } = useToday();
-  // 오늘 받은 맹고 / 하루 맹고(플랜). 맹고를 써서 더 받은 건 +N으로 붙인다
+  // 오늘 받은 소식 / 하루 소식(플랜). 지갑의 맹고로 더 받은 건 +N으로 붙인다
   const daily = useProfile().dailyItems;
   const received = Math.min(game.total, daily);
   const more = game.total - received;
@@ -28,7 +28,7 @@ export function TodayList() {
         <section aria-labelledby="today-title" className="rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
           <p className="text-[13px] font-extrabold text-ink/70">{data.greetingDate}</p>
           <h1 id="today-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
-            오늘의 맹고 {game.total}개
+            오늘의 소식 {game.total}개
           </h1>
           {game.total > 0 && (
             <p className="mt-1 text-[14px] font-semibold leading-snug text-ink/80">
@@ -37,7 +37,7 @@ export function TodayList() {
           )}
           {game.total > 0 && (
             <div className="mt-4 flex items-center gap-3">
-              <ProgressBar value={received / daily} tone="leaf" label="오늘 받은 맹고" className="h-4 flex-1" track="bg-white/60" />
+              <ProgressBar value={received / daily} tone="leaf" label="오늘 받은 소식" className="h-4 flex-1" track="bg-white/60" />
               <span className="font-round text-[17px] font-black">
                 {received}/{daily}
                 {more > 0 && ` +${more}`}

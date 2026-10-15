@@ -14,15 +14,15 @@ import { AuthLink } from "./AuthLink";
 // 검색과 속도를 위해 정적으로 만들고, 로그인 여부에 따라 달라지는 버튼만 AuthLink가 브라우저에서 바꾼다.
 
 const START = { href: "/login", label: "무료로 시작하기" };
-const OPEN = { href: "/today", label: "오늘 맹고 열기" };
+const OPEN = { href: "/today", label: "오늘의 소식 열기" };
 
 /** 자주 묻는 질문. 플랜 숫자는 plans 표 값 */
 const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["어떤 소식을 모아요?", "AI·Tech 공식 블로그, 경제·코인 매체, 반도체·로봇 전문지, 그리고 주요 언론사의 정치·경제·사회·생활/문화·IT/과학·세계 뉴스를 매일 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 뉴스는 여러 언론사가 함께 다룬 헤드라인만 골라요."],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
-  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 맹고 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 맹고 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
-  ["맹고는 뭐예요?", `맹고는 하루에 받는 소식이에요. Free는 하루 ${free.dailyItems}개, Premium은 ${plus.dailyItems}개를 받아요. 더 받고 싶으면 지갑의 맹고를 하나씩 써서 소식을 하나씩 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. 맹고 추가 구매는 Premium에서 할 수 있어요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. 맹고 추가 구매는 Premium에서 할 수 있어요.`],
 ];
 
 type Sample = { category: CategoryId; source: string; video?: boolean; title: string; short: string; author: string; date: string; coverage?: string };
@@ -69,7 +69,7 @@ export async function Landing() {
             <a href="#pricing" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
               요금
             </a>
-            <AuthLink signedOut={{ href: "/login", label: "로그인" }} signedIn={{ href: "/today", label: "오늘 맹고" }} className="btn btn-ghost ml-1 min-h-11 px-4 text-[14px]" />
+            <AuthLink signedOut={{ href: "/login", label: "로그인" }} signedIn={{ href: "/today", label: "오늘의 소식" }} className="btn btn-ghost ml-1 min-h-11 px-4 text-[14px]" />
           </nav>
         </div>
       </header>
@@ -219,7 +219,7 @@ export async function Landing() {
             {[
               ["관심사를 골라요", "목록에서 고르고, 목록에 없는 건 기타에 직접 적으면 돼요."],
               ["새벽에 AI가 훑고 골라요", "매일 새벽 소식을 모아 같은 소식은 묶고, 요약하고, 나에게 맞는 순서로 골라요."],
-              ["아침에 받아서 읽고 들어요", "고른 시각에 오늘의 맹고가 도착해요. 읽어도 되고, 이어서 들어도 돼요."],
+              ["아침에 받아서 읽고 들어요", "고른 시각에 오늘의 소식이 도착해요. 읽어도 되고, 이어서 들어도 돼요."],
             ].map(([title, body], i) => (
               <li key={title} className="tile flex flex-col gap-3 p-6">
                 <span className="flex size-11 items-center justify-center rounded-full bg-mango font-round text-[20px] font-black text-ink shadow-[0_3px_0_var(--color-mango-dark)]">
@@ -241,7 +241,7 @@ export async function Landing() {
               <Plan
                 name="Free"
                 price="0원"
-                items={[`하루 맹고 ${free.dailyItems}개`, `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${free.archiveDays ?? 0}일, 관심사 ${free.topicLimit}개`]}
+                items={[`하루 소식 ${free.dailyItems}개`, `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${free.archiveDays ?? 0}일, 관심사 ${free.topicLimit}개`]}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan
@@ -250,7 +250,7 @@ export async function Landing() {
                 price={monthlyPrice(plus)}
                 listPrice={discountPct(plus) > 0 ? `${plus.listPriceKrw!.toLocaleString("ko-KR")}원` : undefined}
                 discount={discountPct(plus)}
-                items={[`하루 맹고 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `맹고 추가 구매, 목록에 없는 관심사 ${plus.customLimit}개`, `보관함 전체, 관심사 ${plus.topicLimit}개`]}
+                items={[`하루 소식 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `맹고 추가 구매, 목록에 없는 관심사 ${plus.customLimit}개`, `보관함 전체, 관심사 ${plus.topicLimit}개`]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={{ signedOut: START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
               />
@@ -360,7 +360,7 @@ function ListenPill() {
         <Mascot mood="listen" className="size-9" />
       </span>
       <span className="pr-1">
-        <span className="block text-[14px] font-black">오늘 맹고 전체 듣기</span>
+        <span className="block text-[14px] font-black">오늘 소식 전체 듣기</span>
         <span className="block text-[12px] font-bold text-sky">10개, 약 11분</span>
       </span>
       <span className="flex size-11 items-center justify-center rounded-full bg-sky text-white shadow-[0_3px_0_var(--color-sky-dark)]">

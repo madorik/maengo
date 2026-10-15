@@ -5,7 +5,7 @@ import { useState, useSyncExternalStore, useTransition } from "react";
 import { setPushEnabled } from "@/app/actions";
 import { track } from "@/lib/analytics";
 import { Toggle } from "@/components/ui/Switch";
-import { isAppUserAgent } from "@/lib/app-client";
+import { appPushRegisteredHere, isAppUserAgent } from "@/lib/app-client";
 import { registeredHere, registerThisBrowser, type RegisterResult } from "@/lib/web-push";
 
 const FAIL: Record<Extract<RegisterResult, { ok: false }>["reason"], string> = {
@@ -33,6 +33,9 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
   // 다른 기기에서 켰고 이 브라우저는 아직 안 받는 경우 '이 브라우저에서도 받기'를 보여 준다(앱 안에서는 숨긴다)
   const canWebPush = useSyncExternalStore(noSubscribe, () => !isAppUserAgent(navigator.userAgent) && "PushManager" in window, () => false);
   const here = useSyncExternalStore(noSubscribe, () => registeredHere(webTokens), () => true);
+  // 앱: 다른 기기에서 켰고 이 앱 기기는 아직 안 받는 경우 '이 기기에서도 받기'
+  const inApp = useSyncExternalStore(noSubscribe, () => isAppUserAgent(navigator.userAgent), () => false);
+  const appHere = useSyncExternalStore(noSubscribe, appPushRegisteredHere, () => true);
 
   const toggle = (next: boolean) =>
     start(async () => {
@@ -63,10 +66,10 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
   return (
     <>
       <Toggle label="알림 받기" checked={on} disabled={busy} onChange={toggle} />
-      {on && canWebPush && !here && !busy && (
+      {on && ((canWebPush && !here) || (inApp && !appHere)) && !busy && (
         <div className="mt-2 basis-full">
           <button type="button" onClick={addHere} className="btn btn-ghost min-h-11 px-4 text-[14px]">
-            이 브라우저에서도 받기
+            {inApp ? "이 기기에서도 받기" : "이 브라우저에서도 받기"}
           </button>
         </div>
       )}

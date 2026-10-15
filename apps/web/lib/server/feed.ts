@@ -147,9 +147,9 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   }
   // 가입하고 처음 온 사람은 저절로 채우지 않는다. '오늘 맹고 받기'를 눌러야 가져오거나 만든다(진행 상황을 보여 주려고)
   if (!(await hadFeedBefore(profile.id, date))) return { date, rows: [], visible: 0, extra: 0 };
-  // 하루 맹고는 알림 시각에 지급한다(서버 스케줄러가 30분 전에 만든다). 그 전에는 만들지 않는다
-  if (beforeNotify(profile.notifyAt)) return { date, rows: [], visible: 0, extra: 0 };
-  // 알림 시각이 지났는데 오늘 피드가 없다(스케줄러가 못 만든 날). 이미 요약된 소식으로 만든다. 스케줄러는 있는 피드를 건너뛴다
+  // 하루 소식은 알림 시각에 지급한다(1분마다 도는 배송이 그때 골라 요약해 만든다). 그 전과 알림 뒤 10분은 배송을 기다린다
+  if (beforeNotify(profile.notifyAt, deliveryGraceNow())) return { date, rows: [], visible: 0, extra: 0 };
+  // 알림 시각이 한참 지났는데 오늘 피드가 없다(배송이 못 만든 날). 이미 요약된 소식으로 만든다. 배송은 있는 피드를 건너뛴다
   const rows = await buildToday(profile, date);
   const visible = Math.min(rows.length, limit);
   if (rows.length) {
@@ -480,9 +480,13 @@ async function readsAndFeedback(userId: string) {
   };
 }
 
-/** 알림 시각 전이라 오늘 맹고를 아직 만들면 안 되는지(전에 받은 적 있는 사람만. 처음 받는 사람은 바로 만든다) */
+/** 알림 시각에 배송이 소식을 골라 요약하는 동안 화면이 따로 만들지 않고 기다리는 시간 */
+const DELIVERY_GRACE_MS = 10 * 60_000;
+const deliveryGraceNow = () => new Date(Date.now() - DELIVERY_GRACE_MS);
+
+/** 알림 시각 전(또는 배송을 기다리는 10분)이라 오늘 소식을 아직 만들면 안 되는지(전에 받은 적 있는 사람만. 처음 받는 사람은 바로 만든다) */
 export async function waitingForNotify(profile: Profile): Promise<boolean> {
-  return beforeNotify(profile.notifyAt) && (await hadFeedBefore(profile.id, kstDate()));
+  return beforeNotify(profile.notifyAt, deliveryGraceNow()) && (await hadFeedBefore(profile.id, kstDate()));
 }
 
 /** 오늘 날짜로 배치가 성공한 적이 있는지(없으면 아직 오늘 소식을 고르기 전) */
@@ -501,7 +505,9 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
       ? 'first'
       : beforeNotify(profile.notifyAt)
         ? 'scheduled'
-        : (await batchRanToday(day.date))
+        : beforeNotify(profile.notifyAt, deliveryGraceNow())
+          ? 'arriving'
+          : (await batchRanToday(day.date))
         ? 'exhausted'
         : 'waiting';
   const topicNames = [...new Set(items.map((i) => i.topicName))].slice(0, 3);

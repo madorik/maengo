@@ -8,5 +8,17 @@ export function isAppUserAgent(ua: string | null | undefined): boolean {
   return !!ua && ua.includes(APP_UA_MARK);
 }
 
+/** 앱이 알림 받을 기기로 등록한 FCM 토큰(lib/native/push.ts). 있으면 이 앱 기기는 알림을 받는다 */
+export const APP_PUSH_TOKEN_KEY = "maengo_app_push_token";
+
+/** 이 앱 기기가 알림 받을 기기로 등록돼 있는지(앱 안에서만 의미가 있다) */
+export function appPushRegisteredHere(): boolean {
+  try {
+    return !!localStorage.getItem(APP_PUSH_TOKEN_KEY);
+  } catch {
+    return false;
+  }
+}
+
 /** 앱 로그인이 돌아오는 딥링크(apps/mobile: iOS NativeAuth.swift, 안드로이드 AndroidManifest의 intent-filter). Supabase 돌아올 주소 허용 목록에 kr.maengo.app://** 가 있어야 한다 */
 export const APP_AUTH_CALLBACK = "kr.maengo.app://auth/callback";

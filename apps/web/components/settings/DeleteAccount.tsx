@@ -32,7 +32,7 @@ export function DeleteAccount({ demo }: { demo: boolean }) {
     <div className="tile mt-4 border-orange p-4">
       <p className="text-[16px] font-black">계정을 삭제할까요?</p>
       <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">
-        관심사, 받은 맹고, 읽음·좋아요 기록, 설정이 모두 지워지고 되돌릴 수 없어요. 남은 Premium 기간도 사라져요.
+        관심사, 받은 소식, 읽음·좋아요 기록, 설정이 모두 지워지고 되돌릴 수 없어요. 남은 Premium 기간도 사라져요.
       </p>
       <form action={deleteAccount} className="mt-4 flex gap-2">
         <ConfirmButton />

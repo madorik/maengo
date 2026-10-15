@@ -12,7 +12,7 @@ const ERRORS = {
   blocked: "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요.",
   no_balance: "맹고가 모자라요.",
   busy: "다시 눌러 주세요.",
-  no_feed: "오늘 맹고를 먼저 받아 주세요.",
+  no_feed: "오늘 소식을 먼저 받아 주세요.",
   failed: "더 받지 못했어요. 다시 눌러 주세요.",
 } as const;
 
@@ -57,7 +57,7 @@ export function MoreToday({ cost, kept }: { cost: number; kept: number }) {
       ) : (
         <button type="button" onClick={more} disabled={pending} className="btn w-full">
           <IconPlus className="size-5" />
-          {pending ? (slow ? "새 맹고 만드는 중" : "받는 중") : "하나 더 받기"}
+          {pending ? (slow ? "새 소식 만드는 중" : "받는 중") : "하나 더 받기"}
           {cost > 0 && <span className="font-round text-[14px] opacity-80">{cost}맹고</span>}
         </button>
       )}

@@ -19,7 +19,7 @@ const KRW_PER_USD = 1400;
 /** Google TTS Chirp 3 HD 매월 무료 글자 수, 넘으면 100만 자당 $30 */
 const TTS_FREE_CHARS = 1_000_000;
 const PLAN_LABEL: Record<string, string> = { plus: "Premium", free: "Free" };
-const TASK_LABEL: Record<string, string> = { deliveries: "알림 맹고", ingest: "수집", summarize: "요약", daily: "하루 정리" };
+const TASK_LABEL: Record<string, string> = { deliveries: "소식 지급·알림", ingest: "수집", summarize: "요약", daily: "하루 정리" };
 const DELIVERY_LABEL: Record<string, string> = {
   pending: "대기",
   building: "만드는 중",
@@ -27,6 +27,7 @@ const DELIVERY_LABEL: Record<string, string> = {
   sending: "보내는 중",
   sent: "보냄",
   empty: "소식 없음",
+  had: "이미 받음",
   no_device: "기기 없음",
   muted: "알림 꺼짐",
   failed: "실패",
@@ -125,7 +126,7 @@ export default async function AdminPage({ searchParams }: Props) {
           <Stat label="DAU" value={num(s.activity.dau)} sub={`${endLabel} · 최고 ${num(activePeak)}명`} />
           <Stat label="MAU" value={num(s.activity.mau)} sub={`DAU/MAU ${pct(s.activity.mau ? s.activity.dau / s.activity.mau : null)}`} />
           <Stat label="활동한 사람" value={num(s.activity.active)} sub={`읽음 ${num(s.activity.reads)} · 들음 ${num(s.activity.listens)}`} />
-          <Stat label="맹고 받은 사람" value={num(s.activity.fed)} sub={`알림 보냄 ${num(s.ops.deliveries.sent ?? 0)}`} />
+          <Stat label="소식 받은 사람" value={num(s.activity.fed)} sub={`알림 보냄 ${num(s.ops.deliveries.sent ?? 0)}`} />
           <Stat label="알림 켬" value={num(s.users.pushOn)} sub={Object.entries(s.users.plans).map(([p, n]) => `${PLAN_LABEL[p] ?? p} ${num(n)}`).join(" · ")} />
         </div>
 

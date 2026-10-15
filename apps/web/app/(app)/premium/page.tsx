@@ -18,7 +18,7 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
   const can = (ok: boolean, yes = "가능") => (ok ? yes : "불가");
   const both = (f: (l: PlanLimits) => string) => ({ free: f(free), plus: f(plus) });
   return [
-    { label: "매일 맹고", ...both((l) => `${l.dailyItems}개`) },
+    { label: "매일 소식", ...both((l) => `${l.dailyItems}개`) },
     { label: "음성 듣기", ...both((l) => can(l.audio)) },
     { label: "관심사 추가", ...both((l) => can(l.customLimit > 0, `${l.customLimit}개`)) },
     { label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) },

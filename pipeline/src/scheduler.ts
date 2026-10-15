@@ -1,6 +1,5 @@
 import { createGeminiAi } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
-import { runDeliveries } from './deliveries';
 import { cluster } from './jobs/cluster';
 import { collect } from './jobs/collect';
 import { dedupe } from './jobs/dedupe';
@@ -13,16 +12,18 @@ import { guardAi } from './lib/ai-guard';
 import { env } from './lib/env';
 import { flushUsage, recordUsage } from './lib/usage';
 
-// 서버 스케줄러(Supabase pg_cron이 5분마다 웹 /api/cron/scheduler를 부른다).
+// 서버 스케줄러(Supabase pg_cron이 5분마다 웹 /api/cron/scheduler를 부른다). 3시간마다 수집·임베딩·묶기·태그·중복 합치기와 하루 정리만 한다.
+// 요약은 미리 만들지 않는다: 알림 시각에 배송이 그 사람 소식을 골라 그때 요약한다(deliveries.ts, 1분마다. 2026-10-15 사용자 결정).
+// summarize 작업은 표에서 꺼 두었다(enabled=false, 필요하면 켤 수 있게 코드는 남긴다).
 // 무엇을 언제 돌릴지는 scheduler_tasks 표가 정한다: 차례가 된 작업만 가져와 돌리고, 결과와 다음 차례를 표에 남긴다.
 // Vercel 함수는 300초까지라 한 번에 약 4분 예산을 두고, 다 못 한 작업은 놓아줘 다음 실행이 이어받는다.
 
 /** 이 시각까지만 새 작업을 시작한다(시작 후 4분) */
 const BUDGET_MS = 240_000;
 /** 작업마다 최소 이만큼은 남아 있어야 시작한다(수집은 출처 79곳에 약 10초, 임베딩은 300개에 수십 초) */
-const MIN_LEFT_MS: Record<string, number> = { deliveries: 0, daily: 0, ingest: 60_000, summarize: 60_000 };
-/** 알림이 늦지 않게 deliveries를 먼저, 무거운 요약은 마지막에 */
-const ORDER = ['deliveries', 'daily', 'ingest', 'summarize'];
+const MIN_LEFT_MS: Record<string, number> = { daily: 0, ingest: 60_000, summarize: 60_000 };
+/** 가벼운 하루 정리를 먼저, 무거운 요약은 마지막에 */
+const ORDER = ['daily', 'ingest', 'summarize'];
 
 type Task = { name: string; config: Record<string, number> };
 
@@ -41,7 +42,6 @@ function makeCtx(now: Date, deadline: number, config: Record<string, number>): C
 }
 
 async function runTask(task: Task, now: Date, deadline: number): Promise<Record<string, unknown>> {
-  if (task.name === 'deliveries') return { ...(await runDeliveries(now)) };
   if (task.name === 'daily') {
     const { data } = await db.rpc('expire_premium');
     return { expired: data ?? 0 };
@@ -53,6 +53,8 @@ async function runTask(task: Task, now: Date, deadline: number): Promise<Record<
       await embed(ctx);
       await cluster(ctx);
       await tag(ctx);
+      // 배송이 그사이 만든 요약으로 같은 소식 묶음을 합친다(요약 임베딩이 드는 몇 건만)
+      await dedupe(ctx);
     } else if (task.name === 'summarize') {
       await summarize(ctx);
       await dedupe(ctx);
