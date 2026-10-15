@@ -15,6 +15,7 @@ import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { FeedItem } from "@/lib/types";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ListenBar } from "./ListenBar";
+import { PlaylistButton } from "./PlaylistButton";
 import { useItemAudio } from "./useItemAudio";
 import { useTodayAudio } from "./useTodayAudio";
 import { VideoThumb } from "./VideoThumb";
@@ -31,7 +32,7 @@ const CHOICES: { kind: FeedbackKind; label: string; note: string; Icon: typeof I
  * 오늘 글은 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 오늘 브리핑 플레이어로 듣는다.
  * 그 밖(지난 글, 아직 전체 음성이 없는 오늘 글)은 그 글 하나짜리 파일로 듣는다. 글 하나 들으려고 오늘 소식 전부의 음성을 만들지 않게.
  */
-export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isToday: boolean }) {
+export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: FeedItem; isToday: boolean; inPlaylist: boolean }) {
   const { data, feedback, markRead, setFeedback } = useToday();
   const profile = useProfile();
   const index = isToday ? data.items.findIndex((i) => i.clusterId === fromServer.clusterId) : -1;
@@ -155,6 +156,8 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
             <span className="sr-only">{sourceLink}(새 탭에서 열림)</span>
           </a>
         </p>
+
+        <PlaylistButton clusterId={item.clusterId} initial={inPlaylist} />
 
         <section aria-labelledby="fb-title" className="mt-8">
           <h2 id="fb-title" className="text-[17px] font-black">

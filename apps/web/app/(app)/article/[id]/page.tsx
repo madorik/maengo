@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArticleView } from "@/components/article/ArticleView";
-import { findFeedItem } from "@/lib/server/feed";
+import { findFeedItem, isInPlaylist } from "@/lib/server/feed";
+import { entitlements } from "@/lib/server/profile";
 import { requireProfile } from "@/lib/server/session";
 
 type Props = { params: Promise<{ id: string }> };
@@ -16,7 +17,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ArticlePage({ params }: Props) {
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
-  const found = await findFeedItem(await requireProfile(), id);
+  const profile = await requireProfile();
+  const found = await findFeedItem(profile, id);
   if (!found) notFound();
-  return <ArticleView key={id} item={found.item} isToday={found.isToday} />;
+  const inPlaylist = entitlements(profile).audio ? await isInPlaylist(profile, id) : false;
+  return <ArticleView key={id} item={found.item} isToday={found.isToday} inPlaylist={inPlaylist} />;
 }

@@ -6,7 +6,7 @@ import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "보관함" };
 
-type Props = { searchParams: Promise<{ page?: string; category?: string }> };
+type Props = { searchParams: Promise<{ page?: string; category?: string; read?: string }> };
 
 export default async function LibraryPage({ searchParams }: Props) {
   const profile = await requireProfile();
@@ -14,6 +14,7 @@ export default async function LibraryPage({ searchParams }: Props) {
   const lib = await getLibrary(profile, {
     page: Number(sp.page) || 1,
     category: isCategory(sp.category) ? sp.category : null,
+    read: sp.read === "read" || sp.read === "unread" ? sp.read : null,
   });
   return <LibraryView lib={lib} />;
 }

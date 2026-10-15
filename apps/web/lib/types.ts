@@ -102,6 +102,8 @@ export interface LibraryEntry {
   listened: boolean;
 }
 
+export type LibraryReadFilter = 'read' | 'unread';
+
 export interface LibraryData {
   /** 지금까지 받은 소식 전체 수 */
   total: number;
@@ -110,6 +112,14 @@ export interface LibraryData {
   page: number;
   pageCount: number;
   category: CategoryId | null;
+  /** 읽음 거르기(주소의 ?read=). null이면 전체 */
+  readFilter: LibraryReadFilter | null;
+  /** 지금 카테고리 안에서 전체·읽음·안 읽음 수(들은 것도 읽음) */
+  readCounts: { all: number; read: number; unread: number };
+  /** 골라 듣기 '전체 선택': 지금 거른 소식 전부(모든 쪽, 최신순) */
+  pickIds: number[];
+  /** 골라 듣기 '안 읽은 소식 선택': 지금 카테고리의 안 읽은 소식(모든 쪽, 최신순) */
+  unreadIds: number[];
   /** 받은 소식에 있는 카테고리와 개수 */
   categories: { id: CategoryId; label: string; count: number }[];
   /** 이 페이지의 소식을 피드 날짜별로 묶은 것 */

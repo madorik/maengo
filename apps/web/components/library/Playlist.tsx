@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useTransition } from "react";
+import { playlistAdd } from "@/app/actions";
 import { IconHeadphones, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
+import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { PLAYLIST_MAX } from "@/lib/playlist";
 
@@ -20,6 +22,8 @@ interface PickApi {
   full: boolean;
   setPicking: (on: boolean) => void;
   toggle: (id: number) => void;
+  /** 한꺼번에 고르기(전체·안 읽은 소식). 순서대로 PLAYLIST_MAX개까지 */
+  pickMany: (ids: number[]) => void;
 }
 
 const PickContext = createContext<PickApi | null>(null);
@@ -42,16 +46,27 @@ export function PlaylistPicker({ children }: { children: React.ReactNode }) {
       if (!on) setIds([]);
     },
     toggle: (id) => setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= PLAYLIST_MAX ? prev : [...prev, id])),
+    pickMany: (many) => setIds(many.slice(0, PLAYLIST_MAX)),
   };
   return <PickContext.Provider value={api}>{children}</PickContext.Provider>;
 }
 
-/** 보관함 제목 줄. 고르는 동안은 위에 붙고 '취소'·'n개 듣기'가 된다. Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다 */
-export function LibraryHeader({ total }: { total: number }) {
+/**
+ * 보관함 제목 줄. 고르는 동안은 위에 붙고 '취소'·'n개 듣기'가 되고, 아래 줄에 '전체 선택'·'안 읽은 소식 선택'이 나온다
+ * (지금 거른 소식의 모든 쪽에서, 최신순으로 PLAYLIST_MAX개까지). Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다
+ */
+export function LibraryHeader({ total, pickIds, unreadIds }: { total: number; pickIds: number[]; unreadIds: number[] }) {
   const profile = useProfile();
   const pick = usePick();
   const p = usePlayer();
+  const { consumed } = useToday();
   const n = pick.ids.length;
+  const [adding, startAdd] = useTransition();
+  // 담으면 플레이리스트 화면으로 간다(playlistAdd가 옮겨 준다)
+  const add = () => startAdd(() => playlistAdd(pick.ids));
+  // 이 화면에서 방금 읽거나 들은 것도 뺀다(서버 값은 돌아오기 전 화면일 수 있다)
+  const unread = unreadIds.filter((id) => !consumed(id));
+  const same = (a: number[]) => a.length > 0 && a.length === n && a.every((id, i) => pick.ids[i] === id);
   const play = () => {
     p.playPlaylist(pick.ids);
     pick.setPicking(false);
@@ -71,6 +86,9 @@ export function LibraryHeader({ total }: { total: number }) {
       <span className="flex shrink-0 items-center gap-2">
         <button type="button" onClick={() => pick.setPicking(false)} className="btn btn-ghost min-h-11 px-4 text-[14px]">
           취소
+        </button>
+        <button type="button" onClick={add} disabled={!n || adding} className="btn btn-ghost min-h-11 px-4 text-[14px]">
+          담기
         </button>
         <button type="button" onClick={play} disabled={!n} className="btn btn-sky inline-flex min-h-11 items-center gap-1.5 px-4 text-[14px]">
           <IconPlay className="size-4" />
@@ -98,6 +116,28 @@ export function LibraryHeader({ total }: { total: number }) {
         보관함 <span className="font-round text-[20px] text-faint">{total}</span>
       </h1>
       {controls}
+      {pick.picking && (
+        <div className="flex basis-full flex-wrap gap-2 pb-1 pt-1">
+          <button
+            type="button"
+            onClick={() => pick.pickMany(same(pickIds.slice(0, PLAYLIST_MAX)) ? [] : pickIds)}
+            disabled={!pickIds.length}
+            aria-pressed={same(pickIds.slice(0, PLAYLIST_MAX))}
+            className="btn btn-ghost min-h-10 px-3.5 text-[14px] aria-pressed:border-sky aria-pressed:bg-sky-tint aria-pressed:text-sky-dark"
+          >
+            전체 선택
+          </button>
+          <button
+            type="button"
+            onClick={() => pick.pickMany(same(unread.slice(0, PLAYLIST_MAX)) ? [] : unread)}
+            disabled={!unread.length}
+            aria-pressed={same(unread.slice(0, PLAYLIST_MAX))}
+            className="btn btn-ghost min-h-10 px-3.5 text-[14px] aria-pressed:border-sky aria-pressed:bg-sky-tint aria-pressed:text-sky-dark"
+          >
+            안 읽은 소식 선택
+          </button>
+        </div>
+      )}
       {pick.full && (
         <p role="status" className="basis-full pb-1 text-[13px] font-bold text-mango-deep">
           한 번에 {PLAYLIST_MAX}개까지 고를 수 있어요

@@ -8,7 +8,7 @@ import { daysBefore } from '@maengo/core/plans';
 import { whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import type { FeedbackKind, Tier } from '@maengo/core/types';
-import type { FeedItem, LibraryData, LibraryEntry, ProfileView, TodayData } from '../types';
+import type { FeedItem, LibraryData, LibraryEntry, LibraryReadFilter, ProfileView, TodayData } from '../types';
 import { ai } from './ai';
 import { db, must } from './db';
 import { entitlements, type Profile } from './profile';
@@ -305,9 +305,12 @@ async function findRow(profile: Profile, clusterId: number): Promise<{ row: Feed
   let query = db.from('feeds').select('date,rank,topic_id').eq('user_id', profile.id).eq('cluster_id', clusterId).neq('date', today.date);
   if (from) query = query.gte('date', from);
   const rows = must(await query.order('date', { ascending: false }), 'feeds') as { date: string; rank: number; topic_id: string }[];
+  // 보관함처럼 '그날 앞에서부터 visible개'로 본다(순번은 중복 합치기·채우기로 비는 칸이 있어 순번 숫자로 비교하면 안 된다)
   for (const r of rows) {
     const day = must(await db.from('feed_days').select('visible').eq('user_id', profile.id).eq('date', r.date).maybeSingle(), 'feed_days') as { visible: number } | null;
-    if (day && r.rank <= day.visible) return { row: { rank: r.rank, clusterId, topicId: r.topic_id }, date: r.date };
+    if (!day) continue;
+    const shown = must(await db.from('feeds').select('cluster_id').eq('user_id', profile.id).eq('date', r.date).order('rank').limit(day.visible), 'feeds day') as { cluster_id: number }[];
+    if (shown.some((x) => x.cluster_id === clusterId)) return { row: { rank: r.rank, clusterId, topicId: r.topic_id }, date: r.date };
   }
   return null;
 }
@@ -532,8 +535,11 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
 
 export const LIBRARY_PAGE_SIZE = 10;
 
-/** 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리로 거르고 페이지로 나눈다 */
-export async function getLibrary(profile: Profile, { page, category }: { page: number; category: CategoryId | null }): Promise<LibraryData> {
+/** 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리·읽음으로 거르고 페이지로 나눈다. 들은 것도 읽음으로 친다 */
+export async function getLibrary(
+  profile: Profile,
+  { page, category, read }: { page: number; category: CategoryId | null; read: LibraryReadFilter | null },
+): Promise<LibraryData> {
   const now = new Date();
   const days = await allDays(profile);
   const rows = days.flatMap((d) => visibleRows(d).map((row) => ({ row, date: d.date })));
@@ -559,7 +565,10 @@ export async function getLibrary(profile: Profile, { page, category }: { page: n
 
   const counts = new Map<CategoryId, number>();
   for (const e of all) counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
-  const filtered = category ? all.filter((e) => e.category === category) : all;
+  const consumed = (e: LibraryEntry) => e.read || e.listened;
+  const inCategory = category ? all.filter((e) => e.category === category) : all;
+  const filtered = read ? inCategory.filter((e) => consumed(e) === (read === 'read')) : inCategory;
+  const readCount = inCategory.filter(consumed).length;
   const pageCount = Math.max(1, Math.ceil(filtered.length / LIBRARY_PAGE_SIZE));
   const current = Math.min(Math.max(1, page), pageCount);
   const slice = filtered.slice((current - 1) * LIBRARY_PAGE_SIZE, current * LIBRARY_PAGE_SIZE);
@@ -577,9 +586,84 @@ export async function getLibrary(profile: Profile, { page, category }: { page: n
     page: current,
     pageCount,
     category,
+    readFilter: read,
+    readCounts: { all: inCategory.length, read: readCount, unread: inCategory.length - readCount },
+    pickIds: filtered.map((e) => e.clusterId),
+    unreadIds: inCategory.filter((e) => !consumed(e)).map((e) => e.clusterId),
     categories: CATEGORIES.filter((c) => counts.has(c.id)).map((c) => ({ id: c.id, label: c.label, count: counts.get(c.id)! })),
     groups,
   };
+}
+
+// ---- 플레이리스트(담아 둔 소식, Premium) ----
+
+/** 플레이리스트에 담긴 소식(담은 순서). 요약이 없어진 소식(중복 합침 등)은 뺀다 */
+export async function getPlaylist(profile: Profile): Promise<LibraryEntry[]> {
+  const now = new Date();
+  const rows = must(await db.from('playlist_items').select('cluster_id').eq('user_id', profile.id).order('position'), 'playlist_items') as { cluster_id: number }[];
+  const ids = rows.map((r) => r.cluster_id);
+  if (!ids.length) return [];
+  const [info, { reads }] = await Promise.all([clusterInfo(ids), readsAndFeedback(profile.id)]);
+  const readMap = new Map(reads.map((r) => [r.cluster_id, r]));
+  return ids.flatMap((id) => {
+    const c = info.get(id);
+    if (!c) return [];
+    return [{
+      clusterId: id,
+      feedDate: '',
+      title: c.title,
+      short: c.short,
+      kind: c.kind,
+      category: c.category,
+      sourceLabel: c.sourceLabel,
+      author: c.author ?? c.sourceLabel,
+      publishedLabel: c.publishedAt ? publishedLabel(c.publishedAt, now) : '',
+      read: !!readMap.get(id)?.read_at,
+      listened: !!readMap.get(id)?.listened_at,
+    }];
+  });
+}
+
+/** 담기: 받은 소식만, 이미 있는 건 건너뛰고 뒤에 붙인다. max개까지. 담긴 수를 돌려준다 */
+export async function addToPlaylist(profile: Profile, ids: number[], max: number): Promise<number> {
+  const rows = must(await db.from('playlist_items').select('cluster_id,position').eq('user_id', profile.id), 'playlist_items') as { cluster_id: number; position: number }[];
+  const have = new Set(rows.map((r) => r.cluster_id));
+  let pos = rows.reduce((m, r) => Math.max(m, r.position), 0);
+  const fresh: number[] = [];
+  for (const id of [...new Set(ids)]) {
+    if (have.size + fresh.length >= max) break;
+    if (have.has(id) || !(await isInUserFeed(profile, id))) continue;
+    fresh.push(id);
+  }
+  if (fresh.length) {
+    must(await db.from('playlist_items').insert(fresh.map((cluster_id) => ({ user_id: profile.id, cluster_id, position: ++pos }))), 'playlist_items insert');
+  }
+  return have.size + fresh.length;
+}
+
+export async function isInPlaylist(profile: Profile, clusterId: number): Promise<boolean> {
+  const { count } = await db.from('playlist_items').select('cluster_id', { count: 'exact', head: true }).eq('user_id', profile.id).eq('cluster_id', clusterId);
+  return (count ?? 0) > 0;
+}
+
+export async function removeFromPlaylist(profile: Profile, clusterId: number): Promise<void> {
+  must(await db.from('playlist_items').delete().eq('user_id', profile.id).eq('cluster_id', clusterId), 'playlist_items delete');
+}
+
+export async function clearPlaylist(profile: Profile): Promise<void> {
+  must(await db.from('playlist_items').delete().eq('user_id', profile.id), 'playlist_items clear');
+}
+
+/** 한 칸 위(-1)나 아래(+1)로. 이웃과 자리를 바꾼다 */
+export async function movePlaylistItem(profile: Profile, clusterId: number, dir: -1 | 1): Promise<void> {
+  const rows = must(await db.from('playlist_items').select('cluster_id,position').eq('user_id', profile.id).order('position'), 'playlist_items') as { cluster_id: number; position: number }[];
+  const i = rows.findIndex((r) => r.cluster_id === clusterId);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= rows.length) return;
+  const a = rows[i]!;
+  const b = rows[j]!;
+  must(await db.from('playlist_items').update({ position: b.position }).eq('user_id', profile.id).eq('cluster_id', a.cluster_id), 'playlist_items move');
+  must(await db.from('playlist_items').update({ position: a.position }).eq('user_id', profile.id).eq('cluster_id', b.cluster_id), 'playlist_items move');
 }
 
 export function toProfileView(p: Profile): ProfileView {
