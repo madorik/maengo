@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { IconBack, IconCheck, IconDoc, IconNext, IconPlay } from "@/components/icons";
+import { IconBack, IconDoc, IconNext, IconPlay } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { LibraryData, LibraryEntry } from "@/lib/types";
 import { LibraryHeader, PickTarget, PlaylistPicker } from "./Playlist";
+import { ReadBadge } from "./ReadBadge";
 
 // 보관함: 지금까지 받은 피드 전체. 서버에서 그린다(페이지·카테고리는 주소의 ?page=&category=).
 // '골라 듣기'로 고른 소식을 이어 듣는다(Playlist.tsx, Premium).
@@ -88,14 +89,7 @@ function LibraryCard({ entry: e }: { entry: LibraryEntry }) {
           {e.sourceLabel}
         </span>
         <span className="ml-auto shrink-0 group-has-[[data-pick]]:invisible">
-          {e.read || e.listened ? (
-            <span className="inline-flex items-center gap-1 text-leaf">
-              <IconCheck className="size-4 [stroke-width:3]" />
-              {e.read ? "읽음" : "들음"}
-            </span>
-          ) : (
-            <span className="text-faint">안 읽음</span>
-          )}
+          <ReadBadge clusterId={e.clusterId} read={e.read || e.listened} />
         </span>
       </div>
       <h3 className="mt-2 text-[17px] font-black leading-snug tracking-[-0.02em]">

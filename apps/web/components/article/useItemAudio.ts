@@ -4,6 +4,7 @@ import { track } from "@/lib/analytics";
 import type { Chapter } from "@maengo/core/types";
 import { useEffect, useRef, useState } from "react";
 import { usePlayer } from "@/components/providers/PlayerProvider";
+import { useToday } from "@/components/providers/TodayProvider";
 import { lineAt } from "@/lib/player/machine";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import type { ListenBarCtl } from "./ListenBar";
@@ -17,6 +18,12 @@ const ITEM_PLAY_EVENT = "maengo:item-play";
  */
 export function useItemAudio(clusterId: number, enabled: boolean): { ctl: ListenBarCtl; activePara: number | undefined } {
   const p = usePlayer();
+  // 이 글 하나를 듣기 시작하면 '들음'으로 기록한다(화면에는 읽음으로 보인다). 오늘 브리핑 플레이어와 같은 규칙
+  const { markListened } = useToday();
+  const markRef = useRef(markListened);
+  useEffect(() => {
+    markRef.current = markListened;
+  }, [markListened]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [status, setStatus] = useState<"idle" | "playing" | "paused" | "done">("idle");
@@ -38,7 +45,14 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
       setStatus("done");
       track("listen_complete", { mode: "item" });
     };
-    const onPlaying = () => setPreparing(false);
+    let marked = false;
+    const onPlaying = () => {
+      setPreparing(false);
+      if (!marked) {
+        marked = true;
+        markRef.current(clusterId);
+      }
+    };
     // 파일이 열린 뒤에 대본 시각표를 받는다(그때는 음성이 다 만들어져 있어 실제 시각이 나온다)
     const onMeta = () => {
       const q = a.dataset.query;
