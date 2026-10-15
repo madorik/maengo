@@ -14,7 +14,7 @@ export default async function LibraryPage({ searchParams }: Props) {
   const lib = await getLibrary(profile, {
     page: Number(sp.page) || 1,
     category: isCategory(sp.category) ? sp.category : null,
-    read: sp.read === "read" || sp.read === "unread" ? sp.read : null,
+    read: sp.read === "unread" ? "unread" : null,
   });
   return <LibraryView lib={lib} />;
 }

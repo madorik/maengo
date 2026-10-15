@@ -102,7 +102,8 @@ export interface LibraryEntry {
   listened: boolean;
 }
 
-export type LibraryReadFilter = 'read' | 'unread';
+/** 보관함 거르기: 안 읽은 소식만(2026-10-15 '읽음' 칸은 뺌) */
+export type LibraryReadFilter = 'unread';
 
 export interface LibraryData {
   /** 지금까지 받은 소식 전체 수 */
@@ -114,12 +115,10 @@ export interface LibraryData {
   category: CategoryId | null;
   /** 읽음 거르기(주소의 ?read=). null이면 전체 */
   readFilter: LibraryReadFilter | null;
-  /** 지금 카테고리 안에서 전체·읽음·안 읽음 수(들은 것도 읽음) */
-  readCounts: { all: number; read: number; unread: number };
-  /** 골라 듣기 '전체 선택': 지금 거른 소식 전부(모든 쪽, 최신순) */
+  /** 지금 카테고리 안에서 전체·안 읽음 수(들은 것도 읽음) */
+  readCounts: { all: number; unread: number };
+  /** 골라 듣기 '전체': 지금 거른 소식 전부(모든 쪽, 최신순). 안 읽은 것만 고르려면 '안 읽음'으로 거른 뒤 전체 */
   pickIds: number[];
-  /** 골라 듣기 '안 읽은 소식 선택': 지금 카테고리의 안 읽은 소식(모든 쪽, 최신순) */
-  unreadIds: number[];
   /** 받은 소식에 있는 카테고리와 개수 */
   categories: { id: CategoryId; label: string; count: number }[];
   /** 이 페이지의 소식을 피드 날짜별로 묶은 것 */

@@ -4,7 +4,7 @@ import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { LibraryData, LibraryEntry, LibraryReadFilter } from "@/lib/types";
-import { LibraryHeader, PickTarget, PlaylistPicker } from "./Playlist";
+import { LibraryHeader, PickBar, PickTarget, PlaylistPicker } from "./Playlist";
 import { ReadBadge } from "./ReadBadge";
 
 // 보관함: 지금까지 받은 피드 전체. 서버에서 그린다(페이지·카테고리·읽음은 주소의 ?page=&category=&read=).
@@ -23,14 +23,13 @@ export function LibraryView({ lib }: { lib: LibraryData }) {
   return (
     <div className="mx-auto max-w-[680px] px-4 py-6 lg:py-10">
       <PlaylistPicker>
-        <LibraryHeader total={lib.total} pickIds={lib.pickIds} unreadIds={lib.unreadIds} />
+        <LibraryHeader total={lib.total} pickIds={lib.pickIds} />
 
-        {/* 한 줄 거르기: 전체 · 안 읽음 · 읽음 · 카테고리들. 읽음과 카테고리는 같이 걸 수 있고, 켜진 칸을 다시 누르면 풀린다 */}
+        {/* 한 줄 거르기: 전체 · 안 읽음 · 카테고리들. 안 읽음과 카테고리는 같이 걸 수 있고, 켜진 칸을 다시 누르면 풀린다 */}
         {lib.total > 0 && (
           <nav aria-label="거르기" className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-2">
             <FilterLink href={href(1, null, null)} active={!lib.category && !lib.readFilter} label="전체" count={lib.total} />
             <FilterLink href={href(1, lib.category, lib.readFilter === "unread" ? null : "unread")} active={lib.readFilter === "unread"} label="안 읽음" count={lib.readCounts.unread} />
-            <FilterLink href={href(1, lib.category, lib.readFilter === "read" ? null : "read")} active={lib.readFilter === "read"} label="읽음" count={lib.readCounts.read} />
             {lib.categories.map((c) => (
               <FilterLink key={c.id} href={href(1, lib.category === c.id ? null : c.id, lib.readFilter)} active={lib.category === c.id} label={c.label} count={c.count} />
             ))}
@@ -44,9 +43,7 @@ export function LibraryView({ lib }: { lib: LibraryData }) {
               <p className="text-[16px] font-bold leading-relaxed">
                 {lib.readFilter === "unread"
                   ? "안 읽은 소식이 없어요."
-                  : lib.readFilter === "read"
-                    ? "아직 읽은 소식이 없어요."
-                    : lib.category
+                  : lib.category
                       ? "이 카테고리에는 아직 받은 소식이 없어요."
                       : "아직 받은 소식이 없어요. 내일 아침부터 여기에 쌓여요."}
               </p>
@@ -68,6 +65,7 @@ export function LibraryView({ lib }: { lib: LibraryData }) {
         )}
 
         {lib.pageCount > 1 && <Pagination lib={lib} />}
+        <PickBar />
       </PlaylistPicker>
     </div>
   );

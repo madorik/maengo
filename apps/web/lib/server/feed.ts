@@ -567,7 +567,7 @@ export async function getLibrary(
   for (const e of all) counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
   const consumed = (e: LibraryEntry) => e.read || e.listened;
   const inCategory = category ? all.filter((e) => e.category === category) : all;
-  const filtered = read ? inCategory.filter((e) => consumed(e) === (read === 'read')) : inCategory;
+  const filtered = read === 'unread' ? inCategory.filter((e) => !consumed(e)) : inCategory;
   const readCount = inCategory.filter(consumed).length;
   const pageCount = Math.max(1, Math.ceil(filtered.length / LIBRARY_PAGE_SIZE));
   const current = Math.min(Math.max(1, page), pageCount);
@@ -587,9 +587,8 @@ export async function getLibrary(
     pageCount,
     category,
     readFilter: read,
-    readCounts: { all: inCategory.length, read: readCount, unread: inCategory.length - readCount },
+    readCounts: { all: inCategory.length, unread: inCategory.length - readCount },
     pickIds: filtered.map((e) => e.clusterId),
-    unreadIds: inCategory.filter((e) => !consumed(e)).map((e) => e.clusterId),
     categories: CATEGORIES.filter((c) => counts.has(c.id)).map((c) => ({ id: c.id, label: c.label, count: counts.get(c.id)! })),
     groups,
   };
