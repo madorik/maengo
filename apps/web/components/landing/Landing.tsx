@@ -22,7 +22,7 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
-  ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. 맹고 추가 구매는 Premium에서 할 수 있어요.`],
+  ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
 ];
 
 type Sample = { category: CategoryId; source: string; video?: boolean; title: string; short: string; author: string; date: string; coverage?: string };
@@ -241,7 +241,7 @@ export async function Landing() {
               <Plan
                 name="Free"
                 price="0원"
-                items={[`하루 소식 ${free.dailyItems}개`, `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${free.archiveDays ?? 0}일, 관심사 ${free.topicLimit}개`]}
+                items={[`하루 소식 ${free.dailyItems}개`, free.canBuyMaengo ? `가입하면 ${SIGNUP_BONUS}맹고, 맹고 추가 구매` : `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${free.archiveDays ?? 0}일, 관심사 ${free.topicLimit}개`]}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan
@@ -250,7 +250,7 @@ export async function Landing() {
                 price={monthlyPrice(plus)}
                 listPrice={discountPct(plus) > 0 ? `${plus.listPriceKrw!.toLocaleString("ko-KR")}원` : undefined}
                 discount={discountPct(plus)}
-                items={[`하루 소식 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `맹고 추가 구매, 목록에 없는 관심사 ${plus.customLimit}개`, `보관함 전체, 관심사 ${plus.topicLimit}개`]}
+                items={[`하루 소식 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `${plus.canBuyMaengo && !free.canBuyMaengo ? "맹고 추가 구매, " : ""}목록에 없는 관심사 ${plus.customLimit}개`, `보관함 전체, 관심사 ${plus.topicLimit}개`]}
                 later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
                 cta={{ signedOut: START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
               />

@@ -101,8 +101,10 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const [skipRead, setSkipReadState] = useState(profile.skipRead);
   const [rate, setRate] = useState(1);
   const [playlist, setPlaylist] = useState<number[] | null>(null);
-  /** 지금 듣는 플레이리스트(비동기 콜백에서 읽는다) */
+  /** 지금 듣는 플레이리스트 묶음(비동기 콜백에서 읽는다) */
   const playlistRef = useRef<number[] | null>(null);
+  /** 이 묶음 다음에 이어 들을 소식(PLAYLIST_MAX개씩 나눠 튼다) */
+  const queueRef = useRef<number[]>([]);
   // 플레이리스트를 들을 때는 읽은 소식도 건너뛰지 않는다
   const readSet = playlist ? NO_READ : read;
   const skip = playlist ? false : skipRead;
@@ -287,11 +289,12 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     void savePlayerPrefs({ skipRead: on });
   };
 
-  const playPlaylist = (ids: number[]) => {
+  const playPlaylist = (ids: number[], { continued = false }: { continued?: boolean } = {}) => {
     const audio = audioRef.current;
     const list = ids.slice(0, PLAYLIST_MAX);
     if (!audio || !profile.audio || !list.length) return;
-    track("listen_start", { mode: "playlist", count: list.length });
+    queueRef.current = ids.slice(PLAYLIST_MAX);
+    if (!continued) track("listen_start", { mode: "playlist", count: ids.length });
     playlistRef.current = list;
     setPlaylist(list);
     const seq = ++loadSeq.current;
@@ -312,7 +315,15 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       .catch(() => {});
   };
 
+  /** 묶음이 끝났을 때 이어 들을 소식이 남았으면 다음 묶음을 튼다 */
+  const continueQueue = (): boolean => {
+    if (!playlistRef.current || !queueRef.current.length) return false;
+    playPlaylist(queueRef.current, { continued: true });
+    return true;
+  };
+
   const exitPlaylist = () => {
+    queueRef.current = [];
     if (!playlistRef.current) return;
     audioRef.current?.pause();
     playlistRef.current = null;
@@ -354,6 +365,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         enter(t.index);
         break;
       case "end":
+        if (continueQueue()) break;
         track("listen_complete", { mode: playlistRef.current ? "playlist" : "today" });
         audio.pause();
         setStatus("done");
@@ -491,6 +503,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         onPlay={() => setStatus("playing")}
         onPause={() => setStatus((s) => (s === "done" ? s : "paused"))}
         onEnded={() => {
+          if (continueQueue()) return;
           setStatus("done");
           setCur(-1);
         }}

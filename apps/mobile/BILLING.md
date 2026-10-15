@@ -27,7 +27,7 @@
 
 무료 체험(결정 D3): 스토어가 처리한다(첫 구독만, 스토어 계정마다 한 번). 앱은 상품에 0원 첫 기간이 있고 받을 수 있는 사람이면 버튼을 "7일 무료로 시작"으로 바꾸고 체험 뒤 결제 금액을 적는다(`lib/native/billing.ts` `trialDays`). iOS는 RevenueCat에 받을 수 있는지 따로 묻는다. 약관 6조에 체험 조항이 있다.
 
-맹고 추가 구매는 Premium만(화면에서 막는다). 스토어 결제에 수량 지정이 없어서 수량마다 상품을 하나씩 둔다. 수량을 바꾸려면 `packages/core/src/plans.ts`의 `MAENGO_PACKS`와 세 곳의 상품을 같이 바꾼다.
+맹고 추가 구매는 Free·Premium 모두(2026-10-15 사용자 결정, plans 표 `can_buy_maengo`). 스토어 결제에 수량 지정이 없어서 수량마다 상품을 하나씩 둔다. 수량을 바꾸려면 `packages/core/src/plans.ts`의 `MAENGO_PACKS`와 세 곳의 상품을 같이 바꾼다.
 
 ## 할 일
 
@@ -67,7 +67,7 @@ REVENUECAT_WEBHOOK_AUTH=…
 
 ### 5. 확인
 - 샌드박스로 Premium 구매 → 설정 > 플랜이 Premium, 하루 맹고 10개 → 구독 관리에서 해지 → 만료 뒤 Free
-- 맹고 추가 구매(Premium) → 수량 고르고 결제 → 지갑 +수량, 같은 거래가 웹훅·sync로 두 번 와도 한 번만
+- 맹고 추가 구매(Free·Premium) → 수량 고르고 결제 → 지갑 +수량, 같은 거래가 웹훅·sync로 두 번 와도 한 번만
 - 앱 지우고 다시 깔아 구매 복원 → Premium 그대로
 
 ## 베타 종료(2026-10-14, 코드 반영)

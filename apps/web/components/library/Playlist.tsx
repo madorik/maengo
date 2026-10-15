@@ -8,7 +8,6 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
-import { PLAYLIST_MAX } from "@/lib/playlist";
 
 // 보관함 플레이리스트(Premium). '골라 듣기'를 누르고 카드를 고르면 고른 순서대로 번호가 붙고, 제목 줄의 'n개 듣기'로 이어 듣는다.
 // 고르는 동안 제목 줄은 화면 위(상단바 아래)에 붙어 있어 아래로 내려가도 바로 누를 수 있고, 오른쪽 아래 듣기 창을 가리지 않는다.
@@ -19,10 +18,9 @@ interface PickApi {
   picking: boolean;
   /** 고른 소식(고른 순서) */
   ids: number[];
-  full: boolean;
   setPicking: (on: boolean) => void;
   toggle: (id: number) => void;
-  /** 한꺼번에 고르기(전체·안 읽은 소식). 순서대로 PLAYLIST_MAX개까지 */
+  /** 한꺼번에 고르기(전체·안 읽은 소식). 개수 제한 없음 */
   pickMany: (ids: number[]) => void;
 }
 
@@ -40,20 +38,19 @@ export function PlaylistPicker({ children }: { children: React.ReactNode }) {
   const api: PickApi = {
     picking,
     ids,
-    full: ids.length >= PLAYLIST_MAX,
     setPicking: (on) => {
       setPickingState(on);
       if (!on) setIds([]);
     },
-    toggle: (id) => setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= PLAYLIST_MAX ? prev : [...prev, id])),
-    pickMany: (many) => setIds(many.slice(0, PLAYLIST_MAX)),
+    toggle: (id) => setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])),
+    pickMany: (many) => setIds(many),
   };
   return <PickContext.Provider value={api}>{children}</PickContext.Provider>;
 }
 
 /**
  * 보관함 제목 줄. 고르는 동안은 위에 붙고 '취소'·'n개 듣기'가 되고, 아래 줄에 '전체 선택'·'안 읽은 소식 선택'이 나온다
- * (지금 거른 소식의 모든 쪽에서, 최신순으로 PLAYLIST_MAX개까지). Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다
+ * (지금 거른 소식의 모든 쪽에서, 최신순, 개수 제한 없음. 많으면 들을 때 20개씩 나눠 이어 튼다). Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다
  */
 export function LibraryHeader({ total, pickIds, unreadIds }: { total: number; pickIds: number[]; unreadIds: number[] }) {
   const profile = useProfile();
@@ -120,28 +117,23 @@ export function LibraryHeader({ total, pickIds, unreadIds }: { total: number; pi
         <div className="flex basis-full flex-wrap gap-2 pb-1 pt-1">
           <button
             type="button"
-            onClick={() => pick.pickMany(same(pickIds.slice(0, PLAYLIST_MAX)) ? [] : pickIds)}
+            onClick={() => pick.pickMany(same(pickIds) ? [] : pickIds)}
             disabled={!pickIds.length}
-            aria-pressed={same(pickIds.slice(0, PLAYLIST_MAX))}
+            aria-pressed={same(pickIds)}
             className="btn btn-ghost min-h-10 px-3.5 text-[14px] aria-pressed:border-sky aria-pressed:bg-sky-tint aria-pressed:text-sky-dark"
           >
             전체 선택
           </button>
           <button
             type="button"
-            onClick={() => pick.pickMany(same(unread.slice(0, PLAYLIST_MAX)) ? [] : unread)}
+            onClick={() => pick.pickMany(same(unread) ? [] : unread)}
             disabled={!unread.length}
-            aria-pressed={same(unread.slice(0, PLAYLIST_MAX))}
+            aria-pressed={same(unread)}
             className="btn btn-ghost min-h-10 px-3.5 text-[14px] aria-pressed:border-sky aria-pressed:bg-sky-tint aria-pressed:text-sky-dark"
           >
             안 읽은 소식 선택
           </button>
         </div>
-      )}
-      {pick.full && (
-        <p role="status" className="basis-full pb-1 text-[13px] font-bold text-mango-deep">
-          한 번에 {PLAYLIST_MAX}개까지 고를 수 있어요
-        </p>
       )}
     </div>
   );
@@ -160,7 +152,6 @@ export function PickTarget({ id, title }: { id: number; title: string }) {
       aria-pressed={on}
       aria-label={on ? `${title}, ${order}번째` : title}
       onClick={() => pick.toggle(id)}
-      disabled={!on && pick.full}
       className={`absolute inset-0 z-10 rounded-2xl disabled:cursor-not-allowed ${on ? "bg-sky-tint mix-blend-multiply ring-2 ring-sky ring-inset" : "enabled:hover:bg-snow enabled:hover:mix-blend-multiply"}`}
     >
       <span

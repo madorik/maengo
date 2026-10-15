@@ -624,8 +624,8 @@ export async function getPlaylist(profile: Profile): Promise<LibraryEntry[]> {
   });
 }
 
-/** 담기: 받은 소식만, 이미 있는 건 건너뛰고 뒤에 붙인다. max개까지. 담긴 수를 돌려준다 */
-export async function addToPlaylist(profile: Profile, ids: number[], max: number): Promise<number> {
+/** 담기: 받은 소식만, 이미 있는 건 건너뛰고 뒤에 붙인다(개수 제한 없음). 담긴 수를 돌려준다 */
+export async function addToPlaylist(profile: Profile, ids: number[], max = Infinity): Promise<number> {
   const rows = must(await db.from('playlist_items').select('cluster_id,position').eq('user_id', profile.id), 'playlist_items') as { cluster_id: number; position: number }[];
   const have = new Set(rows.map((r) => r.cluster_id));
   let pos = rows.reduce((m, r) => Math.max(m, r.position), 0);
@@ -654,16 +654,19 @@ export async function clearPlaylist(profile: Profile): Promise<void> {
   must(await db.from('playlist_items').delete().eq('user_id', profile.id), 'playlist_items clear');
 }
 
-/** 한 칸 위(-1)나 아래(+1)로. 이웃과 자리를 바꾼다 */
-export async function movePlaylistItem(profile: Profile, clusterId: number, dir: -1 | 1): Promise<void> {
-  const rows = must(await db.from('playlist_items').select('cluster_id,position').eq('user_id', profile.id).order('position'), 'playlist_items') as { cluster_id: number; position: number }[];
-  const i = rows.findIndex((r) => r.cluster_id === clusterId);
-  const j = i + dir;
-  if (i < 0 || j < 0 || j >= rows.length) return;
-  const a = rows[i]!;
-  const b = rows[j]!;
-  must(await db.from('playlist_items').update({ position: b.position }).eq('user_id', profile.id).eq('cluster_id', a.cluster_id), 'playlist_items move');
-  must(await db.from('playlist_items').update({ position: a.position }).eq('user_id', profile.id).eq('cluster_id', b.cluster_id), 'playlist_items move');
+/** 끌어서 바꾼 순서를 그대로 저장한다(목록에 없는 id는 무시, 빠진 것은 뒤에 원래 순서로) */
+export async function reorderPlaylist(profile: Profile, ids: number[]): Promise<void> {
+  const rows = must(await db.from('playlist_items').select('cluster_id').eq('user_id', profile.id).order('position'), 'playlist_items') as { cluster_id: number }[];
+  const have = rows.map((r) => r.cluster_id);
+  const set = new Set(have);
+  const ordered = [...new Set(ids.filter((id) => set.has(id)))];
+  const rest = have.filter((id) => !ordered.includes(id));
+  const all = [...ordered, ...rest];
+  if (!all.length) return;
+  must(
+    await db.from('playlist_items').upsert(all.map((cluster_id, i) => ({ user_id: profile.id, cluster_id, position: i + 1 })), { onConflict: 'user_id,cluster_id' }),
+    'playlist_items reorder',
+  );
 }
 
 export function toProfileView(p: Profile): ProfileView {

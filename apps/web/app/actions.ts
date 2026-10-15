@@ -6,8 +6,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
-import { addToPlaylist, clearPlaylist, isInPlaylist, movePlaylistItem, rebuildFeed, receiveMore, removeFromPlaylist, type MoreResult } from "@/lib/server/feed";
-import { PLAYLIST_MAX } from "@/lib/playlist";
+import { addToPlaylist, clearPlaylist, isInPlaylist, rebuildFeed, receiveMore, removeFromPlaylist, reorderPlaylist, type MoreResult } from "@/lib/server/feed";
 import { demoLoginEnabled, demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
@@ -169,20 +168,20 @@ export async function receiveMoreAction(): Promise<MoreResult> {
 export async function playlistAdd(ids: number[]) {
   const profile = await requireProfile();
   if (!entitlements(profile).audio) redirect("/premium");
-  await addToPlaylist(profile, ids.filter((n) => Number.isInteger(n) && n > 0), PLAYLIST_MAX);
+  await addToPlaylist(profile, ids.filter((n) => Number.isInteger(n) && n > 0));
   revalidatePath("/playlist");
   redirect("/playlist");
 }
 
-/** 글 화면의 담기 버튼: 담거나 뺀다. 가득 찼으면 error */
+/** 글 화면의 담기 버튼: 담거나 뺀다 */
 export async function playlistToggle(clusterId: number, on: boolean): Promise<{ inPlaylist: boolean; error?: string }> {
   const profile = await requireProfile();
   if (!entitlements(profile).audio) return { inPlaylist: false };
-  if (on) await addToPlaylist(profile, [clusterId], PLAYLIST_MAX);
+  if (on) await addToPlaylist(profile, [clusterId]);
   else await removeFromPlaylist(profile, clusterId);
   revalidatePath("/playlist");
   const inPlaylist = await isInPlaylist(profile, clusterId);
-  return on && !inPlaylist ? { inPlaylist, error: `플레이리스트는 ${PLAYLIST_MAX}개까지 담을 수 있어요.` } : { inPlaylist };
+  return on && !inPlaylist ? { inPlaylist, error: "담지 못했어요. 다시 눌러 주세요." } : { inPlaylist };
 }
 
 export async function playlistRemove(clusterId: number) {
@@ -191,9 +190,10 @@ export async function playlistRemove(clusterId: number) {
   revalidatePath("/playlist");
 }
 
-export async function playlistMove(clusterId: number, dir: -1 | 1) {
+/** 끌어서 바꾼 순서 저장 */
+export async function playlistReorder(ids: number[]) {
   const profile = await requireProfile();
-  await movePlaylistItem(profile, clusterId, dir === -1 ? -1 : 1);
+  await reorderPlaylist(profile, ids.filter((n) => Number.isInteger(n) && n > 0));
   revalidatePath("/playlist");
 }
 

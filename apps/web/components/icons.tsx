@@ -53,6 +53,12 @@ export const IconThumbDown = (p: Props) => (
 );
 export const IconPlus = (p: Props) => <Line {...p}><path d="M12 5v14" /><path d="M5 12h14" /></Line>;
 export const IconClose = (p: Props) => <Line {...p}><path d="M6 6l12 12" /><path d="M18 6L6 18" /></Line>;
+/** 끌어서 옮기기 손잡이(점 여섯 개) */
+export const IconGrip = (p: Props) => (
+  <Solid {...p}>
+    <circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" />
+  </Solid>
+);
 export const IconMenu = (p: Props) => <Line {...p}><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></Line>;
 export const IconDoc = (p: Props) => <Line {...p}><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4" /><path d="M9 12h7" /><path d="M9 16h5" /></Line>;
 export const IconHeadphones = (p: Props) => (

@@ -1,29 +1,58 @@
 "use client";
 
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { useTransition } from "react";
-import { playlistClear, playlistMove, playlistRemove } from "@/app/actions";
-import { IconChevronDown, IconClose, IconDoc, IconPlay } from "@/components/icons";
+import { useState, useTransition } from "react";
+import { playlistClear, playlistRemove, playlistReorder } from "@/app/actions";
+import { IconClose, IconDoc, IconGrip, IconPlay } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ReadBadge } from "@/components/library/ReadBadge";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
-import { PLAYLIST_MAX } from "@/lib/playlist";
 import type { LibraryEntry } from "@/lib/types";
 
-/** 플레이리스트 화면: 담은 순서대로 전체 듣기, 칸마다 위·아래로 옮기기와 빼기, 비우기 */
+/** 화면 읽기 프로그램용 안내(dnd-kit 기본은 영어) */
+const SR_INSTRUCTIONS = { draggable: "옮기려면 스페이스나 엔터를 누르고 위아래 화살표로 옮긴 뒤 다시 스페이스나 엔터를 누르세요. 그만두려면 Esc." };
+
+/**
+ * 플레이리스트 화면: 담은 순서대로 전체 듣기, 손잡이를 끌어 순서 바꾸기(터치·마우스·키보드), ×로 빼기, 비우기.
+ * 끌어 놓으면 화면 순서를 먼저 바꾸고 서버에 저장한다
+ */
 export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; locked: boolean }) {
   const p = usePlayer();
   const [busy, start] = useTransition();
-  const ids = entries.map((e) => e.clusterId);
+  // 서버가 준 목록이 바뀌면(빼기·비우기 뒤) 그 순서로 다시 맞춘다
+  const serverKey = entries.map((e) => e.clusterId).join(",");
+  const [order, setOrder] = useState({ key: serverKey, ids: entries.map((e) => e.clusterId) });
+  const ids = order.key === serverKey ? order.ids : entries.map((e) => e.clusterId);
+  const byId = new Map(entries.map((e) => [e.clusterId, e]));
+  const titleOf = (id: unknown) => byId.get(Number(id))?.title ?? "소식";
+
+  // 손잡이로만 끈다(카드 나머지는 그대로 스크롤). 살짝 움직여야 시작해 탭과 헷갈리지 않는다
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `${titleOf(active.id)}을 집었어요.`,
+    onDragOver: ({ active, over }) => (over ? `${titleOf(active.id)}이 ${ids.indexOf(Number(over.id)) + 1}번째 자리에 있어요.` : undefined),
+    onDragEnd: ({ active, over }) => (over ? `${titleOf(active.id)}을 ${ids.indexOf(Number(over.id)) + 1}번째에 놓았어요.` : `${titleOf(active.id)}을 놓았어요.`),
+    onDragCancel: ({ active }) => `${titleOf(active.id)} 옮기기를 그만뒀어요.`,
+  };
+
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const next = arrayMove(ids, ids.indexOf(Number(active.id)), ids.indexOf(Number(over.id)));
+    setOrder({ key: serverKey, ids: next });
+    start(() => playlistReorder(next));
+  };
 
   return (
     <div className="mx-auto max-w-[680px] px-4 py-6 lg:py-10">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-1">
         <h1 className="text-[28px] font-black tracking-[-0.03em]">
-          플레이리스트 <span className="font-round text-[20px] text-faint">{locked ? "" : `${entries.length}/${PLAYLIST_MAX}`}</span>
+          플레이리스트 <span className="font-round text-[20px] text-faint">{locked ? "" : entries.length}</span>
         </h1>
         {entries.length > 0 && (
           <span className="flex shrink-0 items-center gap-2">
@@ -60,61 +89,67 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
           </Bubble>
         </div>
       ) : (
-        <ol className="mt-6 flex flex-col gap-3">
-          {entries.map((e, i) => (
-            <li key={e.clusterId} className="tile relative flex items-start gap-3 p-4">
-              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-sky-tint font-round text-[15px] font-black text-sky-dark">{i + 1}</span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 text-[13px] font-extrabold">
-                  <CategoryChip category={e.category} />
-                  <span className="inline-flex min-w-0 items-center gap-1 truncate text-sub">
-                    <IconDoc className="size-3.5 shrink-0" />
-                    {e.sourceLabel}
-                  </span>
-                  <span className="ml-auto shrink-0">
-                    <ReadBadge clusterId={e.clusterId} read={e.read || e.listened} />
-                  </span>
-                </div>
-                <h2 className="mt-2 text-[16px] font-black leading-snug tracking-[-0.02em]">
-                  <Link href={`/article/${e.clusterId}`} className="no-underline">
-                    {e.title}
-                  </Link>
-                </h2>
-                <div className="mt-2 flex items-center gap-1">
-                  <button
-                    type="button"
-                    aria-label={`${e.title} 위로`}
-                    onClick={() => start(() => playlistMove(e.clusterId, -1))}
-                    disabled={busy || i === 0}
-                    className="inline-flex size-10 items-center justify-center rounded-xl text-sub hover:bg-snow disabled:text-line"
-                  >
-                    <IconChevronDown className="size-5 rotate-180" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${e.title} 아래로`}
-                    onClick={() => start(() => playlistMove(e.clusterId, 1))}
-                    disabled={busy || i === entries.length - 1}
-                    className="inline-flex size-10 items-center justify-center rounded-xl text-sub hover:bg-snow disabled:text-line"
-                  >
-                    <IconChevronDown className="size-5" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${e.title} 빼기`}
-                    onClick={() => start(() => playlistRemove(e.clusterId))}
-                    disabled={busy}
-                    className="ml-auto inline-flex min-h-10 items-center gap-1 rounded-xl px-2.5 text-[14px] font-extrabold text-sub hover:bg-snow"
-                  >
-                    <IconClose className="size-4" />
-                    빼기
-                  </button>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <DndContext id="playlist" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ announcements, screenReaderInstructions: SR_INSTRUCTIONS }}>
+          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+            <ol className="mt-6 flex flex-col gap-3">
+              {ids.map((id, i) => {
+                const e = byId.get(id);
+                return e ? <Row key={id} entry={e} index={i} busy={busy} onRemove={() => start(() => playlistRemove(id))} /> : null;
+              })}
+            </ol>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
+  );
+}
+
+function Row({ entry: e, index, busy, onRemove }: { entry: LibraryEntry; index: number; busy: boolean; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: e.clusterId });
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`tile relative flex items-center gap-2 py-3 pl-1 pr-2 ${isDragging ? "z-20 border-sky shadow-[0_8px_24px_rgba(0,0,0,0.12)]" : ""}`}
+    >
+      {/* 끌어서 옮기는 손잡이. 터치로 끌 때 화면이 스크롤되지 않게 touch-none */}
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label={`${e.title} 순서 옮기기`}
+        className="flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-xl text-faint hover:bg-snow active:cursor-grabbing"
+      >
+        <IconGrip className="size-5" />
+      </button>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sky-tint font-round text-[15px] font-black text-sky-dark">{index + 1}</span>
+      <div className="min-w-0 flex-1 pl-1">
+        <div className="flex items-center gap-2 text-[13px] font-extrabold">
+          <CategoryChip category={e.category} />
+          <span className="inline-flex min-w-0 items-center gap-1 truncate text-sub">
+            <IconDoc className="size-3.5 shrink-0" />
+            {e.sourceLabel}
+          </span>
+          <span className="ml-auto shrink-0">
+            <ReadBadge clusterId={e.clusterId} read={e.read || e.listened} />
+          </span>
+        </div>
+        <h2 className="mt-1.5 text-[16px] font-black leading-snug tracking-[-0.02em]">
+          <Link href={`/article/${e.clusterId}`} className="no-underline">
+            {e.title}
+          </Link>
+        </h2>
+      </div>
+      <button
+        type="button"
+        aria-label={`${e.title} 빼기`}
+        onClick={onRemove}
+        disabled={busy}
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow"
+      >
+        <IconClose className="size-5" />
+      </button>
+    </li>
   );
 }
