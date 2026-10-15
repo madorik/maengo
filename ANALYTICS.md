@@ -20,7 +20,7 @@
   - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice` ← 같은 이름의 변수
   - 사용자 속성: `plan` ← `{{dlv - plan}}`, `platform` ← `{{dlv - platform}}`
   - 트리거: 맞춤 이벤트, 이벤트 이름 정규식 일치
-    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|notify_toggle|push_open|voice_change)$`
+    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|voice_change)$`
 
 ## 이벤트
 
@@ -37,6 +37,7 @@
 | `script_tab_open` | 듣기 창 '대본' 탭 | `mode` |
 | `feedback` | 좋아요·싫어요 | `kind`(more·skip·clear) |
 | `topic_edit` | 관심사 고치기 | `action`(group·add·remove·text), `group`, `picks`, `topic`(직접 적은 건 custom) |
+| `link_edit` | 내 관심 링크 넣기·빼기(Premium) | `action`(add·remove·fail), `reason`(fail일 때: invalid·youtube·blocked·private·unreachable·nofeed·empty·adult·limit). 주소는 남기지 않는다 |
 | `notify_toggle` | 알림 켜고 끄기 | `on` |
 | `push_open` | 알림을 눌러 들어옴(`?from=push`) | — |
 | `voice_change` | 목소리 바꾸기(설정) | `voice`(f·m) |

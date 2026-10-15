@@ -1,4 +1,5 @@
 import type { CategoryId } from '@maengo/core/categories';
+import type { LinkError } from '@maengo/core/topics';
 import type { Chapter, FeedbackKind, Persona, Plan, Voice } from '@maengo/core/types';
 
 // 서버 → 클라이언트로 넘기는 화면용 데이터. 서버 전용 모듈을 끌어오지 않도록 타입만 둔다.
@@ -127,13 +128,30 @@ export interface LibraryData {
 
 /** 관심 토픽 고치기 결과(설정 화면 안내 문구) */
 /** 관심사 고치기 결과. ok는 들어감(message는 한도로 일부만 들어갔을 때만), warn은 막힘. 성공 안내 문구는 없다(목록에 보인다) */
-export type TopicResult = { tone: 'ok' | 'warn'; message: string; /** 막힌 까닭(온보딩이 알맞은 안내를 고른다) */ code?: 'adult' };
+export type TopicResult = { tone: 'ok' | 'warn'; message: string; /** 막힌 까닭(온보딩이 알맞은 안내를 고른다, 링크는 분석 이벤트에 남긴다) */ code?: 'adult' | LinkError };
 
 export interface UserTopic {
   /** 기타(목록에 없어 직접 적은 관심사)인지 */
   custom?: boolean;
+  /** 내 관심 링크(토픽 's-<sources.id>')인지 */
+  link?: boolean;
   id: string;
   name: string;
+}
+
+/** 설정 > 내 관심 링크 칸 하나에 든 링크 */
+export interface LinkView {
+  /** 토픽 id('s-<sources.id>'). 빼기는 이 id로 */
+  id: string;
+  /** 칸 번호(1부터). 설정 화면의 인풋박스 자리 */
+  slot: number;
+  name: string;
+  /** 사용자가 넣은 사이트 주소(목록에서 여는 곳) */
+  siteUrl: string;
+  /** '3일 전' 같은 마지막 글 시점. 모르면 null */
+  lastItemLabel: string | null;
+  /** 최근 수집이 계속 실패하는지(설정 목록에 알린다) */
+  failing: boolean;
 }
 
 /** 설정 > 관심사: 관심 분야와 그 아래 상세 관심사 */

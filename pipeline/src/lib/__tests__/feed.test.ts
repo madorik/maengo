@@ -70,3 +70,15 @@ test('자르기: 이모지를 반으로 자르지 않고, DB가 받지 않는 �
   assert.equal(clip(s, 11), `${'가'.repeat(9)}😀…`);
   assert.equal(clip('a\u0000b\ud83dc', 100), 'abc');
 });
+
+test('피드 제목과 피드 문서 판별(내 관심 링크 해석기가 쓴다)', async () => {
+  const { feedTitle, isFeedXml } = await import('../feed');
+  const rss = `<?xml version="1.0"?><rss><channel><title>토스 기술 블로그</title><item><title>A</title><link>https://a.com/1</link></item></channel></rss>`;
+  const atom = `<feed xmlns="http://www.w3.org/2005/Atom"><title type="text">D2 &amp; Naver</title><entry><title>B</title><link href="https://b.com/2"/></entry></feed>`;
+  assert.equal(feedTitle(rss), '토스 기술 블로그');
+  assert.equal(feedTitle(atom), 'D2 & Naver');
+  assert.ok(isFeedXml(rss));
+  assert.ok(isFeedXml(atom));
+  assert.ok(!isFeedXml('<!doctype html><html><head><title>x</title></head></html>'));
+  assert.ok(!isFeedXml('not xml at all'));
+});

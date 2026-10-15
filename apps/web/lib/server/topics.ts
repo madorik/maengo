@@ -1,6 +1,6 @@
 import 'server-only';
 import {
-  childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, NEWS_SECTIONS, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS,
+  childrenOf, customTopicId, findTopicByName, isAdultInterest, isCustomTopicId, isLinkTopicId, NEWS_SECTIONS, splitInterests, TOPIC_BY_ID, TOPIC_GROUPS,
 } from '@maengo/core/topics';
 import { screener, screenModel } from './ai';
 import { db, must } from './db';
@@ -9,6 +9,10 @@ import { entitlements, type Profile } from './profile';
 
 // 관심사 고치기(설정). user_topics에 바로 쓰고, 다음 피드 고르기부터 반영된다.
 // 목록(사전)에서 고른 관심사와, 목록에 없어 기타에 적은 그대로 올린 관심사(custom 토픽)가 있다. 개수는 따로 센다.
+// 내 관심 링크('s-…' 토픽, lib/server/links.ts)도 user_topics에 있지만 관심사 개수에는 세지 않는다.
+
+/** 목록(사전)에서 고른 관심사인지(기타·내 관심 링크가 아닌 것). 관심사 한도는 이것만 센다 */
+const fromList = (id: string) => !isCustomTopicId(id) && !isLinkTopicId(id);
 
 async function weightsOf(userId: string): Promise<Record<string, number>> {
   const rows = must(await db.from('user_topics').select('topic_id,weight').eq('user_id', userId), 'user_topics') as { topic_id: string; weight: number }[];
@@ -34,7 +38,7 @@ export async function topicNames(ids: string[]): Promise<Map<string, string>> {
 export async function userTopics(profile: Profile): Promise<UserTopic[]> {
   const entries = Object.entries(await weightsOf(profile.id)).filter(([, w]) => w > 0).sort((a, b) => b[1] - a[1]);
   const names = await topicNames(entries.map(([id]) => id));
-  return entries.map(([id]) => ({ id, name: names.get(id) ?? id, custom: isCustomTopicId(id) }));
+  return entries.map(([id]) => ({ id, name: names.get(id) ?? id, custom: isCustomTopicId(id), link: isLinkTopicId(id) }));
 }
 
 /** 관심 분야 5개와 그 아래 상세 관심사. 고른 것은 표시만 하고 더하기 버튼을 숨긴다 */
@@ -63,8 +67,8 @@ async function addTopicIds(profile: Profile, ids: string[], source: 'settings' |
   const weights = await weightsOf(profile.id);
   const limit = entitlements(profile).topicLimit;
   const fresh = ids.filter((id) => !(weights[id]! > 0));
-  const freshTopics = fresh.filter((id) => !isCustomTopicId(id));
-  const count = Object.keys(weights).filter((id) => weights[id]! > 0 && !isCustomTopicId(id)).length;
+  const freshTopics = fresh.filter(fromList);
+  const count = Object.keys(weights).filter((id) => weights[id]! > 0 && fromList(id)).length;
   const room = Math.max(0, limit - count);
   const addedTopics = freshTopics.slice(0, room);
   const added = [...addedTopics, ...fresh.filter(isCustomTopicId)];
@@ -123,7 +127,7 @@ export async function setGroupPicks(profile: Profile, groupId: string, pick: str
   const add = desired.filter((id) => !mine.includes(id));
   if (mine.length - drop.length + add.length < 1) return LAST;
   const limit = entitlements(profile).topicLimit;
-  const listAfter = mine.filter((id) => !isCustomTopicId(id)).length - drop.length + add.length;
+  const listAfter = mine.filter(fromList).length - drop.length + add.length;
   if (add.length && listAfter > limit) {
     const who = profile.plan === 'free' ? 'Free는' : '지금 플랜은';
     return { tone: 'warn', message: `${who} 관심사를 ${limit}개까지 고를 수 있어요. 다른 관심사를 빼고 다시 골라 주세요.` };

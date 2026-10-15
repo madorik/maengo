@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
 import Link from "next/link";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
+import { LinkSlots } from "@/components/settings/LinkSlots";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { ManageSubscription } from "@/components/premium/StoreParts";
@@ -12,6 +13,7 @@ import { dailyMaengoUsage, toProfileView } from "@/lib/server/feed";
 import { syncWallet } from "@/lib/server/wallet";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
+import { userLinks } from "@/lib/server/links";
 import { entitlements, webPushTokens } from "@/lib/server/profile";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 
@@ -37,7 +39,7 @@ function Section({ id, title, action, children }: { id: string; title: string; a
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const demoTools = demoToolsEnabled();
-  const [topics, webTokens, wallet, usage] = await Promise.all([userTopics(profile), webPushTokens(profile.id), syncWallet(profile.id), dailyMaengoUsage(profile)]);
+  const [topics, links, webTokens, wallet, usage] = await Promise.all([userTopics(profile), userLinks(profile), webPushTokens(profile.id), syncWallet(profile.id), dailyMaengoUsage(profile)]);
   const view = toProfileView(profile);
 
   return (
@@ -92,6 +94,11 @@ export default async function SettingsPage() {
             custom={topics.filter((t) => t.custom)}
             customAllowed={entitlements(profile).customLimit > 0}
           />
+        </Section>
+
+        <Section id="links" title="내 관심 링크">
+          {/* 블로그·사이트 주소 칸 3개(Premium). Free는 Premium 배지만 */}
+          <LinkSlots links={links} limit={entitlements(profile).linkLimit} />
         </Section>
 
         <Section id="listen" title="듣기 모드">

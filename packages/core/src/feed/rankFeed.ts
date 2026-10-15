@@ -1,6 +1,8 @@
+import { isLinkTopicId } from '../topics/links';
 import type { FeedbackKind } from '../types';
 
 // PLAN.md 6.3 랭킹 공식. 순수 함수라 웹(첫 피드)과 파이프라인(rank 단계)이 같이 쓴다.
+// 내 관심 링크(토픽 's-…')의 글은 관련도 1이라 늘 위로 가므로, 하루 소식의 절반까지만 고른다(maxLinks, 2026-10-15 D19). 모자라면 제약을 풀어 채운다.
 
 export interface RankCandidate {
   id: number;
@@ -18,6 +20,13 @@ export interface RankOptions {
   limit?: number;
   maxPerTopic?: number;
   maxVideos?: number;
+  /** 대표 토픽이 내 관심 링크인 소식의 상한. 없으면 제한 없음 */
+  maxLinks?: number;
+}
+
+/** 하루 소식 중 내 관심 링크 글의 상한: 절반(올림). Premium 10개면 5개 */
+export function linkCap(dailyItems: number): number {
+  return Math.ceil(dailyItems / 2);
 }
 
 export interface RankedItem {
@@ -38,7 +47,7 @@ export function rankFeed(
   candidates: RankCandidate[],
   weights: Record<string, number>,
   exclude: ReadonlySet<number>,
-  { limit = 5, maxPerTopic = 2, maxVideos = 2 }: RankOptions = {},
+  { limit = 5, maxPerTopic = 2, maxVideos = 2, maxLinks = Infinity }: RankOptions = {},
 ): RankedItem[] {
   const scored: (RankedItem & { isVideo: boolean })[] = [];
   for (const c of candidates) {
@@ -59,13 +68,17 @@ export function rankFeed(
   const picked: typeof scored = [];
   const perTopic = new Map<string, number>();
   let videos = 0;
+  let links = 0;
   for (const s of scored) {
     if (picked.length === limit) break;
     if ((perTopic.get(s.topicId) ?? 0) >= maxPerTopic) continue;
     if (s.isVideo && videos >= maxVideos) continue;
+    const link = isLinkTopicId(s.topicId);
+    if (link && links >= maxLinks) continue;
     picked.push(s);
     perTopic.set(s.topicId, (perTopic.get(s.topicId) ?? 0) + 1);
     if (s.isVideo) videos++;
+    if (link) links++;
   }
   for (const s of scored) {
     if (picked.length === limit) break;

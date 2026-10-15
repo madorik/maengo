@@ -1,4 +1,4 @@
-import { rankFeed, type RankedItem } from '@maengo/core/feed';
+import { linkCap, rankFeed, type RankedItem } from '@maengo/core/feed';
 import { createGeminiAi } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
 import { widenToGroups } from './instant';
@@ -141,9 +141,11 @@ export async function buildFeedsFor(ctx: Ctx, userIds: string[], deadline: numbe
     // AI가 막혔으면 이미 요약된 것만 고른다. 고른 관심사로 모자라면 같은 분야 전체로 넓혀 본다
     const pick = (): RankedItem[] => {
       const pool = [...seen.values()].filter((c) => !aiBlocked || c.summarized);
-      const narrow = rankFeed(pool, a.weights, exclude, { limit: want + SPARE });
+      // 내 관심 링크 글은 하루 소식의 절반까지(D19). 여분(SPARE)에도 같은 상한을 둔다
+      const opts = { limit: want + SPARE, maxLinks: linkCap(want) };
+      const narrow = rankFeed(pool, a.weights, exclude, opts);
       if (narrow.length >= want) return narrow;
-      const wide = rankFeed(pool, widened, exclude, { limit: want + SPARE });
+      const wide = rankFeed(pool, widened, exclude, opts);
       return wide.length > narrow.length ? wide : narrow;
     };
     let ranked = pick();

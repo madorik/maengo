@@ -10,6 +10,7 @@ import { addToPlaylist, clearPlaylist, isInPlaylist, rebuildFeed, receiveMore, r
 import { demoLoginEnabled, demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
+import { addLink, releaseLinks, removeLink } from "@/lib/server/links";
 import { addCustomTopics, addTopics, removeTopic, setGroupPicks } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
 import { supabaseAuth } from "@/lib/supabase/server";
@@ -94,18 +95,21 @@ export async function completeOnboarding(formData: FormData) {
 
 /**
  * 계정 삭제(설정 > 계정). auth 사용자를 지우면 프로필·관심사·피드·읽음·피드백·기기 토큰이 함께 지워진다(on delete cascade).
- * 아무도 안 쓰게 된 기타 관심사 문구도 지운다(이미 소식 분류에 쓰였으면 FK 때문에 남는다). 데모 계정은 지우지 않는다.
+ * 아무도 안 쓰게 된 기타 관심사 문구도 지우고(이미 소식 분류에 쓰였으면 FK 때문에 남는다), 아무도 구독하지 않게 된 내 관심 링크 출처는 끈다. 데모 계정은 지우지 않는다.
  */
 export async function deleteAccount() {
   const profile = await requireProfile();
   if (isDemoAccount(profile.id)) redirect("/settings#account");
-  const custom = (must(await db.from("user_topics").select("topic_id").eq("user_id", profile.id).like("topic_id", "c-%"), "user_topics custom") as { topic_id: string }[]).map((r) => r.topic_id);
+  const mine = (must(await db.from("user_topics").select("topic_id").eq("user_id", profile.id).or("topic_id.like.c-*,topic_id.like.s-*"), "user_topics custom") as { topic_id: string }[]).map((r) => r.topic_id);
+  const custom = mine.filter((id) => id.startsWith("c-"));
+  const links = mine.filter((id) => id.startsWith("s-"));
   const { error } = await db.auth.admin.deleteUser(profile.id);
   if (error) throw new Error(`계정 삭제: ${error.message}`);
   for (const id of custom) {
     const { count } = await db.from("user_topics").select("user_id", { count: "exact", head: true }).eq("topic_id", id);
     if (!count) await db.from("topics").delete().eq("id", id);
   }
+  await releaseLinks(links);
   const jar = await cookies();
   for (const c of jar.getAll()) if (c.name.startsWith("sb-")) jar.delete(c.name);
   jar.delete(SESSION_COOKIE);
@@ -232,6 +236,18 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
   else if (typeof add === "string") result = await addTopics(profile, [add]);
   else if (typeof remove === "string") result = await removeTopic(profile, remove);
   else if (typeof text === "string") result = await addCustomTopics(profile, text);
+  revalidatePath("/settings");
+  return result;
+}
+
+/** 설정 > 내 관심 링크 칸: 빼기(removeLink, ✕ 버튼)가 먼저, 아니면 그 칸(slot)에 주소 넣기(link). 결과 모양은 관심사와 같다 */
+export async function editLinks(_prev: TopicResult | null, formData: FormData): Promise<TopicResult | null> {
+  const profile = await requireProfile();
+  let result: TopicResult | null = null;
+  const remove = formData.get("removeLink");
+  const link = formData.get("link");
+  if (typeof remove === "string") result = await removeLink(profile, remove);
+  else if (typeof link === "string") result = await addLink(profile, link, Number(formData.get("slot")));
   revalidatePath("/settings");
   return result;
 }

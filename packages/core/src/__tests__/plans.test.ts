@@ -15,8 +15,8 @@ test('맹고 묶음 상품 ID', () => {
 });
 
 test('plans 표 한 줄 → PlanLimits', () => {
-  const l = planFromRow({ id: 'free', name: 'Free', price_krw: 0, list_price_krw: null, daily_items: 3, audio: false, topic_limit: 5, custom_limit: 0, can_buy_maengo: false, archive_days: 7 });
-  assert.deepEqual(l, { id: 'free', name: 'Free', priceKrw: 0, listPriceKrw: null, dailyItems: 3, audio: false, topicLimit: 5, customLimit: 0, canBuyMaengo: false, archiveDays: 7 });
+  const l = planFromRow({ id: 'free', name: 'Free', price_krw: 0, list_price_krw: null, daily_items: 3, audio: false, topic_limit: 5, custom_limit: 0, link_limit: 0, can_buy_maengo: false, archive_days: 7 });
+  assert.deepEqual(l, { id: 'free', name: 'Free', priceKrw: 0, listPriceKrw: null, dailyItems: 3, audio: false, topicLimit: 5, customLimit: 0, linkLimit: 0, canBuyMaengo: false, archiveDays: 7 });
 });
 
 test('할인율은 내림', () => {

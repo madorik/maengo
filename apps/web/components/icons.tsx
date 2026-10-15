@@ -132,3 +132,7 @@ export function Crown({ className = "size-4" }: { className?: string }) {
     </svg>
   );
 }
+/** 내 관심 링크(설정 > 관심사 라벨) */
+export const IconLink = (p: Props) => (
+  <Line {...p}><path d="M10 13.5a4.5 4.5 0 0 0 6.4 0l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4l-1.4 1.4" /><path d="M14 10.5a4.5 4.5 0 0 0-6.4 0L5 13.1a4.5 4.5 0 0 0 6.4 6.4l1.4-1.4" /></Line>
+);

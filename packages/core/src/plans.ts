@@ -22,6 +22,8 @@ export interface PlanLimits {
   topicLimit: number;
   /** 기타(목록에 없는 걸 직접 적는) 관심사 수. 0이면 못 넣는다 */
   customLimit: number;
+  /** 내 관심 링크(블로그·사이트 RSS) 수. 0이면 못 넣는다 */
+  linkLimit: number;
   canBuyMaengo: boolean;
   /** 보관함에서 볼 수 있는 날 수(오늘 포함). null이면 전부 */
   archiveDays: number | null;
@@ -36,11 +38,12 @@ export interface PlanRow {
   audio: boolean;
   topic_limit: number;
   custom_limit: number;
+  link_limit: number;
   can_buy_maengo: boolean;
   archive_days: number | null;
 }
 
-export const PLAN_COLUMNS = 'id,name,price_krw,list_price_krw,daily_items,audio,topic_limit,custom_limit,can_buy_maengo,archive_days';
+export const PLAN_COLUMNS = 'id,name,price_krw,list_price_krw,daily_items,audio,topic_limit,custom_limit,link_limit,can_buy_maengo,archive_days';
 
 export function planFromRow(r: PlanRow): PlanLimits {
   return {
@@ -52,6 +55,7 @@ export function planFromRow(r: PlanRow): PlanLimits {
     audio: r.audio,
     topicLimit: r.topic_limit,
     customLimit: r.custom_limit,
+    linkLimit: r.link_limit,
     canBuyMaengo: r.can_buy_maengo,
     archiveDays: r.archive_days,
   };

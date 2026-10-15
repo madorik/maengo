@@ -1,4 +1,4 @@
-import { isNewsSection } from '@maengo/core/topics';
+import { isNewsSection, linkSourceId } from '@maengo/core/topics';
 import { dictionary } from './audience';
 import type { Ctx } from './ctx';
 import { check, db, selectAll } from './db';
@@ -8,11 +8,18 @@ import { SECTION_BY_SOURCE_URL } from './headline';
 // 출처 79곳에서 하루 4천 개 넘게 모이는데 피드에 쓰이는 건 그중 일부라, 전부 임베딩하면 돈이 샌다(2026-10-14).
 // - 관심사(분야·상세·기타): 이름·별칭이 제목이나 설명에 들어간 글. 분야를 고르면 그 분야의 상세 관심사 낱말도 쓴다
 // - 뉴스 분야(정치·경제 등): 낱말 대신 그 분야 섹션 피드의 글(헤드라인은 언론사 여럿의 기사가 한 묶음에 모여야 한다)
+// - 내 관심 링크(토픽 's-<sources.id>'): 누군가 구독한 출처의 글은 낱말과 상관없이 모두(그 사람에게 그 출처의 새 글을 주는 게 목적이라)
 
 export interface ItemText {
   title: string;
   excerpt: string | null;
   source_id: number | null;
+}
+
+/** 누군가 내 관심 링크로 구독 중인 출처 id(user_topics의 's-…' 토픽). 수집·임베딩·태그가 같이 쓴다 */
+export async function subscribedSourceIds(): Promise<Set<number>> {
+  const rows = await selectAll<{ topic_id: string }>((f, t) => db.from('user_topics').select('topic_id').like('topic_id', 's-%').range(f, t));
+  return new Set(rows.map((r) => linkSourceId(r.topic_id)).filter((id): id is number => id != null));
 }
 
 /** 지금 관심사를 하나라도 고른 사람들의 관심사 전체 */
@@ -35,7 +42,9 @@ export async function interestFilter(ctx: Ctx, topics: Set<string>): Promise<(it
     const rows = check(await db.from('sources').select('id,url'), 'sources') as { id: number; url: string }[];
     for (const r of rows) if (sections.has(SECTION_BY_SOURCE_URL.get(r.url) ?? '')) sectionSources.add(r.id);
   }
-  return (i) => sectionSources.has(i.source_id ?? -1) || hits(`${i.title} ${i.excerpt ?? ''}`);
+  // 내 관심 링크로 구독한 출처의 글은 모두 통과(토픽 집합에 든 's-…'만)
+  const linked = new Set([...topics].map(linkSourceId).filter((id): id is number => id != null));
+  return (i) => linked.has(i.source_id ?? -1) || sectionSources.has(i.source_id ?? -1) || hits(`${i.title} ${i.excerpt ?? ''}`);
 }
 
 /** 글에 관심사 단어가 들었는지. 영문은 낱말 단위로(AI가 said에 걸리지 않게), 한글은 그대로 찾는다 */

@@ -102,6 +102,8 @@ export function entitlements(p: Profile) {
     dailyItems: l.dailyItems,
     // 기타(목록에 없어 직접 적은 관심사, custom 토픽) 개수. 목록 관심사와 따로 센다. Free가 전에 넣은 건 그대로 둔다
     customLimit: l.customLimit,
+    /** 내 관심 링크(블로그·사이트 RSS) 개수. 0이면 못 넣는다(Premium 배지) */
+    linkLimit: l.linkLimit,
     canBuyMaengo: l.canBuyMaengo,
     archiveDays: l.archiveDays,
   };

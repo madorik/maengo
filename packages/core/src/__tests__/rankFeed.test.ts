@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { feedbackDelta, rankFeed, type RankCandidate } from '../feed/rankFeed';
+import { feedbackDelta, linkCap, rankFeed, type RankCandidate } from '../feed/rankFeed';
 import { initialTopicWeights, TOPIC_GROUPS, TOPICS, whyLead } from '../topics/dictionary';
 
 const c = (id: number, topicId: string, extra: Partial<RankCandidate> = {}): RankCandidate => ({
@@ -28,6 +28,24 @@ test('영상은 최대 2개까지만 고른다', () => {
   // 제약을 지키며 4개를 고른 뒤, 모자란 1칸은 제약을 풀어 채운다
   const firstFour = rankFeed(candidates, weights, new Set(), { limit: 4 });
   assert.equal(firstFour.filter((x) => candidates.find((k) => k.id === x.clusterId)!.isVideo).length, 2);
+});
+
+test('내 관심 링크 글은 상한(maxLinks)까지만 고르고, 한 링크는 토픽당 2개 규칙을 따른다', () => {
+  // 링크 글은 관련도 1이라 점수가 높다. 상한 2면 2개까지, 남은 자리는 관심사 소식으로
+  const link = (id: number, topicId: string) => c(id, topicId, { topics: [{ topicId, relevance: 1 }] });
+  const candidates = [link(1, 's-1'), link(2, 's-1'), link(3, 's-1'), link(4, 's-2'), c(5, 'rag'), c(6, 'security')];
+  const weights = { 's-1': 1, 's-2': 1, rag: 0.6, security: 0.6 };
+  const out = rankFeed(candidates, weights, new Set(), { limit: 4, maxLinks: 2 });
+  assert.equal(out.filter((x) => x.topicId.startsWith('s-')).length, 2);
+  assert.deepEqual(out.map((x) => x.clusterId).sort(), [1, 2, 5, 6]);
+  // 상한 없이: 링크 s-1은 토픽당 2개까지, s-2 1개, 나머지 1칸은 관심사
+  const free = rankFeed(candidates, weights, new Set(), { limit: 4 });
+  assert.deepEqual(free.map((x) => x.clusterId).sort(), [1, 2, 4, 5]);
+  // 관심사 소식이 모자라면 제약을 풀어 링크 글로 채운다
+  const fill = rankFeed(candidates.slice(0, 4), weights, new Set(), { limit: 3, maxLinks: 1 });
+  assert.equal(fill.length, 3);
+  assert.equal(linkCap(10), 5);
+  assert.equal(linkCap(3), 2);
 });
 
 test('제외 목록과 관련 없는 토픽은 빼고, 대표 토픽은 기여가 가장 큰 토픽이다', () => {

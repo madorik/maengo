@@ -1,5 +1,6 @@
-import { isNewsSection, NEWS_SECTIONS, withParents } from '@maengo/core/topics';
+import { isNewsSection, linkTopicId, NEWS_SECTIONS, withParents } from '@maengo/core/topics';
 import { dictionary } from '../lib/audience';
+import { subscribedSourceIds } from '../lib/interest';
 import { db, check, fromVector, inChunks, selectAll, toVector } from '../lib/db';
 import { headlineOf, MIN_OUTLETS, SECTION_BY_SOURCE_URL } from '../lib/headline';
 import { cosine } from '../lib/vec';
@@ -11,6 +12,8 @@ import { HOUR, type Ctx } from '../lib/ctx';
 // 1순위 토픽은 0.56 위에서 대체로 맞았지만 2·3순위는 엉뚱한 경우가 많았다(보안 패치 기사에 원격 근무 0.52 등).
 // 그래서 1순위와 0.04 안쪽으로 붙은 토픽만 같이 남기고, 코사인 0.55~0.70을 관련도 0~1로 편다.
 // 뉴스 분야(정치·경제 등)는 임베딩으로 태그하지 않는다. 여러 언론사가 같이 다룬 묶음에만 tagHeadlines가 붙인다.
+// 내 관심 링크 출처의 글이 든 묶음에는 tagLinks가 그 출처 토픽('s-…')을 붙인다. 구성원이 모두 사용자가 넣은 출처(custom)인 묶음에는
+// 임베딩 토픽을 붙이지 않는다(넣은 사람만 받는다, 2026-10-15 D15). 공개 출처가 같은 소식을 다뤘으면 그 글이 섞여 보통처럼 태그된다.
 const FLOOR = Number(process.env.PIPELINE_TAG_FLOOR) || 0.55;
 const CEIL = Number(process.env.PIPELINE_TAG_CEIL) || 0.7;
 const MARGIN = 0.04;
@@ -57,10 +60,12 @@ export async function tag(ctx: Ctx) {
     for (const r of rows) summarized.add(r.cluster_id);
   });
   const todo = clusters.filter((c) => !summarized.has(c.id) && (ctx.force || !c.tagged_at || c.tagged_at < c.last_seen_at));
+  const linkOnly = await linkOnlyClusters(todo.map((c) => c.id));
 
   const rows: { cluster_id: number; topic_id: string; relevance: number }[] = [];
   const tops: number[] = [];
   for (const c of todo) {
+    if (linkOnly.has(c.id)) continue;
     // 상세 관심사로 잡히면 큰 분류에도 잡히게 한다("백엔드"만 고른 사람에게도 PostgreSQL 소식이 가게)
     const tags = withParents(tagsFor(fromVector(c.centroid)!, topics));
     const top = [...topics.values()].reduce((m, v) => Math.max(m, cosine(fromVector(c.centroid)!, v)), -1);
@@ -78,11 +83,59 @@ export async function tag(ctx: Ctx) {
   tops.sort((a, b) => a - b);
   const q = (p: number) => (tops.length ? tops[Math.floor((tops.length - 1) * p)]!.toFixed(3) : '-');
   const tagged = new Set(rows.map((r) => r.cluster_id)).size;
-  ctx.stats.tag = { clusters: todo.length, tagged, rows: rows.length, topCos: { p10: q(0.1), p50: q(0.5), p90: q(0.9) } };
-  ctx.log(`tag: 묶음 ${todo.length}개 중 ${tagged}개에 토픽 ${rows.length}개 (최고 코사인 p10 ${q(0.1)} · p50 ${q(0.5)} · p90 ${q(0.9)})`);
+  ctx.stats.tag = { clusters: todo.length, tagged, rows: rows.length, linkOnly: linkOnly.size, topCos: { p10: q(0.1), p50: q(0.5), p90: q(0.9) } };
+  ctx.log(`tag: 묶음 ${todo.length}개 중 ${tagged}개에 토픽 ${rows.length}개(링크 출처만인 묶음 ${linkOnly.size}개는 건너뜀) (최고 코사인 p10 ${q(0.1)} · p50 ${q(0.5)} · p90 ${q(0.9)})`);
 
-  // 위에서 다시 태그한 묶음은 뉴스 분야 태그도 지워졌으니 바로 다시 붙인다
+  // 위에서 다시 태그한 묶음은 뉴스 분야·링크 태그도 지워졌으니 바로 다시 붙인다
   await tagHeadlines(ctx);
+  await tagLinks(ctx);
+}
+
+/** 구성원이 모두 사용자가 넣은 출처(sources.custom)인 묶음. 임베딩 토픽을 붙이지 않는다 */
+async function linkOnlyClusters(clusterIds: number[]): Promise<Set<number>> {
+  const out = new Set<number>();
+  if (!clusterIds.length) return out;
+  const custom = new Set((check(await db.from('sources').select('id').eq('custom', true), 'sources custom') as { id: number }[]).map((s) => s.id));
+  if (!custom.size) return out;
+  await inChunks(clusterIds, 200, async (ids) => {
+    const items = await selectAll<{ cluster_id: number; source_id: number | null }>((from, to) =>
+      db.from('items').select('cluster_id,source_id').in('cluster_id', ids).range(from, to),
+    );
+    const all = new Map<number, boolean>();
+    for (const it of items) all.set(it.cluster_id, (all.get(it.cluster_id) ?? true) && custom.has(it.source_id ?? -1));
+    for (const [id, only] of all) if (only) out.add(id);
+  });
+  return out;
+}
+
+/**
+ * 5-2. 내 관심 링크: 누군가 구독한 출처의 글이 든 묶음(최근 7일)에 그 출처 토픽 's-<id>'를 관련도 1로 붙인다.
+ * 요약이 끝난 묶음도 본다(요약은 's-' 태그를 지우지 않지만, 요약 뒤에 구독이 생길 수 있어서). 링크를 넣는 자리(links.ts)에서도 부른다
+ */
+export async function tagLinks(ctx: Ctx) {
+  const linked = await subscribedSourceIds();
+  if (!linked.size) {
+    ctx.stats.links = { sources: 0, clusters: 0, added: 0 };
+    return;
+  }
+  const since = new Date(ctx.now.getTime() - 7 * 24 * HOUR).toISOString();
+  const items = await selectAll<{ cluster_id: number | null; source_id: number }>((from, to) =>
+    db.from('items').select('cluster_id,source_id').in('source_id', [...linked]).gte('fetched_at', since).not('cluster_id', 'is', null).range(from, to),
+  );
+  const want = new Map<number, Set<string>>();
+  for (const it of items) (want.get(it.cluster_id!) ?? want.set(it.cluster_id!, new Set()).get(it.cluster_id!)!).add(linkTopicId(it.source_id));
+  const have = new Map<number, Set<string>>();
+  await inChunks([...want.keys()], 200, async (ids) => {
+    const rows = check(await db.from('cluster_topics').select('cluster_id,topic_id').in('cluster_id', ids).like('topic_id', 's-%'), 'cluster_topics links') as { cluster_id: number; topic_id: string }[];
+    for (const r of rows) (have.get(r.cluster_id) ?? have.set(r.cluster_id, new Set()).get(r.cluster_id)!).add(r.topic_id);
+  });
+  const added: { cluster_id: number; topic_id: string; relevance: number }[] = [];
+  for (const [id, topics] of want) for (const t of topics) if (!have.get(id)?.has(t)) added.push({ cluster_id: id, topic_id: t, relevance: 1 });
+  await inChunks(added, 500, async (chunk) => {
+    check(await db.from('cluster_topics').upsert(chunk, { onConflict: 'cluster_id,topic_id' }), 'cluster_topics links insert');
+  });
+  ctx.stats.links = { sources: linked.size, clusters: want.size, added: added.length };
+  ctx.log(`links: 구독 출처 ${linked.size}곳 · 글이 든 묶음 ${want.size}개 · 새로 붙인 태그 ${added.length}개`);
 }
 
 const NEWS_IDS = NEWS_SECTIONS.map((t) => t.id);

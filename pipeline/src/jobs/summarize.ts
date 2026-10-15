@@ -1,5 +1,5 @@
 import { GEMINI_MODELS } from '@maengo/core/ai';
-import { credibilityLabel, itemQuality, rankFeed } from '@maengo/core/feed';
+import { credibilityLabel, itemQuality, linkCap, rankFeed } from '@maengo/core/feed';
 import { GeminiQuotaError, PROMPT_VERSION } from '@maengo/core/gemini';
 import { isNewsSection, NEWS_SECTIONS, TOPIC_BY_ID, whyLead, withParents } from '@maengo/core/topics';
 import type { SummarizeSource } from '@maengo/core/ai';
@@ -29,14 +29,15 @@ interface MemberRow {
   source_id: number | null;
   views: number | null;
   hn_points: number | null;
-  sources: { name: string; weight: number } | null;
+  sources: { name: string; weight: number; custom: boolean } | null;
 }
 
 export type SummaryResult = 'ok' | 'skipped' | 'deferred' | 'failed';
 
 /**
  * 묶음 하나를 요약해 summaries·cluster_topics·cluster_why에 넣는다. pro 등급은 토픽을 바꾸지 않는다.
- * 뉴스 분야(정치·경제 등) 태그는 tag 단계(tagHeadlines)가 정하고 여기서는 건드리지 않는다.
+ * 뉴스 분야(정치·경제 등) 태그는 tag 단계(tagHeadlines)가, 내 관심 링크 태그('s-…')는 tagLinks가 정하고 여기서는 건드리지 않는다.
+ * 구성원이 모두 사용자가 넣은 출처(custom)인 묶음에는 AI 토픽도 붙이지 않는다(넣은 사람만 받는다, D15).
  * 헤드라인 묶음이면 그 분야만 사전에 넣어 AI가 그 분야의 why를 쓰게 한다.
  */
 export async function summarizeCluster(
@@ -48,7 +49,7 @@ export async function summarizeCluster(
   const members = check(
     await db
       .from('items')
-      .select('id,canonical_url,title,kind,author,published_at,excerpt,source_id,views,hn_points,sources(name,weight)')
+      .select('id,canonical_url,title,kind,author,published_at,excerpt,source_id,views,hn_points,sources(name,weight,custom)')
       .eq('cluster_id', clusterId),
     'members',
   ) as unknown as MemberRow[];
@@ -65,6 +66,7 @@ export async function summarizeCluster(
   }
   const rep = members[0]!;
   const picked = members.slice(0, 3);
+  const linkOnly = members.every((m) => m.sources?.custom);
 
   let videoUrl: string | undefined;
   if (rep.kind === 'video') {
@@ -140,10 +142,10 @@ export async function summarizeCluster(
   const whys = [...whyByTopic].map(([topicId, text]) => ({ topicId, text }));
   if (tier === 'basic') {
     check(
-      await db.from('cluster_topics').delete().eq('cluster_id', clusterId).not('topic_id', 'in', `(${NEWS_SECTIONS.map((t) => t.id).join(',')})`),
+      await db.from('cluster_topics').delete().eq('cluster_id', clusterId).not('topic_id', 'in', `(${NEWS_SECTIONS.map((t) => t.id).join(',')})`).not('topic_id', 'like', 's-%'),
       'cluster_topics delete',
     );
-    if (topics.length) {
+    if (topics.length && !linkOnly) {
       check(
         await db.from('cluster_topics').insert(topics.map((t) => ({ cluster_id: clusterId, topic_id: t.topicId, relevance: t.relevance }))),
         'cluster_topics insert',
@@ -174,7 +176,7 @@ export async function summarize(ctx: Ctx) {
   for (const a of audience) {
     const exclude = await withSimilarExcluded(a, candidates);
     const want = a.dailyItems + (a.plan === 'free' ? BUFFER.free : BUFFER.paid);
-    for (const r of rankFeed(candidates, a.weights, exclude, { limit: want })) {
+    for (const r of rankFeed(candidates, a.weights, exclude, { limit: want, maxLinks: linkCap(a.dailyItems) })) {
       const c = candidates.find((x) => x.id === r.clusterId)!;
       if (!c.summarized) needed.set(r.clusterId, Math.max(needed.get(r.clusterId) ?? 0, r.score));
     }

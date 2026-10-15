@@ -1,5 +1,5 @@
 import { createGeminiAi } from '@maengo/core/gemini';
-import { rankFeed } from '@maengo/core/feed';
+import { linkCap, rankFeed } from '@maengo/core/feed';
 import { kstDate } from '@maengo/core/kst';
 import { groupOf } from '@maengo/core/topics';
 import { db, check } from './lib/db';
@@ -58,8 +58,9 @@ export async function buildTodayFeedNow(
   let candidates = await loadCandidates(ctx, { centroids: a.known.length > 0 });
   let exclude = await withSimilarExcluded(a, candidates);
   const want = a.dailyItems;
+  const maxLinks = linkCap(want);
   let weights = a.weights;
-  let picked = rankFeed(candidates, weights, exclude, { limit: want });
+  let picked = rankFeed(candidates, weights, exclude, { limit: want, maxLinks });
   // AI가 막혀 있으면(크레딧 소진·지출 상한) 새로 처리·요약하지 않고, 처리하다 막혀도 이미 요약된 소식으로 계속한다
   let aiBlocked = (await aiBlockedReason()) !== null;
   if (picked.length < Math.min(want, 3) && !aiBlocked) {
@@ -73,11 +74,11 @@ export async function buildTodayFeedNow(
     }
     candidates = await loadCandidates(ctx, { centroids: a.known.length > 0 });
     exclude = await withSimilarExcluded(a, candidates);
-    picked = rankFeed(candidates, weights, exclude, { limit: want });
+    picked = rankFeed(candidates, weights, exclude, { limit: want, maxLinks });
   }
   if (!picked.length) {
     weights = widenToGroups(a.weights);
-    picked = rankFeed(candidates, weights, exclude, { limit: want });
+    picked = rankFeed(candidates, weights, exclude, { limit: want, maxLinks });
     if (picked.length) ctx.log(`관심사에 맞는 소식이 없어 큰 분류까지 넓혀 ${picked.length}개 고름`);
   }
   const toSummarize = aiBlocked ? [] : picked.filter((r) => !candidates.find((c) => c.id === r.clusterId)!.summarized).slice(0, maxSummaries);
@@ -101,7 +102,7 @@ export async function buildTodayFeedNow(
   // 요약이 끝난 것만으로 다시 고른다(요약하면서 토픽이 바뀌거나 소식이 아니라고 빠질 수 있어서)
   onProgress({ stage: 'saving' });
   candidates = (await loadCandidates(ctx, { centroids: false })).filter((c) => c.summarized);
-  const ranked = rankFeed(candidates, weights, exclude, { limit: 10 });
+  const ranked = rankFeed(candidates, weights, exclude, { limit: 10, maxLinks });
   // 맹고로 더 받은 개수는 새로 만들어도 지킨다
   const prev = (await db.from('feed_days').select('extra').eq('user_id', userId).eq('date', ctx.date).maybeSingle()).data as { extra: number } | null;
   const extra = prev?.extra ?? 0;

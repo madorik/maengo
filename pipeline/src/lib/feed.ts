@@ -72,6 +72,22 @@ function atomLink(links: Node): string {
   return typeof alt === 'string' ? alt : alt['@_href'] ?? text(alt);
 }
 
+/** 피드(채널) 제목. 내 관심 링크의 출처 이름으로 쓴다. 없으면 '' */
+export function feedTitle(xml: string): string {
+  const doc = parser.parse(xml) as Record<string, any>;
+  return htmlToText(text(doc.rss?.channel?.title) || text(doc['rdf:RDF']?.channel?.title) || text(doc.feed?.title)).trim();
+}
+
+/** RSS 2.0·RDF·Atom 문서인지(항목이 없어도). 피드가 아닌 HTML은 false */
+export function isFeedXml(xml: string): boolean {
+  try {
+    const doc = parser.parse(xml) as Record<string, any>;
+    return !!(doc.rss?.channel || doc['rdf:RDF'] || doc.feed);
+  } catch {
+    return false;
+  }
+}
+
 export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
   const doc = parser.parse(xml) as Record<string, any>;
   const out: FeedEntry[] = [];
@@ -115,4 +131,23 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
     }
   }
   return out.filter((e) => e.title);
+}
+
+/** 내 관심 링크 출처는 한 번에 최신 이만큼만(글이 쏟아지는 집계 사이트를 넣어도 임베딩 비용이 새지 않게) */
+export const LINK_MAX_PER_FETCH = 20;
+
+/** 창(since) 안의 글. 날짜 없는 피드는 맨 앞 3개만 본다(처음 볼 때 옛 글이 한꺼번에 들어오지 않게). 쇼츠는 뺀다. 최신순 */
+export function freshEntries(entries: FeedEntry[], since: number, cap = Infinity): FeedEntry[] {
+  let undated = 0;
+  return entries
+    .filter((e) => !e.isShort)
+    .filter((e) => (e.publishedAt ? e.publishedAt.getTime() >= since : undated++ < 3))
+    .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
+    .slice(0, cap);
+}
+
+/** 피드에서 본 가장 최근 글의 발행 시각(sources.last_item_at). 날짜가 하나도 없으면 null */
+export function latestOf(entries: FeedEntry[]): string | null {
+  const t = Math.max(...entries.map((e) => e.publishedAt?.getTime() ?? 0));
+  return t > 0 ? new Date(t).toISOString() : null;
 }

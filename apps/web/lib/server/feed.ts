@@ -1,11 +1,11 @@
 import 'server-only';
 import { cache } from 'react';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
-import { excludesCluster, feedbackDelta, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
+import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
 import { LEGAL_CHANGED_ON } from '../site';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { daysBefore } from '@maengo/core/plans';
-import { whyLead } from '@maengo/core/topics';
+import { isLinkTopicId, whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import type { FeedbackKind, Tier } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, LibraryReadFilter, ProfileView, TodayData } from '../types';
@@ -102,7 +102,8 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
 
 async function buildToday(profile: Profile, date: string): Promise<FeedRow[]> {
   const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(), weightsOf(profile.id), exclusions(profile.id, date)]);
-  const ranked = rankFeed(candidates, weights, exclude, { limit: MAX_DAILY }).map((r, i) => ({ rank: i + 1, clusterId: r.clusterId, topicId: r.topicId }));
+  // 내 관심 링크 글은 하루 소식의 절반까지(D19)
+  const ranked = rankFeed(candidates, weights, exclude, { limit: MAX_DAILY, maxLinks: linkCap(entitlements(profile).dailyItems) }).map((r, i) => ({ rank: i + 1, clusterId: r.clusterId, topicId: r.topicId }));
   if (ranked.length) {
     must(
       await db.from('feeds').upsert(
@@ -421,8 +422,8 @@ function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date, names: Ma
     scenes: c.scenes,
     topicId: row.topicId,
     topicName,
-    // why는 파이프라인이 토픽마다 만들어 둔다. 없으면 요약으로 대신한다(웹에서 LLM을 부르지 않으려고)
-    why: c.why.get(row.topicId) ?? `${whyLead(topicName)}: ${c.short}`,
+    // why는 파이프라인이 토픽마다 만들어 둔다. 없으면 요약으로 대신한다(웹에서 LLM을 부르지 않으려고). 내 관심 링크 글은 AI 없이 고정 문구
+    why: isLinkTopicId(row.topicId) ? `내 관심 링크 ${topicName}의 새 글: ${c.short}` : c.why.get(row.topicId) ?? `${whyLead(topicName)}: ${c.short}`,
   };
 }
 

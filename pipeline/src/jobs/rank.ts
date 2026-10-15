@@ -1,4 +1,4 @@
-import { rankFeed } from '@maengo/core/feed';
+import { linkCap, rankFeed } from '@maengo/core/feed';
 import { db, check } from '../lib/db';
 import { loadAudience, loadCandidates, withSimilarExcluded } from '../lib/audience';
 import type { Ctx } from '../lib/ctx';
@@ -30,7 +30,7 @@ export async function rank(ctx: Ctx) {
   for (const a of audience) {
     if (done.has(a.id) && !ctx.force) continue;
     const exclude = await withSimilarExcluded(a, candidates);
-    const ranked = rankFeed(candidates, a.weights, exclude, { limit: MAX_DAILY });
+    const ranked = rankFeed(candidates, a.weights, exclude, { limit: MAX_DAILY, maxLinks: linkCap(a.dailyItems) });
     if (ctx.force || provisional.has(a.id)) {
       check(await db.from('feeds').delete().eq('user_id', a.id).eq('date', ctx.date), 'feeds delete');
       check(await db.from('feed_days').delete().eq('user_id', a.id).eq('date', ctx.date), 'feed_days delete');

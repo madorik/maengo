@@ -14,6 +14,7 @@ export type AnalyticsEvent =
   | "script_tab_open"
   | "feedback"
   | "topic_edit"
+  | "link_edit"
   | "notify_toggle"
   | "push_open"
   | "voice_change"
