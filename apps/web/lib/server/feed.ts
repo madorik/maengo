@@ -14,7 +14,7 @@ import { ai } from './ai';
 import { db, must } from './db';
 import { entitlements, type Profile } from './profile';
 import { topicNames } from './topics';
-import { refundMaengo, spendMaengo, syncWallet } from './wallet';
+import { recentSignupGift, refundMaengo, spendMaengo, syncWallet } from './wallet';
 
 // 피드 읽기. 소식(요약·why·토픽)은 일일 파이프라인(pipeline/)이 Supabase에 만들어 두고, 웹은 읽기만 한다.
 // 웹에서는 LLM을 부르지 않는다. 오늘 피드가 아직 없으면(배치 전·토픽 변경 후 다시 만들기) 이미 요약된 소식으로 바로 랭킹한다.
@@ -502,7 +502,9 @@ async function batchRanToday(date: string): Promise<boolean> {
 
 export async function getTodayData(profile: Profile): Promise<TodayData> {
   const day = await todayFeed(profile);
-  const [items, { reads, feedback }, wallet] = await Promise.all([itemsFor(profile, visibleRows(day), day.date), readsAndFeedback(profile.id), syncWallet(profile.id)]);
+  // 가입 선물은 지갑을 처음 만들 때 들어가므로 지갑을 읽은 뒤에 본다
+  const walletAndGift = syncWallet(profile.id).then(async (w) => [w, await recentSignupGift(profile.id)] as const);
+  const [items, { reads, feedback }, [wallet, signupGift]] = await Promise.all([itemsFor(profile, visibleRows(day), day.date), readsAndFeedback(profile.id), walletAndGift]);
   const dailyLimit = entitlements(profile).dailyItems;
   const emptyReason = items.length
     ? null
@@ -528,6 +530,7 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     wallet,
     emptyReason,
     termsNotice: profile.createdAt < Date.parse(`${LEGAL_CHANGED_ON}T00:00:00+09:00`),
+    signupGift,
     items,
     read: reads.filter((r) => r.read_at).map((r) => r.cluster_id),
     listened: reads.filter((r) => r.listened_at).map((r) => r.cluster_id),

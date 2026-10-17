@@ -10,6 +10,16 @@ export async function syncWallet(userId: string): Promise<number> {
   return must(await db.rpc('wallet_sync', { p_user: userId, p_signup: SIGNUP_BONUS }), 'wallet_sync') as number;
 }
 
+/** 가입 선물을 알려 줄 기간(받은 날부터) */
+const GIFT_NOTICE_DAYS = 7;
+
+/** 최근에 받은 가입 선물(금액은 실제로 들어간 값). 오래됐거나 없으면 null. 오늘 화면의 가입 이벤트 팝업용 */
+export async function recentSignupGift(userId: string): Promise<{ amount: number; at: string } | null> {
+  const { data } = await db.from('wallet_ledger').select('delta,at').eq('user_id', userId).eq('reason', 'signup').maybeSingle();
+  if (!data || data.delta <= 0 || Date.now() - Date.parse(data.at) > GIFT_NOTICE_DAYS * 86_400_000) return null;
+  return { amount: data.delta, at: data.at };
+}
+
 /** n맹고를 쓴다. 모자라면 false. ref는 이 쓰임 하나에만 쓰는 값이어야 한다(되돌릴 때 같은 값) */
 export async function spendMaengo(userId: string, n: number, ref: string): Promise<boolean> {
   await syncWallet(userId);

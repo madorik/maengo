@@ -11,6 +11,7 @@ import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { useItemAudio } from "@/components/article/useItemAudio";
 import { MakeToday } from "./MakeToday";
 import { MoreToday } from "./MoreToday";
+import { SignupGift } from "./SignupGift";
 import { TermsNotice } from "./TermsNotice";
 import type { FeedItem } from "@/lib/types";
 
@@ -25,6 +26,7 @@ export function TodayList() {
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
         {data.termsNotice && <TermsNotice />}
+        {data.signupGift && <SignupGift gift={data.signupGift} />}
         <section aria-labelledby="today-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
           <p className="text-[13px] font-extrabold text-ink/70">{data.greetingDate}</p>
           <h1 id="today-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">

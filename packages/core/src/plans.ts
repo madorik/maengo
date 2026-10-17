@@ -67,8 +67,8 @@ export function discountPct(p: Pick<PlanLimits, 'priceKrw' | 'listPriceKrw'>): n
   return Math.floor(((p.listPriceKrw - p.priceKrw) / p.listPriceKrw) * 100);
 }
 
-/** 가입하면 한 번 지갑에 넣어 주는 맹고(플랜과 상관없음) */
-export const SIGNUP_BONUS = 100;
+/** 가입하면 한 번 지갑에 넣어 주는 맹고(플랜과 상관없음). 2026-10-17 100 → 10(가입 이벤트 팝업으로 알린다) */
+export const SIGNUP_BONUS = 10;
 
 /** 'YYYY-MM-DD'에서 n일 전(날짜 계산만, 시간대 무관) */
 export function daysBefore(date: string, n: number): string {
