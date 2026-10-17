@@ -2,6 +2,7 @@ import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { INTRO_ELIGIBILITY_STATUS, Purchases, type PurchasesPackage } from "@revenuecat/purchases-capacitor";
 import { MAENGO_PACKS, PREMIUM_PRODUCT } from "@maengo/core/plans";
+import { withBase } from "@/lib/base-path";
 
 // 앱 안 결제(RevenueCat → 애플 인앱 결제·구글 플레이 결제). 웹 브라우저에서는 쓰지 않는다.
 // app_user_id는 Supabase 회원 id라 서버(/api/billing/sync, 웹훅)가 같은 사람으로 맞춘다. apps/mobile/BILLING.md
@@ -82,7 +83,7 @@ export const isCancelled = (e: unknown) => {
 /** 서버가 RevenueCat에서 다시 읽어 플랜·지갑을 맞춘다. 실패해도 RevenueCat 웹훅이 곧 같은 일을 한다 */
 async function syncServer(): Promise<boolean> {
   try {
-    return (await fetch("/api/billing/sync", { method: "POST" })).ok;
+    return (await fetch(withBase("/api/billing/sync"), { method: "POST" })).ok;
   } catch {
     return false;
   }

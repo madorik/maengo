@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { IconCheck, IconShare } from "@/components/icons";
 import { track } from "@/lib/analytics";
+import { withBase } from "@/lib/base-path";
 import { shareContent } from "@/lib/native/share";
 import type { FeedItem } from "@/lib/types";
 
@@ -21,7 +22,7 @@ export function ShareButton({ item }: { item: Pick<FeedItem, "title" | "short" |
 
   const share = async () => {
     setError(false);
-    const text = `${item.title}\n\n${item.short}\n\n원문 ${item.url}\n\n맹고에서 요약했어요 ${location.origin}/`;
+    const text = `${item.title}\n\n${item.short}\n\n원문 ${item.url}\n\n맹고에서 요약했어요 ${location.origin}${withBase("/")}`;
     const r = await shareContent({ title: item.title, text });
     if (r === "shared" || r === "copied") track("share", { category: item.category, action: r });
     if (r === "copied") setCopied(true);

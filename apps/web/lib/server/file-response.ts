@@ -2,9 +2,13 @@ import 'server-only';
 import { GeminiQuotaError } from '@maengo/core/gemini';
 import { TtsBusyError } from './limits';
 import { NextResponse, type NextRequest } from 'next/server';
+import { BASE_PATH } from '../base-path';
+import { redirectInApp } from './redirect';
 
 /** 음성 파일로 넘긴다. 매번 확인하도록 이 응답은 캐시하지 않는다(서명 URL은 몇 시간 뒤 만료) */
 export function redirectToFile(request: NextRequest, url: string): NextResponse {
+  // 로컬 저장소의 파일 주소(/maengo/api/episode/file?…)는 지금 도메인에서 이어 가게 상대 주소로 보낸다(lib/server/redirect.ts)
+  if (url.startsWith(`${BASE_PATH}/`)) return redirectInApp(url.slice(BASE_PATH.length), { status: 302, headers: { 'cache-control': 'no-store' } });
   return NextResponse.redirect(new URL(url, request.url), { status: 302, headers: { 'cache-control': 'no-store' } });
 }
 

@@ -1,4 +1,6 @@
 // 사이트 공통 정보(SEO). 제목·설명·주소를 한곳에서 관리한다.
+import { DEFAULT_SITE_ORIGIN } from "@maengo/core/site";
+import { withBase } from "./base-path";
 
 export const SITE_NAME = "맹고";
 export const SITE_TITLE = "맹고 - 관심 분야 소식, 매일 아침 요약하고 읽어 드려요";
@@ -23,7 +25,7 @@ export const SITE_KEYWORDS = [
 /** 운영자이자 개인정보 보호책임자. 사업자등록 전이라 개인 이름으로 적는다 */
 export const OPERATOR_NAME = "정민균";
 /** 문의·개인정보 요청 메일(문의 전용으로 새로 만든 주소). 비어 있으면 운영에서 약관·개인정보 처리방침 페이지를 숨긴다(404) */
-export const SUPPORT_EMAIL = "wandeung.help@gmail.com";
+export const SUPPORT_EMAIL = "watalabs.help@gmail.com";
 /** 이용약관·개인정보 처리방침 시행일. 내용을 바꾸면 날짜도 바꾸고 변경 공지를 한다 */
 export const LEGAL_EFFECTIVE_DATE = "2026년 10월 14일";
 /** 약관이 바뀐 날(KST). 이 날 전에 가입한 회원에게 앱 안에서 한 번 알린다(결정 D4). 약관을 또 바꾸면 이 값과 위 날짜를 같이 바꾼다 */
@@ -38,11 +40,19 @@ export function supportEmail(): string | null {
   return process.env.NODE_ENV === "production" ? null : "문의 메일(준비 중)";
 }
 
-/** 정식 주소. NEXT_PUBLIC_SITE_URL을 먼저 쓰고, 없으면 Vercel 운영 주소, 그것도 없으면 로컬 */
+/**
+ * 정식 도메인(경로 없이). NEXT_PUBLIC_SITE_URL을 먼저 쓰고, 없으면 Vercel 빌드(운영·미리 보기)는 회사 도메인, 그 밖은 로컬.
+ * 맹고 화면 주소는 이 도메인 아래 /maengo라 appUrl()로 만든다. Next는 canonical·OG 주소에 basePath를 안 붙여서
+ * metadataBase도 appUrl("/")로 준다(app/layout.tsx).
+ */
 export function siteUrl(): URL {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (fromEnv) return new URL(fromEnv);
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  if (vercel) return new URL(`https://${vercel}`);
+  if (fromEnv) return new URL(new URL(fromEnv).origin);
+  if (process.env.VERCEL) return new URL(DEFAULT_SITE_ORIGIN);
   return new URL("http://localhost:3000");
+}
+
+/** 맹고 화면의 전체 주소. appUrl("/privacy") → https://watalabs.com/maengo/privacy */
+export function appUrl(path = "/"): string {
+  return new URL(withBase(path), siteUrl()).toString();
 }

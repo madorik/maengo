@@ -16,7 +16,7 @@ export default function DeleteAccountPage() {
 
       <h2>앱이나 웹에서 바로 지우기</h2>
       <ol>
-        <li>맹고 앱이나 웹(maengo.vercel.app)에 로그인합니다.</li>
+        <li>맹고 앱이나 웹(watalabs.com/maengo)에 로그인합니다.</li>
         <li>설정으로 들어갑니다.</li>
         <li>맨 아래 &lsquo;계정&rsquo;에서 &lsquo;계정 삭제&rsquo;를 누릅니다.</li>
         <li>안내를 읽고 &lsquo;계정 삭제하기&rsquo;를 한 번 더 누르면 바로 지워지고 로그아웃됩니다.</li>

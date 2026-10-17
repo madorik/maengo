@@ -6,7 +6,7 @@ import { Analytics } from "@/components/Analytics";
 import { NativeShell } from "@/components/NativeShell";
 import { NavProgress } from "@/components/NavProgress";
 import { ThemeSync } from "@/components/ThemeSync";
-import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, siteUrl } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, appUrl } from "@/lib/site";
 import { PAPER, THEME_SCRIPT } from "@/lib/theme";
 
 // 한글은 Pretendard(글자 범위별로 필요한 조각만 받는다), 숫자는 둥근 Nunito.
@@ -23,7 +23,8 @@ const verification: Metadata["verification"] = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: siteUrl(),
+  // 맹고 주소(https://watalabs.com/maengo/). 상대 주소(OG 이미지·url)가 /maengo 아래로 풀린다
+  metadataBase: new URL(appUrl("/")),
   title: { default: SITE_TITLE, template: `%s | ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    url: "/",
+    url: appUrl("/"),
   },
   twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION },
   formatDetection: { telephone: false, email: false, address: false },

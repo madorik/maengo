@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
+import { withBase } from "@/lib/base-path";
 
 // 잠금 화면·이어폰·알림의 재생 조작. 오늘 브리핑 플레이어(PlayerProvider)와 글 하나 듣기(useItemAudio)가 같은 자리를 나눠 쓴다:
 // 마지막으로 재생을 알린 쪽(owner)이 제목을 띄우고 버튼을 받는다.
@@ -72,7 +73,7 @@ export function showMedia(who: string, state: MediaState, onAction: MediaActionH
       title: state.title,
       artist: "맹고",
       album: state.album,
-      artwork: [{ src: "/apple-icon", sizes: "180x180", type: "image/png" }],
+      artwork: [{ src: withBase("/apple-icon.png"), sizes: "180x180", type: "image/png" }],
     });
   }
   ms.playbackState = state.playing ? "playing" : "paused";

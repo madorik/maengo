@@ -1,14 +1,16 @@
 import type { CategoryId } from "@maengo/core/categories";
 import { discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
+import Image from "next/image";
 import Link from "next/link";
-import { Crown, IconCheck, IconDoc, IconPlay, IconSpeaker } from "@/components/icons";
+import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
-import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_NAME, appUrl } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AuthLink } from "./AuthLink";
+import playlistShot from "./playlist.webp";
 
 // 소개(메인) 페이지. 로그인 전에 맹고가 무엇인지 보여 준다. 그림 대신 실제 화면 조각을 그대로 쓴다.
 // 검색과 속도를 위해 정적으로 만들고, 로그인 여부에 따라 달라지는 버튼만 AuthLink가 브라우저에서 바꾼다.
@@ -18,7 +20,7 @@ const OPEN = { href: "/today", label: "오늘의 소식 열기" };
 
 /** 자주 묻는 질문. 플랜 숫자는 plans 표 값 */
 const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
-  ["어떤 소식을 모아요?", "AI·Tech 공식 블로그, 경제·코인 매체, 반도체·로봇 전문지, 그리고 주요 언론사의 정치·경제·사회·생활/문화·IT/과학·세계 뉴스를 매일 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 뉴스는 여러 언론사가 함께 다룬 헤드라인만 골라요."],
+  ["어떤 소식을 모아요?", "테크 소식은 공식 기술 문서와 국내 대기업 테크 블로그, AI·코인·반도체 전문 매체에서 모으고, 정치·경제·사회·생활/문화·IT/과학·세계 뉴스는 네이버 뉴스 헤드라인에 오른 기사에서 골라요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 모든 소식에 원문 출처를 붙여요."],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
@@ -46,6 +48,13 @@ const SAMPLES: Sample[] = [
     date: "어제 오후 6시",
     coverage: "Hacker News 외 1곳에서도 다뤘어요",
   },
+];
+
+/** 출처 예시(소개용). 테크는 공식 문서·기업 테크 블로그, 뉴스는 네이버 헤드라인에서 고른다 */
+const SOURCES = [
+  { kind: "공식 기술 문서", title: "PostgreSQL 19, 11월 출시로 연기", Icon: IconDoc },
+  { kind: "기업 테크 블로그", title: "주문 시스템을 이벤트 기반으로 바꾼 이야기", Icon: IconCode },
+  { kind: "네이버 뉴스 헤드라인", title: "반도체 수출, 석 달 연속 늘어", Icon: IconGlobe },
 ];
 
 export async function Landing() {
@@ -79,12 +88,12 @@ export async function Landing() {
         <section aria-labelledby="hero-title" className="mx-auto grid max-w-[1100px] items-center gap-12 px-5 pb-16 pt-10 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-20">
           <div className="md:order-2">
             <h1 id="hero-title" className="text-[36px] font-black leading-[1.2] tracking-[-0.045em] md:text-[54px]">
-              검색은 AI가,
+              쏟아지는 소식,
               <br />
-              당신은 듣기만.
+              내 관심 분야만.
             </h1>
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
-              관심 있는 분야만 알려 주세요. 매일 아침 국내외 매체와 공식 블로그를 AI가 훑어서 그 분야의 놓치면 안 되는 소식만 골라 요약해 읽어 드리고 들려 드려요.
+              AI, 주식, 반도체처럼 고른 분야의 소식만 매일 모아 드려요. 출처와 함께 핵심만 요약하고, 출퇴근길엔 플레이리스트로 이어서 들려 드려요.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
@@ -113,8 +122,8 @@ export async function Landing() {
         <section id="features" aria-label="맹고가 해 주는 일" className="scroll-mt-20 border-y-2 border-line bg-snow">
           <div className="mx-auto flex max-w-[1100px] flex-col gap-20 px-5 py-16 md:gap-28 md:py-24">
             <Feature
-              title="관심사에 맞춰, 같은 소식은 하나로"
-              body="AI, 주식, 정치·경제 뉴스처럼 관심 있는 분야만 고르면 돼요. 목록에 없으면 기타에 직접 적어도 돼요. 여러 곳에서 같은 소식을 다뤄도 하나로 묶고, AI·코인·정치처럼 카테고리도 자동으로 붙여요."
+              title="관심 있는 분야만, 매일 받아요"
+              body="요즘은 하루에도 너무 많은 정보가 쏟아져요. AI, 주식, 코인, 반도체처럼 관심 있는 분야만 고르면 그 분야 소식만 매일 골라 드려요. 목록에 없으면 직접 적어도 되고, 여러 곳에서 다룬 같은 소식은 하나로 묶어요."
             >
               <div className="tile p-5">
                 <p className="text-[14px] font-black text-sub">내 관심사</p>
@@ -139,8 +148,32 @@ export async function Landing() {
 
             <Feature
               flip
-              title="왜 중요한지까지 한 줄로"
-              body="요약만 던지고 끝내지 않아요. 이 소식이 내 관심 분야에서 왜 중요한지 망고가 한 줄로 짚어 드려요. 같은 소식이라도 어떤 관심사로 골랐는지에 따라 다르게 설명해요."
+              title="모든 소식엔 출처가 있어요"
+              body="테크 소식은 공식 기술 문서와 국내 대기업 테크 블로그를 인용하고, 뉴스는 네이버 뉴스 헤드라인에 오른 기사에서 골라요. 소식마다 원문 링크가 붙어 있어 더 궁금하면 바로 확인할 수 있어요."
+            >
+              <div className="tile p-5">
+                <p className="text-[14px] font-black text-sub">소식마다 붙는 출처</p>
+                <ul className="mt-3 flex flex-col gap-3">
+                  {SOURCES.map(({ kind, title, Icon }) => (
+                    <li key={kind} className="rounded-2xl border-2 border-line bg-paper p-4">
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-sky-tint px-2 py-0.5 text-[13px] font-extrabold text-sky-dark">
+                        <Icon className="size-3.5" />
+                        {kind}
+                      </span>
+                      <p className="mt-2 text-[16px] font-black leading-snug">{title}</p>
+                      <p className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-extrabold text-sky-dark">
+                        원문 보기
+                        <IconExternal className="size-3.5" />
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Feature>
+
+            <Feature
+              title="다 읽지 않아도, 핵심만 요약해요"
+              body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심 내용만 짧게 요약하고, 이 소식이 내 관심 분야에서 왜 중요한지도 한 줄로 짚어 드려요. 같은 소식이라도 어떤 관심사로 골랐는지에 따라 다르게 설명해요."
             >
               <div className="flex items-start gap-2">
                 <Mascot className="size-24 shrink-0" />
@@ -160,26 +193,17 @@ export async function Landing() {
             </Feature>
 
             <Feature
-              title="출근길엔 귀로 들어요"
-              body="아나운서가 오늘 소식을 끝까지 이어서 읽어 줘요. 목소리는 여성·남성 중에 골라요. 글을 보면서 들으면 지금 읽는 문단을 짚어 줘요. 운전 중이라면 재생 한 번이면 끝까지 넘어가요."
+              flip
+              title="출퇴근길엔 플레이리스트로 들어요"
+              body="듣고 싶은 소식을 플레이리스트에 담고 전체 듣기를 누르면 끝까지 이어서 읽어 드려요. 앱에서는 화면을 꺼도, 다른 앱을 써도 계속 들려요. 목소리는 여성·남성 중에 골라요."
             >
-              <div className="tile p-5">
-                <div className="flex flex-col gap-3">
-                  <ScriptLine who="진행자" text="첫 번째 소식은 뭔가요?" />
-                  <ScriptLine who="해설자" right current text="실서비스에서 실패한 대화부터 모아 평가셋을 만드는 방법이에요." />
-                </div>
-                <div className="mt-5 grid grid-cols-3 gap-2">
-                  {["아나운서", "선생님", "대담"].map((p) => (
-                    <span key={p} className={`tile py-2 text-center text-[14px] font-extrabold ${p === "대담" ? "border-sky bg-sky-tint text-sky-dark" : ""}`}>
-                      {p}
-                    </span>
-                  ))}
-                </div>
+              {/* 실제 플레이리스트 화면(앱) */}
+              <div className="mx-auto w-[min(300px,82%)] rounded-[44px] bg-[#1F2340] p-2.5 shadow-[0_18px_44px_rgb(31_35_64/0.22)]">
+                <Image src={playlistShot} alt="" sizes="300px" className="h-auto w-full rounded-[36px]" />
               </div>
             </Feature>
 
             <Feature
-              flip
               title="다 보면 끝, 지난 소식은 보관함에"
               body="끝없이 스크롤하게 만들지 않아요. 오늘 분량을 다 보면 오늘은 거기까지예요. 지난 소식은 보관함에 날짜별로 쌓이고, 카테고리로 다시 찾을 수 있어요."
             >
@@ -370,18 +394,6 @@ function ListenPill() {
   );
 }
 
-function ScriptLine({ who, text, right = false, current = false }: { who: string; text: string; right?: boolean; current?: boolean }) {
-  return (
-    <div className={`flex items-end gap-2 ${right ? "flex-row-reverse" : ""}`}>
-      <Mascot mood={right ? "happy" : "listen"} className={`size-11 shrink-0 ${right ? "-scale-x-100" : ""}`} />
-      <div className={`flex max-w-[80%] flex-col ${right ? "items-end" : ""}`}>
-        <span className="mb-1 px-1 text-[12px] font-extrabold text-sub">{who}</span>
-        <span className={`rounded-2xl border-2 px-4 py-2.5 text-[15px] leading-[1.6] ${current ? "border-sky bg-sky-tint font-bold" : "border-line bg-paper font-medium text-sub"}`}>{text}</span>
-      </div>
-    </div>
-  );
-}
-
 function Plan({
   name,
   price,
@@ -438,7 +450,7 @@ function Plan({
 
 /** 검색엔진용 구조화 데이터: 사이트, 서비스(웹앱과 요금), 자주 묻는 질문 */
 function JsonLd({ faq, premiumKrw }: { faq: [string, string][]; premiumKrw: number }) {
-  const url = siteUrl().toString();
+  const url = appUrl("/");
   const data = [
     { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url, inLanguage: "ko-KR", description: SITE_DESCRIPTION },
     {

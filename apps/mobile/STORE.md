@@ -1,6 +1,6 @@
 # 맹고 스토어 등록(비공개 테스트까지)
 
-> 2026-10-11 작성, 2026-10-17 1.2 출시용으로 고침(유료 플랜·공유·백그라운드 재생). 콘솔에 그대로 붙여 넣을 문구와 답, 순서. 주소는 도메인(`maengo.app`)을 사면 모두 바꾼다. 그래픽·스크린샷·AAB는 저장소 밖 `~/Desktop/maengo-store/`, `~/Desktop/maengo-1.0.0-1.aab`에 있다(다시 만드는 법은 맨 아래).
+> 2026-10-11 작성, 2026-10-17 1.2 출시용으로 고침(유료 플랜·공유·백그라운드 재생). 콘솔에 그대로 붙여 넣을 문구와 답, 순서. 주소는 회사 도메인 아래 `https://watalabs.com/maengo`(2026-10-17부터, 개발자 웹사이트는 `https://watalabs.com`). 그래픽·스크린샷·AAB는 저장소 밖 `~/Desktop/maengo-store/`, `~/Desktop/maengo-1.0.0-1.aab`에 있다(다시 만드는 법은 맨 아래).
 
 ## 공통 정보
 
@@ -9,11 +9,11 @@
 | 앱 이름 | 맹고 (이미 쓰는 이름이면 `맹고 - 맞춤 뉴스 요약`) |
 | 패키지·번들 ID | `kr.maengo.app` |
 | 카테고리 | 뉴스 및 잡지(Play) / 뉴스(App Store) |
-| 연락처 이메일 | wandeung.help@gmail.com |
-| 웹사이트 | https://maengo.vercel.app |
-| 개인정보 처리방침 | https://maengo.vercel.app/privacy |
-| 이용약관 | https://maengo.vercel.app/terms |
-| 계정 삭제 안내(Play) | https://maengo.vercel.app/delete-account |
+| 연락처 이메일 | watalabs.help@gmail.com |
+| 웹사이트(개발자) | https://watalabs.com |
+| 개인정보 처리방침 | https://watalabs.com/maengo/privacy |
+| 이용약관 | https://watalabs.com/maengo/terms |
+| 계정 삭제 안내(Play) | https://watalabs.com/maengo/delete-account |
 | 가격 | 무료(앱 안 결제 있음: Premium 월 ₩3,800 자동 갱신 구독·첫 구독 7일 무료, 맹고 추가 구매 10·30·50·100. [BILLING.md](BILLING.md)) |
 | 키워드(App Store, 100자) | 뉴스요약,AI뉴스,주식뉴스,코인뉴스,반도체,IT뉴스,오디오뉴스,브리핑,출근길,팟캐스트,헤드라인 |
 
@@ -39,8 +39,8 @@
 
 Premium은 매달 자동으로 갱신되며, 갱신 24시간 전까지 App Store·Google Play의 구독 관리에서 해지하지 않으면 다음 달 요금이 결제돼요. 무료 체험 중에 해지하면 결제되지 않아요.
 
-이용약관(EULA): https://maengo.vercel.app/terms
-개인정보 처리방침: https://maengo.vercel.app/privacy
+이용약관(EULA): https://watalabs.com/maengo/terms
+개인정보 처리방침: https://watalabs.com/maengo/privacy
 
 ### 출시 노트(1.2.0, 초안)
 맹고 1.2.0이에요.
@@ -51,7 +51,7 @@ Premium은 매달 자동으로 갱신되며, 갱신 24시간 전까지 App Store
 • 설정에서 문의하기와 앱 버전을 볼 수 있어요
 
 ### 출시 노트(1.1.0, 2026-10-14)
-맹고 1.1.0 테스트 버전이에요. 앱 알림(정한 시각에 오늘의 소식 알림), 하루 소식보다 더 받기(지갑의 맹고), Premium 안내 페이지가 들어갔어요. 써 보시고 불편한 점은 wandeung.help@gmail.com으로 알려 주세요.
+맹고 1.1.0 테스트 버전이에요. 앱 알림(정한 시각에 오늘의 소식 알림), 하루 소식보다 더 받기(지갑의 맹고), Premium 안내 페이지가 들어갔어요. 써 보시고 불편한 점은 watalabs.help@gmail.com으로 알려 주세요.
 
 ### 출시 노트(첫 버전)
 맹고 첫 비공개 테스트 버전이에요. Google·Apple 계정으로 바로 시작할 수 있어요.
@@ -62,7 +62,7 @@ Premium은 매달 자동으로 갱신되며, 갱신 24시간 전까지 App Store
 2. **앱 콘텐츠**(대시보드 > 앱 설정): 아래 '앱 콘텐츠 답' 대로
 3. **기본 스토어 등록정보**: 위 짧은 설명·전체 설명, 앱 아이콘 `icon-512.png`, 그래픽 이미지 `feature-1024x500.png`, 휴대전화 스크린샷 `phone-1~5.png`(1080×1920). 카테고리 뉴스 및 잡지, 연락처 이메일·웹사이트
 4. **테스터 그룹**(누구나 링크로 참여): https://groups.google.com 에서 그룹 만들기 → 이름 `맹고 테스터`, 이메일 예 `maengo-testers@googlegroups.com`, 공개 범위 '웹의 모든 사용자', 참여 '누구나 그룹에 참여 가능'
-5. **비공개 테스트 트랙**: 테스트 및 출시 > 테스트 > 비공개 테스트 > (기본 트랙 'Closed testing - Alpha') > 테스터 탭 > Google 그룹에 위 그룹 이메일 추가 > 피드백 이메일 wandeung.help@gmail.com > 저장
+5. **비공개 테스트 트랙**: 테스트 및 출시 > 테스트 > 비공개 테스트 > (기본 트랙 'Closed testing - Alpha') > 테스터 탭 > Google 그룹에 위 그룹 이메일 추가 > 피드백 이메일 watalabs.help@gmail.com > 저장
 6. **버전 만들기**: 같은 트랙 > 새 버전 만들기 > Play 앱 서명은 '계속'(Google이 앱 서명 키를 관리, 우리는 업로드 키로 서명) > `maengo-1.0.0-1.aab` 업로드 > 출시 노트 > 검토 > 출시 시작
 7. 구글 검토가 끝나면(몇 시간~며칠) 테스터 탭의 **'웹에서 참여' 링크**가 열린다. 테스터는 ① 그룹 가입 ② 참여 링크에서 '테스터 되기' ③ Play 스토어에서 설치
 8. 프로덕션 출시 조건(개인 계정): 테스터 12명 이상이 14일 연속 참여
@@ -71,18 +71,18 @@ Premium은 매달 자동으로 갱신되며, 갱신 24시간 전까지 App Store
 
 | 항목 | 답 |
 | --- | --- |
-| 개인정보처리방침 | https://maengo.vercel.app/privacy |
+| 개인정보처리방침 | https://watalabs.com/maengo/privacy |
 | 앱 액세스 권한 | '모든 기능 또는 일부 기능이 제한됨' → 안내: "Google 계정 또는 Apple 계정으로 로그인하면 바로 가입됩니다(어떤 Google 계정도 가능, 따로 드릴 아이디·비밀번호 없음). 처음 들어오면 관심 분야를 고르고 '오늘 맹고 받기'를 누르면 소식이 나옵니다." |
 | 광고 | 광고 없음 |
-| 콘텐츠 등급 | 이메일 wandeung.help@gmail.com, 카테고리 '참고 자료, 뉴스 또는 교육'. 폭력·성적 콘텐츠·욕설·약물·도박 모두 아니요. 사용자 간 소통·콘텐츠 공유 아니요(공유 버튼은 기기의 공유 시트로 원문 링크를 보낼 뿐, 앱 안에서 사용자끼리 주고받지 않음), 위치 공유 아니요, 디지털 구매 예(앱 안 결제: Premium 구독·맹고 묶음, 2026-10-14). 등급은 전체 이용가(애플 4+) |
+| 콘텐츠 등급 | 이메일 watalabs.help@gmail.com, 카테고리 '참고 자료, 뉴스 또는 교육'. 폭력·성적 콘텐츠·욕설·약물·도박 모두 아니요. 사용자 간 소통·콘텐츠 공유 아니요(공유 버튼은 기기의 공유 시트로 원문 링크를 보낼 뿐, 앱 안에서 사용자끼리 주고받지 않음), 위치 공유 아니요, 디지털 구매 예(앱 안 결제: Premium 구독·맹고 묶음, 2026-10-14). 등급은 전체 이용가(애플 4+) |
 | 타겟층 | 13~15세, 16~17세, 18세 이상(약관상 가입은 만 14세 이상, 콘텐츠 등급은 전체 이용가 — 2026-10-14 사용자 결정). 아동에게 어필하지 않음 |
-| 뉴스 앱 | 예. 발행자 = 운영자 정민균, 연락처 wandeung.help@gmail.com, 웹사이트 https://maengo.vercel.app. 소식마다 원문 출처를 표시함 |
+| 뉴스 앱 | 예. 발행자 = 운영자 정민균, 연락처 watalabs.help@gmail.com, 웹사이트 https://watalabs.com/maengo. 소식마다 원문 출처를 표시함 |
 | 정부·금융·건강 앱 | 모두 아니요 |
 | 포그라운드 서비스 권한(1.2부터) | 미디어 재생(`FOREGROUND_SERVICE_MEDIA_PLAYBACK`). 설명: "사용자가 재생을 누른 소식 음성을 화면을 끄거나 다른 앱을 쓰는 동안에도 이어서 들려 줍니다. 재생하는 동안만 켜지고 알림에 재생 조작 버튼이 보입니다." 시연 영상: 듣기 → 홈으로 나가도 재생 → 알림에서 일시정지(30초 안팎, 비공개 유튜브 링크) |
 | 데이터 보안 | 아래 |
 
 ### 데이터 보안 답(1.2 기준, 2026-10-17)
-- 수집: 예 / 공유(제3자 제공): 아니요(Google 애널리틱스·RevenueCat·Firebase는 처리 위탁이라 '공유'가 아님) / 전송 중 암호화: 예 / 삭제 요청 방법: 앱 안 설정 > 계정 삭제, https://maengo.vercel.app/delete-account
+- 수집: 예 / 공유(제3자 제공): 아니요(Google 애널리틱스·RevenueCat·Firebase는 처리 위탁이라 '공유'가 아님) / 전송 중 암호화: 예 / 삭제 요청 방법: 앱 안 설정 > 계정 삭제, https://watalabs.com/maengo/delete-account
 - 수집하는 데이터(처리 방식 '수집')
   - 개인 정보: 이름, 이메일 주소, 사용자 ID — 필수, 앱 기능·계정 관리
   - 금융 정보: 구매 내역(Premium 구독·맹고 추가 구매) — 필수, 앱 기능
@@ -125,7 +125,7 @@ Content: summaries of public news articles and official blogs, each linking to t
 2. (Claude) 아카이브 → 이때 App ID `kr.maengo.app`이 자동 등록된다
 3. **App Store Connect 앱 만들기**: 앱 > + > 신규 앱. 플랫폼 iOS, 이름 `맹고`, 기본 언어 한국어, 번들 ID `kr.maengo.app`, SKU `maengo-ios`, 사용자 액세스 전체
 4. (Claude) 빌드 업로드 → 처리 10~30분
-5. **TestFlight > 테스트 정보**: 베타 앱 설명(위 짧은 설명), 피드백 이메일 wandeung.help@gmail.com, 마케팅 URL https://maengo.vercel.app, 개인정보 처리방침 URL
+5. **TestFlight > 테스트 정보**: 베타 앱 설명(위 짧은 설명), 피드백 이메일 watalabs.help@gmail.com, 마케팅 URL https://watalabs.com/maengo, 개인정보 처리방침 URL
 6. **베타 앱 검토 정보**: 연락처(이름·전화·이메일), '로그인 필요' 체크 해제, 메모: 위 '앱 심사 메모'를 그대로 쓴다
 7. **외부 그룹**: TestFlight > 외부 테스팅 + > 그룹 이름 `베타 테스터` > 빌드 추가 > 검토 제출(보통 1~2일)
 8. 승인되면 그룹의 **공개 링크 활성화** → 링크를 나눠 준다. 테스터는 TestFlight 앱을 깔고 링크로 설치
@@ -140,4 +140,5 @@ Content: summaries of public news articles and official blogs, each linking to t
 - 공통: `apps/mobile`에서 `npx cap sync`(CAP_SERVER_URL 없이 = 운영 주소)
 - Android AAB: `cd android && ANDROID_HOME=/opt/homebrew/share/android-commandlinetools JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`. 업로드 키는 `~/.maengo/maengo-upload.jks`(+ `upload-keystore.properties`), **잃지 않게 백업**(잃으면 Play Console에서 업로드 키 재설정 요청)
 - iOS: `cd ios/App && xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath <경로>.xcarchive -allowProvisioningUpdates archive` → `xcodebuild -exportArchive`(ExportOptions: method app-store-connect, destination upload, teamID QYS79FM739)
-- 그래픽: 아이콘은 `assets/icon-only.png`를 512로 줄인 것. 그래픽 이미지·스크린샷은 로컬 개발 서버의 데모 계정 화면을 앱 UA로 찍었다(1080×1920)
+- 그래픽: 아이콘은 `assets/icon-only.png`를 512로 줄인 것. 스크린샷·그래픽 이미지는 `scripts/store/`로 만들고 올린다(README). 2026-10-17 판(1.2 화면, 문구 넣은 6장)은 `~/Desktop/maengo-store/2026-10-17/`
+- 2026-10-17 올린 상태: **App Store Connect** 버전 1.0(제출 준비 중)에 설명·키워드·홍보 문구·지원/마케팅 URL·부제·처리방침 URL·6.7인치 스크린샷 6장 완료. **Play**는 서비스 계정 권한 부족(403)으로 커밋 실패 → Play Console > 사용자 및 권한 > Play 업로드용 서비스 계정(`~/.maengo/play-service-account.json`의 client_email) > 앱 권한에 '스토어 등록정보 관리' 추가 후 `upload.mjs … play` 다시

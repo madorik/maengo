@@ -2,11 +2,12 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { APP_AUTH_CALLBACK } from "@/lib/app-client";
+import { withBase } from "@/lib/base-path";
 
 // 앱 로그인(APP_PLAN.md 2단계, 시스템 브라우저 + 딥링크). 로그인 화면이 앱 안에서만 불러온다(app/login/LoginButtons.tsx).
 // 1) /api/auth/app이 로그인 주소를 주고 PKCE 쿠키를 웹뷰에 남긴다
 // 2) 그 주소를 시스템 브라우저로 연다: iOS는 ASWebAuthenticationSession(NativeAuth.swift), 안드로이드는 Custom Tabs
-// 3) kr.maengo.app://auth/callback?code=… 로 돌아오면 웹뷰에서 /auth/callback?code=… 를 열어 세션을 만든다
+// 3) kr.maengo.app://auth/callback?code=…(Supabase) 또는 ?gcode=…(구글 직접 로그인)로 돌아오면 웹뷰에서 /auth/callback에 그대로 넘겨 세션을 만든다
 
 interface AuthSessionPlugin {
   start(options: { url: string; scheme: string }): Promise<{ url: string }>;
@@ -19,7 +20,7 @@ export type AppSignInResult = "ok" | "cancel" | "error";
 export async function appSignIn(provider: "google" | "apple"): Promise<AppSignInResult> {
   let url: string;
   try {
-    const res = await fetch("/api/auth/app", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider }) });
+    const res = await fetch(withBase("/api/auth/app"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider }) });
     if (!res.ok) return "error";
     url = ((await res.json()) as { url: string }).url;
   } catch {
@@ -28,10 +29,11 @@ export async function appSignIn(provider: "google" | "apple"): Promise<AppSignIn
   const back = Capacitor.getPlatform() === "ios" ? await viaAuthSession(url) : await viaBrowser(url);
   if (back === null) return "cancel";
   if (back === "error") return "error";
-  const code = new URL(back).searchParams.get("code");
-  if (!code) return "error";
+  const q = new URL(back).searchParams;
+  const param = q.get("gcode") ? "gcode" : q.get("code") ? "code" : null;
+  if (!param) return "error";
   // 서버가 쿠키를 쓰고 넘겨주는 라우트라 화면 전체를 넘긴다(클라이언트 라우팅이 아니라)
-  window.location.assign(new URL(`/auth/callback?code=${encodeURIComponent(code)}`, window.location.origin).href);
+  window.location.assign(new URL(withBase(`/auth/callback?${param}=${encodeURIComponent(q.get(param)!)}`), window.location.origin).href);
   return "ok";
 }
 

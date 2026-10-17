@@ -2,6 +2,7 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
+import { stripBase, withBase } from "@/lib/base-path";
 import { startAppPush } from "./push";
 
 // 앱다운 마감(APP_PLAN.md 1단계). components/NativeShell.tsx가 앱 안에서만 불러온다.
@@ -37,13 +38,14 @@ export function startNativeShell(): () => void {
     const sheet = document.querySelector<HTMLDialogElement & { requestClose?: () => void }>("dialog[open]");
     if (sheet?.requestClose) sheet.requestClose();
     else if (sheet) sheet.close();
-    else if (canGoBack && !ROOT_PATHS.has(location.pathname)) history.back();
+    else if (canGoBack && !ROOT_PATHS.has(stripBase(location.pathname))) history.back();
     else void App.minimizeApp();
   });
 
   // 앱 알림: 알림을 누르면 그 화면으로, 알림을 켠 기기면 토큰을 다시 등록(lib/native/push.ts)
   const stopPush = startAppPush((path) => {
-    if (location.pathname + location.search !== path) location.assign(path);
+    const to = withBase(path);
+    if (location.pathname + location.search !== to) location.assign(to);
   });
 
   return () => {

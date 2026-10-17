@@ -1,10 +1,12 @@
 import { isAppUserAgent } from "@/lib/app-client";
+import { withBase } from "@/lib/base-path";
 
 // 이 브라우저를 푸시 받을 기기로 등록한다(설정 > 알림을 켤 때). 브라우저에서만 부른다.
 // 알림 권한 → 서비스 워커(public/push-sw.js) → Firebase로 FCM 토큰 → /api/devices에 저장. 보내기는 서버 스케줄러(pipeline/src/deliveries.ts).
 // Firebase SDK는 무거워서 켤 때만 불러온다.
 
-const SW_PATH = "/push-sw.js";
+// 서비스 워커 범위는 파일이 있는 경로(/maengo/)가 된다
+const SW_PATH = withBase("/push-sw.js");
 /** 이 브라우저가 등록한 토큰(서버 목록과 비교해 '이 브라우저도 받는지' 표시) */
 const TOKEN_KEY = "maengo_push_token";
 
@@ -46,7 +48,7 @@ export async function registerThisBrowser(): Promise<RegisterResult> {
         appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
       });
     const token = await getToken(getMessaging(app), { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY, serviceWorkerRegistration: registration });
-    const res = await fetch("/api/devices", {
+    const res = await fetch(withBase("/api/devices"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token, platform: "web" }),

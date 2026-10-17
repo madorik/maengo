@@ -12,13 +12,13 @@
 - 무료 프로젝트는 1주일 동안 요청이 없으면 일시 정지된다. 대시보드에서 다시 켜면 된다
 
 ### Vercel — 2026-10-10 배포
-- 프로젝트 `maengo`(팀 `madorik's projects`, **Hobby** — 비상업용이라 판매 시작 전에 Pro로), 주소 **https://maengo.vercel.app**
+- 프로젝트 `maengo`(팀 `madorik's projects`, **Hobby** — 비상업용이라 판매 시작 전에 Pro로), 주소 **https://watalabs.com/maengo**(basePath `/maengo`, 회사 사이트 프로젝트 `watalabs`가 넘겨 준다. 직접 주소는 https://maengo.vercel.app/maengo)
 - 루트 디렉터리 `apps/web`, 함수 리전 서울(`icn1`). `vercel.json`의 regions만으로는 안 바뀌어 프로젝트 설정(Functions → Region)을 icn1로 바꿨다(2026-10-10, 그 전엔 미국 iad1이라 Supabase 왕복이 느렸다). 음성 생성·오늘 맹고 받기 경로 최대 300초
 - **커밋 작성자 이메일은 `xornjs1988@gmail.com`**(저장소 git config). Hobby는 다른 작성자의 커밋을 배포하지 않는다
 - 환경 변수(프로덕션) 10개: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `SESSION_SECRET`(운영용으로 새로 만듦)
 - 공개 주소라 `DEMO_USER_ID`(애플 버튼 데모 로그인)와 `DEMO_TOOLS`(플랜 전환 등)는 넣지 않았다
 - 배포: 저장소 루트에서 `npx vercel deploy --prod`(`.vercelignore`가 `.env*`·캐시를 막는다). 푸시마다 자동 배포하려면 Vercel 대시보드 → 프로젝트 → Settings → Git에서 GitHub 저장소를 연결한다(Vercel GitHub 앱 설치 필요)
-- Supabase 로그인 설정에 사이트 주소·돌아올 주소로 등록함(`NEXT_PUBLIC_SITE_URL=https://maengo.vercel.app pnpm setup:auth`)
+- Supabase 로그인 설정에 사이트 주소·돌아올 주소로 등록함(`NEXT_PUBLIC_SITE_URL=https://watalabs.com pnpm setup:auth` → 사이트 주소 `https://watalabs.com/maengo`, 예전 앱용 `https://maengo.vercel.app/**`도 허용 목록에 남김. 2026-10-17)
 
 ### Gemini API — 2026-10-09 키 받음
 - AI Studio 키(`AQ.`로 시작), Gemini API(`generativelanguage.googleapis.com`)에서 동작한다. 무료 등급(결제 꺼짐)
@@ -77,6 +77,10 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 > 2026-10-10: 클라이언트 ID·시크릿은 `.env.local`에 있고 `pnpm setup:auth`로 Supabase에 켰다. 웹 흐름(로그인 → `/auth/callback` → 처음이면 `/onboarding`)도 붙였다.
 > 2026-10-10 리디렉션 URI 등록 확인(구글 로그인 화면까지 정상). 구글 화면에 앱 이름 대신 `dplqcugmgrugfrzjylqw.supabase.co`가 보인다. "맹고"로 보이게 하려면 동의 화면 브랜드 인증이나 Supabase 커스텀 도메인(유료)이 필요하다.
 
+> 2026-10-17 브랜드 정보(이름·아이콘만 등록하기로 함, 사용자 결정): Google Auth Platform → 브랜딩에 앱 이름 `맹고`, 로고 `~/Desktop/maengo-store/2026-10-17/google-oauth-logo-120.png`(120×120), 홈페이지 `https://watalabs.com/maengo`, 개인정보처리방침 `https://watalabs.com/maengo/privacy`, 서비스 약관 `https://watalabs.com/maengo/terms`, 승인된 도메인 `watalabs.com`(+ 기존 `dplqcugmgrugfrzjylqw.supabase.co`), 개발자 연락처 `watalabs.help@gmail.com`. 
+
+> 2026-10-17 **구글 직접 로그인**(구글 화면에 supabase 주소가 안 보이게): 구글 → `https://watalabs.com/maengo/auth/google/callback` → 서버가 코드를 ID 토큰으로 바꿔 Supabase `signInWithIdToken`. 앱은 같은 주소로 받고 암호화한 일회용 코드(gcode)를 딥링크로 웹뷰에 넘긴다(네이티브 변경 없음). 코드 `apps/web/lib/server/google-login.ts`. Vercel 운영 환경 변수 `GOOGLE_DIRECT_LOGIN=1`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. 구글 콘솔(프로젝트 `maengo`, Google Auth Platform → 클라이언트)의 승인된 리디렉션 URI에 위 주소 등록됨(기존 supabase 콜백도 애플·되돌리기용으로 남김). 되돌리려면 `GOOGLE_DIRECT_LOGIN`을 지우고 다시 배포. 로컬에서 시험하려면 콘솔에 `http://localhost:3100/maengo/auth/google/callback`을 등록하고 `GOOGLE_DIRECT_ORIGINS=http://localhost:3100`. 이제 승인된 도메인이 watalabs.com이라 Search Console로 소유 확인 후 브랜드 인증을 받으면 '맹고'와 로고가 보인다.
+
 1. [Google Cloud Console](https://console.cloud.google.com/)에서 프로젝트 만들기(이름 `maengo`)
 2. API 및 서비스 → OAuth 동의 화면: 외부, 앱 이름 `맹고`, 범위는 기본(email·profile·openid)만
 3. 사용자 인증 정보 → OAuth 클라이언트 ID → 웹 애플리케이션
@@ -122,7 +126,7 @@ pnpm setup:auth     # 구글·애플 로그인을 Supabase에 켠다(애플 시�
 
 | 변수 | 받는 곳 | 단계 |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | 지금 `https://maengo.vercel.app`. 도메인을 사면 바꾼다 | 공유 카드·사이트맵·canonical. 바꾸면 다시 빌드 |
+| `NEXT_PUBLIC_SITE_URL` | `https://watalabs.com`(도메인만. 맹고 경로 `/maengo`는 코드가 붙인다, 2026-10-17) | 공유 카드·사이트맵·canonical. 바꾸면 다시 빌드 |
 | `GOOGLE_SITE_VERIFICATION`, `NAVER_SITE_VERIFICATION` | Google Search Console, 네이버 서치어드바이저(HTML 태그 방식) | 배포 후 검색 등록 |
 | `SEARCH_API_KEY` | Exa 또는 Tavily | 수집 파이프라인 |
 | `RESEND_API_KEY`, `MAIL_FROM` | Resend(발신 도메인 DNS 인증) | 이메일 알림 |

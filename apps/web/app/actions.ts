@@ -4,6 +4,8 @@ import type { Persona, Voice } from "@maengo/core/types";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { withBase } from "@/lib/base-path";
+import { allowedOrigin, googleAuthUrl, googleDirectEnabled, LOGIN_TTL_SEC, randomToken, signState, STATE_COOKIE } from "@/lib/server/google-login";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
 import { addToPlaylist, clearPlaylist, isInPlaylist, rebuildFeed, receiveMore, removeFromPlaylist, reorderPlaylist, type MoreResult } from "@/lib/server/feed";
@@ -20,9 +22,14 @@ import type { TopicResult } from "@/lib/types";
 
 const cookieOpts = { sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 } as const;
 
-/** 지금 요청의 주소(구글 로그인 뒤 돌아올 곳). 배포 뒤에는 프록시 헤더를 따른다 */
+/**
+ * 지금 요청의 주소(구글 로그인 뒤 돌아올 곳). 브라우저가 보낸 Origin을 먼저 쓴다:
+ * watalabs.com이 맹고를 프록시하면 호스트 헤더는 maengo.vercel.app이라, 그걸 쓰면 로그인 뒤 다른 도메인으로 간다.
+ */
 async function origin(): Promise<string> {
   const h = await headers();
+  const sent = h.get("origin");
+  if (sent && sent !== "null") return sent;
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3100";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}`;
@@ -30,17 +37,25 @@ async function origin(): Promise<string> {
 
 /**
  * 구글·애플: Supabase OAuth로 각 로그인 화면에 보낸다. 돌아오면 /auth/callback이 세션을 만든다.
+ * 구글은 GOOGLE_DIRECT_LOGIN=1이면 우리 도메인으로 받는다(구글 화면에 supabase 주소가 안 보이게, lib/server/google-login.ts).
  * 데모(로컬 개발만): OAuth 없이 공용 데모 계정(DEMO_USER_ID)으로 들어간다(서명한 세션 쿠키).
  */
 export async function signIn(formData: FormData) {
   const jar = await cookies();
   const provider = formData.get("provider");
+  // 구글 콘솔에 등록한 도메인에서 들어왔을 때만. 아니면 아래 Supabase OAuth로
+  const from = provider === "google" && googleDirectEnabled() ? allowedOrigin(await origin()) : null;
+  if (from) {
+    const r = randomToken();
+    jar.set(STATE_COOKIE, r, { ...cookieOpts, httpOnly: true, maxAge: LOGIN_TTL_SEC });
+    redirect(googleAuthUrl(from, signState({ f: "web", r, o: from })));
+  }
   if (provider === "google" || provider === "apple") {
     const supabase = await supabaseAuth();
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${await origin()}/auth/callback`,
+        redirectTo: `${await origin()}${withBase("/auth/callback")}`,
         ...(provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
       },
     });

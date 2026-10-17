@@ -7,6 +7,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
 import { lineAt } from "@/lib/player/machine";
+import { withBase } from "@/lib/base-path";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import type { ListenBarCtl } from "./ListenBar";
 
@@ -61,7 +62,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     const onMeta = () => {
       const q = a.dataset.query;
       if (!q) return;
-      fetch(`/api/episode/item?${q}`, { cache: "no-store" })
+      fetch(withBase(`/api/episode/item?${q}`), { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { chapter: Chapter } | null) => d && setChapter(d.chapter))
         .catch(() => {});
@@ -108,7 +109,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     if (!a?.dataset.query || a.dataset.query === query) return;
     const wasPlaying = !a.paused;
     a.dataset.query = query;
-    a.src = `/api/episode/item/audio?${query}`;
+    a.src = withBase(`/api/episode/item/audio?${query}`);
     setPreparing(true);
     if (wasPlaying) a.play().catch(() => {});
   }, [query]);
@@ -121,7 +122,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     if (a.dataset.query !== query) {
       // 처음 듣는 말투면 이 요청에서 음성을 만든다(수십 초). 대본 시각표는 파일이 열린 뒤에 받는다
       a.dataset.query = query;
-      a.src = `/api/episode/item/audio?${query}`;
+      a.src = withBase(`/api/episode/item/audio?${query}`);
       setPreparing(true);
       setError(null);
     }

@@ -53,10 +53,11 @@
 **할 일**
 - [ ] 사용자 준비: AdMob 계정, iOS·Android 앱 등록 → 앱 ID 2개, 광고 단위 ID(배너·전면) 플랫폼별
 - [ ] 구현: `@capacitor-community/admob`(Capacitor 8 호환 확인), 개발 중에는 구글 테스트 광고 ID, `showAdsFor`로 켜고 끄기, 듣기 창 위치 조정
-- [ ] `https://maengo.vercel.app/app-ads.txt`(애드몹 게시자 ID)
+- [ ] `https://watalabs.com/app-ads.txt`(애드몹 게시자 ID, 회사 사이트 `apps/company`에 둔다. 스토어 개발자 웹사이트 = watalabs.com)
 - [ ] iOS: `NSUserTrackingUsageDescription`(추적 동의 문구, 거절해도 비개인화 광고), SKAdNetwork ID 목록(Info.plist), 유럽 동의(UMP)는 애드몹 기본으로
 - [ ] 문서: 처리방침(광고 식별자, Google AdMob 위탁·국외 이전, 쿠키 문구), Play '광고 포함' 예 + 데이터 보안(기기 또는 기타 ID: 광고·분석), 애플 개인정보 라벨, 앱 다시 빌드·제출(앱 버전 1.1)
 
 ## 메모
 
+- 2026-10-17 문의 메일을 `watalabs.help@gmail.com`(회사 와타랩스)으로 바꿨다(`apps/web/lib/site.ts`, 회사 페이지). 스토어 콘솔 연락처도 바꿔야 한다
 - 2026-10-11 문의 메일을 `wandeung.help@gmail.com`으로 바꿨다(`apps/web/lib/site.ts`). 스토어 콘솔에 넣은 연락처(Play 연락처·피드백 이메일, TestFlight 피드백 이메일)는 콘솔에서 직접 바꾼다

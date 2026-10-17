@@ -7,6 +7,7 @@ import { isAdmin } from "@/lib/server/admin";
 import { adminAlerts } from "@/lib/server/admin-alerts";
 import { db, must } from "@/lib/server/db";
 import { requireProfile } from "@/lib/server/session";
+import { withBase } from "@/lib/base-path";
 
 export const metadata: Metadata = { title: "관리자", robots: { index: false, follow: false } };
 
@@ -274,7 +275,7 @@ function RangeBar({ range, today }: { range: AdminRange; today: string }) {
       </nav>
       {/* 빠른 기간을 눌러도 칸이 새 값으로 바뀌게 기간이 바뀌면 다시 그린다 */}
       {/* 좁은 화면에선 날짜 두 칸이 한 줄을 다 쓰고 보기 버튼은 아래 줄로, 아주 좁으면(360px 미만) 날짜도 한 줄에 하나 */}
-      <form key={`${range.from}~${range.to}`} action="/admin" className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1.5 max-[359px]:grid-cols-1 sm:ml-auto sm:flex sm:w-auto">
+      <form key={`${range.from}~${range.to}`} action={withBase("/admin")} className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1.5 max-[359px]:grid-cols-1 sm:ml-auto sm:flex sm:w-auto">
         <label htmlFor="range-from" className="sr-only">
           시작일
         </label>

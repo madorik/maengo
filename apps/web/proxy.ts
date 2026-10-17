@@ -34,7 +34,8 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const redirect = (to: string) => {
-    const r = NextResponse.redirect(new URL(to, request.url));
+    // basePath(/maengo)를 붙인다. 같은 호스트면 Next가 상대 주소로 바꿔 보내서 watalabs.com에서 그대로 이어 간다
+    const r = NextResponse.redirect(new URL(request.nextUrl.basePath + to, request.url));
     for (const c of response.cookies.getAll()) r.cookies.set(c);
     return r;
   };

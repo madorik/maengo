@@ -2,6 +2,7 @@ import 'server-only';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AwsClient } from 'aws4fetch';
+import { withBase } from '../base-path';
 
 // 듣기 음성 파일 저장소. R2 키가 있으면 R2(비공개 버킷 + 서명 URL), 없으면 로컬 디스크(.cache/audio-store).
 // 키는 내용 해시라 한 번 올린 파일은 바뀌지 않는다(immutable).
@@ -89,7 +90,7 @@ function localStore(): AudioStore {
       return stat(file(key)).then(() => true, () => false);
     },
     async url(key) {
-      return `/api/episode/file?key=${encodeURIComponent(key)}`;
+      return withBase(`/api/episode/file?key=${encodeURIComponent(key)}`);
     },
   };
 }

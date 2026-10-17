@@ -1,5 +1,6 @@
 import { voiceKey } from "@maengo/core/audio";
 import type { Persona, ScriptLine, Voice, VoiceKey } from "@maengo/core/types";
+import { withBase } from "./base-path";
 
 // 설정 > 듣기의 미리 듣기. 말투·목소리마다 짧은 인사를 한 번만 만들어 public/voice-samples에 두고(scripts/voice-samples.ts),
 // 들을 때는 정적 파일만 튼다(TTS를 다시 부르지 않는다). 문구를 바꾸면 스크립트를 --force로 다시 돌린다.
@@ -23,5 +24,5 @@ export function samplePath(persona: Persona, vk: VoiceKey): string {
 }
 
 export function sampleUrl(persona: Persona, voice: Voice): string {
-  return samplePath(persona, voiceKey(persona, voice));
+  return withBase(samplePath(persona, voiceKey(persona, voice)));
 }

@@ -6,9 +6,9 @@
 
 ## 사용자가 할 일
 
-1. **GA4 속성**: https://analytics.google.com → 관리 → 만들기 → 속성 `맹고`(시간대 대한민국, 통화 원) → 데이터 스트림 '웹' → `https://maengo.vercel.app` → 측정 ID(`G-…`)
+1. **GA4 속성**: https://analytics.google.com → 관리 → 만들기 → 속성 `맹고`(시간대 대한민국, 통화 원) → 데이터 스트림 '웹' → `https://watalabs.com` → 측정 ID(`G-…`)
    - 관리 → 데이터 수집 및 수정 → 데이터 보관 → **14개월**(처리방침과 같게)
-2. **GTM 컨테이너**: https://tagmanager.google.com → 계정 만들기 `맹고` → 컨테이너 `maengo.vercel.app`, 대상 '웹' → 컨테이너 ID(`GTM-…`)를 Claude에게 알려 준다(Vercel 환경 변수 `NEXT_PUBLIC_GTM_ID`에 넣고 배포)
+2. **GTM 컨테이너**: https://tagmanager.google.com → 계정 만들기 `맹고` → 컨테이너 `watalabs.com`, 대상 '웹' → 컨테이너 ID(`GTM-…`)를 Claude에게 알려 준다(Vercel 환경 변수 `NEXT_PUBLIC_GTM_ID`에 넣고 배포)
 3. **GTM 안 설정**: 관리 → 컨테이너 가져오기 → [`gtm-import.json`](gtm-import.json)(작업공간 Default, 병합·충돌하면 덮어쓰기) → 변수 `GA4 측정 ID`의 값을 `G-…`로 바꾸기 → 제출 → 게시. 가져오기가 안 되면 아래 '태그 설정'대로 손으로 만든다
 4. **GA4 맞춤 정의**: 관리 → 맞춤 정의 → 이벤트 범위 `mode`·`category`·`kind`·`action`·`reason`·`topic`·`voice`·`provider`·`product`·`charged`, 사용자 범위 `plan`·`platform`
 

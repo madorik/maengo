@@ -82,7 +82,7 @@
 ## 6. 성장·운영(TODO.md)
 
 - [ ] **사용자** GTM·GA4 만들고 `GTM-…` 주기 → **나** 넣고 배포
-- [ ] **사용자** 도메인 `maengo.app` 결제 다시 → **나** 연결(사이트 주소·RevenueCat 웹훅 주소·Supabase 허용 목록)
+- [x] 도메인: 회사 도메인 `watalabs.com` 구매(2026-10-17). 맹고는 `watalabs.com/maengo`(basePath), 회사 소개는 `apps/company`(Vercel `watalabs`). 사이트 주소·Supabase 허용 목록 바꿈. 예전 maengo.vercel.app의 화면은 /maengo로, /api는 /maengo/api로 이어 줌
 - [ ] **나** AdMob(Free만, 목록 아래 배너·오늘 다 본 순간 하루 한 번 전면): **사용자가 모인 뒤**(2026-10-14 사용자 결정). 앱 다시 빌드가 필요해 그때 버전에 넣는다
 - [ ] **사용자** 마케팅 글 게시(`marketing/`)
 - [ ] **나** 온보딩 끝 Premium 안내(선택). 결정 D9

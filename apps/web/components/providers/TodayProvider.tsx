@@ -3,6 +3,7 @@
 import { track } from "@/lib/analytics";
 import type { FeedbackKind } from "@maengo/core/types";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { withBase } from "@/lib/base-path";
 import type { TodayData } from "@/lib/types";
 
 interface Game {
@@ -30,7 +31,7 @@ const TodayContext = createContext<TodayApi | null>(null);
 
 function post(url: string, body: unknown) {
   // 페이지를 떠나는 순간(원문 보기)에도 기록이 남도록 keepalive
-  fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
+  fetch(withBase(url), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
 }
 
 /** 오늘 피드와 읽음·들음·의견 상태. (app) 레이아웃에 있어 화면을 옮겨도 유지된다. */

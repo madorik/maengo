@@ -21,11 +21,13 @@ function managementToken() {
   }
 }
 
-const site = (env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+// 맹고는 도메인 아래 /maengo에서 돈다(packages/core/src/site.ts). 사이트 주소도 그 경로까지.
+const site = `${(env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')}/maengo`;
 const redirects = [
   'http://localhost:3000/**',
   'http://localhost:3100/**',
   `${site}/**`,
+  'https://maengo.vercel.app/**', // 이미 나간 1.1 앱은 이 주소를 띄운다(지우지 않는다)
   env.APP_URL_SCHEME ? `${env.APP_URL_SCHEME}://**` : null, // 앱(Capacitor)으로 돌아올 때
 ].filter(Boolean);
 

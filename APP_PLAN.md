@@ -62,7 +62,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 - 운영으로 되돌리기: `CAP_SERVER_URL` 없이 `npx cap sync`. 서버 주소는 sync 때 네이티브 프로젝트에 들어가므로 바꿀 때마다 sync한다
 - 아이콘·스플래시를 바꾸면: `node scripts/render-assets.mjs && npx @capacitor/assets@3.0.5 generate --ios --android`(pnpm dlx는 sharp 설치 스크립트를 막아 실패한다)
 
-- **원격 URL 방식**: `server.url`(기본 `https://maengo.vercel.app`, 개발 때는 `CAP_SERVER_URL=http://<맥 LAN IP>:3100`)을 띄운다. 웹이 서버 컴포넌트·Server Actions를 써서 정적 export로 넣을 수 없다. 웹을 배포하면 앱도 바로 바뀐다(스토어 심사 없음). Capacitor 문서는 `server.url`을 라이브 리로드용으로 설명하니, 4.2 거절을 줄이려면 1장의 앱 전용 기능을 꼭 갖춘다.
+- **원격 URL 방식**: `server.url`(기본 `https://watalabs.com/maengo`(2026-10-17부터, 1.1은 `https://maengo.vercel.app`), 개발 때는 `CAP_SERVER_URL=http://<맥 LAN IP>:3100`)을 띄운다. 웹이 서버 컴포넌트·Server Actions를 써서 정적 export로 넣을 수 없다. 웹을 배포하면 앱도 바로 바뀐다(스토어 심사 없음). Capacitor 문서는 `server.url`을 라이브 리로드용으로 설명하니, 4.2 거절을 줄이려면 1장의 앱 전용 기능을 꼭 갖춘다.
 - **앱인지 알아내기**: `appendUserAgent: 'MaengoApp/<버전> (ios|android)'`. 서버는 UA로(`lib/server/app-client.ts` 같은 헬퍼), 브라우저 코드는 `Capacitor.isNativePlatform()`으로 본다.
 - **플러그인 JS는 웹에 넣는다**: 원격 페이지에도 Capacitor 브리지가 주입되므로, 플러그인 호출은 `apps/web`에서 `@capacitor/core`와 각 플러그인을 import해 `isNativePlatform()`일 때만 부른다. 네이티브 쪽은 `apps/mobile`에 같은 플러그인을 설치하고 `npx cap sync`.
 - **쓸 플러그인**(설치할 때 최신 안정판·Capacitor 메이저 버전 호환을 확인)

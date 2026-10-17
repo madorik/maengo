@@ -59,7 +59,7 @@ export async function sendPush(token: string, msg: PushMessage, siteUrl: string)
         token,
         notification: { title: msg.title, body: msg.body },
         data: { path: msg.path },
-        webpush: { fcm_options: { link: new URL(msg.path, siteUrl).toString() } },
+        webpush: { fcm_options: { link: `${siteUrl}${msg.path}` } },
         android: { priority: 'high' },
         apns: { payload: { aps: { sound: 'default' } } },
       },

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
+import { withBase } from "@/lib/base-path";
 
 type Progress =
   | { stage: "finding" }
@@ -152,7 +153,7 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
       shownAt = Date.now();
     };
     try {
-      const res = await fetch("/api/feed/today", { method: "POST" });
+      const res = await fetch(withBase("/api/feed/today"), { method: "POST" });
       if (!res.ok || !res.body) throw new Error(String(res.status));
       const reader = res.body.getReader();
       const decoder = new TextDecoder();

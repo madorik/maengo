@@ -1,0 +1,14 @@
+# watalabs.com 전체 규칙. 맹고 부분은 apps/web/app/robots.ts와 같게 둔다.
+User-agent: *
+Allow: /
+Disallow: /maengo/api/
+Disallow: /maengo/login
+Disallow: /maengo/today
+Disallow: /maengo/article/
+Disallow: /maengo/listen
+Disallow: /maengo/library
+Disallow: /maengo/settings
+Disallow: /maengo/admin
+
+Sitemap: https://watalabs.com/sitemap.xml
+Sitemap: https://watalabs.com/maengo/sitemap.xml

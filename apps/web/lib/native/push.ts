@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { FirebaseMessaging, Importance } from "@capacitor-firebase/messaging";
 import { APP_PUSH_TOKEN_KEY } from "@/lib/app-client";
+import { withBase } from "@/lib/base-path";
 import type { RegisterResult } from "@/lib/web-push";
 
 // 앱 알림(안드로이드·iOS 네이티브 FCM, APP_PLAN.md 3단계). 웹 푸시(lib/web-push.ts)와 같은 /api/devices에 platform android·ios로 등록하고,
@@ -37,7 +38,7 @@ async function ensureChannel() {
 }
 
 async function save(token: string): Promise<boolean> {
-  const res = await fetch("/api/devices", {
+  const res = await fetch(withBase("/api/devices"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ token, platform: platform(), appVersion: appVersion() }),
@@ -90,7 +91,7 @@ export async function unregisterApp(): Promise<void> {
   if (!available()) return;
   const token = stored();
   if (token) {
-    await fetch("/api/devices", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) }).catch(() => {});
+    await fetch(withBase("/api/devices"), { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) }).catch(() => {});
   }
   await FirebaseMessaging.deleteToken().catch(() => {});
   remember(null);

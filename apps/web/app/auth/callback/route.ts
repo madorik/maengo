@@ -1,14 +1,26 @@
 import { cookies } from "next/headers";
-import { NextResponse, type NextRequest } from "next/server";
-import { db } from "@/lib/server/db";
-import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
+import type { NextRequest } from "next/server";
+import { openGcode, VERIFIER_COOKIE } from "@/lib/server/google-login";
+import { redirectInApp } from "@/lib/server/redirect";
+import { afterSignIn, signInWithGoogleIdToken } from "@/lib/server/sign-in";
 import { supabaseAuth } from "@/lib/supabase/server";
 
-// 구글·애플 로그인에서 돌아오는 곳. 코드를 세션으로 바꾸고, 처음이면 관심사 고르기로, 아니면 오늘 피드로 보낸다.
-// 처음 로그인하면 Supabase 트리거가 프로필을 만든다(Free).
+// 로그인에서 돌아오는 곳. 처음이면 관심사 고르기로, 아니면 오늘 피드로 보낸다(처음 로그인하면 Supabase 트리거가 프로필을 만든다).
+// - code: Supabase OAuth(애플, 그리고 GOOGLE_DIRECT_LOGIN이 꺼져 있을 때 구글)의 PKCE 코드
+// - gcode: 앱의 구글 로그인(lib/server/google-login.ts). 웹뷰에 심어 둔 확인값과 맞을 때만 세션을 만든다
 export async function GET(request: NextRequest) {
-  const code = request.nextUrl.searchParams.get("code");
-  const fail = () => NextResponse.redirect(new URL("/login?error=oauth", request.url));
+  const params = request.nextUrl.searchParams;
+  const fail = () => redirectInApp("/login?error=oauth");
+
+  const gcode = params.get("gcode");
+  if (gcode) {
+    const jar = await cookies();
+    const idToken = openGcode(gcode, jar.get(VERIFIER_COOKIE)?.value);
+    jar.delete(VERIFIER_COOKIE);
+    return idToken ? signInWithGoogleIdToken(idToken) : fail();
+  }
+
+  const code = params.get("code");
   if (!code) return fail();
   const supabase = await supabaseAuth();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -16,9 +28,5 @@ export async function GET(request: NextRequest) {
     console.error("[auth] 로그인 실패", error?.message);
     return fail();
   }
-  const jar = await cookies();
-  jar.delete(SESSION_COOKIE); // 데모 세션이 남아 있으면 지운다
-  jar.set(SIGNED_IN_HINT, "1", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 30 });
-  const { data: profile } = await db.from("profiles").select("onboarded_at").eq("id", data.user.id).maybeSingle();
-  return NextResponse.redirect(new URL(profile?.onboarded_at ? "/today" : "/onboarding", request.url));
+  return afterSignIn(data.user.id);
 }

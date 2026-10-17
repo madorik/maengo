@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { estimateDurations, getEpisode } from "@/lib/server/episode";
 import { currentProfile } from "@/lib/server/session";
 import { entitlements } from "@/lib/server/profile";
+import { withBase } from "@/lib/base-path";
 import type { EpisodeData } from "@/lib/types";
 import { parseEpisodeParams } from "../params";
 
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     date,
     persona: params.persona,
     voice: params.voice,
-    audioUrl: `/api/episode/audio?date=${date}&persona=${params.persona}&voice=${params.voice}&v=${version}`,
+    audioUrl: withBase(`/api/episode/audio?date=${date}&persona=${params.persona}&voice=${params.voice}&v=${version}`),
     ready: episode.objectKey !== null,
     durationMs: episode.durationMs,
     chapters: episode.chapters,

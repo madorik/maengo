@@ -54,7 +54,7 @@
 2. 상품 가져오기 → **Entitlement `premium`**에 두 스토어의 `maengo_premium_monthly`를 붙인다(묶음은 붙이지 않음)
 3. **Offering `default`(Current)**: 패키지 `$rc_monthly` → 구독, 사용자 지정 패키지 `pack_10`·`pack_30`·`pack_50`·`pack_100` → 맹고 추가 구매(두 스토어 상품 모두)
 4. API 키: 공개 키 `appl_…`·`goog_…`, 비밀 키(v1) `sk_…`
-5. 통합 → 웹훅: URL `https://maengo.vercel.app/api/billing/revenuecat`(도메인을 사면 그 주소), Authorization `Bearer {REVENUECAT_WEBHOOK_AUTH}`(아무 긴 무작위 값)
+5. 통합 → 웹훅: URL `https://watalabs.com/maengo/api/billing/revenuecat`(예전 `https://maengo.vercel.app/api/billing/revenuecat`도 그대로 받는다), Authorization `Bearer {REVENUECAT_WEBHOOK_AUTH}`(아무 긴 무작위 값)
 
 ### 4. Vercel(운영)·`.env.local`
 ```

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>와타랩스</title>
+  <meta name="description" content="와타랩스는 쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요. 관심 분야 소식을 매일 아침 요약하고 읽어 주는 맹고를 만들어요." />
+  <link rel="canonical" href="https://watalabs.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="ko_KR" />
+  <meta property="og:site_name" content="와타랩스" />
+  <meta property="og:title" content="와타랩스" />
+  <meta property="og:description" content="쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요." />
+  <meta property="og:url" content="https://watalabs.com/" />
+  <meta name="theme-color" content="#FFC23D" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <style>
+    :root {
+      --mango: #FFC23D;
+      --mango-dark: #E09A12;
+      --mango-tint: #FFF4D6;
+      --leaf: #23914F;
+      --ink: #1F2340;
+      --sub: #5E6380;
+      --line: #E4E6EE;
+      --paper: #FFFFFF;
+      --awning-b: #FFE6A3;
+      --shade: rgba(31, 35, 64, 0.08);
+      --bezel: #1F2340;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --mango-tint: #3A2F14;
+        --leaf: #3CC77A;
+        --ink: #ECEEF5;
+        --sub: #A6ABC0;
+        --line: #2A2E40;
+        --paper: #151722;
+        --awning-b: #5A4718;
+        --shade: rgba(0, 0, 0, 0.35);
+        --bezel: #2A2E40;
+        color-scheme: dark;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      font-size: 17px;
+      line-height: 1.65;
+      word-break: keep-all;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    a:focus-visible, button:focus-visible { outline: 3px solid #1A8FE0; outline-offset: 3px; border-radius: 8px; }
+    .wrap { width: min(100% - 32px, 920px); margin-inline: auto; }
+
+    /* 가게 차양: 이 페이지에서 하나뿐인 큰 장식. 줄무늬 + 아래 물결 가장자리 */
+    .awning {
+      --stripe: 64px;
+      height: calc(88px + env(safe-area-inset-top));
+      padding-top: env(safe-area-inset-top);
+      background: repeating-linear-gradient(90deg, var(--mango) 0 var(--stripe), var(--awning-b) var(--stripe) calc(var(--stripe) * 2));
+      -webkit-mask: radial-gradient(calc(var(--stripe) / 2) at 50% 0, #000 98%, transparent 101%) 0 100% / var(--stripe) 24px repeat-x,
+        linear-gradient(#000 0 0) 0 0 / 100% calc(100% - 23px) no-repeat;
+              mask: radial-gradient(calc(var(--stripe) / 2) at 50% 0, #000 98%, transparent 101%) 0 100% / var(--stripe) 24px repeat-x,
+        linear-gradient(#000 0 0) 0 0 / 100% calc(100% - 23px) no-repeat;
+      filter: drop-shadow(0 6px 0 var(--shade));
+      transform-origin: top;
+      animation: unroll 700ms cubic-bezier(.2, .8, .2, 1) both;
+    }
+    @keyframes unroll { from { transform: scaleY(0.2); } to { transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .awning { animation: none; } }
+
+    .sign { text-align: center; padding: 56px 0 72px; }
+    .sign h1 {
+      margin: 0;
+      font-family: "Black Han Sans", "Pretendard Variable", sans-serif;
+      font-weight: 400;
+      font-size: clamp(64px, 17vw, 156px);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+    .sign p { margin: 20px auto 0; max-width: 30ch; font-size: clamp(18px, 2.4vw, 22px); font-weight: 600; color: var(--sub); }
+
+    section { padding: 64px 0; border-top: 2px solid var(--line); }
+    h2 { margin: 0 0 24px; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.3; }
+
+    .shelf {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 28px;
+      align-items: start;
+      padding: 32px;
+      border-radius: 28px;
+      background: var(--mango-tint);
+    }
+    .shelf svg { width: 112px; height: 112px; border-radius: 26px; display: block; }
+    .shelf h3 { margin: 0; font-size: 30px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.2; }
+    .shelf .lede { margin: 6px 0 0; font-size: 18px; font-weight: 600; }
+    .shelf ul { margin: 18px 0 0; padding: 0; list-style: none; color: var(--sub); }
+    .shelf li { padding-left: 22px; position: relative; }
+    .shelf li + li { margin-top: 4px; }
+    .shelf li::before { content: ""; position: absolute; left: 4px; top: 0.66em; width: 8px; height: 8px; border-radius: 50%; background: var(--leaf); }
+    .shelf .platforms { margin: 18px 0 0; max-width: 60ch; }
+    /* 앱 화면: 폰 테두리만 두르고 가로로 늘어놓는다(좁으면 옆으로 넘긴다) */
+    .shots { grid-column: 1 / -1; display: flex; gap: 16px; margin-top: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+    .shots::-webkit-scrollbar { display: none; }
+    .shots img { flex: 0 0 auto; width: 210px; height: auto; border: 7px solid var(--bezel); border-radius: 30px; background: var(--bezel); scroll-snap-align: start; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 52px; margin-top: 24px; padding: 0 26px;
+      border-radius: 16px;
+      background: var(--ink); color: var(--paper);
+      font-size: 17px; font-weight: 800; text-decoration: none;
+      transition: transform 120ms ease;
+    }
+    .btn:hover { background: var(--mango-dark); color: #1F2340; }
+    .btn:active { transform: scale(0.97); }
+
+    .about p { margin: 0; max-width: 62ch; }
+    .about p + p { margin-top: 12px; }
+    .contact a { font-size: 20px; font-weight: 800; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+
+    footer { padding: 32px 0 calc(40px + env(safe-area-inset-bottom)); border-top: 2px solid var(--line); color: var(--sub); font-size: 14px; }
+    footer .row { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; }
+    footer nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+    footer nav a { text-decoration: none; }
+    footer nav a:hover { text-decoration: underline; }
+
+    @media (max-width: 560px) {
+      .awning { --stripe: 44px; height: calc(64px + env(safe-area-inset-top)); }
+      .sign { padding: 40px 0 56px; }
+      section { padding: 48px 0; }
+      .shelf { grid-template-columns: 1fr; padding: 24px; gap: 18px; }
+      .shelf svg { width: 84px; height: 84px; border-radius: 20px; }
+      .shots img { width: 180px; border-width: 6px; border-radius: 26px; }
+      .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="awning" aria-hidden="true"></div>
+
+  <header class="sign wrap">
+    <h1>와타랩스</h1>
+    <p>쓸모 있는 작은 앱을 혼자 만들어요.</p>
+  </header>
+
+  <main>
+    <section aria-labelledby="apps-title">
+      <div class="wrap">
+        <h2 id="apps-title">지금 있는 앱</h2>
+        <article class="shelf">
+          <svg viewBox="0 0 200 200" role="img" aria-label="맹고 아이콘">
+            <rect width="200" height="200" fill="#FFC23D"/>
+            <path d="M200 105 L200 200 L80 200 C140 196 190 160 200 105 Z" fill="#FF9F2E"/>
+            <ellipse cx="44" cy="58" rx="11" ry="22" transform="rotate(-35 44 58)" fill="#FFE08A"/>
+            <rect x="110" y="28" width="9" height="17" rx="3" transform="rotate(20 114 36)" fill="#7A4A2A"/>
+            <path d="M118 40 C130 14 164 6 184 14 C174 38 144 50 118 40 Z" fill="#34B36A"/>
+            <path d="M123 38 C140 30 160 22 178 16" fill="none" stroke="#23914F" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="70" cy="110" r="22" fill="#FFFFFF"/>
+            <circle cx="130" cy="110" r="22" fill="#FFFFFF"/>
+            <circle cx="74" cy="114" r="11" fill="#191C32"/>
+            <circle cx="126" cy="114" r="11" fill="#191C32"/>
+            <circle cx="78" cy="108" r="3.5" fill="#FFFFFF"/>
+            <circle cx="130" cy="108" r="3.5" fill="#FFFFFF"/>
+            <ellipse cx="50" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
+            <ellipse cx="150" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
+            <path d="M86 142 Q100 156 114 142" fill="none" stroke="#191C32" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+          <div>
+            <h3>맹고</h3>
+            <p class="lede">관심 분야 소식을 매일 아침 요약하고 읽어 드려요.</p>
+            <ul>
+              <li>AI, 주식, 코인, 반도체처럼 관심 있는 분야만 골라요.</li>
+              <li>국내외 매체와 공식 블로그를 AI가 훑어 그 분야 소식만 요약해요.</li>
+              <li>읽기 바쁠 땐 오디오로 들어요.</li>
+            </ul>
+            <p class="platforms">웹과 Android, iPhone 앱에서 써요. 앱에서는 정한 시간에 소식 알림을 받고, 화면을 꺼도 끝까지 이어서 들어요. Android와 iPhone 앱은 지금 테스트 중이에요.</p>
+            <a class="btn" href="/maengo">맹고 열기</a>
+          </div>
+          <div class="shots">
+            <img src="/shots/maengo-today.webp" width="480" height="1041" loading="lazy" alt="오늘의 소식 화면. 고른 분야에서 골라 온 오늘 소식과 요약이 보여요" />
+            <img src="/shots/maengo-article.webp" width="480" height="1041" loading="lazy" alt="소식 화면. 핵심 요약과 원문 보기, 이 글 듣기 버튼이 있어요" />
+            <img src="/shots/maengo-playlist.webp" width="480" height="1041" loading="lazy" alt="플레이리스트 화면. 들을 소식을 모아 두고 전체 듣기를 눌러요" />
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="about" aria-labelledby="about-title">
+      <div class="wrap">
+        <h2 id="about-title">와타랩스는</h2>
+        <p>개발자 한 명이 기획부터 디자인, 개발, 운영까지 직접 하는 1인 회사예요.</p>
+        <p>매일 직접 쓰고 싶은 앱을 작게 만들고, 쓰는 분들의 이야기를 들으며 오래 고쳐 나가요.</p>
+      </div>
+    </section>
+
+    <section class="contact" aria-labelledby="contact-title">
+      <div class="wrap">
+        <h2 id="contact-title">문의</h2>
+        <a href="mailto:watalabs.help@gmail.com">watalabs.help@gmail.com</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap row">
+      <span>© 2026 와타랩스</span>
+      <nav aria-label="맹고 약관">
+        <a href="/maengo/terms">맹고 이용약관</a>
+        <a href="/maengo/privacy">맹고 개인정보 처리방침</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

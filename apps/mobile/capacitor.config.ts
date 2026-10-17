@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 
 // 앱은 배포된 웹을 띄운다(APP_PLAN.md 3장). 개발 때는 CAP_SERVER_URL=http://<맥 LAN IP>:3100 으로 로컬 서버를 띄운다.
 // 이 값은 `cap sync`/`cap copy` 때 네이티브 프로젝트에 들어가므로, 바꾸면 다시 sync한다. cap 명령은 이 폴더에서 실행한다.
-const serverUrl = (process.env.CAP_SERVER_URL || "https://maengo.vercel.app").replace(/\/+$/, "");
+// 운영 맹고는 회사 도메인의 /maengo 경로에 있다(packages/core/src/site.ts)
+const serverUrl = (process.env.CAP_SERVER_URL || "https://watalabs.com/maengo").replace(/\/+$/, "");
 const { version } = JSON.parse(readFileSync(resolve("package.json"), "utf8")) as { version: string };
 
 // 웹을 못 불러올 때 뜨는 안내 화면. "다시 시도"로 돌아갈 주소를 넣어 www/index.html로 만든다(www는 gitignore).
