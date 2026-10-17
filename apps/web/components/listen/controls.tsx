@@ -4,7 +4,7 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState } from "react";
-import { IconCheck, IconGrip } from "@/components/icons";
+import { IconCheck, IconClose, IconGrip } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SORT_INSTRUCTIONS, sortAnnouncements } from "@/components/ui/sortable-a11y";
@@ -16,15 +16,16 @@ type Row = { clusterId: number; title: string; rank: number };
 
 /**
  * 재생 목록. 누르면 그 소식부터(지금 듣는 소식은 그대로).
- * 플레이리스트를 들을 때는 손잡이를 끌어 순서를 바꾼다(PlayerProvider.reorderPlaylist: 듣던 자리에서 이어 가고 플레이리스트에도 저장).
- * 음성 조각이 다 있을 때만 끌 수 있다(새 순서로 이어 붙이기만 하면 된다)
+ * 플레이리스트를 들을 때는 손잡이를 끌어 순서를 바꾸고 ×로 뺀다(PlayerProvider.reorderPlaylist·removeFromPlayer: 듣던 자리에서 이어 간다.
+ * 저장된 플레이리스트는 그대로). 음성 조각이 다 있을 때만 바꿀 수 있다(새 순서로 이어 붙이기만 하면 된다).
+ * 플레이리스트 화면에서 추가한 소식은 음성을 만드는 동안 끝에 '준비 중'으로 보인다
  */
 export function Queue({ onPick }: { onPick?: () => void }) {
   const p = usePlayer();
   const { data } = useToday();
   // 플레이리스트면 고른 소식(챕터 표), 아니면 오늘 피드. 순번은 플레이리스트 안의 순서다
   const rows: Row[] = p.playlist ? p.chapters.map((ch) => ({ clusterId: ch.clusterId, title: ch.title, rank: ch.rank })) : data.items;
-  const sortable = !!p.playlist && p.audioReady && !p.preparing;
+  const sortable = !!p.playlist && p.canEdit;
 
   // 끌어 놓은 순서를 새 챕터 표가 올 때까지 먼저 보여 준다(챕터 표가 바뀌면 그 순서를 따른다)
   const key = rows.map((r) => r.clusterId).join(",");
@@ -47,9 +48,13 @@ export function Queue({ onPick }: { onPick?: () => void }) {
       {ids.map((id, i) => {
         const row = byId.get(id);
         if (!row) return null;
-        const props = { row, position: p.playlist ? i + 1 : row.rank, onPick };
+        const props = { row, position: p.playlist ? i + 1 : row.rank, onPick, onRemove: p.playlist ? () => p.removeFromPlayer(id) : undefined };
         return sortable ? <SortableItem key={id} {...props} /> : <Item key={id} {...props} />;
       })}
+      {p.playlist &&
+        p.pending.map((x, i) => (
+          <PendingItem key={`pending-${x.clusterId}`} title={x.title} position={ids.length + i + 1} indent={sortable} onRemove={() => p.removeFromPlayer(x.clusterId)} />
+        ))}
     </ol>
   );
   if (!sortable) return list;
@@ -68,7 +73,7 @@ export function Queue({ onPick }: { onPick?: () => void }) {
   );
 }
 
-type ItemProps = { row: Row; position: number; onPick?: () => void };
+type ItemProps = { row: Row; position: number; onPick?: () => void; onRemove?: () => void };
 
 function SortableItem(props: ItemProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: props.row.clusterId });
@@ -99,6 +104,7 @@ function Item({
   row,
   position,
   onPick,
+  onRemove,
   liRef,
   style,
   dragging = false,
@@ -142,6 +148,36 @@ function Item({
         <span className={`truncate text-[15px] font-extrabold ${skipped ? "text-faint line-through" : ""}`}>{row.title}</span>
         <span className={`text-[13px] font-bold tabular-nums ${current ? "text-sky-dark" : "text-sub"}`}>{note}</span>
       </button>
+      {onRemove && <RemoveButton title={row.title} onClick={onRemove} disabled={!p.canEdit} />}
+    </li>
+  );
+}
+
+function RemoveButton({ title, onClick, disabled = false }: { title: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-label={`${title} 플레이어에서 빼기`}
+      onClick={onClick}
+      disabled={disabled}
+      className="mr-1 flex size-10 shrink-0 items-center justify-center rounded-lg text-faint enabled:hover:bg-snow enabled:hover:text-sub disabled:opacity-40"
+    >
+      <IconClose className="size-[18px]" />
+    </button>
+  );
+}
+
+/** 플레이어에 추가했지만 음성을 만드는 중이라 아직 못 듣는 소식 */
+function PendingItem({ title, position, indent, onRemove }: { title: string; position: number; indent: boolean; onRemove: () => void }) {
+  return (
+    <li className={`tile flex items-center ${indent ? "pl-1" : ""}`}>
+      {indent && <span aria-hidden className="size-10 shrink-0" />}
+      <div className={`grid min-w-0 flex-1 grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 py-2.5 ${indent ? "pl-1 pr-3" : "px-3"}`}>
+        <span className="flex size-8 items-center justify-center rounded-full bg-line font-round text-[15px] font-black text-sub">{position}</span>
+        <span className="truncate text-[15px] font-extrabold text-sub">{title}</span>
+        <span className="text-[13px] font-bold text-sky-dark">준비 중</span>
+      </div>
+      <RemoveButton title={title} onClick={onRemove} />
     </li>
   );
 }

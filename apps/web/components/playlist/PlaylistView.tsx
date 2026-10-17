@@ -6,7 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { playlistClear, playlistRemove, playlistReorder } from "@/app/actions";
-import { IconClose, IconDoc, IconGrip, IconPlay } from "@/components/icons";
+import { IconCheck, IconClose, IconDoc, IconGrip, IconPlay, IconPlus } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ReadBadge } from "@/components/library/ReadBadge";
@@ -17,7 +17,7 @@ import { SORT_INSTRUCTIONS, sortAnnouncements } from "@/components/ui/sortable-a
 import type { LibraryEntry } from "@/lib/types";
 
 /**
- * 플레이리스트 화면: 담은 순서대로 전체 듣기, 손잡이를 끌어 순서 바꾸기(터치·마우스·키보드), ×로 빼기, 비우기.
+ * 플레이리스트 화면: 담은 순서대로 전체 듣기, 손잡이를 끌어 순서 바꾸기(터치·마우스·키보드), +로 플레이어에 추가, ×로 빼기, 비우기.
  * 끌어 놓으면 화면 순서를 먼저 바꾸고 서버에 저장한다
  */
 export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; locked: boolean }) {
@@ -87,7 +87,16 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
             <ul className="mt-6 flex flex-col gap-3">
               {ids.map((id) => {
                 const e = byId.get(id);
-                return e ? <Row key={id} entry={e} busy={busy} onRemove={() => start(() => playlistRemove(id))} /> : null;
+                return e ? (
+                  <Row
+                    key={id}
+                    entry={e}
+                    busy={busy}
+                    inPlayer={p.inPlayer(id)}
+                    onAdd={() => p.addToPlayer([{ clusterId: id, title: e.title }])}
+                    onRemove={() => start(() => playlistRemove(id))}
+                  />
+                ) : null;
               })}
             </ul>
           </SortableContext>
@@ -97,7 +106,7 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
   );
 }
 
-function Row({ entry: e, busy, onRemove }: { entry: LibraryEntry; busy: boolean; onRemove: () => void }) {
+function Row({ entry: e, busy, inPlayer, onAdd, onRemove }: { entry: LibraryEntry; busy: boolean; inPlayer: boolean; onAdd: () => void; onRemove: () => void }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: e.clusterId });
   return (
     <li
@@ -133,6 +142,17 @@ function Row({ entry: e, busy, onRemove }: { entry: LibraryEntry; busy: boolean;
           </Link>
         </h2>
       </div>
+      {/* 플레이어에 추가(이미 있으면 ✓) */}
+      <button
+        type="button"
+        aria-label={inPlayer ? `${e.title}, 플레이어에 있어요` : `${e.title} 플레이어에 추가`}
+        title={inPlayer ? "플레이어에 있어요" : "플레이어에 추가"}
+        onClick={onAdd}
+        disabled={inPlayer}
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sky enabled:hover:bg-sky-tint disabled:text-leaf"
+      >
+        {inPlayer ? <IconCheck className="size-5 [stroke-width:2.6]" /> : <IconPlus className="size-5 [stroke-width:2.4]" />}
+      </button>
       <button
         type="button"
         aria-label={`${e.title} 빼기`}

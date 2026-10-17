@@ -2,7 +2,7 @@
 
 import type { Chapter, Persona, Voice } from "@maengo/core/types";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { playlistReorder, savePlayerPrefs } from "@/app/actions";
+import { savePlayerPrefs } from "@/app/actions";
 import {
   isSkipped, lineAt, nextPlayable, prevPlayable, progress as progressOf, startIndex, tick, type Progress,
 } from "@/lib/player/machine";
@@ -70,13 +70,24 @@ export interface PlayerApi {
   playPlaylist: (ids: number[]) => void;
   /** 플레이리스트를 닫고 오늘 피드 듣기로 돌아온다 */
   exitPlaylist: () => void;
-  /** 듣는 중인 플레이리스트 묶음의 순서를 바꾼다(재생 목록에서 끌어 놓기). 듣던 소식의 듣던 자리에서 이어 간다 */
+  /** 플레이어 목록 순서를 바꾼다(재생 목록에서 끌어 놓기). 듣던 소식의 듣던 자리에서 이어 간다. 저장된 플레이리스트 순서는 그대로 */
   reorderPlaylist: (ids: number[]) => void;
+  /** 플레이어 목록에서 뺀다(저장된 플레이리스트는 그대로). 듣던 소식이면 그 자리에 온 소식으로 넘어간다 */
+  removeFromPlayer: (id: number) => void;
+  /** 플레이어 목록 끝에 붙인다(음성을 미리 만든 뒤). 플레이리스트를 듣는 중이 아니면 이 소식으로 채우고 바로 들려준다 */
+  addToPlayer: (items: { clusterId: number; title: string }[]) => void;
+  /** 음성을 만드는 중이라 아직 목록에 붙지 않은 소식 */
+  pending: { clusterId: number; title: string }[];
+  /** 플레이어 목록(또는 추가 대기)에 있는지 */
+  inPlayer: (id: number) => boolean;
+  /** 지금 목록을 바로 바꿀 수 있는지(음성 조각이 다 있고 만드는 중이 아님) */
+  canEdit: boolean;
 }
 
 const RATES = [1, 1.2, 1.5, 0.8];
 const LOAD_ERROR = "오늘 브리핑을 불러오지 못했어요. 새로고침한 뒤 다시 눌러 주세요.";
 const PLAY_ERROR = "재생을 시작하지 못했어요. 재생 버튼을 한 번 더 눌러 주세요.";
+const ADD_ERROR = "플레이어에 추가하지 못했어요. 잠시 뒤 다시 눌러 주세요.";
 
 const PlayerContext = createContext<PlayerApi | null>(null);
 /** 플레이리스트는 직접 고른 소식이라 읽은 소식 건너뛰기를 하지 않는다 */
@@ -109,8 +120,9 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const playlistRef = useRef<number[] | null>(null);
   /** 이 묶음 다음에 이어 들을 소식(PLAYLIST_MAX개씩 나눠 튼다) */
   const queueRef = useRef<number[]>([]);
-  /** 플레이리스트 전체 순서(묶음으로 나누기 전). 순서를 바꿔 저장할 때 지금 묶음 자리만 갈아 끼운다 */
-  const fullRef = useRef<number[]>([]);
+  /** 플레이어에 추가했지만 음성을 만드는 중이라 아직 목록에 붙지 않은 소식 */
+  const addingRef = useRef<{ clusterId: number; title: string }[]>([]);
+  const [pending, setPending] = useState<{ clusterId: number; title: string }[]>([]);
   /** 다음 묶음 음성을 미리 만들어 달라고 한 주소(묶음마다 한 번) */
   const warmedRef = useRef<string | null>(null);
   /** 재생 위치를 옮긴 횟수. 안드로이드 알림의 재생 위치를 맞출 때만 쓴다 */
@@ -321,7 +333,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     queueRef.current = ids.slice(PLAYLIST_MAX);
     if (!continued) {
       track("listen_start", { mode: "playlist", count: ids.length });
-      fullRef.current = ids.slice();
+      addingRef.current = [];
+      setPending([]);
     }
     playlistRef.current = list;
     setPlaylist(list);
@@ -352,6 +365,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const exitPlaylist = () => {
     queueRef.current = [];
+    addingRef.current = [];
+    setPending([]);
     if (!playlistRef.current) return;
     audioRef.current?.pause();
     playlistRef.current = null;
@@ -365,22 +380,19 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     void load(persona, voice, { index: -1, resume: false });
   };
 
-  const reorderPlaylist = (ids: number[]) => {
-    const list = playlistRef.current;
+  /**
+   * 플레이어 목록을 ids로 갈아 끼운다(순서 바꾸기·빼기·추가가 끝난 뒤). 음성 조각이 다 있는 목록만 넘긴다(이어 붙이기만 하면 된다).
+   * 듣던 소식이 남아 있으면 그 소식의 듣던 자리에서, 뺐으면 그 자리에 온 소식 처음부터 이어 간다
+   */
+  const swapList = (ids: number[]) => {
     const audio = audioRef.current;
-    // 음성 조각이 다 있을 때만(새 순서로 이어 붙이기만 하면 된다. 만드는 중이면 기다린다)
-    if (!list || !audio || !episode?.ready || preparing) return;
-    if (ids.length !== list.length || ids.every((id, i) => id === list[i])) return;
-    // 플레이리스트 전체 순서에서 지금 묶음 자리만 새 순서로 바꿔 저장한다
-    const full = fullRef.current;
-    const start = full.indexOf(list[0]!);
-    const nextFull = start < 0 ? ids : [...full.slice(0, start), ...ids, ...full.slice(start + list.length)];
-    fullRef.current = nextFull;
-    void playlistReorder(nextFull).catch(() => {});
-    // 듣던 소식과 그 안의 위치를 기억해 두고, 새 순서로 이어 붙인 파일에서 같은 자리로 간다
+    const prev = playlistRef.current;
+    if (!audio || !prev) return;
+    if (!ids.length) return exitPlaylist();
     const curId = cur >= 0 ? chapters[cur]?.clusterId : undefined;
     const offsetMs = curId !== undefined ? Math.max(0, audio.currentTime * 1000 - chapters[cur]!.startMs) : 0;
     const resume = !audio.paused;
+    const fallback = curId !== undefined && !ids.includes(curId) ? Math.min(prev.indexOf(curId), ids.length - 1) : -1;
     playlistRef.current = ids;
     setPlaylist(ids);
     const seq = ++loadSeq.current;
@@ -388,16 +400,69 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       .then((ep) => {
         if (seq !== loadSeq.current) return;
         setEpisode(ep);
-        const index = curId === undefined ? -1 : ep.chapters.findIndex((c) => c.clusterId === curId);
+        const kept = curId === undefined ? -1 : ep.chapters.findIndex((c) => c.clusterId === curId);
+        const index = kept >= 0 ? kept : fallback;
         // 아직 듣기 전이면 파일은 재생을 누를 때 건다(needsFile)
-        if (index < 0) return;
+        if (index < 0) return setCur(-1);
         setCur(index);
         const ch = ep.chapters[index]!;
-        openFile(ep, index, resume, Math.min(offsetMs, Math.max(0, ch.endMs - ch.startMs - 500)));
+        openFile(ep, index, resume, kept >= 0 ? Math.min(offsetMs, Math.max(0, ch.endMs - ch.startMs - 500)) : 0);
       })
       .catch(() => {
         if (seq === loadSeq.current) setError(LOAD_ERROR);
       });
+  };
+  // 음성을 미리 만든 뒤(비동기) 부를 때도 그때의 최신 상태로 갈아 끼우게 ref로 둔다
+  const swapRef = useRef(swapList);
+  useEffect(() => {
+    swapRef.current = swapList;
+  });
+
+  /** 음성 조각이 다 있고 만드는 중이 아닐 때만 목록을 바로 바꿀 수 있다 */
+  const canEdit = !!playlist && !!episode?.ready && !preparing;
+
+  const reorderPlaylist = (ids: number[]) => {
+    const list = playlistRef.current;
+    if (!list || !canEdit) return;
+    if (ids.length !== list.length || ids.every((id, i) => id === list[i])) return;
+    swapList(ids);
+  };
+
+  const removeFromPlayer = (id: number) => {
+    // 음성을 만드는 중인(추가 대기) 소식이면 대기에서만 뺀다(다 만들어져도 붙이지 않는다)
+    if (addingRef.current.some((x) => x.clusterId === id)) {
+      addingRef.current = addingRef.current.filter((x) => x.clusterId !== id);
+      setPending(addingRef.current);
+      return;
+    }
+    const list = playlistRef.current;
+    if (!list || !canEdit || !list.includes(id)) return;
+    swapList(list.filter((x) => x !== id));
+  };
+
+  const addToPlayer = (items: { clusterId: number; title: string }[]) => {
+    const list = playlistRef.current;
+    // 플레이리스트를 듣는 중이 아니면(오늘 소식·쉬는 중) 플레이어를 이 소식으로 채우고 바로 들려준다
+    if (!list) return playPlaylist(items.map((i) => i.clusterId));
+    const have = new Set([...list, ...addingRef.current.map((x) => x.clusterId)]);
+    const fresh = items.filter((i) => !have.has(i.clusterId)).slice(0, Math.max(0, PLAYLIST_MAX - have.size));
+    if (!fresh.length) return;
+    addingRef.current = [...addingRef.current, ...fresh];
+    setPending(addingRef.current);
+    // 지금 듣는 파일은 그대로 두고 새 소식 음성을 미리 만든다(서버는 다 만들면 저장소 주소로 넘기기만 한다). 다 되면 목록 끝에 붙여 갈아 끼운다
+    const target = [...list, ...fresh.map((f) => f.clusterId)];
+    const settle = (ok: boolean) => {
+      const still = addingRef.current.filter((x) => fresh.some((f) => f.clusterId === x.clusterId));
+      addingRef.current = addingRef.current.filter((x) => !fresh.some((f) => f.clusterId === x.clusterId));
+      setPending(addingRef.current);
+      const now = playlistRef.current;
+      if (!ok) return setError(ADD_ERROR);
+      if (!still.length || !now) return;
+      swapRef.current([...now, ...still.map((x) => x.clusterId).filter((id) => !now.includes(id))]);
+    };
+    fetch(playlistAudioUrl(target, voice), { redirect: "manual", cache: "no-store" })
+      .then((res) => settle(res.type === "opaqueredirect" || res.ok))
+      .catch(() => settle(false));
   };
 
   const cycleRate = () => {
@@ -507,6 +572,11 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     playPlaylist,
     exitPlaylist,
     reorderPlaylist,
+    removeFromPlayer,
+    addToPlayer,
+    pending,
+    inPlayer: (id) => !!playlist?.includes(id) || pending.some((x) => x.clusterId === id),
+    canEdit,
   };
 
   // 잠금 화면·이어폰·안드로이드 알림 버튼(lib/native/media.ts). 핸들러는 늘 최신 api를 부르도록 ref로 넘긴다.
