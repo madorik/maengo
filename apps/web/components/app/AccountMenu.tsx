@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/actions";
 import { isAppUserAgent } from "@/lib/app-client";
-import { Crown, IconChevronDown } from "@/components/icons";
+import { Crown, IconChevronDown, IconGear } from "@/components/icons";
 import { useProfile } from "@/components/providers/ProfileProvider";
 
 /** 프로필 사진(구글 사진, 없으면 이름 첫 글자). Premium이면 동그라미 위에 왕관을 씌운다 */
@@ -31,7 +31,7 @@ function Avatar({ size, crown }: { size: "sm" | "md" | "lg"; crown: boolean }) {
 }
 
 /**
- * 계정 메뉴: 프로필 사진(+이름)을 누르면 계정 정보와 로그아웃이 열린다.
+ * 계정 메뉴: 프로필 사진(+이름)을 누르면 계정 정보, 설정, 로그아웃이 열린다.
  * 데스크톱은 왼쪽 메뉴 맨 아래(위로 열림), 모바일은 위쪽 막대 오른쪽(아래로 열림).
  */
 export function AccountMenu({ placement }: { placement: "up" | "down" }) {
@@ -118,11 +118,21 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
               </Link>
             </div>
           )}
-          <form action={logout} className="border-t-2 border-line pt-2">
-            <button type="submit" className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-[15px] font-extrabold text-orange hover:bg-snow">
-              로그아웃
-            </button>
-          </form>
+          <div className="border-t-2 border-line pt-2">
+            <Link
+              href="/settings"
+              onClick={() => setOpen(false)}
+              className="flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-[15px] font-extrabold text-ink no-underline hover:bg-snow"
+            >
+              <IconGear className="size-5 text-sub" />
+              설정
+            </Link>
+            <form action={logout}>
+              <button type="submit" className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-[15px] font-extrabold text-orange hover:bg-snow">
+                로그아웃
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>
