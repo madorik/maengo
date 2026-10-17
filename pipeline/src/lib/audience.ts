@@ -129,7 +129,7 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
 
 /**
  * 이 관심사들에 붙은 묶음만, untilHours 전 ~ sinceHours 전 사이에서 최근 것부터 limit개(요약 여부 상관없이). 알림 시각에 고를 게 모자랄 때
- * 기간을 넓혀(사흘~일주일 → 일주일~한 달 → 한 달~석 달) 더 오래된 쪽을 차례로 찾는 데 쓴다. 최근 것이 많아도 오래된 쪽까지 닿게 구간으로 읽는다.
+ * 기간을 넓혀(사흘~일주일 → 일주일~한 달) 더 오래된 쪽을 차례로 찾는 데 쓴다. 최근 것이 많아도 오래된 쪽까지 닿게 구간으로 읽는다.
  * loadCandidates는 기간 안의 묶음을 전부 읽어서 넓은 기간엔 무겁다
  */
 export async function loadTopicCandidates(

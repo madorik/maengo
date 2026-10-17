@@ -18,16 +18,16 @@ import { flushUsage, recordUsage } from './lib/usage';
 //   1. 오늘 줄 채우기(plan_deliveries) — 만들 시각 = 알림 시각. 알림 시각을 바꿨으면 대기 중인 줄의 시각도 맞춘다
 //   2. 10분 넘게 멈춘 줄 되돌리기(reclaim_stuck_deliveries)
 //   3. 알림 시각이 된(지난) 줄 중 오늘 소식을 못 받은 사람만, 그 사람 관심사에 맞는 소식을 골라 요약이 없으면 지금 요약해 오늘 피드를 만든다 → ready
-//      고를 게 모자라면 기간을 넓혀(사흘 → 일주일 → 한 달 → 석 달) 찾는다. 같은 소식은 여러 사람에게 한 번만 요약한다
-//      이미 오늘 소식을 받았으면 had(다시 알리지 않음), 석 달 안에도 맞는 게 없으면 한 시간 뒤 다시(그날 세 번까지) → empty
+//      고를 게 모자라면 기간을 넓혀(사흘 → 일주일 → 한 달) 찾는다. 같은 소식은 여러 사람에게 한 번만 요약한다
+//      이미 오늘 소식을 받았으면 had(다시 알리지 않음), 한 달 안에도 맞는 게 없으면 한 시간 뒤 다시(그날 세 번까지) → empty
 //      AI가 막혔으면(크레딧 소진·지출 상한) 이미 요약된 소식으로만, 그것도 없으면 30분 뒤 다시. 시간 안에 못 한 사람은 다음 실행이 잇는다
 //   4. ready 줄을 FCM으로 보낸다 → sent / no_device / muted(알림 꺼 둠). 만든 그 실행에서 바로 보낸다
 // 서버가 잠깐 멈췄어도 그날 안이면 다음 실행이 알림 시각이 지난 사람을 이어서 챙긴다.
 
 const BUILD_BATCH = 100;
 const SEND_BATCH = 200;
-/** 고를 소식을 찾는 기간(시간): 사흘 → 일주일 → 한 달 → 석 달 */
-const WINDOWS_H = [72, 7 * 24, 30 * 24, 90 * 24];
+/** 고를 소식을 찾는 기간(시간): 사흘 → 일주일 → 한 달. 한 달 지난 묶음은 벡터·행을 정리한다(prune_storage) */
+const WINDOWS_H = [72, 7 * 24, 30 * 24];
 /** 요약이 '소식 아님'으로 빠질 때를 대비해 하루 소식보다 더 골라 둔다 */
 const SPARE = 3;
 /** 한 실행에서 새 요약을 시작하는 마감(Vercel 300초 안, 보내기 시간을 남긴다) */
@@ -36,7 +36,7 @@ const BUILD_BUDGET_MS = 200_000;
 const SUMMARY_CONCURRENCY = 4;
 /** AI가 막혀 못 만들었을 때 다시 해 볼 간격 */
 const BLOCKED_RETRY_MS = 30 * 60_000;
-/** 석 달 안에도 맞는 소식이 없을 때 다시 해 볼 간격과 횟수(새 글은 하루 한 번 06:00에 들어온다) */
+/** 한 달 안에도 맞는 소식이 없을 때 다시 해 볼 간격과 횟수(새 글은 하루 한 번 06:00에 들어온다) */
 const EMPTY_RETRY_MS = HOUR;
 const EMPTY_TRIES = 3;
 /** 1분마다 도는데 한 번이 길어져도 겹치지 않게(이보다 오래 붙잡고 있으면 죽은 것으로 보고 넘겨받는다) */
@@ -79,7 +79,7 @@ function makeCtx(now: Date): Ctx {
 type BuildResult = 'built' | 'empty' | 'had' | 'blocked' | 'later';
 
 /**
- * 이 사람들의 오늘 피드를 만든다. 사람마다 관심사로 소식을 골라(모자라면 기간을 넓혀 석 달까지), 위에서부터 요약해 하루 소식만큼 모은다.
+ * 이 사람들의 오늘 피드를 만든다. 사람마다 관심사로 소식을 골라(모자라면 기간을 넓혀 한 달까지), 위에서부터 요약해 하루 소식만큼 모은다.
  * 요약이 없는 소식은 지금 요약한다(같은 소식은 한 번만, 동시에 SUMMARY_CONCURRENCY개). deadline이 지나면 새 요약을 시작하지 않는다.
  */
 export async function buildFeedsFor(ctx: Ctx, userIds: string[], deadline: number): Promise<{ result: Map<string, BuildResult>; summarized: number }> {
@@ -149,7 +149,7 @@ export async function buildFeedsFor(ctx: Ctx, userIds: string[], deadline: numbe
       return wide.length > narrow.length ? wide : narrow;
     };
     let ranked = pick();
-    // 모자라면 이 사람 관심사의 더 오래된 소식을 구간별로 더 찾는다(사흘~일주일 → 일주일~한 달 → 한 달~석 달)
+    // 모자라면 이 사람 관심사의 더 오래된 소식을 구간별로 더 찾는다(사흘~일주일 → 일주일~한 달)
     for (let w = 1; w < WINDOWS_H.length && ranked.length < want; w++) {
       for (const c of await loadTopicCandidates(ctx, Object.keys(widened), { sinceHours: WINDOWS_H[w]!, untilHours: WINDOWS_H[w - 1]! })) if (!seen.has(c.id)) seen.set(c.id, c);
       ranked = pick();
@@ -230,7 +230,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
           out.had++;
           await setStatus(job, { status: 'had', last_error: null });
         } else if (r === 'empty') {
-          // 석 달 안에도 이 사람 관심사에 맞는 소식이 없다: 그날 안이면 한 시간 뒤 다시(새 글은 하루 한 번 06:00에 들어온다)
+          // 한 달 안에도 이 사람 관심사에 맞는 소식이 없다: 그날 안이면 한 시간 뒤 다시(새 글은 하루 한 번 06:00에 들어온다)
           out.empty++;
           const retryAt = new Date(Date.now() + EMPTY_RETRY_MS);
           await setStatus(

@@ -113,7 +113,7 @@ maengo/
 | --- | --- | --- |
 | 사용자 | profiles, user_topics, unmatched_interests | 가입하면 트리거가 profiles를 만든다(체험 7일). onboarded_at이 null이면 온보딩으로. 직업 칸은 없다 |
 | 토픽 | topics(popularity = 추천 순서, embedding 768) | 사전 22개를 마이그레이션으로 넣었다 |
-| 수집 | sources, clusters, items(hnsw 인덱스), cluster_topics | |
+| 수집 | sources, clusters, items, cluster_topics | |
 | 요약 캐시 | summaries(cluster, tier: 요약·전체 글·작성자·카테고리), cluster_why(cluster, topic, tier) | |
 | 유저별 결과 | feeds(rank 1~10), feed_days(그날 보여 준 개수), feedback(바꾼 토픽·양), reads | 무료는 1개, 플러스는 10개를 보여 준다 |
 | 오디오 | audio_segments(대본 jsonb: 줄·문단 번호), episodes(챕터 jsonb), packs | |

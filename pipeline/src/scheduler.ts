@@ -44,7 +44,9 @@ function makeCtx(now: Date, deadline: number, config: Record<string, number>): C
 async function runTask(task: Task, now: Date, deadline: number): Promise<Record<string, unknown>> {
   if (task.name === 'daily') {
     const { data } = await db.rpc('expire_premium');
-    return { expired: data ?? 0 };
+    // 오래된 벡터·행 정리(무료 DB 500MB 안에 머물게, 마이그레이션 20261017150000)
+    const pruned = check(await db.rpc('prune_storage'), 'prune_storage');
+    return { expired: data ?? 0, pruned };
   }
   const ctx = makeCtx(now, deadline, task.config);
   try {
