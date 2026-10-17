@@ -82,3 +82,18 @@ test('피드 제목과 피드 문서 판별(내 관심 링크 해석기가 쓴�
   assert.ok(!isFeedXml('<!doctype html><html><head><title>x</title></head></html>'));
   assert.ok(!isFeedXml('not xml at all'));
 });
+
+test('글 주소는 http(s)만: javascript:·data:·상대 주소 글은 버린다', () => {
+  const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>
+    <item><title>좋은 글</title><link>https://a.com/1</link></item>
+    <item><title>나쁜 글</title><link>javascript:alert(1)</link></item>
+    <item><title>데이터</title><link>data:text/html,hi</link></item>
+    <item><title>상대 주소</title><link>/posts/2</link></item>
+  </channel></rss>`;
+  assert.deepEqual(parseFeed(xml, 'ko').map((e) => e.url), ['https://a.com/1']);
+  const atom = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>t</title>
+    <entry><title>좋은 글</title><link href="http://b.com/1"/></entry>
+    <entry><title>나쁜 글</title><link href="javascript:alert(1)"/></entry>
+  </feed>`;
+  assert.deepEqual(parseFeed(atom, 'en').map((e) => e.url), ['http://b.com/1']);
+});

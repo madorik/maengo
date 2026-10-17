@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  blockedHost, feedLinksInHtml, feedUrlKey, guessLang, isLinkTopicId, isPrivateHost, linkSourceId, linkTopicId, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls,
+  blockedHost, feedLinksInHtml, feedUrlKey, guessLang, isHttpInput, isIpHost, isLinkTopicId, isUnsafeLinkUrl, isPrivateHost, linkSourceId, linkTopicId, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls,
 } from '../topics/links';
 
 test('링크 토픽 id', () => {
@@ -13,13 +13,19 @@ test('링크 토픽 id', () => {
   assert.equal(linkSourceId('dev'), null);
 });
 
-test('주소 정리: 프로토콜을 붙이고, http(s)가 아니거나 주소가 아니면 null', () => {
+test('주소 정리: 프로토콜을 붙이고, https가 아니거나 주소가 아니면 null', () => {
   assert.equal(normalizeLinkInput(' toss.tech ')?.toString(), 'https://toss.tech/');
   assert.equal(normalizeLinkInput('https://d2.naver.com/d2.atom#x')?.toString(), 'https://d2.naver.com/d2.atom');
   assert.equal(normalizeLinkInput('ftp://a.com/x'), null);
+  assert.equal(normalizeLinkInput('http://a.com/x'), null);
+  assert.equal(normalizeLinkInput('HTTP://a.com'), null);
   assert.equal(normalizeLinkInput('드론'), null);
   assert.equal(normalizeLinkInput('a b.com'), null);
   assert.equal(normalizeLinkInput(''), null);
+  assert.ok(isHttpInput(' http://a.com'));
+  assert.ok(isHttpInput('HTTP://a.com'));
+  assert.ok(!isHttpInput('https://a.com'));
+  assert.ok(!isHttpInput('a.com/http://x'));
 });
 
 test('막는 곳: 유튜브, RSS 없는 SNS·브런치. 사설·로컬 주소', () => {
@@ -72,4 +78,13 @@ test('피드 주소 키와 언어 짐작', () => {
   assert.equal(feedUrlKey('https://Toss.tech/rss.xml/#top'), 'https://toss.tech/rss.xml');
   assert.equal(guessLang(['Hello', '토스 기술 블로그']), 'ko');
   assert.equal(guessLang(['Hello', 'World']), 'en');
+});
+
+test('주소 모양으로 막는 링크: IP 그대로·다른 포트·주소 안의 계정·내부 이름', () => {
+  assert.ok(isIpHost('127.0.0.1'));
+  assert.ok(isIpHost('[::1]'));
+  assert.ok(!isIpHost('toss.tech'));
+  const bad = ['https://8.8.8.8/', 'https://0x7f.1/', 'https://2130706433/', 'https://[2606:4700::1111]/', 'https://a.com:8443/', 'https://u:p@a.com/', 'https://intra.local/', 'https://localhost/'];
+  for (const raw of bad) assert.ok(isUnsafeLinkUrl(new URL(raw)), raw);
+  for (const raw of ['https://toss.tech/', 'https://a.com:443/feed', 'https://blog.naver.com/x']) assert.ok(!isUnsafeLinkUrl(new URL(raw)), raw);
 });

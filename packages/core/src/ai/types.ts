@@ -31,6 +31,22 @@ export interface ClassifyInput {
   body: string[];
 }
 
+/** 내 관심 링크로 넣은 사이트의 성격. ok가 아니면 넣지 않는다 */
+export const SITE_VERDICTS = ['ok', 'adult', 'gambling', 'illegal', 'scam'] as const;
+export type SiteVerdict = (typeof SITE_VERDICTS)[number];
+
+export interface ScreenSiteInput {
+  model: string;
+  /** 피드 이름 */
+  name: string;
+  /** 사이트 주소의 호스트 */
+  host: string;
+  /** 최근 글(제목·설명 앞부분), 최대 5개 */
+  posts: { title: string; excerpt: string | null }[];
+  /** 화면에서 기다리는 검사라 짧게 끊는다(기본 6초) */
+  timeoutMs?: number;
+}
+
 export interface ScreenInterestInput {
   model: string;
   /** 사용자가 기타에 적은 말(1~3개) */
@@ -74,6 +90,8 @@ export interface AiClient {
   mapTopics(input: MapTopicsInput): Promise<string[]>;
   /** 기타에 적은 말 중 성인 콘텐츠 관련어가 있는지. 실패하면 던진다(부르는 쪽이 통과로 처리) */
   screenInterest(input: ScreenInterestInput): Promise<{ adult: boolean }>;
+  /** 내 관심 링크로 넣은 사이트가 성인·도박·불법·사기 사이트인지. 실패하면 던진다(부르는 쪽이 통과로 처리) */
+  screenSite(input: ScreenSiteInput): Promise<{ verdict: SiteVerdict }>;
   script(input: ScriptInput): Promise<ScriptLine[]>;
   speak(input: SpeakInput): Promise<SpeakOutput>;
 }

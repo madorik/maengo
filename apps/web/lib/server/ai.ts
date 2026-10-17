@@ -9,7 +9,7 @@ import { chirpVoiceId, createGoogleTts, type TtsClient } from './google-tts';
 export const ai = createDummyAi();
 
 // 듣기 음성(사용자가 듣기를 누를 때만, 만든 음성은 캐시, episode.ts)은 Google Cloud TTS Chirp 3 HD로 만든다(GOOGLE_TTS_API_KEY).
-// 그 키가 없으면 Gemini TTS, 그것도 없으면 더미 신호음. Gemini는 기타 관심사의 성인 관련어 검사(topics.ts)에도 쓴다.
+// 그 키가 없으면 Gemini TTS, 그것도 없으면 더미 신호음. Gemini는 기타 관심사의 성인 관련어 검사(topics.ts)와 내 관심 링크 사이트 검사(links.ts)에도 쓴다.
 const key = process.env.GEMINI_API_KEY?.trim();
 const googleTtsKey = process.env.GOOGLE_TTS_API_KEY?.trim();
 
@@ -36,9 +36,9 @@ function logTtsChars(chars: number) {
 }
 
 export const tts: TtsClient = googleTtsKey ? createGoogleTts({ apiKey: googleTtsKey, onChars: logTtsChars }) : (gemini ?? ai);
-export const screener: Pick<AiClient, 'provider' | 'screenInterest'> = gemini ?? ai;
+export const screener: Pick<AiClient, 'provider' | 'screenInterest' | 'screenSite'> = gemini ?? ai;
 
-/** 관심사 검사 모델(고정 버전) */
+/** 관심사·내 관심 링크 검사 모델(고정 버전) */
 export function screenModel(): string {
   return GEMINI_MODELS.screen;
 }

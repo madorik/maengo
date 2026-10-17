@@ -3,10 +3,11 @@ import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
 import { parseWav } from '../audio/wav';
 import { GEMINI_MODELS } from './models';
 import { templateScript } from './script';
-import { CLASSIFY_SYSTEM, MAP_TOPICS_SYSTEM, SCREEN_INTEREST_SYSTEM, SUMMARIZE_SYSTEM, WHY_SYSTEM } from './prompts';
+import { CLASSIFY_SYSTEM, MAP_TOPICS_SYSTEM, SCREEN_INTEREST_SYSTEM, SCREEN_SITE_SYSTEM, SUMMARIZE_SYSTEM, WHY_SYSTEM } from './prompts';
 import type {
-  AiClient, ClassifyInput, MapTopicsInput, ScreenInterestInput, SpeakInput, SpeakOutput, SummarizeInput, SummarizeOutput, UsageEvent, UsageKind, WhyInput,
+  AiClient, ClassifyInput, MapTopicsInput, ScreenInterestInput, ScreenSiteInput, SiteVerdict, SpeakInput, SpeakOutput, SummarizeInput, SummarizeOutput, UsageEvent, UsageKind, WhyInput,
 } from './types';
+import { SITE_VERDICTS } from './types';
 
 // Gemini API(AI Studio 키) 구현. 파이프라인은 summarize·embed를, 웹은 speak(듣기)를 쓴다.
 // 듣기 대본은 LLM 없이 템플릿(script.ts)으로 만들고, 음성만 Gemini TTS로 만든다.
@@ -365,6 +366,31 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       const text = res.text;
       if (!text) throw new Error(`빈 응답(${finish ?? 'unknown'})`);
       return { adult: (JSON.parse(text) as { adult?: unknown }).adult === true };
+    },
+
+    async screenSite(input: ScreenSiteInput) {
+      // screenInterest와 같이 화면에서 기다리는 검사라 한 번만 짧게 묻는다
+      const posts = input.posts.map((p, i) => `${i + 1}. ${p.title}${p.excerpt ? ` — ${p.excerpt.slice(0, 120)}` : ''}`).join('\n');
+      const res = await client.models.generateContent({
+        model: input.model,
+        contents: [{ role: 'user', parts: [{ text: `이름: ${input.name}\n주소: ${input.host}\n최근 글:\n${posts}` }] }],
+        config: {
+          systemInstruction: SCREEN_SITE_SYSTEM,
+          responseMimeType: 'application/json',
+          responseJsonSchema: { type: 'object', properties: { verdict: { type: 'string', enum: [...SITE_VERDICTS] } }, required: ['verdict'] },
+          thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+          abortSignal: AbortSignal.timeout(input.timeoutMs ?? 6000),
+        },
+      });
+      const u = res.usageMetadata;
+      opts.onUsage?.({ model: res.modelVersion ?? input.model, kind: 'screen', inputTokens: u?.promptTokenCount ?? 0, outputTokens: u?.candidatesTokenCount ?? 0, thinkingTokens: u?.thoughtsTokenCount ?? 0 });
+      // Gemini 안전 필터가 질문이나 답을 막았으면 성인 사이트로 본다
+      const finish = res.candidates?.[0]?.finishReason;
+      if (res.promptFeedback?.blockReason || finish === 'SAFETY' || finish === 'PROHIBITED_CONTENT' || finish === 'BLOCKLIST') return { verdict: 'adult' as const };
+      const text = res.text;
+      if (!text) throw new Error(`빈 응답(${finish ?? 'unknown'})`);
+      const verdict = (JSON.parse(text) as { verdict?: unknown }).verdict;
+      return { verdict: SITE_VERDICTS.includes(verdict as SiteVerdict) ? (verdict as SiteVerdict) : 'ok' };
     },
 
     async script(input) {

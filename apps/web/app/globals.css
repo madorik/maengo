@@ -24,6 +24,9 @@
   --color-leaf-bright: #34B36A;
   --color-leaf-tint: #DDF7E5;
 
+  /* 오류(내 관심 링크를 못 가져올 때). 흰 바탕 글자 대비 4.5:1 이상 */
+  --color-cherry: #D92D3A;
+
   --color-sky: #1A8FE0;
   --color-sky-dark: #1270B3;
   --color-sky-tint: #E1F2FF;

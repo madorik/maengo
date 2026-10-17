@@ -83,7 +83,8 @@ export async function collect(ctx: Ctx) {
 
   const perSource = await mapLimit(sources, 8, async (s) => {
     try {
-      const xml = await fetchText(s.url, { attempts: s.kind === 'youtube' ? 4 : 2, maxBytes: 20_000_000 });
+      // 사용자가 넣은 출처(custom)는 https만(넣을 때와 같은 규칙. 사설 주소는 fetchText가 늘 막는다)
+      const xml = await fetchText(s.url, { attempts: s.kind === 'youtube' ? 4 : 2, maxBytes: 20_000_000, httpsOnly: s.custom });
       const entries = parseFeed(xml, s.lang);
       const fresh = freshEntries(entries, since, s.custom ? LINK_MAX_PER_FETCH : Infinity);
       const latest = latestOf(entries);

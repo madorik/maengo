@@ -19,26 +19,33 @@ export function linkSourceId(topicId: string): number | null {
 }
 
 /** 못 넣는 까닭. 화면 문구는 LINK_ERROR_MESSAGE */
-export type LinkError = 'invalid' | 'youtube' | 'blocked' | 'private' | 'unreachable' | 'nofeed' | 'empty';
+export type LinkError = 'invalid' | 'http' | 'youtube' | 'blocked' | 'private' | 'unsafe' | 'unreachable' | 'nofeed' | 'empty';
 
 export const LINK_ERROR_MESSAGE: Record<LinkError, string> = {
   invalid: '주소가 아니에요. https://로 시작하는 주소를 넣어 주세요.',
+  http: 'http 주소는 받을 수 없어요. https://로 시작하는 주소를 넣어 주세요.',
   youtube: '유튜브는 받을 수 없어요.',
   blocked: '이 사이트는 받을 수 없어요.',
   private: '이 주소는 받을 수 없어요.',
+  unsafe: '도박·불법·사기 관련 사이트는 넣을 수 없어요.',
   unreachable: '이 사이트는 가져올 수 없어요.',
   nofeed: '이 사이트에서 새 글 목록을 찾지 못했어요.',
   empty: '이 피드에는 글이 없어요.',
 };
 
-/** 사용자가 적은 주소를 URL로. 프로토콜이 없으면 https를 붙인다. http(s)가 아니면 null */
+/** http://로 적은 주소. 내 관심 링크는 https만 받는다(2026-10-17 사용자 결정). 까닭을 따로 알려 주려고 normalizeLinkInput 전에 본다 */
+export function isHttpInput(raw: string): boolean {
+  return /^http:\/\//i.test(raw.trim());
+}
+
+/** 사용자가 적은 주소를 URL로. 프로토콜이 없으면 https를 붙인다. https가 아니면(http 포함) null */
 export function normalizeLinkInput(raw: string): URL | null {
   const text = raw.trim();
   if (!text || /\s/.test(text)) return null;
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`;
   try {
     const u = new URL(withScheme);
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    if (u.protocol !== 'https:') return null;
     if (!u.hostname.includes('.') && u.hostname !== 'localhost') return null;
     u.hash = '';
     return u;
@@ -73,6 +80,20 @@ export function isPrivateHost(hostname: string): boolean {
     return host === '::1' || host === '::' || /^fe[89ab]/i.test(host) || /^f[cd]/i.test(host) || host.startsWith('::ffff:');
   }
   return false;
+}
+
+/** 호스트가 IP 주소 그대로인지(IPv4·IPv6). URL 파서가 16진·정수 표기(0x7f.1, 2130706433)도 점 네 개로 바꿔 둔다 */
+export function isIpHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, '');
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':');
+}
+
+/**
+ * 주소 모양만 보고 받지 않는 링크(2026-10-17): 사설·내부 이름, IP 주소 그대로, 기본(443)이 아닌 포트, 주소 안의 아이디·비밀번호.
+ * 실제로 연결할 IP는 서버가 열 때 다시 본다(pipeline lib/safe-http.ts)
+ */
+export function isUnsafeLinkUrl(u: URL): boolean {
+  return isPrivateHost(u.hostname) || isIpHost(u.hostname) || u.port !== '' || u.username !== '' || u.password !== '';
 }
 
 /** 주소가 이미 피드처럼 보이는지(.xml·.rss·.atom, /feed, /rss) */

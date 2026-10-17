@@ -1,7 +1,7 @@
 import { createGeminiAi } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
 import {
-  blockedHost, COMMON_FEED_PATHS, feedLinksInHtml, feedUrlKey, guessLang, isPrivateHost, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls, type LinkError,
+  blockedHost, COMMON_FEED_PATHS, isHttpInput, feedLinksInHtml, feedUrlKey, guessLang, isUnsafeLinkUrl, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls, type LinkError,
 } from '@maengo/core/topics';
 import { cluster } from './jobs/cluster';
 import { storeEntries, type SourceRow } from './jobs/collect';
@@ -14,10 +14,11 @@ import { env } from './lib/env';
 import { feedTitle, freshEntries, isFeedXml, latestOf, LINK_MAX_PER_FETCH, parseFeed, type FeedEntry } from './lib/feed';
 import { USER_AGENT } from './lib/http';
 import { tryLock, unlock } from './lib/lock';
+import { BlockedAddressError, safeGet } from './lib/safe-http';
 import { flushUsage, recordUsage } from './lib/usage';
 
 // 내 관심 링크(설정 > 관심사, Premium): 사용자가 적은 주소에서 RSS를 찾아 확인하고(resolveLink), 넣은 자리에서 최근 글을 바로 처리한다(ingestLinkNow).
-// 이 뒤로는 보통 출처와 같다: 3시간마다 collect가 받고(custom 출처는 한 번에 LINK_MAX_PER_FETCH개), tagLinks가 묶음에 's-<id>' 토픽을 붙인다.
+// 이 뒤로는 보통 출처와 같다: 하루 한 번(06:00) collect가 받고(custom 출처는 한 번에 LINK_MAX_PER_FETCH개), tagLinks가 묶음에 's-<id>' 토픽을 붙인다.
 // 주소 규칙(막는 곳·플랫폼별 피드 주소·사설 주소)은 core topics/links.ts. 유튜브는 받지 않는다(2026-10-15 사용자 결정).
 
 export interface ResolvedLink {
@@ -47,37 +48,27 @@ class HostError extends Error {
 function hostCheck(u: URL): void {
   const blocked = blockedHost(u.hostname);
   if (blocked) throw new HostError(blocked);
-  if (isPrivateHost(u.hostname)) throw new HostError('private');
+  if (isUnsafeLinkUrl(u)) throw new HostError('private');
 }
 
 /**
- * 사용자 주소를 가져온다. 리다이렉트는 손으로 따라가며 옮겨 간 호스트도 같은 검사를 한다(사설망·막는 곳으로 튀지 않게).
- * 크기·시간 제한. 실패하면 던진다
+ * 사용자 주소를 가져온다. https만, 리다이렉트는 손으로 따라가며 옮겨 간 호스트도 같은 검사를 한다(막는 곳·주소 모양).
+ * 실제로 연결할 IP가 사설·예약 대역이면 연결하지 않는다(safe-http). 크기·시간 제한. 실패하면 던진다
  */
 async function fetchUser(url: string): Promise<{ text: string; url: string }> {
-  let current = url;
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const u = new URL(current);
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new HostError('invalid');
-    hostCheck(u);
-    const res = await fetch(current, {
+  try {
+    return await safeGet(url, {
       headers: { 'user-agent': USER_AGENT, accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/html;q=0.8, */*;q=0.5' },
-      redirect: 'manual',
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxBytes: MAX_BYTES,
+      maxRedirects: MAX_REDIRECTS,
+      httpsOnly: true,
+      check: hostCheck,
     });
-    if (res.status >= 300 && res.status < 400) {
-      const to = res.headers.get('location');
-      if (!to) throw new Error(`HTTP ${res.status}`);
-      current = new URL(to, current).toString();
-      continue;
-    }
-    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
-    const len = Number(res.headers.get('content-length') ?? 0);
-    if (len > MAX_BYTES) throw new Error(`너무 커요(${len} bytes)`);
-    const text = await res.text();
-    return { text: text.length > MAX_BYTES ? text.slice(0, MAX_BYTES) : text, url: current };
+  } catch (e) {
+    if (e instanceof BlockedAddressError) throw new HostError('private');
+    throw e;
   }
-  throw new Error('리다이렉트가 너무 많아요');
 }
 
 /**
@@ -85,6 +76,7 @@ async function fetchUser(url: string): Promise<{ text: string; url: string }> {
  * 글이 하나라도 있는 피드를 처음 찾으면 끝. 피드는 맞는데 글이 없으면 'empty', 못 찾으면 'nofeed', 페이지도 못 열면 'unreachable'
  */
 export async function resolveLink(raw: string): Promise<ResolveResult> {
+  if (isHttpInput(raw)) return { ok: false, error: 'http' };
   const u = normalizeLinkInput(raw);
   if (!u) return { ok: false, error: 'invalid' };
   try {
@@ -176,7 +168,7 @@ function makeCtx(): Ctx {
 
 /**
  * 링크를 넣은 자리에서: 창(72시간) 안의 글을 items에 넣고(최신 LINK_MAX_PER_FETCH개까지), 그 글만 임베딩 → 묶기 → 링크 태그.
- * 그래야 '하나 더 받기'와 다음 지급에 바로 후보가 된다. AI가 막혀 있으면 넣기만 하고(3시간마다 도는 ingest가 처리한다),
+ * 그래야 '하나 더 받기'와 다음 지급에 바로 후보가 된다. AI가 막혀 있으면 넣기만 하고(하루 한 번 도는 ingest가 처리한다),
  * 다른 요청이 처리 중이면(잠금) 그냥 둔다. 실패해도 링크 넣기는 이미 끝났으므로 기록만 남긴다
  */
 export async function ingestLinkNow(source: { id: number; url: string; name: string; lang: 'ko' | 'en'; custom: boolean }, entries: FeedEntry[]): Promise<void> {

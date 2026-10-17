@@ -1,7 +1,11 @@
 import 'server-only';
-import { blockedHost, isAdultInterest, isLinkTopicId, isPrivateHost, LINK_ERROR_MESSAGE, linkSourceId, linkTopicId, normalizeLinkInput, type LinkError } from '@maengo/core/topics';
+import { after } from 'next/server';
+import type { SiteVerdict } from '@maengo/core/ai';
+import { blockedHost, isAdultInterest, isHttpInput, isLinkTopicId, isUnsafeLinkUrl, LINK_ERROR_MESSAGE, linkSourceId, linkTopicId, normalizeLinkInput, type LinkError } from '@maengo/core/topics';
+import type { ResolvedLink } from '@maengo/pipeline/links';
 import type { LinkView, TopicResult } from '../types';
 import { db, must } from './db';
+import { screener, screenModel } from './ai';
 import { entitlements, type Profile } from './profile';
 import { userTopics } from './topics';
 
@@ -13,8 +17,8 @@ import { userTopics } from './topics';
 const warn = (message: string, code?: LinkError): TopicResult => ({ tone: 'warn', message, ...(code ? { code } : {}) });
 const ADULT: TopicResult = { tone: 'warn', code: 'adult', message: '성인 관련 사이트는 넣을 수 없어요.' };
 const LAST: TopicResult = { tone: 'warn', message: '관심사가 하나는 있어야 소식을 골라 드릴 수 있어요.' };
-/** 이만큼 잇달아 실패하면 목록에 '가져오지 못함'을 보인다(3시간마다 받으니 하루 남짓) */
-const FAILING_AFTER = 5;
+/** 이만큼 잇달아 실패하면 목록에 '가져오지 못함'을 보인다(하루 한 번 받으니 이틀) */
+const FAILING_AFTER = 2;
 
 interface SourceRow {
   id: number;
@@ -89,11 +93,12 @@ export async function addLink(profile: Profile, raw: string, slot: number): Prom
   if (limit <= 0) return warn('내 관심 링크는 Premium에서 넣을 수 있어요.');
   if (!Number.isInteger(slot) || slot < 1 || slot > limit) return warn('없는 칸이에요.');
   const text = raw.trim().slice(0, 500);
+  if (isHttpInput(text)) return warn(LINK_ERROR_MESSAGE.http, 'http');
   const u = normalizeLinkInput(text);
   if (!u) return warn(LINK_ERROR_MESSAGE.invalid, 'invalid');
   const blocked = blockedHost(u.hostname);
   if (blocked) return warn(LINK_ERROR_MESSAGE[blocked], blocked);
-  if (isPrivateHost(u.hostname)) return warn(LINK_ERROR_MESSAGE.private, 'private');
+  if (isUnsafeLinkUrl(u)) return warn(LINK_ERROR_MESSAGE.private, 'private');
   if (isAdultInterest(u.hostname)) return ADULT;
   const mine = await myLinks(profile.id);
   const inSlot = mine.find((m) => m.slot === slot);
@@ -110,6 +115,12 @@ export async function addLink(profile: Profile, raw: string, slot: number): Prom
 
   // 같은 피드는 한 행. 꺼 둔 행(구독자가 없었거나 공개 출처에서 뺀 것)이면 사용자 출처로 다시 켠다
   let source = must(await db.from('sources').select('id,name,url,lang,active,custom').eq('url', link.feedUrl).maybeSingle(), 'sources find') as SourceRow | null;
+  // 처음 들어오는 피드만 내용을 본다(성인·도박·불법·사기). 이미 있는 행은 공개 출처이거나 누가 넣을 때 검사를 통과한 것
+  if (!source) {
+    const verdict = await screenSite(link);
+    if (verdict === 'adult') return ADULT;
+    if (verdict !== 'ok') return warn(LINK_ERROR_MESSAGE.unsafe, 'unsafe');
+  }
   if (source && !source.active) {
     must(await db.from('sources').update({ active: true, custom: true, site_url: link.siteUrl, fail_count: 0, last_error: null, ...(lastItemAt ? { last_item_at: lastItemAt } : {}) }).eq('id', source.id), 'sources reactivate');
     source = { ...source, active: true, custom: true };
@@ -145,13 +156,31 @@ export async function addLink(profile: Profile, raw: string, slot: number): Prom
     await db.from('user_topics').upsert({ user_id: profile.id, topic_id: topicId, weight: 1, source: 'settings', slot }, { onConflict: 'user_id,topic_id' }),
     'user_topics link',
   );
-  // 넣자마자 후보가 되게 창 안의 글을 지금 처리한다. 실패해도 넣기는 끝났고 3시간마다 도는 수집이 잇는다
-  try {
-    await ingestLinkNow({ id: source.id, url: source.url, name: source.name, lang: source.lang, custom: source.custom }, link.entries);
-  } catch (e) {
-    console.warn('[link] 바로 처리 실패:', (e as Error).message);
-  }
+  // 넣자마자 후보가 되게 창 안의 글을 처리한다. 설정 칸은 가져올 수 있는지만 기다리면 되니 응답 뒤(after)에 한다.
+  // 실패해도 넣기는 끝났고 하루 한 번 도는 수집이 잇는다
+  const src = { id: source.id, url: source.url, name: source.name, lang: source.lang, custom: source.custom };
+  after(async () => {
+    try {
+      await ingestLinkNow(src, link.entries);
+    } catch (e) {
+      console.warn('[link] 바로 처리 실패:', (e as Error).message);
+    }
+  });
   return { tone: 'ok', message: '' };
+}
+
+/**
+ * 새 피드의 이름·주소·최근 글 5개를 Gemini에 한 번 묻는다(2026-10-17). 기타 관심사 검사(topics.ts looksAdult)와 같이
+ * Gemini가 안 되면(한도·시간 초과) 통과시킨다
+ */
+async function screenSite(link: ResolvedLink): Promise<SiteVerdict> {
+  try {
+    const posts = link.entries.slice(0, 5).map((e) => ({ title: e.title, excerpt: e.excerpt }));
+    return (await screener.screenSite({ model: screenModel(), name: link.name, host: new URL(link.siteUrl).hostname, posts })).verdict;
+  } catch (e) {
+    console.warn('[screen] 링크 검사 실패, 통과시킴:', (e as Error).message);
+    return 'ok';
+  }
 }
 
 /** 구독 한 줄을 지우고, 아무도 구독하지 않게 된 사용자 출처는 끈다 */

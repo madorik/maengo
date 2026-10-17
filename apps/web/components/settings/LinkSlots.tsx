@@ -1,17 +1,18 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import Link from "next/link";
 import { editLinks } from "@/app/actions";
 import { track } from "@/lib/analytics";
-import { IconClose } from "@/components/icons";
+import { IconCheck, IconClose } from "@/components/icons";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import type { LinkView, TopicResult } from "@/lib/types";
 
 /**
  * 설정 > 내 관심 링크(Premium, 2026-10-15 사용자 결정: 인풋박스 칸으로 관리, 3개, 넣기 버튼 없이 적고 엔터).
- * 칸마다 주소 한 칸. 적고 엔터(키보드 완료)를 치면 넣고, 넣어 둔 링크는 ✕로 뺀다. 넣어 둔 칸의 주소를 고쳐 엔터를 치면 그 칸의 링크가 바뀐다.
- * 서버가 RSS를 찾아 확인한 뒤에야 칸 아래에 이름이 보이고(확인 중에는 칸을 잠근다), 막히면 그 칸 아래에 까닭만 보인다. Free는 Premium 배지.
+ * 칸마다 주소 한 칸. 적고 엔터(키보드 완료)를 치거나 칸을 벗어나면 넣고, 넣어 둔 링크는 ✕로 뺀다. 넣어 둔 칸의 주소를 고쳐 넣으면 그 칸의 링크가 바뀐다.
+ * 서버가 RSS를 찾아 글을 가져올 수 있는지 확인한다(확인 중에는 칸을 잠그고 오른쪽에 도는 표시). 되면 오른쪽에 초록 체크와 칸 아래 이름,
+ * 안 되면 빨간 테두리와 칸 아래 까닭(2026-10-17 사용자 결정). 넣어 둔 링크가 계속 못 가져와도 빨간 테두리. Free는 Premium 배지.
  */
 export function LinkSlots({ links, limit }: { links: LinkView[]; limit: number }) {
   if (limit <= 0) {
@@ -37,6 +38,9 @@ export function LinkSlots({ links, limit }: { links: LinkView[]; limit: number }
 }
 
 function Slot({ slot, saved }: { slot: number; saved: LinkView | null }) {
+  const [value, setValue] = useState(saved?.siteUrl ?? "");
+  // 마지막으로 확인을 보낸 주소. 이번 결과(체크·빨간 테두리)는 칸의 주소가 이것과 같을 때만 보인다
+  const [tried, setTried] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState<TopicResult | null, FormData>(async (prev, formData) => {
     const r = await editLinks(prev, formData);
     // 분석: 넣었는지·뺐는지·막혔는지와 까닭만(주소는 남기지 않는다)
@@ -45,14 +49,29 @@ function Slot({ slot, saved }: { slot: number; saved: LinkView | null }) {
     return r;
   }, null);
   const id = `link-slot-${slot}`;
+  const text = value.trim();
+  // 이번에 확인한 결과가 먼저, 아니면 넣어 둔 링크 그대로일 때 그 링크의 수집 상태
+  const status: "checking" | "ok" | "error" | null = pending
+    ? "checking"
+    : state && text && text === tried
+      ? state.tone === "warn"
+        ? "error"
+        : "ok"
+      : saved && text === saved.siteUrl
+        ? saved.failing
+          ? "error"
+          : "ok"
+        : null;
   return (
     <li>
+      {/* 주소 검사는 서버가 한다(https:// 없는 주소도 받는다). 브라우저 검사는 그런 주소의 제출을 막고 blur 때 칸으로 포커스를 되돌린다 */}
       <form
+        noValidate
         action={formAction}
         onSubmit={(e) => {
           // 빈 칸에서 엔터는 아무것도 하지 않는다. 넣어 둔 주소 그대로 엔터도 마찬가지
-          const value = (e.currentTarget.elements.namedItem("link") as HTMLInputElement | null)?.value.trim() ?? "";
-          if (!value || value === saved?.siteUrl) e.preventDefault();
+          if (!text || text === saved?.siteUrl) e.preventDefault();
+          else setTried(text);
         }}
         className="flex gap-2"
       >
@@ -60,27 +79,52 @@ function Slot({ slot, saved }: { slot: number; saved: LinkView | null }) {
         <label htmlFor={id} className="sr-only">
           내 관심 링크 {slot}
         </label>
-        <input
-          id={id}
-          name="link"
-          type="url"
-          inputMode="url"
-          autoComplete="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          enterKeyHint="done"
-          maxLength={500}
-          defaultValue={saved?.siteUrl ?? ""}
-          placeholder="블로그·사이트 주소"
-          disabled={pending}
-          className="tile min-h-12 min-w-0 flex-1 px-4 text-[15px] font-semibold placeholder:text-faint disabled:opacity-60"
-        />
-        {/* 빼기는 엔터(폼 제출)와 따로 보낸다. submit 버튼이면 엔터가 이 버튼으로 제출돼 링크가 빠진다 */}
+        <div className="relative min-w-0 flex-1">
+          <input
+            id={id}
+            name="link"
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="done"
+            maxLength={500}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={(e) => {
+              // 칸을 벗어나면 엔터와 같다. 방금 확인한 주소는 다시 보내지 않고(다시 해 보려면 엔터), 비우고 나가면 넣어 둔 주소로 되돌린다
+              if (pending) return;
+              if (!text) {
+                if (saved) setValue(saved.siteUrl);
+                return;
+              }
+              if (text !== tried) e.currentTarget.form?.requestSubmit();
+            }}
+            placeholder="블로그·사이트 주소"
+            disabled={pending}
+            aria-invalid={status === "error" || undefined}
+            aria-describedby={`${id}-msg`}
+            className={`tile min-h-12 w-full px-4 pr-11 text-[15px] font-semibold placeholder:text-faint disabled:opacity-60 ${status === "error" ? "border-cherry" : ""}`}
+          />
+          {status === "checking" && (
+            <span aria-hidden="true" className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 rounded-full border-2 border-line border-t-sub motion-safe:animate-spin" />
+          )}
+          {status === "ok" && (
+            <span role="img" aria-label="가져올 수 있어요" className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-leaf">
+              <IconCheck className="size-5 [stroke-width:3]" />
+            </span>
+          )}
+        </div>
+        {/* 빼기는 엔터(폼 제출)와 따로 보낸다. submit 버튼이면 엔터가 이 버튼으로 제출돼 링크가 빠진다.
+            누를 때 칸에서 포커스가 빠지지 않게 해서, 고치던 주소가 blur로 먼저 넣어지지 않게 한다 */}
         {saved && (
           <button
             type="button"
             disabled={pending}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
+              setTried(null);
               const fd = new FormData();
               fd.set("removeLink", saved.id);
               startTransition(() => formAction(fd));
@@ -96,10 +140,10 @@ function Slot({ slot, saved }: { slot: number; saved: LinkView | null }) {
       {saved && state?.tone !== "warn" && (
         <p className="mt-1 truncate px-1 text-[13px] font-bold text-faint">
           {saved.name}
-          {saved.failing ? <span className="text-mango-deep"> · 가져오지 못함</span> : saved.lastItemLabel ? ` · 마지막 글 ${saved.lastItemLabel}` : ""}
+          {saved.failing ? <span className="text-cherry"> · 가져오지 못함</span> : saved.lastItemLabel ? ` · 마지막 글 ${saved.lastItemLabel}` : ""}
         </p>
       )}
-      <p aria-live="polite" className="mt-1 px-1 text-[13px] font-bold text-mango-deep empty:hidden">
+      <p id={`${id}-msg`} aria-live="polite" className="mt-1 px-1 text-[13px] font-bold text-cherry empty:hidden">
         {state?.tone === "warn" ? state.message : ""}
       </p>
     </li>

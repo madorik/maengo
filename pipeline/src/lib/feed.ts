@@ -88,6 +88,16 @@ export function isFeedXml(xml: string): boolean {
   }
 }
 
+/** 글 주소는 http(s)만 받는다. javascript:·data: 같은 주소가 원문 링크로 나가지 않게(2026-10-17) */
+export function isWebUrl(raw: string): boolean {
+  try {
+    const { protocol } = new URL(raw.trim());
+    return protocol === 'https:' || protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
   const doc = parser.parse(xml) as Record<string, any>;
   const out: FeedEntry[] = [];
@@ -95,7 +105,7 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
     const items: any[] = doc.rss?.channel?.item ?? doc['rdf:RDF']?.item ?? [];
     for (const it of items) {
       const url = text(it.link) || text(it.guid);
-      if (!url) continue;
+      if (!isWebUrl(url)) continue;
       const desc = text(it.description) || text(it['content:encoded']);
       out.push({
         url: url.trim(),
@@ -114,7 +124,7 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
       const videoId = text(e['yt:videoId']) || null;
       const link = atomLink(e.link);
       const url = videoId ? `https://www.youtube.com/watch?v=${videoId}` : link;
-      if (!url) continue;
+      if (!isWebUrl(url)) continue;
       const group = e['media:group'];
       const desc = videoId ? text(group?.['media:description']) : text(e.summary) || text(e.content);
       out.push({
