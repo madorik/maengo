@@ -65,23 +65,30 @@ export function kstDayLabel(date: string, now: Date = new Date()): string {
   return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 ${WEEKDAYS[d.getUTCDay()]}요일`;
 }
 
-/** '07:00' → '아침 7시', '12:00' → '낮 12시', '21:30' → '밤 9시 30분' */
+/** '07:00' → '아침 7시', '12:00' → '낮 12시', '21:30' → '밤 9시 30분', '00:30' → '밤 12시 30분', '05:10' → '새벽 5시 10분' */
 export function notifyTimeLabel(hhmm: string): string {
   const [h = 0, m = 0] = hhmm.split(':').map(Number);
-  const part = h < 12 ? '아침' : h === 12 ? '낮' : h < 18 ? '오후' : h < 21 ? '저녁' : '밤';
-  const hour = h <= 12 ? h : h - 12;
+  const part = h === 0 ? '밤' : h < 6 ? '새벽' : h < 12 ? '아침' : h === 12 ? '낮' : h < 18 ? '오후' : h < 21 ? '저녁' : '밤';
+  const hour = h === 0 ? 12 : h <= 12 ? h : h - 12;
   return `${part} ${hour}시${m ? ` ${m}분` : ''}`;
 }
 
 /**
- * 알림 시간 선택지(KST): 아침 6시부터 밤 11시 30분까지 30분 단위.
- * 서버 스케줄러가 알림 30분 전에 맹고를 만들고 알림 시각에 보낸다(scheduler_tasks의 deliveries, 5분마다).
+ * 알림 시간(KST, 'HH:MM'). 하루 아무 때나 1분 단위(2026-10-17 사용자 결정: 알람처럼 오전/오후·시·분으로 고른다).
+ * 배송은 1분마다 돌아(/api/cron/deliveries) 알림 시각에 맹고를 만들어 보낸다
  */
-export const NOTIFY_TIMES: string[] = Array.from({ length: 36 }, (_, i) => {
-  const minutes = 6 * 60 + i * 30;
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${minutes % 60 ? '30' : '00'}`;
-});
-
 export function isNotifyTime(v: unknown): v is string {
-  return typeof v === 'string' && NOTIFY_TIMES.includes(v);
+  return typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+}
+
+/** 'HH:MM' → 오전/오후·시(1~12)·분. 00시는 오전 12시, 12시는 오후 12시 */
+export function toClock12(hhmm: string): { pm: boolean; hour: number; minute: number } {
+  const [h = 0, m = 0] = hhmm.split(':').map(Number);
+  return { pm: h >= 12, hour: h % 12 === 0 ? 12 : h % 12, minute: m };
+}
+
+/** 오전/오후·시(1~12)·분 → 'HH:MM' */
+export function fromClock12(pm: boolean, hour: number, minute: number): string {
+  const h = (hour % 12) + (pm ? 12 : 0);
+  return `${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }

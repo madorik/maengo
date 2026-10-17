@@ -123,11 +123,11 @@ export interface NotifyResult {
   error?: string;
 }
 
-/** 설정 > 알림 시간. 아침 6시~밤 11시 30분, 30분 단위만 받는다 */
+/** 설정 > 알림 시간. 하루 아무 때나 1분 단위('HH:MM') */
 export async function saveNotifyAt(_prev: NotifyResult | null, formData: FormData): Promise<NotifyResult> {
   const profile = await requireProfile();
   const value = formData.get("notifyAt");
-  if (!isNotifyTime(value)) return { notifyAt: profile.notifyAt, error: "고를 수 없는 시간이에요. 목록에서 골라 주세요." };
+  if (!isNotifyTime(value)) return { notifyAt: profile.notifyAt, error: "고를 수 없는 시간이에요." };
   if (value !== profile.notifyAt) {
     must(await db.from("profiles").update({ notify_at: value }).eq("id", profile.id), "profiles notify_at");
     revalidatePath("/", "layout");

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addDays, beforeNotify, isNotifyTime, kstDate, kstDayLabel, kstGreetingDate, NOTIFY_TIMES, notifyTimeLabel, publishedLabel } from '../util/kst';
+import { addDays, beforeNotify, fromClock12, isNotifyTime, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel, toClock12 } from '../util/kst';
 
 test('KST 날짜는 UTC 15시에 넘어간다', () => {
   assert.equal(kstDate(new Date('2026-10-08T14:59:00Z')), '2026-10-08');
@@ -15,15 +15,23 @@ test('인사 날짜와 알림 시각 표기', () => {
   assert.equal(notifyTimeLabel('13:30'), '오후 1시 30분');
   assert.equal(notifyTimeLabel('18:00'), '저녁 6시');
   assert.equal(notifyTimeLabel('23:30'), '밤 11시 30분');
+  assert.equal(notifyTimeLabel('00:00'), '밤 12시');
+  assert.equal(notifyTimeLabel('00:30'), '밤 12시 30분');
+  assert.equal(notifyTimeLabel('05:10'), '새벽 5시 10분');
+  assert.equal(notifyTimeLabel('07:05'), '아침 7시 5분');
 });
 
-test('알림 시간 선택지: 06:00~23:30, 30분 단위', () => {
-  assert.equal(NOTIFY_TIMES[0], '06:00');
-  assert.equal(NOTIFY_TIMES.at(-1), '23:30');
-  assert.equal(NOTIFY_TIMES.length, 36);
-  assert.ok(isNotifyTime('07:30'));
-  assert.ok(!isNotifyTime('05:30'));
-  assert.ok(!isNotifyTime('07:15'));
+test('알림 시간: 하루 아무 때나 1분 단위, 오전/오후·시·분 변환', () => {
+  for (const v of ['00:00', '05:30', '07:15', '12:00', '23:59']) assert.ok(isNotifyTime(v), v);
+  for (const v of ['24:00', '7:00', '07:60', '07:5', '', null, 700]) assert.ok(!isNotifyTime(v), String(v));
+  assert.deepEqual(toClock12('00:05'), { pm: false, hour: 12, minute: 5 });
+  assert.deepEqual(toClock12('06:00'), { pm: false, hour: 6, minute: 0 });
+  assert.deepEqual(toClock12('12:30'), { pm: true, hour: 12, minute: 30 });
+  assert.deepEqual(toClock12('23:59'), { pm: true, hour: 11, minute: 59 });
+  assert.equal(fromClock12(false, 12, 5), '00:05');
+  assert.equal(fromClock12(false, 6, 0), '06:00');
+  assert.equal(fromClock12(true, 12, 30), '12:30');
+  assert.equal(fromClock12(true, 11, 59), '23:59');
 });
 
 test('작성 시각 표기: 방금 / 오늘 / 어제 / 날짜', () => {
