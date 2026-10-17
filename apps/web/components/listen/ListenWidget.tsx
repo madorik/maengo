@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { flushSync } from "react-dom";
@@ -35,6 +36,11 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
   const launcherRef = useRef<HTMLButtonElement>(null);
   const foldRef = useRef<HTMLButtonElement>(null);
   const bubbleRef = useRef<HTMLButtonElement>(null);
+  // 로그인한 화면 어디서나 뜬다((app) 레이아웃). 글 화면은 아래 '이 글 듣기' 막대 위로, 전체 화면 듣기(/listen)에서는 숨긴다
+  const pathname = usePathname();
+  const dock = pathname.startsWith("/article")
+    ? "bottom-[calc(96px+env(safe-area-inset-bottom))] lg:bottom-28"
+    : "bottom-[calc(16px+env(safe-area-inset-bottom))] lg:bottom-6";
 
   useEffect(() => {
     if (!open) return;
@@ -48,12 +54,12 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  if (!game.total && !p.playlist) return null;
+  if (pathname.startsWith("/listen") || (!game.total && !p.playlist)) return null;
 
   const locked = !profile.audio;
   const playing = p.status === "playing";
-  // 펼친 창의 이름은 "플레이어". heading은 무엇을 듣는지(아래 막대 제목·소제목)
-  const heading = p.playlist ? "플레이리스트" : "오늘 소식 전체 듣기";
+  // 이름은 늘 "플레이어". 무엇을 듣는지(플레이리스트·오늘 소식)는 소제목에 쓴다
+  const heading = "플레이어";
   const source = p.playlist ? "플레이리스트" : "오늘 소식";
   const total = p.playlist ? p.chapters.length || p.playlist.length : game.total;
   const doneText = p.playlist ? "플레이리스트를 다 들었어요" : "오늘 소식을 다 들었어요";
@@ -71,7 +77,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
 
   if (collapsed) {
     return (
-      <div className="pointer-events-none fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-3 z-40 lg:bottom-6 lg:right-6">
+      <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
         <button
           ref={bubbleRef}
           type="button"
@@ -102,7 +108,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
   // Free: 전체 듣기 자리는 두고, 누르면 결제 페이지로(창은 열지 않는다)
   if (locked) {
     return (
-      <div className="pointer-events-none fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-3 z-40 lg:bottom-6 lg:right-6">
+      <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
         <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
           <Link href="/premium" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow">
@@ -127,14 +133,14 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
       ? `${p.progress.count}개 중 ${p.progress.position}번째 ${playing ? "듣는 중" : "멈춤"}`
       : p.status === "done"
         ? doneText
-        : `${total}개, ${minutes}`;
+        : `${source} ${total}개, ${minutes}`;
   const close = () => {
     setOpen(false);
     launcherRef.current?.focus();
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-3 z-40 flex flex-col items-end gap-3 lg:bottom-6 lg:right-6">
+    <div className={`pointer-events-none fixed right-3 z-40 flex flex-col items-end gap-3 lg:right-6 ${dock}`}>
       {open && (
         <div
           id="listen-widget"

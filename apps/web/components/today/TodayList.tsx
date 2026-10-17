@@ -28,10 +28,15 @@ export function TodayList() {
         {data.termsNotice && <TermsNotice />}
         {data.signupGift && <SignupGift gift={data.signupGift} />}
         <section aria-labelledby="today-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
-          <p className="text-[13px] font-extrabold text-ink/70">{data.greetingDate}</p>
-          <h1 id="today-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
-            오늘의 소식 {game.total}개
-          </h1>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-extrabold text-ink/70">{data.greetingDate}</p>
+              <h1 id="today-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
+                오늘의 소식 {game.total}개
+              </h1>
+            </div>
+            {game.total > 0 && <ListenAll />}
+          </div>
           {game.total > 0 && (
             <p className="mt-1 text-[14px] font-semibold leading-snug text-ink/80">
               관심사 {data.topicNames.join(", ")}에서 골랐어요
@@ -149,5 +154,34 @@ export function SourceChip({ item }: { item: FeedItem }) {
       {video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
       {item.sourceLabel}
     </span>
+  );
+}
+
+/** 오늘 카드의 '전체 듣기': 오늘 소식 전체를 플레이어로 듣는다(플레이리스트를 듣던 중이면 오늘로 바꾼다). 오늘을 듣는 중이면 일시정지 */
+function ListenAll() {
+  const p = usePlayer();
+  const { audio } = useProfile();
+  const cls = "btn btn-ink mt-1 inline-flex min-h-11 shrink-0 items-center gap-1.5 px-4 text-[14px] no-underline";
+  if (!audio) {
+    return (
+      <Link href="/premium" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className={cls}>
+        <IconPlay className="size-4" />
+        전체 듣기
+        <PremiumBadge />
+      </Link>
+    );
+  }
+  const playingToday = !p.playlist && p.status === "playing";
+  return (
+    <button
+      type="button"
+      onClick={() => (playingToday ? p.pause() : p.playToday())}
+      disabled={!p.playlist && !p.ready}
+      aria-label={playingToday ? "오늘 소식 듣기 일시정지" : "오늘 소식 전체 듣기"}
+      className={cls}
+    >
+      {playingToday ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
+      {playingToday ? "일시정지" : "전체 듣기"}
+    </button>
   );
 }

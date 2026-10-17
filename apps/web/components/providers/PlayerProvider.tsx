@@ -70,6 +70,8 @@ export interface PlayerApi {
   playPlaylist: (ids: number[]) => void;
   /** 플레이리스트를 닫고 오늘 피드 듣기로 돌아온다 */
   exitPlaylist: () => void;
+  /** 오늘 소식 전체를 플레이어로 듣는다(오늘 카드의 '전체 듣기'). 플레이리스트를 듣는 중이었으면 오늘로 바꿔 바로 튼다 */
+  playToday: () => void;
   /** 플레이어 목록 순서를 바꾼다(재생 목록에서 끌어 놓기). 듣던 소식의 듣던 자리에서 이어 간다. 저장된 플레이리스트 순서는 그대로 */
   reorderPlaylist: (ids: number[]) => void;
   /** 플레이어 목록에서 뺀다(저장된 플레이리스트는 그대로). 듣던 소식이면 그 자리에 온 소식으로 넘어간다 */
@@ -380,6 +382,25 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     void load(persona, voice, { index: -1, resume: false });
   };
 
+  const playToday = () => {
+    // 오늘 소식을 이미 플레이어에 올려 둔 상태면 이어서(멈췄던 자리·처음부터)
+    if (!playlistRef.current) return status === "playing" ? undefined : play();
+    queueRef.current = [];
+    addingRef.current = [];
+    setPending([]);
+    playlistRef.current = null;
+    setPlaylist(null);
+    onceRef.current = null;
+    setEpisode(null);
+    setPreparing(false);
+    setError(null);
+    setStatus("idle");
+    setCur(-1);
+    setPosMs(0);
+    track("listen_start", { mode: "today" });
+    void load(persona, voice, { index: 0, resume: true });
+  };
+
   /**
    * 플레이어 목록을 ids로 갈아 끼운다(순서 바꾸기·빼기·추가가 끝난 뒤). 음성 조각이 다 있는 목록만 넘긴다(이어 붙이기만 하면 된다).
    * 듣던 소식이 남아 있으면 그 소식의 듣던 자리에서, 뺐으면 그 자리에 온 소식 처음부터 이어 간다
@@ -571,6 +592,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     playlist,
     playPlaylist,
     exitPlaylist,
+    playToday,
     reorderPlaylist,
     removeFromPlayer,
     addToPlayer,

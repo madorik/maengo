@@ -39,6 +39,14 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
   const [read, setRead] = useState(() => new Set(initial.read));
   const [listened, setListened] = useState(() => new Set(initial.listened));
   const [feedback, setFeedbackState] = useState(initial.feedback);
+  // 피드가 바뀌면(하나 더 받기·날짜가 바뀜) 서버 값과 합친다. key로 새로 만들면 안쪽 플레이어(<audio>)까지 새로 만들어져 재생이 끊긴다
+  const [signature, setSignature] = useState(initial.signature);
+  if (signature !== initial.signature) {
+    setSignature(initial.signature);
+    setRead((prev) => new Set([...prev, ...initial.read]));
+    setListened((prev) => new Set([...prev, ...initial.listened]));
+    setFeedbackState((prev) => ({ ...initial.feedback, ...prev }));
+  }
 
   const markRead = useCallback((id: number) => {
     setRead((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
