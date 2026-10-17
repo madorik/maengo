@@ -43,6 +43,9 @@ export const IconGear = (p: Props) => (
     <path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.3 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2.5l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.6h4l.3-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.3z" />
   </Line>
 );
+export const IconLogout = (p: Props) => (
+  <Line {...p}><path d="M10 4H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4" /><path d="M15 8l4 4-4 4" /><path d="M19 12H9.5" /></Line>
+);
 
 // ---- 2차(듀오링고식) 아이콘 ----
 export const IconThumbUp = (p: Props) => (

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/actions";
 import { isAppUserAgent } from "@/lib/app-client";
-import { Crown, IconChevronDown, IconGear } from "@/components/icons";
+import { Crown, IconChevronDown, IconGear, IconLogout } from "@/components/icons";
 import { useProfile } from "@/components/providers/ProfileProvider";
 
 /** 프로필 사진(구글 사진, 없으면 이름 첫 글자). Premium이면 동그라미 위에 왕관을 씌운다 */
@@ -128,7 +128,8 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
               설정
             </Link>
             <form action={logout}>
-              <button type="submit" className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-[15px] font-extrabold text-orange hover:bg-snow">
+              <button type="submit" className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 text-left text-[15px] font-extrabold text-orange hover:bg-snow">
+                <IconLogout className="size-5" />
                 로그아웃
               </button>
             </form>
