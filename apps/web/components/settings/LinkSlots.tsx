@@ -62,6 +62,8 @@ function Slot({ slot, saved }: { slot: number; saved: LinkView | null }) {
           ? "error"
           : "ok"
         : null;
+  // 까닭 문구도 이번 주소의 결과일 때만(확인 중이거나 주소를 고치면 지난 까닭은 숨긴다). 빼기가 막힌 까닭은 그대로
+  const warning = !pending && state?.tone === "warn" && (tried === null || text === tried) ? state.message : "";
   return (
     <li>
       {/* 주소 검사는 서버가 한다(https:// 없는 주소도 받는다). 브라우저 검사는 그런 주소의 제출을 막고 blur 때 칸으로 포커스를 되돌린다 */}
@@ -137,14 +139,14 @@ function Slot({ slot, saved }: { slot: number; saved: LinkView | null }) {
         )}
       </form>
       {/* 넣어 둔 링크의 이름과 마지막 글 시점. 계속 못 가져오면 그 사실. 막혔으면 까닭 */}
-      {saved && state?.tone !== "warn" && (
+      {saved && !warning && (
         <p className="mt-1 truncate px-1 text-[13px] font-bold text-faint">
           {saved.name}
           {saved.failing ? <span className="text-cherry"> · 가져오지 못함</span> : saved.lastItemLabel ? ` · 마지막 글 ${saved.lastItemLabel}` : ""}
         </p>
       )}
       <p id={`${id}-msg`} aria-live="polite" className="mt-1 px-1 text-[13px] font-bold text-cherry empty:hidden">
-        {state?.tone === "warn" ? state.message : ""}
+        {warning}
       </p>
     </li>
   );
