@@ -21,7 +21,7 @@ function Avatar({ size, crown }: { size: "sm" | "md" | "lg"; crown: boolean }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={p.avatarUrl} alt="" referrerPolicy="no-referrer" className={`${circle} rounded-full border-2 ${crown ? "border-mango" : "border-line"} object-cover`} />
       ) : (
-        <span aria-hidden className={`${circle} flex items-center justify-center rounded-full bg-mango text-[15px] font-black text-ink ${crown ? "ring-2 ring-mango-deep/40" : ""}`}>
+        <span aria-hidden className={`${circle} flex items-center justify-center keep-light rounded-full bg-mango text-[15px] font-black text-ink ${crown ? "ring-2 ring-mango-deep/40" : ""}`}>
           {initial}
         </span>
       )}

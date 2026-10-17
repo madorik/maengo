@@ -22,7 +22,7 @@ export function Sheet({ title, open, onClose, children }: { title: string; open:
       }}
       className="m-0 mt-auto max-h-[85dvh] w-full max-w-none bg-transparent p-0"
     >
-      <div className="mx-auto max-w-[640px] rounded-t-3xl bg-white px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-5 text-ink">
+      <div className="mx-auto max-w-[640px] rounded-t-3xl bg-paper px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-5 text-ink">
         <div className="flex items-center justify-between">
           <h2 className="text-[20px] font-black">{title}</h2>
           {/* 고른 값은 누르는 즉시 저장된다. 여기서는 창만 닫는다(바깥을 누르거나 Esc로도 닫힌다) */}

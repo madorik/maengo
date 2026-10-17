@@ -12,7 +12,7 @@ export function VideoThumb({ item }: { item: FeedItem }) {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group relative mt-6 block aspect-video overflow-hidden rounded-2xl border-2 border-line bg-ink no-underline"
+      className="group relative mt-6 block aspect-video overflow-hidden rounded-2xl border-2 border-line bg-[#1F2340] no-underline"
     >
       {item.thumbnail ? (
         <>

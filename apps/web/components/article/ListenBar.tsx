@@ -118,7 +118,7 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-line bg-white">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-line bg-paper">
         <div className="mx-auto max-w-[720px] px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">{body}</div>
       </div>
     </>

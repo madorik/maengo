@@ -5,6 +5,7 @@ import type { Chapter } from "@maengo/core/types";
 import { useEffect, useRef, useState } from "react";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
+import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
 import { lineAt } from "@/lib/player/machine";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import type { ListenBarCtl } from "./ListenBar";
@@ -31,6 +32,8 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
   const [rate, setRate] = useState(1);
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** 재생 위치를 옮긴 횟수. 안드로이드 알림의 재생 위치를 맞출 때만 쓴다 */
+  const [seeks, setSeeks] = useState(0);
   const query = `id=${clusterId}&persona=${p.persona}&voice=${p.voice}`;
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     const onTime = () => setPosMs(a.currentTime * 1000);
     const onPlay = () => setStatus("playing");
     const onPause = () => setStatus((s) => (s === "done" ? s : "paused"));
+    const onSeeked = () => setSeeks((n) => n + 1);
     const onEnded = () => {
       setStatus("done");
       track("listen_complete", { mode: "item" });
@@ -82,6 +86,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     a.addEventListener("play", onPlay);
     a.addEventListener("pause", onPause);
     a.addEventListener("ended", onEnded);
+    a.addEventListener("seeked", onSeeked);
     return () => {
       a.pause();
       a.removeAttribute("src");
@@ -89,6 +94,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
       a.removeEventListener("play", onPlay);
       a.removeEventListener("pause", onPause);
       a.removeEventListener("ended", onEnded);
+      a.removeEventListener("seeked", onSeeked);
       window.removeEventListener(ITEM_PLAY_EVENT, onOther);
       a.removeEventListener("playing", onPlaying);
       a.removeEventListener("loadedmetadata", onMeta);
@@ -126,6 +132,40 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
   };
 
   const active = status === "playing" || status === "paused";
+
+  // 잠금 화면·이어폰·안드로이드 알림 버튼(lib/native/media.ts). 오늘 브리핑 플레이어와 자리를 나눠 쓴다
+  const actionRef = useRef<(action: MediaAction, seekTime?: number) => void>(() => {});
+  useEffect(() => {
+    actionRef.current = (action, seekTime) => {
+      const a = audioRef.current;
+      if (action === "play") return play();
+      if (action === "pause") return a?.pause();
+      if (!a) return;
+      if (action === "seekbackward") a.currentTime = Math.max(0, a.currentTime - 15);
+      else if (action === "seekforward") a.currentTime = Math.min(a.duration || Infinity, a.currentTime + 15);
+      else if (action === "seekto" && seekTime !== undefined) a.currentTime = seekTime;
+      else if (action === "previoustrack") a.currentTime = 0;
+    };
+  });
+  const who = `item:${clusterId}`;
+  useEffect(() => {
+    if (!enabled || !active) return hideMedia(who);
+    const a = audioRef.current;
+    showMedia(
+      who,
+      {
+        title: chapter?.title ?? "맹고 소식",
+        album: "소식 듣기",
+        playing: status === "playing",
+        position: a?.currentTime ?? 0,
+        duration: a && Number.isFinite(a.duration) ? a.duration : 0,
+        rate,
+      },
+      (action, seekTime) => actionRef.current(action, seekTime),
+    );
+  }, [who, enabled, active, status, chapter, rate, seeks]);
+  useEffect(() => () => hideMedia(who), [who]);
+
   return {
     activePara: active && chapter ? chapter.lines[lineAt(chapter, posMs)]?.para : undefined,
     ctl: {

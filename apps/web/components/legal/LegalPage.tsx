@@ -14,7 +14,7 @@ const DOCS = [
  */
 export function LegalPage({ title, path, children }: { title: string; path: (typeof DOCS)[number]["href"]; children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-white">
+    <div className="min-h-dvh bg-paper">
       <header className="border-b-2 border-line pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-[720px] items-center px-5">
           <Link href="/" className="flex items-center gap-2 no-underline">

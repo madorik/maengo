@@ -1,15 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { flagBillingWebhookFailure } from "@/lib/server/admin-alerts";
 import { syncBilling } from "@/lib/server/billing";
 
 // RevenueCat 웹훅(구매·갱신·해지·만료·환불 등). 대시보드에 Authorization 값으로 `Bearer {REVENUECAT_WEBHOOK_AUTH}`를 넣는다.
 // 내용은 믿지 않고 누구의 일인지만 본 뒤 RevenueCat에서 그 사람 상태를 다시 읽어 맞춘다(lib/server/billing.ts).
-// 실패하면 500으로 답해 RevenueCat이 다시 보내게 한다.
+// 실패하면 500으로 답해 RevenueCat이 다시 보내게 하고, 관리자 화면 맨 위에 빨간 줄로 알린다(lib/server/admin-alerts.ts).
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
   const secret = process.env.REVENUECAT_WEBHOOK_AUTH?.trim();
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secret) {
+    // 설정 빠짐: 모든 결제 웹훅을 놓친다
+    await flagBillingWebhookFailure("REVENUECAT_WEBHOOK_AUTH가 비어 있어 웹훅을 받지 못함").catch(() => {});
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const body = (await request.json().catch(() => null)) as { event?: { type?: string; app_user_id?: string; original_app_user_id?: string; aliases?: string[]; transferred_to?: string[] } } | null;
@@ -22,7 +28,10 @@ export async function POST(request: NextRequest) {
   try {
     for (const id of ids) await syncBilling(id);
   } catch (e) {
-    console.error("[billing] 웹훅 처리 실패", event.type, String((e as Error).message ?? e).slice(0, 300));
+    const message = String((e as Error).message ?? e).slice(0, 300);
+    console.error("[billing] 웹훅 처리 실패", event.type, message);
+    const who = [...ids].map((id) => id.slice(0, 8)).join(",");
+    await flagBillingWebhookFailure(`${event.type ?? "?"} 회원 ${who || "없음"}: ${message.slice(0, 160)}`).catch(() => {});
     return NextResponse.json({ error: "sync_failed" }, { status: 500 });
   }
   return NextResponse.json({ ok: true });

@@ -242,7 +242,7 @@ function CheckRow({ label, checked, onClick }: { label: string; checked: boolean
       <span className="min-w-0 flex-1 truncate">{label}</span>
       <i
         aria-hidden
-        className={`flex size-5 shrink-0 items-center justify-center rounded-md border-2 ${on ? "border-sky bg-sky text-white" : checked === "mixed" ? "border-sky bg-white text-sky" : "border-line bg-white"}`}
+        className={`flex size-5 shrink-0 items-center justify-center rounded-md border-2 ${on ? "border-sky bg-sky text-white" : checked === "mixed" ? "border-sky bg-paper text-sky" : "border-line bg-paper"}`}
       >
         {on && <IconCheck className="size-3.5 [stroke-width:3.4]" />}
         {checked === "mixed" && <span className="h-0.5 w-2.5 rounded-full bg-current" />}

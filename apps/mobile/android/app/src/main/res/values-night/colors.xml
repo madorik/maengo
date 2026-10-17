@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 다크 모드 창 바탕(웹 globals.css의 다크 color-paper 토큰) -->
+    <color name="maengo_paper">#151722</color>
+</resources>

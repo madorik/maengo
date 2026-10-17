@@ -1,11 +1,28 @@
 @import "tailwindcss";
 
 /*
+  다크 모드: 설정 > 화면 > 다크 모드 켜고 끄기. 누른 값은 <html data-theme="light|dark">(app/layout.tsx의 머리 스크립트가 그리기 전에 붙인다),
+  한 번도 안 눌렀으면 속성 없이 prefers-color-scheme(기기 설정)을 따른다. 색은 아래 토큰을 바꿔서 맞추고, 따로 맞출 곳만 dark: 변형을 쓴다.
+*/
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+/*
   맹고 2차 디자인: 듀오링고식. 흰 바탕 + 두툼한 3D 버튼 + 망고 캐릭터.
   망고 노랑 = 주 행동(계속·시작), 잎 초록 = 완료, 하늘 파랑 = 듣기.
   버튼 글자 대비를 지키려고 노랑 위에는 남색 글자, 초록·파랑은 진한 톤을 쓴다.
 */
 @theme {
+  /* 바탕(화면·카드·시트). 다크에서는 남색 */
+  --color-paper: #FFFFFF;
   --color-ink: #1F2340;
   --color-sub: #6B7089;
   --color-faint: #A3A8BC;
@@ -34,6 +51,79 @@
   --color-focus: #1A8FE0;
 }
 
+/* 다크 값. 같은 묶음을 두 번 쓴다(직접 고른 다크, 시스템이 다크이고 밝게를 고르지 않음) */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: #151722;
+  --color-ink: #ECEEF5;
+  --color-sub: #A6ABC0;
+  --color-faint: #6F7491;
+  --color-line: #2A2E40;
+  --color-line-dark: #383D53;
+  --color-snow: #1D2030;
+  --color-mango-deep: #F4B740;
+  --color-mango-tint: #3A2F14;
+  --color-leaf: #3CC77A;
+  --color-leaf-dark: #7FE0A8;
+  --color-leaf-tint: #123323;
+  --color-cherry: #FF6B76;
+  --color-sky-dark: #7CC4F7;
+  --color-sky-tint: #13304A;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-paper: #151722;
+    --color-ink: #ECEEF5;
+    --color-sub: #A6ABC0;
+    --color-faint: #6F7491;
+    --color-line: #2A2E40;
+    --color-line-dark: #383D53;
+    --color-snow: #1D2030;
+    --color-mango-deep: #F4B740;
+    --color-mango-tint: #3A2F14;
+    --color-leaf: #3CC77A;
+    --color-leaf-dark: #7FE0A8;
+    --color-leaf-tint: #123323;
+    --color-cherry: #FF6B76;
+    --color-sky-dark: #7CC4F7;
+    --color-sky-tint: #13304A;
+  }
+}
+
+/* 망고색 카드처럼 다크에서도 밝게 두는 곳: 안쪽 글자·선 토큰을 밝은 값으로 되돌린다 */
+.keep-light {
+  color-scheme: light;
+  color: var(--color-ink);
+  --color-paper: #FFFFFF;
+  --color-ink: #1F2340;
+  --color-sub: #6B7089;
+  --color-faint: #A3A8BC;
+  --color-line: #E4E6EE;
+  --color-line-dark: #CDD1DC;
+  --color-snow: #F6F7FB;
+  --color-mango-deep: #A86A00;
+  --color-mango-tint: #FFF4D6;
+  --color-leaf: #23914F;
+  --color-leaf-dark: #17683A;
+  --color-leaf-tint: #DDF7E5;
+  --color-cherry: #D92D3A;
+  --color-sky-dark: #1270B3;
+  --color-sky-tint: #E1F2FF;
+}
+
+/* 카테고리·관심 분야 칩(TONE에 연한 바탕 + 진한 글자 hex): 다크에서는 글자색(--tone)을 옅게 깐 바탕에 밝은 글자. 유틸리티보다 앞서도록 레이어 밖에 둔다 */
+:root[data-theme="dark"] .tone {
+  background-color: color-mix(in oklab, var(--tone) 32%, var(--color-paper));
+  color: color-mix(in oklab, var(--tone) 35%, white);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tone {
+    background-color: color-mix(in oklab, var(--tone) 32%, var(--color-paper));
+    color: color-mix(in oklab, var(--tone) 35%, white);
+  }
+}
+
 @theme inline {
   --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;
   /* 숫자(진행 개수·시간)만 둥근 라틴 글꼴로 */
@@ -42,7 +132,7 @@
 
 @layer base {
   html {
-    background: #fff;
+    background: var(--color-paper);
     color: var(--color-ink);
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
@@ -50,7 +140,7 @@
 
   body {
     margin: 0;
-    background: #fff;
+    background: var(--color-paper);
     font-family: var(--font-sans);
     word-break: keep-all;
   }
@@ -78,7 +168,8 @@
   .btn {
     --btn-face: var(--color-mango);
     --btn-edge: var(--color-mango-dark);
-    --btn-text: var(--color-ink);
+    /* 망고 위 글자는 다크에서도 남색 */
+    --btn-text: #1F2340;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -109,13 +200,13 @@
     --btn-text: var(--color-faint);
   }
   .btn-leaf {
-    --btn-face: var(--color-leaf);
-    --btn-edge: var(--color-leaf-dark);
+    --btn-face: #23914F;
+    --btn-edge: #17683A;
     --btn-text: #fff;
   }
   .btn-sky {
     --btn-face: var(--color-sky);
-    --btn-edge: var(--color-sky-dark);
+    --btn-edge: #1270B3;
     --btn-text: #fff;
   }
   .btn-ink {
@@ -123,8 +214,20 @@
     --btn-edge: #000;
     --btn-text: #fff;
   }
+  .btn-ink:where([data-theme="dark"] *) {
+    --btn-face: var(--color-ink);
+    --btn-edge: var(--color-faint);
+    --btn-text: var(--color-paper);
+  }
+  @media (prefers-color-scheme: dark) {
+    .btn-ink:where(:root:not([data-theme="light"]) *) {
+      --btn-face: var(--color-ink);
+      --btn-edge: var(--color-faint);
+      --btn-text: var(--color-paper);
+    }
+  }
   .btn-ghost {
-    --btn-face: #fff;
+    --btn-face: var(--color-paper);
     --btn-edge: var(--color-line);
     --btn-text: var(--color-ink);
     border-color: var(--color-line);
@@ -135,7 +238,7 @@
     border: 2px solid var(--color-line);
     border-bottom-width: 4px;
     border-radius: 16px;
-    background: #fff;
+    background: var(--color-paper);
   }
 
   /* 형광펜이 줄마다 끊기지 않게 */

@@ -10,7 +10,7 @@ export function Bubble({
   tone?: "white" | "sky";
   className?: string;
 }) {
-  const color = tone === "sky" ? "border-sky bg-sky-tint" : "border-line bg-white";
+  const color = tone === "sky" ? "border-sky bg-sky-tint" : "border-line bg-paper";
   return (
     <div className={`relative rounded-2xl border-2 px-4 py-3 ${color} ${className}`}>
       {children}

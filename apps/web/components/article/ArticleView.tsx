@@ -16,6 +16,7 @@ import type { FeedItem } from "@/lib/types";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ListenBar } from "./ListenBar";
 import { PlaylistButton } from "./PlaylistButton";
+import { ShareButton } from "./ShareButton";
 import { useItemAudio } from "./useItemAudio";
 import { useTodayAudio } from "./useTodayAudio";
 import { VideoThumb } from "./VideoThumb";
@@ -71,14 +72,15 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
   const sourceLink = item.kind === "video" ? "유튜브에서 보기" : "원문 보기";
 
   return (
-    <div className="min-h-dvh bg-white">
-      <header className="sticky top-0 z-10 border-b-2 border-line bg-white pt-[env(safe-area-inset-top)]">
+    <div className="min-h-dvh bg-paper">
+      <header className="sticky top-0 z-10 border-b-2 border-line bg-paper pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-[720px] items-center gap-2 px-2">
           {/* 들어온 화면(오늘·보관함·다른 글)으로 돌아간다. 바로 열었으면 오늘이나 보관함으로 */}
           <BackButton fallback={isToday ? "/today" : "/library"} />
-          <span className="ml-auto pr-2 font-round text-[15px] font-black text-faint">
+          <span className="ml-auto pr-1 font-round text-[15px] font-black text-faint">
             {index >= 0 ? `${index + 1}/${data.items.length}` : ""}
           </span>
+          <ShareButton item={item} />
         </div>
       </header>
 

@@ -9,6 +9,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // 앱 안에 둔 플러그인은 super.onCreate 전에 등록한다
+        registerPlugin(MaengoMediaPlugin.class);
         super.onCreate(savedInstanceState);
 
         // 웹을 못 불러와 안내 화면(www/index.html)이 떠 있을 때 뒤로 가기는 앱을 내린다.

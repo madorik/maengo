@@ -116,6 +116,10 @@ export interface LibraryData {
   category: CategoryId | null;
   /** 읽음 거르기(주소의 ?read=). null이면 전체 */
   readFilter: LibraryReadFilter | null;
+  /** 검색어(주소의 ?q=, 제목·요약·출처). null이면 검색 안 함 */
+  query: string | null;
+  /** 검색어에 맞는 소식 수(검색 안 하면 total과 같다) */
+  matchedTotal: number;
   /** 지금 카테고리 안에서 전체·안 읽음 수(들은 것도 읽음) */
   readCounts: { all: number; unread: number };
   /** 골라 듣기 '전체': 지금 거른 소식 전부(모든 쪽, 최신순). 안 읽은 것만 고르려면 '안 읽음'으로 거른 뒤 전체 */

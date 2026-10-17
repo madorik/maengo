@@ -70,7 +70,7 @@ export function MobileNav() {
         <div
           ref={panelRef}
           tabIndex={-1}
-          className="drawer-panel flex h-full flex-col outline-none rounded-r-3xl border-r-2 border-line bg-white px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))] text-ink"
+          className="drawer-panel flex h-full flex-col outline-none rounded-r-3xl border-r-2 border-line bg-paper px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))] text-ink"
         >
           <div className="flex items-center justify-between">
             <Link href="/" onClick={close} aria-label="맹고 소개" className="flex items-center gap-2 px-3 no-underline">

@@ -133,6 +133,10 @@ export function Crown({ className = "size-4" }: { className?: string }) {
   );
 }
 /** 내 관심 링크(설정 > 관심사 라벨) */
+export const IconSearch = (p: Props) => <Line {...p}><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" /><path d="M20 20l-4-4" /></Line>;
+export const IconShare = (p: Props) => (
+  <Line {...p}><path d="M12 15V3.5" /><path d="M7.5 8L12 3.5 16.5 8" /><path d="M5 12v7a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-7" /></Line>
+);
 export const IconLink = (p: Props) => (
   <Line {...p}><path d="M10 13.5a4.5 4.5 0 0 0 6.4 0l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4l-1.4 1.4" /><path d="M14 10.5a4.5 4.5 0 0 0-6.4 0L5 13.1a4.5 4.5 0 0 0 6.4 6.4l1.4-1.4" /></Line>
 );

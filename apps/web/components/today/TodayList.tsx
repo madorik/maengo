@@ -25,7 +25,7 @@ export function TodayList() {
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
         {data.termsNotice && <TermsNotice />}
-        <section aria-labelledby="today-title" className="rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
+        <section aria-labelledby="today-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
           <p className="text-[13px] font-extrabold text-ink/70">{data.greetingDate}</p>
           <h1 id="today-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
             오늘의 소식 {game.total}개
@@ -143,7 +143,7 @@ function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
 export function SourceChip({ item }: { item: FeedItem }) {
   const video = item.kind === "video";
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-[13px] font-extrabold ${video ? "bg-[#FFE9E6] text-[#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-[13px] font-extrabold ${video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
       {video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
       {item.sourceLabel}
     </span>

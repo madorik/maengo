@@ -66,7 +66,7 @@ function TodayListenScreen() {
 
   if (!p.enabled) {
     return (
-      <div className="flex min-h-dvh flex-col bg-white">
+      <div className="flex min-h-dvh flex-col bg-paper">
         {header}
         <div className="flex flex-1 items-center justify-center px-6 pb-16">
           <PlusLock />
@@ -76,7 +76,7 @@ function TodayListenScreen() {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-white">
+    <div className="flex h-dvh flex-col bg-paper">
       {header}
 
       <main className="mx-auto flex min-h-0 w-full max-w-[640px] flex-1 flex-col px-5">
@@ -201,7 +201,7 @@ function Script({ lines, current, playing, intro }: { lines: { who?: string; tex
               {line.who && firstOfRun && <span className="mb-1 px-1 text-[12px] font-extrabold text-sub">{line.who}</span>}
               <div
                 className={`rounded-2xl border-2 px-4 py-2.5 text-[17px] leading-[1.6] ${
-                  isCurrent ? "border-sky bg-sky-tint font-bold text-ink" : "border-line bg-white font-medium text-sub"
+                  isCurrent ? "border-sky bg-sky-tint font-bold text-ink" : "border-line bg-paper font-medium text-sub"
                 }`}
               >
                 {line.text}

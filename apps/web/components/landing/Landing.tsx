@@ -54,9 +54,9 @@ export async function Landing() {
   const plus = plans.get("plus")!;
   const FAQ = faq(free, plus);
   return (
-    <div className="min-h-dvh bg-white">
+    <div className="min-h-dvh bg-paper">
       <JsonLd faq={FAQ} premiumKrw={plus.priceKrw} />
-      <header className="sticky top-0 z-20 border-b-2 border-line bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-20 border-b-2 border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1100px] items-center justify-between gap-3 px-5">
           <Link href="/" className="flex items-center gap-2 no-underline">
             <MangoIcon className="size-9" />
@@ -222,7 +222,7 @@ export async function Landing() {
               ["아침에 받아서 읽고 들어요", "고른 시각에 오늘의 소식이 도착해요. 읽어도 되고, 이어서 들어도 돼요."],
             ].map(([title, body], i) => (
               <li key={title} className="tile flex flex-col gap-3 p-6">
-                <span className="flex size-11 items-center justify-center rounded-full bg-mango font-round text-[20px] font-black text-ink shadow-[0_3px_0_var(--color-mango-dark)]">
+                <span className="flex size-11 items-center justify-center keep-light rounded-full bg-mango font-round text-[20px] font-black text-ink shadow-[0_3px_0_var(--color-mango-dark)]">
                   {i + 1}
                 </span>
                 <span className="text-[19px] font-black">{title}</span>
@@ -278,7 +278,7 @@ export async function Landing() {
         </section>
 
         <section aria-labelledby="cta-title" className="mx-auto max-w-[1100px] px-5 py-16 md:py-24">
-          <div className="flex flex-col items-center gap-6 rounded-3xl bg-mango px-6 py-12 text-center shadow-[0_6px_0_var(--color-mango-dark)] md:flex-row md:px-14 md:text-left">
+          <div className="keep-light flex flex-col items-center gap-6 rounded-3xl bg-mango px-6 py-12 text-center shadow-[0_6px_0_var(--color-mango-dark)] md:flex-row md:px-14 md:text-left">
             <Mascot mood="listen" className="size-28 shrink-0 md:size-36" />
             <div className="flex-1">
               <h2 id="cta-title" className="text-[26px] font-black leading-snug tracking-[-0.03em] md:text-[34px]">
@@ -328,10 +328,10 @@ function Feature({ title, body, flip = false, children }: { title: string; body:
 
 function SampleCard({ sample: s, className = "" }: { sample: Sample; className?: string }) {
   return (
-    <div className={`tile bg-white p-4 shadow-[0_8px_20px_rgb(31_35_64/0.06)] ${className}`}>
+    <div className={`tile bg-paper p-4 shadow-[0_8px_20px_rgb(31_35_64/0.06)] ${className}`}>
       <div className="flex items-center gap-2 text-[13px] font-extrabold">
         <CategoryChip category={s.category} />
-        <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${s.video ? "bg-[#FFE9E6] text-[#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
+        <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${s.video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
           {s.video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
           {s.source}
         </span>
@@ -363,7 +363,7 @@ function ListenPill() {
         <span className="block text-[14px] font-black">오늘 소식 전체 듣기</span>
         <span className="block text-[12px] font-bold text-sky">10개, 약 11분</span>
       </span>
-      <span className="flex size-11 items-center justify-center rounded-full bg-sky text-white shadow-[0_3px_0_var(--color-sky-dark)]">
+      <span className="flex size-11 items-center justify-center rounded-full bg-sky text-white shadow-[0_3px_0_#1270B3]">
         <IconPlay className="size-5" />
       </span>
     </div>
@@ -376,7 +376,7 @@ function ScriptLine({ who, text, right = false, current = false }: { who: string
       <Mascot mood={right ? "happy" : "listen"} className={`size-11 shrink-0 ${right ? "-scale-x-100" : ""}`} />
       <div className={`flex max-w-[80%] flex-col ${right ? "items-end" : ""}`}>
         <span className="mb-1 px-1 text-[12px] font-extrabold text-sub">{who}</span>
-        <span className={`rounded-2xl border-2 px-4 py-2.5 text-[15px] leading-[1.6] ${current ? "border-sky bg-sky-tint font-bold" : "border-line bg-white font-medium text-sub"}`}>{text}</span>
+        <span className={`rounded-2xl border-2 px-4 py-2.5 text-[15px] leading-[1.6] ${current ? "border-sky bg-sky-tint font-bold" : "border-line bg-paper font-medium text-sub"}`}>{text}</span>
       </div>
     </div>
   );
@@ -411,7 +411,7 @@ function Plan({
           {featured && <Crown className="size-6" />}
           {name}
         </h3>
-        {badge && <span className="rounded-lg bg-mango px-2 py-0.5 text-[12px] font-black">{badge}</span>}
+        {badge && <span className="keep-light rounded-lg bg-mango px-2 py-0.5 text-[12px] font-black">{badge}</span>}
       </div>
       {listPrice && (
         <p className="mt-2 flex items-center gap-2 font-round">

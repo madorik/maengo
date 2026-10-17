@@ -9,13 +9,13 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <!-- 웹이 밝은 화면만 있어서 기기가 다크 모드여도 밝은 테마로 둔다(iOS는 UIUserInterfaceStyle Light).
-         옛 웹뷰(Chromium 140 미만)는 상태 표시줄·내비게이션 바 자리를 여백으로 비우는데, 그 자리가 웹과 같은 흰색이 되게 창 바탕을 흰색으로 -->
-    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+    <!-- 기기 다크 모드를 따른다(DayNight). 웹뷰의 prefers-color-scheme이 이 테마의 밝기를 따르므로 Light 테마면 웹이 늘 밝게 뜬다.
+         옛 웹뷰(Chromium 140 미만)는 상태 표시줄·내비게이션 바 자리를 여백으로 비우는데, 그 자리가 웹 바탕과 같은 색이 되게 창 바탕을 맞춘다(values-night) -->
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowBackground">@color/maengo_paper</item>
     </style>
 
 

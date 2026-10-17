@@ -245,7 +245,7 @@ function EdgeHint({ ref, tab, side }: { ref: React.Ref<HTMLDivElement>; tab: Tab
       aria-hidden
       className={`group pointer-events-none fixed top-1/2 z-10 flex flex-col items-center gap-1.5 opacity-0 ${side === "left" ? "left-4" : "right-4"}`}
     >
-      <span className="flex size-14 items-center justify-center rounded-full border-2 border-line bg-white text-sub shadow-[0_8px_24px_rgb(31_35_64/0.12)] transition-colors duration-150 group-data-[armed]:border-mango group-data-[armed]:bg-mango-tint group-data-[armed]:text-mango-deep">
+      <span className="flex size-14 items-center justify-center rounded-full border-2 border-line bg-paper text-sub shadow-[0_8px_24px_rgb(31_35_64/0.12)] transition-colors duration-150 group-data-[armed]:border-mango group-data-[armed]:bg-mango-tint group-data-[armed]:text-mango-deep">
         <Icon className="size-7" />
       </span>
       <span className="text-[13px] font-extrabold text-sub transition-colors duration-150 group-data-[armed]:text-mango-deep">{label}</span>

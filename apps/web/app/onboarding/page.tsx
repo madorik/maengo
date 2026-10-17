@@ -108,7 +108,7 @@ function Choice({ id, name, inputName = "topic", defaultChecked }: { id: string;
       <span className="tile flex min-h-14 items-center gap-2.5 px-2.5 py-2 transition-colors peer-[:not(:checked)]:hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
         <span className="relative shrink-0">
           <TopicGroupIcon id={id} className="size-9 rounded-xl" iconClassName="size-5" />
-          <i aria-hidden className="absolute -right-1.5 -top-1.5 hidden size-5 items-center justify-center rounded-full border-2 border-white bg-sky text-white group-has-[:checked]:flex">
+          <i aria-hidden className="absolute -right-1.5 -top-1.5 hidden size-5 items-center justify-center rounded-full border-2 border-paper bg-sky text-white group-has-[:checked]:flex">
             <IconCheck className="size-3 [stroke-width:3.6]" />
           </i>
         </span>

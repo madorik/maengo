@@ -5,7 +5,9 @@ import "./globals.css";
 import { Analytics } from "@/components/Analytics";
 import { NativeShell } from "@/components/NativeShell";
 import { NavProgress } from "@/components/NavProgress";
+import { ThemeSync } from "@/components/ThemeSync";
 import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, siteUrl } from "@/lib/site";
+import { PAPER, THEME_SCRIPT } from "@/lib/theme";
 
 // 한글은 Pretendard(글자 범위별로 필요한 조각만 받는다), 숫자는 둥근 Nunito.
 const nunito = Nunito({
@@ -44,17 +46,26 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FFFFFF",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: PAPER.light },
+    { media: "(prefers-color-scheme: dark)", color: PAPER.dark },
+  ],
   viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ko" className={nunito.variable}>
+    // data-theme은 머리 스크립트가 그리기 전에 붙이므로 서버 HTML과 다를 수 있다
+    <html lang="ko" className={nunito.variable} suppressHydrationWarning>
+      <head>
+        {/* 설정 > 화면에서 고른 테마를 첫 그림부터(lib/theme.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <NavProgress />
         {children}
         <NativeShell />
+        <ThemeSync />
         <Analytics />
       </body>
     </html>

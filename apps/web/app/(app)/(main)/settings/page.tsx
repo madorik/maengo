@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Crown } from "@/components/icons";
 import Link from "next/link";
+import { DarkModeSwitch } from "@/components/settings/DarkModeSwitch";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { LinkSlots } from "@/components/settings/LinkSlots";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
@@ -16,6 +18,11 @@ import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { userLinks } from "@/lib/server/links";
 import { entitlements, webPushTokens } from "@/lib/server/profile";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
+import { appInfoOf, deviceOf } from "@/lib/app-client";
+import { SUPPORT_EMAIL } from "@/lib/site";
+
+/** 웹 버전: 배포한 커밋(Vercel이 넣는다). 커밋 정보 없이 올린 배포면 배포 id(dpl_…) 앞부분, 로컬은 '개발' */
+const WEB_VERSION = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || process.env.VERCEL_DEPLOYMENT_ID?.replace(/^dpl_/, "").slice(0, 7) || "개발";
 
 export const metadata: Metadata = { title: "설정" };
 
@@ -41,6 +48,23 @@ export default async function SettingsPage() {
   const demoTools = demoToolsEnabled();
   const [topics, links, webTokens, wallet, usage] = await Promise.all([userTopics(profile), userLinks(profile), webPushTokens(profile.id), syncWallet(profile.id), dailyMaengoUsage(profile)]);
   const view = toProfileView(profile);
+  const ua = (await headers()).get("user-agent");
+  const app = appInfoOf(ua);
+  const version = app ? `앱 ${app.version} · 웹 ${WEB_VERSION}` : `웹 ${WEB_VERSION}`;
+  // 문의 메일: 제목과 문제를 찾는 데 쓸 정보를 미리 채운다
+  const mailBody = [
+    "",
+    "",
+    "",
+    "---",
+    "아래 정보는 문제를 찾는 데 써요.",
+    `앱: ${app ? `${app.version} (${app.platform})` : "웹 브라우저"}`,
+    `웹: ${WEB_VERSION}`,
+    `기기: ${deviceOf(ua)}`,
+    `플랜: ${profile.limits.name}`,
+    `회원: ${profile.id.slice(0, 8)}`,
+  ].join("\n");
+  const mailHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("[맹고 문의]")}&body=${encodeURIComponent(mailBody)}`;
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
@@ -109,6 +133,10 @@ export default async function SettingsPage() {
           <NotifyTimePicker current={profile.notifyAt} />
         </Section>
 
+        <Section id="display" title="화면">
+          <DarkModeSwitch />
+        </Section>
+
         <Section id="account" title="계정">
           <p className="flex flex-wrap gap-x-5 gap-y-1 text-[15px] font-bold">
             <Link href="/terms" className="text-sub no-underline hover:text-ink hover:underline">
@@ -119,6 +147,21 @@ export default async function SettingsPage() {
             </Link>
           </p>
           <DeleteAccount demo={isDemoAccount(profile.id)} />
+        </Section>
+
+        <Section id="about" title="앱 정보">
+          <div className="divide-y-2 divide-line">
+            {SUPPORT_EMAIL && (
+              <a href={mailHref} className="flex min-h-12 items-center justify-between gap-3 font-bold text-ink no-underline hover:underline">
+                문의하기
+                <span className="min-w-0 truncate text-[14px] text-sub">{SUPPORT_EMAIL}</span>
+              </a>
+            )}
+            <p className="flex min-h-12 items-center justify-between gap-3 font-bold">
+              버전
+              <span className="font-round text-[15px] text-sub tabular-nums">{version}</span>
+            </p>
+          </div>
         </Section>
 
         {demoTools && (

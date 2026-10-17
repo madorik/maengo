@@ -100,7 +100,7 @@ export default async function AdminPage({ searchParams }: Props) {
 
   return (
     <div className="min-h-dvh bg-snow">
-      <header className="border-b-2 border-line bg-white">
+      <header className="border-b-2 border-line bg-paper">
         <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 px-5 py-4">
           <div>
             <h1 className="text-[22px] font-black tracking-[-0.02em]">맹고 관리자</h1>
@@ -114,7 +114,7 @@ export default async function AdminPage({ searchParams }: Props) {
 
       <main className="mx-auto flex max-w-[1100px] flex-col gap-6 px-5 py-6">
         {alerts.map((a) => (
-          <div key={a.title} role="alert" className="rounded-2xl border-2 border-orange bg-[#FFF1E6] px-5 py-4">
+          <div key={a.title} role="alert" className="rounded-2xl border-2 border-orange bg-[#FFF1E6] px-5 py-4 dark:bg-[#3A2414]">
             <p className="text-[16px] font-black text-orange">{a.title}</p>
             <p className="mt-1 text-[14px] font-semibold text-ink">{a.detail}</p>
           </div>
@@ -265,7 +265,7 @@ function RangeBar({ range, today }: { range: AdminRange; today: string }) {
               key={p.label}
               href={`/admin?from=${p.from}&to=${p.to}`}
               aria-current={on ? "true" : undefined}
-              className={`flex min-h-11 items-center rounded-xl border-2 px-3 text-[14px] font-extrabold ${on ? "border-ink bg-ink text-white" : "border-line bg-white text-sub hover:text-ink"}`}
+              className={`flex min-h-11 items-center rounded-xl border-2 px-3 text-[14px] font-extrabold ${on ? "border-ink bg-ink text-paper" : "border-line bg-paper text-sub hover:text-ink"}`}
             >
               {p.label}
             </Link>
@@ -354,7 +354,7 @@ function Trend({
         {last && (
           <span
             aria-hidden="true"
-            className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sky"
+            className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-sky"
             style={{ left: `${(x(data.length - 1) / W) * 100}%`, top: `${(y(last.v) / H) * 100}%` }}
           />
         )}

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
     <title>맹고</title>
     <!--
       웹(server.url)을 못 불러올 때 Capacitor가 띄우는 안내 화면(capacitor.config.ts의 errorPath).
@@ -13,13 +13,19 @@
     -->
     <style>
       :root {
+        --paper: #fff;
         --ink: #1f2340;
         --sub: #6b7089;
         --mango: #ffc23d;
         --mango-dark: #e09a12;
       }
+      /* 기기가 다크 모드면 웹의 다크 색(apps/web/app/globals.css)과 같게. 버튼 글자는 망고 위라 남색 그대로 */
+      @media (prefers-color-scheme: dark) {
+        :root { --paper: #151722; --text: #eceef5; --sub: #a6abc0; }
+        html, body { color: var(--text) !important; }
+      }
       * { box-sizing: border-box; }
-      html, body { margin: 0; height: 100%; background: #fff; color: var(--ink); }
+      html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); }
       body {
         /* -apple-system·system-ui를 앞에 두면 영어 설정 iOS(26 시뮬레이터에서 확인)에서 한글이 다음 글꼴로 넘어가지 않고 네모로 나온다 */
         font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;

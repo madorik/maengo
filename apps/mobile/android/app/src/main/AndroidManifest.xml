@@ -36,6 +36,14 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- 듣는 동안 다른 앱으로 가도 이어 듣기(포그라운드 서비스)와 알림·잠금 화면 버튼(MaengoMediaPlugin) -->
+        <service
+            android:name=".MediaPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:stopWithTask="true" />
+        <receiver android:name=".MediaActionReceiver" android:exported="false" />
+
         <!-- 앱 알림(FCM): 상태 표시줄 아이콘·색, 채널(앱이 'daily'를 '오늘의 맹고'로 만든다, apps/web/lib/native/push.ts) -->
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_maengo" />
         <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/maengo_mango" />
@@ -45,4 +53,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 </manifest>

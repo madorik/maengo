@@ -2,6 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
+import { libraryMatcher } from '../library-search';
 import { LEGAL_CHANGED_ON } from '../site';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { daysBefore } from '@maengo/core/plans';
@@ -539,7 +540,7 @@ export const LIBRARY_PAGE_SIZE = 10;
 /** 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리·읽음으로 거르고 페이지로 나눈다. 들은 것도 읽음으로 친다 */
 export async function getLibrary(
   profile: Profile,
-  { page, category, read }: { page: number; category: CategoryId | null; read: LibraryReadFilter | null },
+  { page, category, read, query = null }: { page: number; category: CategoryId | null; read: LibraryReadFilter | null; query?: string | null },
 ): Promise<LibraryData> {
   const now = new Date();
   const days = await allDays(profile);
@@ -564,10 +565,12 @@ export async function getLibrary(
     }];
   });
 
+  // 검색어가 있으면 거르기 줄의 개수도 찾은 소식 안에서 센다
+  const matched = query ? all.filter(libraryMatcher(query)) : all;
   const counts = new Map<CategoryId, number>();
-  for (const e of all) counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
+  for (const e of matched) counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
   const consumed = (e: LibraryEntry) => e.read || e.listened;
-  const inCategory = category ? all.filter((e) => e.category === category) : all;
+  const inCategory = category ? matched.filter((e) => e.category === category) : matched;
   const filtered = read === 'unread' ? inCategory.filter((e) => !consumed(e)) : inCategory;
   const readCount = inCategory.filter(consumed).length;
   const pageCount = Math.max(1, Math.ceil(filtered.length / LIBRARY_PAGE_SIZE));
@@ -588,6 +591,8 @@ export async function getLibrary(
     pageCount,
     category,
     readFilter: read,
+    query,
+    matchedTotal: matched.length,
     readCounts: { all: inCategory.length, unread: inCategory.length - readCount },
     pickIds: filtered.map((e) => e.clusterId),
     categories: CATEGORIES.filter((c) => counts.has(c.id)).map((c) => ({ id: c.id, label: c.label, count: counts.get(c.id)! })),

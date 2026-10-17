@@ -76,7 +76,7 @@ export function ListenPrefs({ audio }: { audio: boolean }) {
                 onClick={() => preview(v.id)}
                 aria-label={failed === v.id ? `${label} 미리 듣기 다시 시도` : `${label} ${now ? "미리 듣기 멈추기" : "미리 듣기"}`}
                 title={failed === v.id ? "샘플을 불러오지 못했어요. 눌러서 다시 시도" : undefined}
-                className={`absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center rounded-full border-2 transition-colors ${now ? "border-sky bg-sky text-white" : "border-line bg-white text-ink hover:bg-snow"}`}
+                className={`absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center rounded-full border-2 transition-colors ${now ? "border-sky bg-sky text-white" : "border-line bg-paper text-ink hover:bg-snow"}`}
               >
                 {now ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
               </button>

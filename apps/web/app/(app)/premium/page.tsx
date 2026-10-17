@@ -33,15 +33,15 @@ export default async function PremiumPage() {
   const plus = plans.get("plus")!;
 
   return (
-    <div className="min-h-dvh bg-white">
-      <header className="sticky top-0 z-10 border-b-2 border-line bg-white pt-[env(safe-area-inset-top)]">
+    <div className="min-h-dvh bg-paper">
+      <header className="sticky top-0 z-10 border-b-2 border-line bg-paper pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-[600px] items-center px-2">
           <BackButton />
         </div>
       </header>
 
       <main className="mx-auto max-w-[560px] px-5 pb-[calc(48px+env(safe-area-inset-bottom))] pt-6">
-        <section aria-labelledby="premium-title" className="relative overflow-hidden rounded-3xl bg-ink px-6 pb-6 pt-6 text-white shadow-[0_6px_0_#11142A]">
+        <section aria-labelledby="premium-title" className="relative overflow-hidden rounded-3xl bg-[#1F2340] px-6 pb-6 pt-6 text-white shadow-[0_6px_0_#11142A] dark:ring-2 dark:ring-line">
           {/* 장식 원. 글자 뒤에 깔려 읽기에는 방해하지 않는다 */}
           <span aria-hidden="true" className="absolute -right-12 -top-14 size-48 rounded-full bg-white/[0.06]" />
           <span aria-hidden="true" className="absolute -bottom-20 right-16 size-36 rounded-full bg-white/[0.04]" />

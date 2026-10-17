@@ -58,7 +58,7 @@ export function LibraryHeader({ total, pickIds }: { total: number; pickIds: numb
   if (pick.picking) {
     return (
       // 상단바(모바일 56px + 테두리) 아래에 붙인다. 데스크톱은 상단바가 없다
-      <div className="sticky top-[calc(58px+env(safe-area-inset-top))] z-30 -mx-4 flex items-center gap-2 border-b-2 border-line bg-white px-3 py-2 lg:top-0">
+      <div className="sticky top-[calc(58px+env(safe-area-inset-top))] z-30 -mx-4 flex items-center gap-2 border-b-2 border-line bg-paper px-3 py-2 lg:top-0">
         <h1 className="sr-only">보관함</h1>
         <button type="button" onClick={() => pick.setPicking(false)} aria-label="골라 듣기 그만두기" className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sub hover:bg-snow">
           <IconClose className="size-6" />
@@ -73,7 +73,7 @@ export function LibraryHeader({ total, pickIds }: { total: number; pickIds: numb
           aria-pressed={all}
           className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-[15px] font-extrabold hover:bg-snow disabled:text-faint"
         >
-          <span className={`flex size-6 items-center justify-center rounded-md border-2 ${all ? "border-sky bg-sky text-white" : "border-line bg-white"}`}>
+          <span className={`flex size-6 items-center justify-center rounded-md border-2 ${all ? "border-sky bg-sky text-white" : "border-line bg-paper"}`}>
             {all && <IconCheck className="size-4 [stroke-width:3.5]" />}
           </span>
           전체
@@ -120,7 +120,7 @@ export function PickBar() {
     <>
       <div aria-hidden="true" className="h-24" />
       {n > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-line bg-white px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3">
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-line bg-paper px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3">
           <div className="mx-auto flex max-w-[680px] gap-3">
             <button type="button" onClick={add} disabled={adding} className="btn btn-ghost min-h-12 flex-1 text-[15px]">
               담기
@@ -151,7 +151,7 @@ export function PickTarget({ id, title }: { id: number; title: string }) {
       className={`absolute inset-0 z-10 rounded-2xl disabled:cursor-not-allowed ${on ? "bg-sky-tint mix-blend-multiply ring-2 ring-sky ring-inset" : "enabled:hover:bg-snow enabled:hover:mix-blend-multiply"}`}
     >
       <span
-        className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 ${on ? "border-sky bg-sky text-white" : "border-line bg-white"}`}
+        className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 ${on ? "border-sky bg-sky text-white" : "border-line bg-paper"}`}
       >
         {on && <IconCheck className="size-5 [stroke-width:3.5]" />}
       </span>

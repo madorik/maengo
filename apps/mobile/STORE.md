@@ -1,6 +1,6 @@
 # 맹고 스토어 등록(비공개 테스트까지)
 
-> 2026-10-11. 콘솔에 그대로 붙여 넣을 문구와 답, 순서. 그래픽·스크린샷·AAB는 저장소 밖 `~/Desktop/maengo-store/`, `~/Desktop/maengo-1.0.0-1.aab`에 있다(다시 만드는 법은 맨 아래).
+> 2026-10-11 작성, 2026-10-17 1.2 출시용으로 고침(유료 플랜·공유·백그라운드 재생). 콘솔에 그대로 붙여 넣을 문구와 답, 순서. 주소는 도메인(`maengo.app`)을 사면 모두 바꾼다. 그래픽·스크린샷·AAB는 저장소 밖 `~/Desktop/maengo-store/`, `~/Desktop/maengo-1.0.0-1.aab`에 있다(다시 만드는 법은 맨 아래).
 
 ## 공통 정보
 
@@ -14,7 +14,8 @@
 | 개인정보 처리방침 | https://maengo.vercel.app/privacy |
 | 이용약관 | https://maengo.vercel.app/terms |
 | 계정 삭제 안내(Play) | https://maengo.vercel.app/delete-account |
-| 가격 | 무료(앱 안 결제 없음) |
+| 가격 | 무료(앱 안 결제 있음: Premium 월 ₩3,800 자동 갱신 구독·첫 구독 7일 무료, 맹고 추가 구매 10·30·50·100. [BILLING.md](BILLING.md)) |
+| 키워드(App Store, 100자) | 뉴스요약,AI뉴스,주식뉴스,코인뉴스,반도체,IT뉴스,오디오뉴스,브리핑,출근길,팟캐스트,헤드라인 |
 
 ### 짧은 설명(Play, 80자 이내)
 관심 분야 소식만 골라 AI가 요약하고 읽어 드려요. 출퇴근길에 듣는 맞춤 뉴스.
@@ -22,15 +23,32 @@
 ### 전체 설명(Play 전체 설명 / App Store 설명)
 쏟아지는 소식 속에서 내가 관심 있는 것만 챙기고 싶다면, 맹고.
 
-맹고는 고른 관심 분야(AI, 주식, 코인, 반도체·로봇, 개발, K-Pop, K-뷰티, K-푸드)의 국내외 매체·공식 블로그 소식을 매일 모아, 꼭 볼 만한 것만 골라 짧게 요약해 드려요. 요약마다 원문 출처를 함께 붙여서 더 궁금하면 바로 확인할 수 있어요.
+맹고는 고른 관심 분야(AI, 주식, 코인, 반도체·로봇, Tech)와 뉴스 분야(정치, 경제, 사회, 생활/문화, IT/과학, 세계)의 국내외 매체·공식 블로그 소식을 매일 모아, 꼭 볼 만한 것만 골라 짧게 요약해 드려요. 요약마다 원문 출처를 함께 붙여서 더 궁금하면 바로 확인할 수 있어요.
 
-• 오늘의 맹고: 정한 시간에 오늘 고른 소식이 준비돼요
-• 듣기: 글로 읽기 힘들 때는 아나운서 목소리로 들어요. 출퇴근길·운동할 때 끝까지 이어서 들려 드려요
+• 오늘의 소식: 정한 시간에 오늘 고른 소식이 준비되고 알림으로 알려 드려요
+• 듣기: 글로 읽기 힘들 때는 아나운서 목소리로 들어요. 화면을 끄거나 다른 앱을 써도 끝까지 이어서 들려 드려요
 • 대본 보기: 듣는 동안 지금 읽는 문장을 함께 보여 줘요
 • 보관함: 지난 소식을 모아 두고, 골라서 이어 듣기도 할 수 있어요
-• 관심사: 분야 전체를 고르거나 세부 주제를 더하고, 목록에 없으면 직접 적어요
+• 관심사: 분야 전체를 고르거나 세부 주제(LLM, 미국 주식, 비트코인, 보안 등)를 더해요
+• 공유: 마음에 드는 소식은 요약과 원문 링크를 바로 보내요
 
-지금은 베타 기간이라 모든 기능을 무료로 쓸 수 있어요.
+[Free와 Premium]
+• Free: 하루 소식 3개, 지난 소식 7일 보관
+• Premium(월 3,800원, 첫 구독 7일 무료): 하루 소식 10개, 음성 듣기, 관심사 직접 추가, 내 관심 링크(블로그·사이트 3개의 새 글을 소식으로), 보관 기한 없음
+• 하루 소식을 다 받은 뒤에는 맹고(앱 안 재화)로 소식을 하나 더 받을 수 있어요
+
+Premium은 매달 자동으로 갱신되며, 갱신 24시간 전까지 App Store·Google Play의 구독 관리에서 해지하지 않으면 다음 달 요금이 결제돼요. 무료 체험 중에 해지하면 결제되지 않아요.
+
+이용약관(EULA): https://maengo.vercel.app/terms
+개인정보 처리방침: https://maengo.vercel.app/privacy
+
+### 출시 노트(1.2.0, 초안)
+맹고 1.2.0이에요.
+• 화면을 끄거나 다른 앱을 써도 듣기가 이어져요. 잠금 화면과 알림에서 멈추고 넘길 수 있어요
+• 소식을 공유할 수 있어요
+• 다크 모드를 지원해요(설정 > 화면)
+• 보관함에서 지난 소식을 검색할 수 있어요
+• 설정에서 문의하기와 앱 버전을 볼 수 있어요
 
 ### 출시 노트(1.1.0, 2026-10-14)
 맹고 1.1.0 테스트 버전이에요. 앱 알림(정한 시각에 오늘의 소식 알림), 하루 소식보다 더 받기(지갑의 맹고), Premium 안내 페이지가 들어갔어요. 써 보시고 불편한 점은 wandeung.help@gmail.com으로 알려 주세요.
@@ -56,19 +74,50 @@
 | 개인정보처리방침 | https://maengo.vercel.app/privacy |
 | 앱 액세스 권한 | '모든 기능 또는 일부 기능이 제한됨' → 안내: "Google 계정 또는 Apple 계정으로 로그인하면 바로 가입됩니다(어떤 Google 계정도 가능, 따로 드릴 아이디·비밀번호 없음). 처음 들어오면 관심 분야를 고르고 '오늘 맹고 받기'를 누르면 소식이 나옵니다." |
 | 광고 | 광고 없음 |
-| 콘텐츠 등급 | 이메일 wandeung.help@gmail.com, 카테고리 '참고 자료, 뉴스 또는 교육'. 폭력·성적 콘텐츠·욕설·약물·도박 모두 아니요. 사용자 간 소통·콘텐츠 공유 아니요, 위치 공유 아니요, 디지털 구매 예(앱 안 결제: Premium 구독·맹고 묶음, 2026-10-14). 등급은 전체 이용가(애플 4+) |
+| 콘텐츠 등급 | 이메일 wandeung.help@gmail.com, 카테고리 '참고 자료, 뉴스 또는 교육'. 폭력·성적 콘텐츠·욕설·약물·도박 모두 아니요. 사용자 간 소통·콘텐츠 공유 아니요(공유 버튼은 기기의 공유 시트로 원문 링크를 보낼 뿐, 앱 안에서 사용자끼리 주고받지 않음), 위치 공유 아니요, 디지털 구매 예(앱 안 결제: Premium 구독·맹고 묶음, 2026-10-14). 등급은 전체 이용가(애플 4+) |
 | 타겟층 | 13~15세, 16~17세, 18세 이상(약관상 가입은 만 14세 이상, 콘텐츠 등급은 전체 이용가 — 2026-10-14 사용자 결정). 아동에게 어필하지 않음 |
 | 뉴스 앱 | 예. 발행자 = 운영자 정민균, 연락처 wandeung.help@gmail.com, 웹사이트 https://maengo.vercel.app. 소식마다 원문 출처를 표시함 |
 | 정부·금융·건강 앱 | 모두 아니요 |
+| 포그라운드 서비스 권한(1.2부터) | 미디어 재생(`FOREGROUND_SERVICE_MEDIA_PLAYBACK`). 설명: "사용자가 재생을 누른 소식 음성을 화면을 끄거나 다른 앱을 쓰는 동안에도 이어서 들려 줍니다. 재생하는 동안만 켜지고 알림에 재생 조작 버튼이 보입니다." 시연 영상: 듣기 → 홈으로 나가도 재생 → 알림에서 일시정지(30초 안팎, 비공개 유튜브 링크) |
 | 데이터 보안 | 아래 |
 
-### 데이터 보안 답
-- 수집: 예 / 공유(제3자 제공): 아니요 / 전송 중 암호화: 예 / 삭제 요청 방법: 앱 안 설정 > 계정 삭제, https://maengo.vercel.app/delete-account
-- 수집하는 데이터(모두 '필수', 목적 '앱 기능' + '계정 관리', 처리 방식 '수집')
-  - 개인 정보: 이름, 이메일 주소, 사용자 ID
-  - 앱 활동: 앱 상호작용(읽음·들음·좋아요/싫어요), 기타 사용자 생성 콘텐츠(관심사 '기타'에 적은 말)
-- 수집하지 않음: 위치, 금융, 건강, 연락처, 사진·동영상, 오디오, 파일, 캘린더, 메시지, 웹 기록, 기기 ID
-- 앱 알림(FCM)을 앱에 붙이면 '기기 또는 기타 ID'를 더한다
+### 데이터 보안 답(1.2 기준, 2026-10-17)
+- 수집: 예 / 공유(제3자 제공): 아니요(Google 애널리틱스·RevenueCat·Firebase는 처리 위탁이라 '공유'가 아님) / 전송 중 암호화: 예 / 삭제 요청 방법: 앱 안 설정 > 계정 삭제, https://maengo.vercel.app/delete-account
+- 수집하는 데이터(처리 방식 '수집')
+  - 개인 정보: 이름, 이메일 주소, 사용자 ID — 필수, 앱 기능·계정 관리
+  - 금융 정보: 구매 내역(Premium 구독·맹고 추가 구매) — 필수, 앱 기능
+  - 앱 활동: 앱 상호작용(읽음·들음·좋아요/싫어요·화면 이용) — 필수, 앱 기능·분석 / 기타 사용자 생성 콘텐츠(관심사 '기타'에 적은 말, 내 관심 링크 주소) — 선택, 앱 기능
+  - 기기 또는 기타 ID: 알림 토큰(FCM) — 선택(알림을 켤 때), 앱 기능
+- 수집하지 않음: 위치, 건강, 연락처, 사진·동영상, 오디오, 파일, 캘린더, 메시지, 웹 기록, 비정상 종료 로그
+
+### 애플 개인정보 라벨(App Store Connect > 앱 개인정보 보호)
+- 추적: **아니요**. GA4에서 Google 신호·광고 개인화를 끈 상태여야 한다(켜면 '추적'이 돼 ATT 권한 창이 필요)
+- 사용자에게 연결된 데이터(모두 '추적에 사용'은 아니요)
+
+| 유형 | 항목 | 목적 |
+| --- | --- | --- |
+| 연락처 정보 | 이름, 이메일 주소 | 앱 기능 |
+| 식별자 | 사용자 ID | 앱 기능, 분석 |
+| 식별자 | 기기 ID(알림 토큰) | 앱 기능 |
+| 구입 항목 | 구입 내역 | 앱 기능 |
+| 사용 데이터 | 제품 상호작용 | 앱 기능, 분석 |
+| 사용자 콘텐츠 | 기타 사용자 콘텐츠(관심사 '기타', 내 관심 링크 주소) | 앱 기능 |
+
+### 앱 심사 메모(App Store 심사 정보 > 메모, 1.2)
+App Review 팀이 영어로 읽는다. 연락처(이름·전화·이메일)는 따로 넣는다.
+
+```
+Maengo is a personalized news briefing app for Korean users. Sign in with Apple or Google creates an account instantly (no demo account needed). After choosing topics on the first screen, tap "오늘 맹고 받기" to receive today's news summaries.
+
+Native features beyond the web content:
+- Push notifications: daily delivery alert at the time the user sets (Settings > 알림).
+- Background audio: summaries are read aloud by text-to-speech; playback continues with the screen locked or while using other apps, with lock-screen / Control Center controls (Now Playing). (Premium feature; the 7-day free trial can be started in the sandbox.)
+- In-App Purchase: Premium monthly auto-renewable subscription (7-day free trial) and consumable "맹고" packs, with Restore Purchases and Manage Subscription in Settings > 플랜.
+- Sign in with Apple, and account deletion inside the app (Settings > 계정 삭제).
+- Native share sheet on each article (top-right share button).
+
+Content: summaries of public news articles and official blogs, each linking to the original source.
+```
 
 ## iOS — TestFlight 공개 링크
 
@@ -77,7 +126,7 @@
 3. **App Store Connect 앱 만들기**: 앱 > + > 신규 앱. 플랫폼 iOS, 이름 `맹고`, 기본 언어 한국어, 번들 ID `kr.maengo.app`, SKU `maengo-ios`, 사용자 액세스 전체
 4. (Claude) 빌드 업로드 → 처리 10~30분
 5. **TestFlight > 테스트 정보**: 베타 앱 설명(위 짧은 설명), 피드백 이메일 wandeung.help@gmail.com, 마케팅 URL https://maengo.vercel.app, 개인정보 처리방침 URL
-6. **베타 앱 검토 정보**: 연락처(이름·전화·이메일), '로그인 필요' 체크 해제, 메모: "Sign in with Apple 또는 Google로 바로 가입할 수 있습니다(별도 데모 계정 없음). 첫 화면에서 관심 분야를 고르고 '오늘 맹고 받기'를 누르면 소식이 나옵니다. 듣기 버튼으로 요약을 음성으로 들을 수 있습니다."
+6. **베타 앱 검토 정보**: 연락처(이름·전화·이메일), '로그인 필요' 체크 해제, 메모: 위 '앱 심사 메모'를 그대로 쓴다
 7. **외부 그룹**: TestFlight > 외부 테스팅 + > 그룹 이름 `베타 테스터` > 빌드 추가 > 검토 제출(보통 1~2일)
 8. 승인되면 그룹의 **공개 링크 활성화** → 링크를 나눠 준다. 테스터는 TestFlight 앱을 깔고 링크로 설치
 - 내부 테스터(App Store Connect 사용자, 검토 없음)로 먼저 깔아 보려면 TestFlight > 내부 테스팅 그룹에 본인을 넣는다

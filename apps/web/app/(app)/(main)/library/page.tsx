@@ -1,12 +1,13 @@
 import { isCategory } from "@maengo/core/categories";
 import type { Metadata } from "next";
 import { LibraryView } from "@/components/library/LibraryView";
+import { parseLibraryQuery } from "@/lib/library-search";
 import { getLibrary } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "보관함" };
 
-type Props = { searchParams: Promise<{ page?: string; category?: string; read?: string }> };
+type Props = { searchParams: Promise<{ page?: string; category?: string; read?: string; q?: string }> };
 
 export default async function LibraryPage({ searchParams }: Props) {
   const profile = await requireProfile();
@@ -15,6 +16,7 @@ export default async function LibraryPage({ searchParams }: Props) {
     page: Number(sp.page) || 1,
     category: isCategory(sp.category) ? sp.category : null,
     read: sp.read === "unread" ? "unread" : null,
+    query: parseLibraryQuery(sp.q),
   });
   return <LibraryView lib={lib} />;
 }

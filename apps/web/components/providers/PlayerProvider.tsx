@@ -8,6 +8,7 @@ import {
 } from "@/lib/player/machine";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import { track } from "@/lib/analytics";
+import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
 import { PLAYLIST_MAX, playlistAudioUrl, playlistQuery } from "@/lib/playlist";
 import type { EpisodeData, ProfileView } from "@/lib/types";
 import { useToday } from "./TodayProvider";
@@ -105,6 +106,10 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const playlistRef = useRef<number[] | null>(null);
   /** 이 묶음 다음에 이어 들을 소식(PLAYLIST_MAX개씩 나눠 튼다) */
   const queueRef = useRef<number[]>([]);
+  /** 다음 묶음 음성을 미리 만들어 달라고 한 주소(묶음마다 한 번) */
+  const warmedRef = useRef<string | null>(null);
+  /** 재생 위치를 옮긴 횟수. 안드로이드 알림의 재생 위치를 맞출 때만 쓴다 */
+  const [seeks, setSeeks] = useState(0);
   // 플레이리스트를 들을 때는 읽은 소식도 건너뛰지 않는다
   const readSet = playlist ? NO_READ : read;
   const skip = playlist ? false : skipRead;
@@ -193,6 +198,21 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     setCur(index);
     const ch = chapters[index];
     if (ch) markListened(ch.clusterId);
+    if (index === chapters.length - 1) warmNextBatch();
+  };
+
+  /**
+   * 플레이리스트 묶음의 마지막 소식에 들어서면 다음 묶음 음성을 미리 만들어 둔다. 화면을 끈 채 묶음이 바뀔 때
+   * 서버가 음성을 만드는 동안 소리가 끊기면 iOS가 앱을 재울 수 있어서, 넘어가는 순간엔 파일이 바로 오게 한다.
+   * 파일은 받지 않는다(서버는 다 만들면 저장소 주소로 넘기기만 한다)
+   */
+  const warmNextBatch = () => {
+    const next = queueRef.current.slice(0, PLAYLIST_MAX);
+    if (!playlistRef.current || !next.length) return;
+    const url = playlistAudioUrl(next, voice);
+    if (warmedRef.current === url) return;
+    warmedRef.current = url;
+    fetch(url, { redirect: "manual", cache: "no-store" }).catch(() => {});
   };
 
   const goTo = (index: number) => {
@@ -445,53 +465,55 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     exitPlaylist,
   };
 
-  // 잠금 화면·이어폰 버튼(Media Session). 핸들러는 늘 최신 api를 부르도록 ref로 넘긴다.
+  // 잠금 화면·이어폰·안드로이드 알림 버튼(lib/native/media.ts). 핸들러는 늘 최신 api를 부르도록 ref로 넘긴다.
+  // 안드로이드 앱은 듣는 동안 포그라운드 서비스를 띄운다. 멈추면 알림만 남고, 다 듣거나 오늘로 돌아오면 지운다
   const apiRef = useRef(api);
   useEffect(() => {
     apiRef.current = api;
   });
-  const title = chapters[cur]?.title;
-  useEffect(() => {
-    if (!episode || !("mediaSession" in navigator)) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: title ?? (playlist ? `플레이리스트 ${episode.chapters.length}개` : `오늘 ${episode.chapters.length}개 이어 듣기`),
-      artist: "맹고",
-      album: playlist ? "보관함 플레이리스트" : "오늘 브리핑",
-      artwork: [{ src: "/apple-icon", sizes: "180x180", type: "image/png" }],
-    });
-  }, [episode, title, playlist]);
-  useEffect(() => {
-    if (!episode || !("mediaSession" in navigator)) return;
-    const ms = navigator.mediaSession;
-    const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
-      ["play", () => apiRef.current.play()],
-      ["pause", () => apiRef.current.pause()],
-      ["previoustrack", () => apiRef.current.prev()],
-      ["nexttrack", () => apiRef.current.next()],
-      ["seekbackward", () => {
-        const audio = audioRef.current;
+  const mediaActionRef = useRef<(action: MediaAction, seekTime?: number) => void>((action, seekTime) => {
+    const audio = audioRef.current;
+    switch (action) {
+      case "play":
+        return apiRef.current.play();
+      case "pause":
+        return apiRef.current.pause();
+      case "previoustrack":
+        return apiRef.current.prev();
+      case "nexttrack":
+        return apiRef.current.next();
+      case "seekbackward":
         if (audio) audio.currentTime = Math.max(0, audio.currentTime - 15);
-      }],
-      ["seekforward", () => {
-        const audio = audioRef.current;
+        return;
+      case "seekforward":
         if (audio) audio.currentTime = Math.min(audio.duration || Infinity, audio.currentTime + 15);
-      }],
-    ];
-    for (const [action, handler] of handlers) {
-      try {
-        ms.setActionHandler(action, handler);
-      } catch {
-        // 지원하지 않는 동작은 건너뛴다
-      }
+        return;
+      case "seekto":
+        if (audio && seekTime !== undefined) audio.currentTime = seekTime;
+        return;
     }
-    return () => {
-      for (const [action] of handlers) {
-        try {
-          ms.setActionHandler(action, null);
-        } catch {}
-      }
-    };
-  }, [episode]);
+  });
+  const title = chapters[cur]?.title;
+  const mediaTitle = title ?? (playlist ? `플레이리스트 ${chapters.length}개` : `오늘 ${chapters.length}개 이어 듣기`);
+  const mediaAlbum = playlist ? "보관함 플레이리스트" : "오늘 브리핑";
+  const active = !!episode && (status === "playing" || status === "paused");
+  useEffect(() => {
+    if (!active) return hideMedia("player");
+    const audio = audioRef.current;
+    showMedia(
+      "player",
+      {
+        title: mediaTitle,
+        album: mediaAlbum,
+        playing: status === "playing",
+        position: audio?.currentTime ?? 0,
+        duration: audio && Number.isFinite(audio.duration) ? audio.duration : 0,
+        rate,
+      },
+      (action, seekTime) => mediaActionRef.current(action, seekTime),
+    );
+  }, [active, status, mediaTitle, mediaAlbum, rate, seeks]);
+  useEffect(() => () => hideMedia("player"), []);
 
   return (
     <PlayerContext.Provider value={api}>
@@ -502,6 +524,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         onTimeUpdate={onTimeUpdate}
         onPlay={() => setStatus("playing")}
         onPause={() => setStatus((s) => (s === "done" ? s : "paused"))}
+        onSeeked={() => setSeeks((n) => n + 1)}
         onEnded={() => {
           if (continueQueue()) return;
           setStatus("done");

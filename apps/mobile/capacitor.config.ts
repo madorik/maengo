@@ -31,7 +31,8 @@ const config: CapacitorConfig = {
   experimental: { ios: { spm: { packageOptions: { "@capacitor-firebase/messaging": { symlink: true } } } } },
   plugins: {
     // 웹은 이미 viewport-fit=cover + env(safe-area-inset-*)를 쓴다. native는 그 값을 맞게 채워 준다(옛 웹뷰는 여백으로 대신)
-    SystemBars: { insetsHandling: "native", initialViewportFitValueHint: "cover", style: "LIGHT" },
+    // 상태 표시줄 글자색은 처음엔 기기 테마를 따르고, 웹이 붙으면 고른 테마로 맞춘다(apps/web/components/ThemeSync.tsx)
+    SystemBars: { insetsHandling: "native", initialViewportFitValueHint: "cover", style: "DEFAULT" },
     // 웹이 화면에 붙으면 바로 숨긴다(apps/web/lib/native/shell.ts). 웹을 못 불러와도 3초 뒤엔 숨는다
     SplashScreen: { launchShowDuration: 3000, launchAutoHide: true, launchFadeOutDuration: 200, backgroundColor: "#FFC23D", showSpinner: false },
     // 앱 알림(FCM). 앱을 보고 있을 때 온 알림도 iOS에서 배너·소리로 보여 준다(apps/web/lib/native/push.ts)

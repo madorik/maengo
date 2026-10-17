@@ -2,4 +2,6 @@
 <resources>
     <!-- 알림 아이콘 색(망고색, 웹 globals.css의 color-mango와 같다) -->
     <color name="maengo_mango">#FFC23D</color>
+    <!-- 창 바탕(웹 globals.css의 color-paper 토큰). 다크는 values-night -->
+    <color name="maengo_paper">#FFFFFF</color>
 </resources>
