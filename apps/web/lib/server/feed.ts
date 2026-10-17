@@ -503,7 +503,7 @@ async function batchRanToday(date: string): Promise<boolean> {
 export async function getTodayData(profile: Profile): Promise<TodayData> {
   const day = await todayFeed(profile);
   // 가입 선물은 지갑을 처음 만들 때 들어가므로 지갑을 읽은 뒤에 본다
-  const walletAndGift = syncWallet(profile.id).then(async (w) => [w, await recentSignupGift(profile.id)] as const);
+  const walletAndGift = syncWallet(profile.id).then(async (w) => [w, await recentSignupGift(profile.id, profile.createdAt)] as const);
   const [items, { reads, feedback }, [wallet, signupGift]] = await Promise.all([itemsFor(profile, visibleRows(day), day.date), readsAndFeedback(profile.id), walletAndGift]);
   const dailyLimit = entitlements(profile).dailyItems;
   const emptyReason = items.length
