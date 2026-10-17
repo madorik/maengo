@@ -1,6 +1,6 @@
 "use client";
 
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent } from "@dnd-kit/core";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
@@ -13,10 +13,8 @@ import { ReadBadge } from "@/components/library/ReadBadge";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
+import { SORT_INSTRUCTIONS, sortAnnouncements } from "@/components/ui/sortable-a11y";
 import type { LibraryEntry } from "@/lib/types";
-
-/** 화면 읽기 프로그램용 안내(dnd-kit 기본은 영어) */
-const SR_INSTRUCTIONS = { draggable: "옮기려면 스페이스나 엔터를 누르고 위아래 화살표로 옮긴 뒤 다시 스페이스나 엔터를 누르세요. 그만두려면 Esc." };
 
 /**
  * 플레이리스트 화면: 담은 순서대로 전체 듣기, 손잡이를 끌어 순서 바꾸기(터치·마우스·키보드), ×로 빼기, 비우기.
@@ -34,12 +32,7 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
 
   // 손잡이로만 끈다(카드 나머지는 그대로 스크롤). 살짝 움직여야 시작해 탭과 헷갈리지 않는다
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-  const announcements: Announcements = {
-    onDragStart: ({ active }) => `${titleOf(active.id)}을 집었어요.`,
-    onDragOver: ({ active, over }) => (over ? `${titleOf(active.id)}이 ${ids.indexOf(Number(over.id)) + 1}번째 자리에 있어요.` : undefined),
-    onDragEnd: ({ active, over }) => (over ? `${titleOf(active.id)}을 ${ids.indexOf(Number(over.id)) + 1}번째에 놓았어요.` : `${titleOf(active.id)}을 놓았어요.`),
-    onDragCancel: ({ active }) => `${titleOf(active.id)} 옮기기를 그만뒀어요.`,
-  };
+  const announcements = sortAnnouncements(titleOf, (id) => ids.indexOf(Number(id)) + 1);
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
@@ -89,7 +82,7 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
           </Bubble>
         </div>
       ) : (
-        <DndContext id="playlist" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ announcements, screenReaderInstructions: SR_INSTRUCTIONS }}>
+        <DndContext id="playlist" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ announcements, screenReaderInstructions: SORT_INSTRUCTIONS }}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             <ul className="mt-6 flex flex-col gap-3">
               {ids.map((id) => {
