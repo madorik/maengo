@@ -1,6 +1,7 @@
 # 맹고 사용 패턴 분석(GTM + GA4)
 
 > 2026-10-11. 코드는 끝났고(이벤트가 `window.dataLayer`에 쌓인다), GTM 컨테이너 ID를 넣으면 GA4로 가기 시작한다.
+> 2026-10-17 연결: GA4 측정 ID `G-5FYPYJMVQ1`(웹 스트림 https://watalabs.com), GTM 컨테이너 `GTM-MQ7KSJJK`(Vercel `NEXT_PUBLIC_GTM_ID`). `gtm-import.json`에 측정 ID를 넣어 둠(가져온 뒤 변수를 안 고쳐도 됨).
 > 코드: `lib/analytics.ts`(track), `components/Analytics.tsx`(GTM 싣기, 운영 + `NEXT_PUBLIC_GTM_ID`일 때만), `components/AnalyticsSession.tsx`(사용자 ID·플랜·플랫폼).
 > 개인정보: 이름·이메일·직접 적은 관심사는 보내지 않는다. 사용자 ID는 회원 id의 SHA-256 앞 24자리. 처리방침에 Google 애널리틱스를 넣었다(2026-10-11).
 
