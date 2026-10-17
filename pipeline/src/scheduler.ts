@@ -12,7 +12,7 @@ import { guardAi } from './lib/ai-guard';
 import { env } from './lib/env';
 import { flushUsage, recordUsage } from './lib/usage';
 
-// 서버 스케줄러(Supabase pg_cron이 5분마다 웹 /api/cron/scheduler를 부른다). 3시간마다 수집·임베딩·묶기·태그·중복 합치기와 하루 정리만 한다.
+// 서버 스케줄러(Supabase pg_cron이 5분마다 웹 /api/cron/scheduler를 부른다). 하루 한 번(06:00 KST) 수집·임베딩·묶기·태그·중복 합치기와 하루 정리만 한다.
 // 요약은 미리 만들지 않는다: 알림 시각에 배송이 그 사람 소식을 골라 그때 요약한다(deliveries.ts, 1분마다. 2026-10-15 사용자 결정).
 // summarize 작업은 표에서 꺼 두었다(enabled=false, 필요하면 켤 수 있게 코드는 남긴다).
 // 무엇을 언제 돌릴지는 scheduler_tasks 표가 정한다: 차례가 된 작업만 가져와 돌리고, 결과와 다음 차례를 표에 남긴다.

@@ -13,7 +13,7 @@ import { mapLimit } from './lib/limit';
 import { flushUsage, recordUsage } from './lib/usage';
 
 // 알림 시각에 소식을 지급하고 알린다(2026-10-15 사용자 결정: 소식 만들기와 따로, 요약은 이때 만든다).
-// Supabase pg_cron이 1분마다 /api/cron/deliveries를 부른다(runDeliveryTick). 서버 스케줄러는 3시간마다 수집·임베딩·묶기·태그만 해 둔다.
+// Supabase pg_cron이 1분마다 /api/cron/deliveries를 부른다(runDeliveryTick). 서버 스케줄러는 하루 한 번(06:00 KST) 수집·임베딩·묶기·태그만 해 둔다.
 // 할 일은 delivery_jobs 표(사람·날짜마다 한 줄):
 //   1. 오늘 줄 채우기(plan_deliveries) — 만들 시각 = 알림 시각. 알림 시각을 바꿨으면 대기 중인 줄의 시각도 맞춘다
 //   2. 10분 넘게 멈춘 줄 되돌리기(reclaim_stuck_deliveries)
@@ -36,7 +36,7 @@ const BUILD_BUDGET_MS = 200_000;
 const SUMMARY_CONCURRENCY = 4;
 /** AI가 막혀 못 만들었을 때 다시 해 볼 간격 */
 const BLOCKED_RETRY_MS = 30 * 60_000;
-/** 석 달 안에도 맞는 소식이 없을 때 다시 해 볼 간격과 횟수(새 글은 3시간마다 들어온다) */
+/** 석 달 안에도 맞는 소식이 없을 때 다시 해 볼 간격과 횟수(새 글은 하루 한 번 06:00에 들어온다) */
 const EMPTY_RETRY_MS = HOUR;
 const EMPTY_TRIES = 3;
 /** 1분마다 도는데 한 번이 길어져도 겹치지 않게(이보다 오래 붙잡고 있으면 죽은 것으로 보고 넘겨받는다) */
@@ -230,7 +230,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
           out.had++;
           await setStatus(job, { status: 'had', last_error: null });
         } else if (r === 'empty') {
-          // 석 달 안에도 이 사람 관심사에 맞는 소식이 없다: 그날 안이면 한 시간 뒤 다시(새 글은 3시간마다 들어온다)
+          // 석 달 안에도 이 사람 관심사에 맞는 소식이 없다: 그날 안이면 한 시간 뒤 다시(새 글은 하루 한 번 06:00에 들어온다)
           out.empty++;
           const retryAt = new Date(Date.now() + EMPTY_RETRY_MS);
           await setStatus(
@@ -293,7 +293,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
 
 /**
  * 1분마다 한 번(/api/cron/deliveries). scheduler_tasks의 deliveries 줄을 잠금으로 써서 겹쳐 돌지 않게 하고 결과를 남긴다.
- * 그 줄은 enabled=false라 서버 스케줄러(3시간 작업들)는 가져가지 않는다.
+ * 그 줄은 enabled=false라 서버 스케줄러(ingest·daily)는 가져가지 않는다.
  */
 export async function runDeliveryTick(now = new Date()): Promise<DeliveryResult | 'busy'> {
   const stale = new Date(now.getTime() - TICK_STALE_MS).toISOString();
