@@ -10,6 +10,7 @@ import { CategoryChip } from "@/components/ui/CategoryChip";
 import { SITE_DESCRIPTION, SITE_NAME, appUrl } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AuthLink } from "./AuthLink";
+import playlistScriptShot from "./playlist-script.webp";
 import playlistShot from "./playlist.webp";
 
 // 소개(메인) 페이지. 로그인 전에 맹고가 무엇인지 보여 준다. 그림 대신 실제 화면 조각을 그대로 쓴다.
@@ -195,11 +196,15 @@ export async function Landing() {
             <Feature
               flip
               title="출퇴근길엔 플레이리스트로 들어요"
-              body="듣고 싶은 소식을 플레이리스트에 담고 전체 듣기를 누르면 끝까지 이어서 읽어 드려요. 앱에서는 화면을 꺼도, 다른 앱을 써도 계속 들려요. 목소리는 여성·남성 중에 골라요."
+              body="듣고 싶은 소식을 플레이리스트에 담고 전체 듣기를 누르면 끝까지 이어서 읽어 드려요. 듣는 동안 대본에서 지금 읽는 문장을 짚어 주고, 앱에서는 화면을 꺼도 계속 들려요. 목소리는 여성·남성 중에 골라요."
             >
-              {/* 실제 플레이리스트 화면(앱) */}
-              <div className="mx-auto w-[min(300px,82%)] rounded-[44px] bg-[#1F2340] p-2.5 shadow-[0_18px_44px_rgb(31_35_64/0.22)]">
-                <Image src={playlistShot} alt="" sizes="300px" className="h-auto w-full rounded-[36px]" />
+              {/* 실제 화면(앱): 플레이리스트와, 전체 듣기를 누르면 열리는 재생·대본 창 */}
+              <div className="flex items-start justify-center gap-3 sm:gap-4">
+                {[playlistShot, playlistScriptShot].map((shot, i) => (
+                  <div key={i} className={`w-1/2 max-w-[220px] rounded-[34px] bg-[#1F2340] p-2 shadow-[0_18px_44px_rgb(31_35_64/0.22)] ${i === 1 ? "mt-10" : ""}`}>
+                    <Image src={shot} alt="" sizes="220px" className="h-auto w-full rounded-[27px]" />
+                  </div>
+                ))}
               </div>
             </Feature>
 

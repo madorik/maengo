@@ -8,6 +8,7 @@ import {
 } from "@/lib/player/machine";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import { track } from "@/lib/analytics";
+import { withBase } from "@/lib/base-path";
 import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
 import { PLAYLIST_MAX, playlistAudioUrl, playlistQuery } from "@/lib/playlist";
 import type { EpisodeData, ProfileView } from "@/lib/types";
@@ -120,7 +121,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const fetchEpisode = useCallback(async (p: Persona, v: Voice): Promise<EpisodeData> => {
     const ids = playlistRef.current;
-    const res = await fetch(ids ? `/api/episode/playlist?${playlistQuery(ids, v)}` : `/api/episode/today?persona=${p}&voice=${v}`, { cache: "no-store" });
+    const res = await fetch(withBase(ids ? `/api/episode/playlist?${playlistQuery(ids, v)}` : `/api/episode/today?persona=${p}&voice=${v}`), { cache: "no-store" });
     if (!res.ok) throw new Error(String(res.status));
     return res.json();
   }, []);
