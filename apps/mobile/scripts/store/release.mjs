@@ -1,34 +1,37 @@
-// 앱 빌드 올리기(Play). node release.mjs <aab> [트랙=internal] [출시 메모]
-// AAB를 올리고 트랙에 새 출시를 만든다. 앱이 아직 한 번도 공개되지 않았으면 Play가 'draft' 출시만 받으므로 그때는 초안으로 만든다.
+// 앱 빌드 올리기(Play). node release.mjs <aab | 버전 코드> [트랙=internal] [출시 메모]
+// AAB를 올리고 트랙에 새 출시를 만든다. 이미 올린 빌드를 다른 트랙(예: 내부 → 비공개 테스트 alpha)에 낼 때는 AAB 대신 버전 코드를 준다.
+// 앱이 아직 한 번도 공개되지 않았으면 Play가 'draft' 출시만 받으므로 그때는 초안으로 만든다.
 // iOS 빌드는 xcodebuild -exportArchive(destination upload)로 올리고, 처리 상태는 node release.mjs --ios 로 본다.
 import { readFileSync } from "node:fs";
 import { asc, APP_ID, play } from "./stores.mjs";
 
-const [aab, track = "internal", notes = ""] = process.argv.slice(2);
+const [build, track = "internal", notes = ""] = process.argv.slice(2);
+const isCode = /^\d+$/.test(build ?? "");
 
-async function releasePlay() {
+/** 새 edit에 번들을 올리고(버전 코드면 건너뜀) 트랙 출시를 넣어 커밋한다 */
+async function commit(status) {
   const edit = await play("POST", "/edits", {});
   const e = `/edits/${edit.id}`;
-  const bundle = await play("POST", `${e}/bundles`, readFileSync(aab), { upload: true, contentType: "application/octet-stream" });
-  console.log("Play bundle", bundle.versionCode, bundle.sha256);
-  const release = (status) => ({
+  let code = build;
+  if (!isCode) {
+    const bundle = await play("POST", `${e}/bundles`, readFileSync(build), { upload: true, contentType: "application/octet-stream" });
+    console.log("Play bundle", bundle.versionCode, bundle.sha256);
+    code = String(bundle.versionCode);
+  }
+  await play("PUT", `${e}/tracks/${track}`, {
     track,
-    releases: [{ versionCodes: [String(bundle.versionCode)], status, ...(notes ? { releaseNotes: [{ language: "ko-KR", text: notes }] } : {}) }],
+    releases: [{ versionCodes: [code], status, ...(notes ? { releaseNotes: [{ language: "ko-KR", text: notes }] } : {}) }],
   });
+  const done = await play("POST", `${e}:commit`);
+  console.log("Play", track, code, status, "commit", done.id);
+}
+
+async function releasePlay() {
   try {
-    await play("PUT", `${e}/tracks/${track}`, release("completed"));
-    const done = await play("POST", `${e}:commit`);
-    console.log("Play", track, "completed, commit", done.id);
+    await commit("completed");
   } catch (err) {
     if (!/draft/i.test(String(err))) throw err;
-    // 커밋이 실패하면 edit이 지워지므로 새로 만든다
-    const edit2 = await play("POST", "/edits", {});
-    const e2 = `/edits/${edit2.id}`;
-    const b2 = await play("POST", `${e2}/bundles`, readFileSync(aab), { upload: true, contentType: "application/octet-stream" }).catch(() => null);
-    if (!b2) console.log("(같은 번들은 이미 올라가 있음)");
-    await play("PUT", `${e2}/tracks/${track}`, release("draft"));
-    const done = await play("POST", `${e2}:commit`);
-    console.log("Play", track, "draft(앱이 아직 공개 전), commit", done.id);
+    await commit("draft");
   }
 }
 
@@ -37,5 +40,5 @@ async function iosBuilds() {
   for (const x of b.data) console.log("iOS build", x.attributes.version, x.attributes.processingState, x.attributes.uploadedDate);
 }
 
-if (aab === "--ios") await iosBuilds();
+if (build === "--ios") await iosBuilds();
 else await releasePlay();
