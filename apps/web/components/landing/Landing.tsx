@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
+import { AppOnlyNotice } from "@/components/premium/AppOnlyNotice";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
@@ -284,6 +285,8 @@ export async function Landing() {
                 cta={{ signedOut: START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
               />
             </div>
+            {/* 결제는 앱 인앱 결제로만(웹에는 결제가 없다) */}
+            <AppOnlyNotice className="mx-auto mt-5 max-w-[560px]" />
           </div>
         </section>
 

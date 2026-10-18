@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { track } from "@/lib/analytics";
 import { useInApp, useStore } from "./useStore";
+import { AppOnlyNotice } from "./AppOnlyNotice";
 
 // /premium 페이지의 앱 안 결제 조각. 웹 브라우저에서는 앱에서 살 수 있다는 것만 알린다(웹 결제는 없다).
 
@@ -33,7 +34,7 @@ function ErrorText({ text }: { text: string | null }) {
 export function PremiumBuy({ uid, plan }: { uid: string; plan: Plan }) {
   const s = useStore(uid);
   if (s.inApp === null) return <div aria-hidden="true" className="h-14" />;
-  if (!s.inApp) return <p className="text-center text-[15px] font-bold text-sub">Premium은 맹고 앱에서 시작할 수 있어요.</p>;
+  if (!s.inApp) return <AppOnlyNotice />;
   if (plan !== "free") {
     return (
       <div className="text-center">

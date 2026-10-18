@@ -136,6 +136,7 @@ export function Crown({ className = "size-4" }: { className?: string }) {
   );
 }
 /** 내 관심 링크(설정 > 관심사 라벨) */
+export const IconPhone = (p: Props) => <Line {...p}><path d="M8 3h8a1.5 1.5 0 0 1 1.5 1.5v15A1.5 1.5 0 0 1 16 21H8a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 8 3z" /><path d="M11 18h2" /></Line>;
 export const IconSearch = (p: Props) => <Line {...p}><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" /><path d="M20 20l-4-4" /></Line>;
 export const IconShare = (p: Props) => (
   <Line {...p}><path d="M12 15V3.5" /><path d="M7.5 8L12 3.5 16.5 8" /><path d="M5 12v7a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-7" /></Line>
