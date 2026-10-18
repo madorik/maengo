@@ -117,29 +117,3 @@ export async function subscriptionView(userId: string): Promise<{ status: 'trial
     | null;
   return row ? { status: row.status, periodEnd: row.current_period_end, cancelAtPeriodEnd: row.cancel_at_period_end } : null;
 }
-
-export interface TrialConsentInput {
-  productId: string;
-  trialDays: number;
-  price: string;
-  /** 첫 결제 예정일(YYYY-MM-DD, 한국 날짜) */
-  chargeOn: string;
-  platform: string | null;
-  notice: string;
-}
-
-/** 체험 동의를 남긴다(결제 창을 띄우기 직전) */
-export async function recordTrialConsent(userId: string, c: TrialConsentInput): Promise<void> {
-  must(
-    await db.from('trial_consents').insert({
-      user_id: userId,
-      product_id: c.productId,
-      trial_days: c.trialDays,
-      price: c.price,
-      charge_on: c.chargeOn,
-      platform: c.platform,
-      notice: c.notice,
-    }),
-    'trial_consents',
-  );
-}

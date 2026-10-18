@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { track } from "@/lib/analytics";
-import { withBase } from "@/lib/base-path";
 import { useInApp, useStore } from "./useStore";
 import { AppOnlyNotice } from "./AppOnlyNotice";
 import { announcePurchase } from "./PurchaseDone";
@@ -55,16 +54,14 @@ export function TrialLine({ sub, priceKrw, className = "" }: { sub: Subscription
 
 /**
  * Premium 시작(구독). 쓰고 있으면 그렇다고만(구독 관리는 설정 > 플랜).
- * 무료 체험은 처음 구독하는 회원만(firstSub, 서버가 구독 기록으로 판단): 결제 창 전에 동의 팝업(TrialConsent)을 띄우고,
- * 동의 체크박스에 체크하면 그때 동의를 남긴다(체크돼 있어야 결제).
+ * 무료 체험은 처음 구독하는 회원만(firstSub, 서버가 구독 기록으로 판단): 결제 창 전에 안내 팝업(TrialConsent)을 띄우고,
+ * 확인 체크박스에 체크해야 결제한다(동의 기록은 남기지 않는다, 2026-10-18 사용자 결정).
  * 전에 구독한 적 있으면 체험 없이 바로 결제(안드로이드는 체험 없는 기본 요금제로, iOS는 애플이 체험을 한 번만 준다)
  */
 export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string; plan: Plan; firstSub: boolean; sub: SubscriptionInfo | null; priceKrw: number }) {
   const s = useStore(uid);
-  const [consent, setConsent] = useState<{ lines: string[]; agreeText: string; chargeOn: string; chargeLabel: string } | null>(null);
+  const [consent, setConsent] = useState<{ lines: string[]; chargeLabel: string } | null>(null);
   const [checked, setChecked] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [consentError, setConsentError] = useState<string | null>(null);
   if (s.inApp === null) return <div aria-hidden="true" className="h-14" />;
   if (!s.inApp) return <AppOnlyNotice />;
   // 구독 관리는 설정 > 플랜에만 둔다(ManageSubscription)
@@ -99,34 +96,11 @@ export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string
   const start = () => {
     if (!trialDays) return void purchase(null);
     const day = trialChargeDay(trialDays);
-    setConsentError(null);
     setChecked(false);
-    setConsent({ lines: trialNotice(trialDays, premium.price, day.label), agreeText: TRIAL_AGREE_TEXT, chargeOn: day.iso, chargeLabel: day.label });
+    setConsent({ lines: trialNotice(trialDays, premium.price, day.label), chargeLabel: day.label });
   };
 
-  // 체크하면 그 자리에서 동의를 남긴다(남겨야 체크된다). 체크를 풀면 결제만 막는다
-  const check = async (on: boolean) => {
-    if (!consent || !trialDays) return;
-    setConsentError(null);
-    if (!on) return setChecked(false);
-    setRecording(true);
-    const res = await fetch(withBase("/api/billing/trial-consent"), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        productId: premium.productId,
-        trialDays,
-        price: premium.price,
-        chargeOn: consent.chargeOn,
-        notice: [...consent.lines, `[동의] ${consent.agreeText}`].join("\n"),
-      }),
-    }).catch(() => null);
-    setRecording(false);
-    if (res?.ok) return setChecked(true);
-    setConsentError(res?.status === 409 ? "전에 구독한 적이 있어 무료 체험을 받을 수 없어요. 새로고침하면 바로 시작할 수 있어요." : "동의를 저장하지 못했어요. 다시 시도해 주세요.");
-  };
-
-  // 동의가 남은(체크된) 뒤에만 결제 창을 띄운다
+  // 확인에 체크한 뒤에만 결제 창을 띄운다
   const startTrial = async () => {
     if (!consent || !checked) return;
     const chargeLabel = consent.chargeLabel;
@@ -157,15 +131,11 @@ export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string
           open={consent !== null}
           trialDays={trialDays}
           lines={consent?.lines ?? []}
-          agreeText={consent?.agreeText ?? ""}
+          agreeText={TRIAL_AGREE_TEXT}
           checked={checked}
-          recording={recording}
-          error={consentError}
-          onCheck={check}
+          onCheck={setChecked}
           onStart={startTrial}
-          onCancel={() => {
-            if (!recording) setConsent(null);
-          }}
+          onCancel={() => setConsent(null)}
         />
       )}
     </div>
