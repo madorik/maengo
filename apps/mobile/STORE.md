@@ -49,6 +49,7 @@ Premium은 매달 자동으로 갱신되며, 갱신 24시간 전까지 App Store
 • 다크 모드를 지원해요(설정 > 화면)
 • 보관함에서 지난 소식을 검색할 수 있어요
 • 설정에서 문의하기와 앱 버전을 볼 수 있어요
+• 앱에서 Premium을 구독(첫 구독 7일 무료)하고 맹고를 추가로 살 수 있어요
 
 ### 출시 노트(1.1.0, 2026-10-14)
 맹고 1.1.0 테스트 버전이에요. 앱 알림(정한 시각에 오늘의 소식 알림), 하루 소식보다 더 받기(지갑의 맹고), Premium 안내 페이지가 들어갔어요. 써 보시고 불편한 점은 watalabs.help@gmail.com으로 알려 주세요.
@@ -139,6 +140,9 @@ Content: summaries of public news articles and official blogs, each linking to t
 ## 다시 만드는 법
 - 공통: `apps/mobile`에서 `npx cap sync`(CAP_SERVER_URL 없이 = 운영 주소)
 - Android AAB: `cd android && ANDROID_HOME=/opt/homebrew/share/android-commandlinetools JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`. 업로드 키는 `~/.maengo/maengo-upload.jks`(+ `upload-keystore.properties`), **잃지 않게 백업**(잃으면 Play Console에서 업로드 키 재설정 요청)
-- iOS: `cd ios/App && xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath <경로>.xcarchive -allowProvisioningUpdates archive` → `xcodebuild -exportArchive`(ExportOptions: method app-store-connect, destination upload, teamID QYS79FM739)
-- 그래픽: 아이콘은 `assets/icon-only.png`를 512로 줄인 것. 스크린샷·그래픽 이미지는 `scripts/store/`로 만들고 올린다(README). 2026-10-17 판(1.2 화면, 문구 넣은 6장)은 `~/Desktop/maengo-store/2026-10-17/`
+- iOS: `cd ios/App && xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath <경로>.xcarchive -allowProvisioningUpdates archive` → `xcodebuild -exportArchive`(ExportOptions: method app-store-connect, destination upload, teamID QYS79FM739). 처리 상태는 `node scripts/store/release.mjs --ios`(10~30분 뒤 VALID). 내부 테스터 그룹은 '모든 빌드'라 처리되면 바로 받는다
+- Play 업로드: `node scripts/store/release.mjs <aab> internal "<출시 노트>"` → 내부 테스트 트랙에 새 출시(완료). 다른 트랙은 두 번째 인자(alpha = 비공개 테스트, production)
+- 인앱 상품(App Store Connect): `node scripts/store/asc-products.mjs`(BILLING.md 상품 표대로 구독 그룹·구독·가격·1주 무료 체험·묶음 4개, 이미 있으면 건너뜀) → `node scripts/store/asc-products.mjs --shot <구독 화면> <묶음 화면>`(심사용 스크린숏, 시뮬레이터 `/premium`)
+- 그래픽: 아이콘은 `assets/icon-only.png`를 512로 줄인 것. 스크린샷·그래픽 이미지는 `scripts/store/`로 만들고 올린다(README). 2026-10-18 판(1.2 화면, 하루 소식 3·10 되돌린 뒤, 데모 계정 Premium·관심사 4개)은 `~/Desktop/maengo-store/2026-10-18/`
 - 2026-10-17 올린 상태: **App Store Connect** 버전 1.0(제출 준비 중)에 설명·키워드·홍보 문구·지원/마케팅 URL·부제·처리방침 URL·6.7인치 스크린샷 6장 완료. **Play**는 서비스 계정 권한 부족(403)으로 커밋 실패 → Play Console > 사용자 및 권한 > Play 업로드용 서비스 계정(`~/.maengo/play-service-account.json`의 client_email) > 앱 권한에 '스토어 등록정보 관리' 추가 후 `upload.mjs … play` 다시
+- 2026-10-18 올린 상태: **Android 1.2.0(versionCode 3)** 내부 테스트 출시 완료. **iOS 1.2.0(빌드 3)** 처리 끝(VALID), 내부 테스터 배포, '테스트할 내용' 1.2 출시 노트. App Store 버전을 1.0 → **1.2.0**으로 바꾸고 빌드 3을 붙임. 6.7인치 스크린샷 6장을 10-18 판으로 바꿈. 인앱 상품 5개(구독 ₩3,800·1주 무료, 묶음 ₩1,100·2,900·4,400·7,900) 제출 준비 완료. **남은 것**: 앱 심사 정보(연락처 이름·전화, 메모는 위 '앱 심사 메모'), 가격 및 사용 가능 여부(무료·판매 국가), 앱 개인정보(위 라벨), 연령 등급, 버전 화면의 '앱 내 구입 및 구독'에 상품 5개 선택. Play 등록정보는 여전히 403(권한 추가 필요)

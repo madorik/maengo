@@ -12,4 +12,7 @@
    - App Store Connect: 제출 준비 중인 버전의 설명·키워드·홍보 문구·URL, 부제·처리방침, 6.7인치 스크린샷 세트를 새로 채운다
    - Play: 한국어 등록정보·연락처·휴대전화 스크린샷·그래픽·아이콘. 서비스 계정에 '스토어 등록정보 관리' 권한이 있어야 커밋된다
 
+6. 빌드 올리기: `node release.mjs <aab> [트랙=internal] [출시 노트]`(Play), `node release.mjs --ios`(iOS 빌드 처리 상태. 올리기는 xcodebuild -exportArchive)
+7. 인앱 상품(App Store Connect): `node asc-products.mjs`, 심사용 스크린숏 `node asc-products.mjs --shot <구독 화면 png> <묶음 화면 png>`
+
 키는 모두 저장소 밖 `~/.maengo/`에 있다: App Store Connect API 키(`AuthKey_<키 ID>_Connect.p8`)와 키 ID·Issuer ID·앱 ID(`store-api.json`), Play 서비스 계정 JSON(`play-service-account.json`). 공개 저장소라 값은 여기 적지 않는다.
