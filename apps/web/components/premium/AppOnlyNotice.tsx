@@ -2,7 +2,7 @@ import { IconPhone } from "@/components/icons";
 
 /**
  * 웹(PC·휴대폰 브라우저)에서 보이는 결제 안내. 결제는 앱의 인앱 결제(애플·구글)로만 받는다.
- * 앱 안에서는 그리지 않는다: 소개 페이지는 앱이 열지 않고(proxy.ts), /premium은 PremiumBuy가 앱이 아닐 때만 그린다
+ * /premium에서 PremiumBuy가 앱이 아닐 때만 그린다(앱 안에서는 결제 버튼)
  */
 export function AppOnlyNotice({ className = "" }: { className?: string }) {
   return (
