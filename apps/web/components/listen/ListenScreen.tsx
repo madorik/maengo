@@ -15,14 +15,14 @@ import { Queue, Switch } from "./controls";
 import { PlusLock } from "./PlusLock";
 import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 
-/** 듣기 화면(오늘 피드). 보관함 플레이리스트를 듣는 중이면 오늘로 돌아가는 버튼만 보여 준다(대본 화면은 오늘 피드용) */
+/** 듣기 화면(오늘 피드). 플레이리스트를 듣는 중이면 오늘로 돌아가는 버튼만 보여 준다(대본 화면은 오늘 피드용) */
 export function ListenScreen() {
   const p = usePlayer();
   if (!p.playlist) return <TodayListenScreen />;
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center gap-5 px-6 text-center">
       <Mascot mood="listen" className="size-28" />
-      <h1 className="text-[22px] font-black">보관함 플레이리스트를 듣고 있어요</h1>
+      <h1 className="text-[22px] font-black">플레이리스트를 듣고 있어요</h1>
       <div className="flex flex-wrap justify-center gap-2">
         <button type="button" onClick={p.exitPlaylist} className="btn btn-sky">
           오늘 소식 듣기로 돌아가기
@@ -64,14 +64,14 @@ function TodayListenScreen() {
           />
         </div>
       ) : (
-        <ProgressBar value={0} tone="sky" label="오늘 브리핑 진행" className="h-4 flex-1" />
+        <ProgressBar value={0} tone="sky" label="오늘 소식 진행" className="h-4 flex-1" />
       )}
       {p.enabled && (
         <button
           type="button"
           onClick={p.cycleRate}
           aria-label={`재생 속도 ${p.rate}배, 눌러서 바꾸기`}
-          className="tile min-h-10 min-w-14 px-2 font-round text-[15px] font-black text-sky-dark"
+          className="tile min-h-11 min-w-14 px-2 font-round text-[15px] font-black text-sky-dark"
         >
           {p.rate.toFixed(1)}x
         </button>
@@ -99,9 +99,11 @@ function TodayListenScreen() {
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <Mascot mood="cheer" className="pop size-32" />
             <h1 className="mt-4 text-[26px] font-black text-mango-deep">{game.allDone ? "오늘 완료!" : "다 들었어요!"}</h1>
-            <p className="mt-3 text-[16px] font-semibold leading-relaxed text-sub">
-              {game.allDone ? `오늘은 여기까지예요. 내일 ${data.notifyLabel}에 새로 고른 소식으로 만나요.` : "건너뛴 소식은 오늘 목록에 남아 있어요."}
-            </p>
+            {game.allDone && (
+              <p className="mt-3 text-[16px] font-semibold leading-relaxed text-sub">
+                {`오늘은 여기까지예요. 내일 ${data.notifyLabel}에 새로 고른 소식으로 만나요.`}
+              </p>
+            )}
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <button type="button" onClick={p.restart} className="btn btn-ghost">
                 처음부터 다시 듣기
@@ -120,7 +122,7 @@ function TodayListenScreen() {
                   {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
                 </span>
               </p>
-              <h1 className="mt-1 line-clamp-2 text-[22px] font-black leading-snug tracking-[-0.02em]">{ch?.title ?? "오늘 브리핑을 준비하고 있어요"}</h1>
+              <h1 className="mt-1 line-clamp-2 text-[22px] font-black leading-snug tracking-[-0.02em]">{ch?.title ?? "오늘 소식"}</h1>
             </div>
             <Script
               lines={active ? (ch?.lines ?? []) : []}
@@ -136,10 +138,10 @@ function TodayListenScreen() {
         <div className="mx-auto max-w-[640px] px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
           {p.error && (
             <div className="flex items-center justify-center gap-3 pb-3">
-              <p role="alert" className="min-w-0 text-[14px] font-bold text-orange">
+              <p role="alert" className="min-w-0 text-[14px] font-bold text-cherry">
                 {p.error}
               </p>
-              <button type="button" onClick={p.retry} className="btn btn-ghost min-h-10 shrink-0 px-3 text-[14px]">
+              <button type="button" onClick={p.retry} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
                 다시 시도
               </button>
             </div>
@@ -147,30 +149,43 @@ function TodayListenScreen() {
           {p.preparing && (
             <div className="flex items-center justify-center gap-3 pb-3">
               <p role="status" className="min-w-0 text-[14px] font-bold text-sky-dark">
-                음성을 만드는 중이에요. 처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요.
+                음성 만드는 중
               </p>
-              <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-10 shrink-0 px-3 text-[14px]">
+              <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
                 취소
               </button>
             </div>
           )}
-          {/* 좁은 폰에서도 한 줄에 들어가게 화면이 좁으면 버튼을 조금 작게 */}
-          <div className="flex items-center justify-center gap-2 sm:gap-5">
-            <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-12 min-h-0 rounded-full p-0 sm:size-14">
-              <IconPrev className="size-6" />
-            </button>
-            <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} className="size-12 sm:size-14" />
+          {/* 좁은 폰에서도 한 줄에 동그랗게 들어가게 화면이 좁으면 버튼과 간격을 줄인다(320px에서도 넘치지 않게) */}
+          <div className="flex items-center justify-center gap-1 min-[360px]:gap-2 sm:gap-5">
             <button
               type="button"
-              aria-label={playing ? "일시정지" : "재생"}
-              onClick={p.toggle}
-              disabled={!p.ready}
-              className="btn btn-sky size-20 min-h-0 rounded-full p-0"
+              aria-label="이전 소식"
+              onClick={p.prev}
+              disabled={!p.canPrev}
+              className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12 sm:size-14"
+            >
+              <IconPrev className="size-6" />
+            </button>
+            <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12 sm:size-14" />
+            <button
+              type="button"
+              aria-label={playing ? "일시정지" : p.ready ? "재생" : "다시 시도"}
+              // 에피소드 정보를 못 받았으면 다시 받는다(막혀 있지 않게)
+              onClick={p.ready ? p.toggle : p.retry}
+              disabled={!p.ready && !p.error}
+              className="btn btn-sky size-16 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-20"
             >
               {playing ? <IconPause className="size-8" /> : <IconPlay className="size-9" />}
             </button>
-            <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} className="size-12 sm:size-14" />
-            <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-12 min-h-0 rounded-full p-0 sm:size-14">
+            <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12 sm:size-14" />
+            <button
+              type="button"
+              aria-label="다음 소식"
+              onClick={p.next}
+              disabled={!p.canNext || !p.ready}
+              className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12 sm:size-14"
+            >
               <IconNext className="size-6" />
             </button>
           </div>

@@ -75,6 +75,19 @@ export class GeminiOutputError extends Error {
   }
 }
 
+/**
+ * 마감(deadline)이 있는 실행(1분 배송·스케줄러)에서 요청 한 번에 응답을 기다리는 최대 시간(ms). 넘으면 끊고 GeminiTimeoutError(504로 보고 다시 시도 규칙을 따른다).
+ * 전엔 제한이 없어 마감 직전에 시작한 요청이 300초 서버 함수를 넘겨 실행이 통째로 끊길 수 있었다(2026-10-18 점검).
+ * 마감이 없는 호출(화면의 오늘 소식 받기·음성·링크)은 끊지 않는다: 오래 걸려도 끝까지 받는 게 낫다(끊고 다시 부르면 그만큼 돈이 든다)
+ */
+export const GEMINI_TIMEOUT_MS = 60_000;
+/** 영상 요약은 영상을 읽느라 더 걸린다 */
+export const GEMINI_VIDEO_TIMEOUT_MS = 180_000;
+/** 듣기 음성(TTS)은 글이 길어 더 기다린다 */
+export const GEMINI_TTS_TIMEOUT_MS = 120_000;
+/** 마감(deadline)까지 이보다 적게 남았으면 부르지 않는다(끊길 게 뻔한 요청에 돈을 쓰지 않게) */
+export const GEMINI_MIN_REQUEST_MS = 5_000;
+
 export interface GeminiOptions {
   apiKey: string;
   /** 503(혼잡)이 계속되면 이 모델로 한 번 더 시도한다 */
@@ -85,11 +98,69 @@ export interface GeminiOptions {
   maxAttempts?: number;
   /** 이 시각(ms)을 넘겨 기다려야 하면 다시 시도하지 않고 바로 실패한다(서버 함수 시간 제한 안에서 끝내려고, 1분 배송) */
   retryUntil?: number;
+  /** 요청 한 번에 응답을 기다리는 최대 시간(ms). 없으면 마감이 있을 때만 GEMINI_TIMEOUT_MS(영상·음성은 더 길게), 마감도 없으면 끊지 않는다 */
+  timeoutMs?: number;
+  /**
+   * 이 시각(ms)까지는 응답을 받아야 한다(서버 함수 시간 제한). 요청마다 남은 시간만큼만 기다리고(기본 제한과 둘 중 짧은 것),
+   * GEMINI_MIN_REQUEST_MS도 안 남았으면 부르지 않고 GeminiTimeoutError
+   */
+  deadline?: number;
+}
+
+/** 요청이 시간 안에 끝나지 않았다(또는 마감이 가까워 부르지 않았다). 상태는 504로 보고 다시 시도 규칙을 따른다 */
+export class GeminiTimeoutError extends Error {
+  readonly status = 504;
+  constructor(readonly model: string, readonly timeoutMs: number) {
+    super(timeoutMs > 0 ? `Gemini ${model} 응답이 ${Math.round(timeoutMs / 1000)}초 안에 오지 않아 끊음` : `Gemini ${model}: 마감이 가까워 부르지 않음`);
+    this.name = 'GeminiTimeoutError';
+  }
+}
+
+/**
+ * 이번 요청을 기다릴 시간(ms): 제한과 마감까지 남은 시간 중 짧은 것. 제한도 마감도 없으면 Infinity(끊지 않는다).
+ * 마감까지 GEMINI_MIN_REQUEST_MS도 안 남았으면 null(부르지 않는다)
+ */
+export function requestTimeoutMs(limitMs: number | null, now: number, deadline?: number): number | null {
+  if (deadline === undefined) return limitMs ?? Infinity;
+  const left = deadline - now;
+  return left < GEMINI_MIN_REQUEST_MS ? null : Math.min(limitMs ?? Infinity, left);
+}
+
+/**
+ * call을 ms 안에 끝낸다. 넘으면 신호(signal)로 요청을 끊고 GeminiTimeoutError.
+ * SDK가 신호를 늦게 따르더라도 기다리지 않게 시간 초과를 따로 겨룬다
+ */
+export async function callWithTimeout<T>(model: string, ms: number, call: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const ctrl = new AbortController();
+  // 끊지 않는 요청(제한·마감 없음). setTimeout은 2^31-1ms를 넘으면 바로 불리므로 따로 둔다
+  if (!Number.isFinite(ms)) return call(ctrl.signal);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      ctrl.abort();
+      reject(new GeminiTimeoutError(model, ms));
+    }, ms);
+  });
+  try {
+    return await Promise.race([call(ctrl.signal), timedOut]);
+  } catch (e) {
+    // 끊어서 난 오류(AbortError 등)도 시간 초과로 본다
+    throw ctrl.signal.aborted && !(e instanceof GeminiTimeoutError) ? new GeminiTimeoutError(model, ms) : e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 기다렸다 다시 할 마감: retryUntil과 (deadline - GEMINI_MIN_REQUEST_MS) 중 이른 것. 둘 다 없으면 undefined */
+export function retryDeadline(retryUntil?: number, deadline?: number): number | undefined {
+  const fromDeadline = deadline === undefined ? undefined : deadline - GEMINI_MIN_REQUEST_MS;
+  if (retryUntil === undefined) return fromDeadline;
+  return fromDeadline === undefined ? retryUntil : Math.min(retryUntil, fromDeadline);
 }
 
 /**
  * 다시 시도하기 전에 기다릴 시간(ms). 다시 하지 않으면 null: 다시 해도 소용없는 오류, 횟수를 다 씀, 기다리면 retryUntil을 넘김.
- * 429는 서버가 알려 준 만큼(최대 65초), 5xx는 지수 백오프(2초부터 최대 30초)
+ * 429는 서버가 알려 준 만큼(최대 65초), 5xx(시간 초과 504 포함)는 지수 백오프(2초부터 최대 30초)
  */
 export function retryWaitMs(status: number, retryMs: number | null, attempt: number, maxAttempts: number, now: number, retryUntil?: number): number | null {
   const retryable = status === 429 || status === 500 || status === 503 || status === 504;
@@ -208,18 +279,27 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
   const maxAttempts = opts.maxAttempts ?? 5;
   const embedModel = opts.embedModel ?? GEMINI_MODELS.embed;
   const log = opts.log ?? (() => {});
+  /** 요청 한 번의 제한: 직접 정한 값, 아니면 마감이 있을 때만 종류별 기본값(마감이 없으면 끊지 않는다) */
+  const limitFor = (base: number): number | null => opts.timeoutMs ?? (opts.deadline === undefined ? null : base);
 
-  /** 재시도: 429는 서버가 알려 준 만큼 기다리고, 5xx는 지수 백오프. 하루 할당량이 없으면 바로 GeminiQuotaError, 크레딧이 없으면 GeminiBlockedError */
-  async function withRetry<T>(model: string, call: () => Promise<T>): Promise<T> {
+  /**
+   * 재시도: 429는 서버가 알려 준 만큼 기다리고, 5xx·시간 초과는 지수 백오프. 하루 할당량이 없으면 바로 GeminiQuotaError, 크레딧이 없으면 GeminiBlockedError.
+   * 요청마다 limitMs(마감이 있으면 남은 시간까지) 안에 끝나지 않으면 끊는다
+   */
+  async function withRetry<T>(model: string, call: (signal: AbortSignal) => Promise<T>, limitMs = limitFor(GEMINI_TIMEOUT_MS)): Promise<T> {
+    // 마감이 있으면 기다렸다 다시 할 때도 그 뒤에 요청 하나 할 시간은 남긴다
+    const retryUntil = retryDeadline(opts.retryUntil, opts.deadline);
     for (let attempt = 1; ; attempt++) {
+      const ms = requestTimeoutMs(limitMs, Date.now(), opts.deadline);
+      if (ms === null) throw new GeminiTimeoutError(model, 0);
       try {
-        return await call();
+        return await callWithTimeout(model, ms, call);
       } catch (e) {
         const { status, daily, retryMs, text } = parseError(e);
         if (status === 429 && daily) throw new GeminiQuotaError(model, text.slice(0, 300), retryMs);
         // 402: 선불 크레딧이 바닥났다. 다시 불러도 소용없다
         if (status === 402) throw new GeminiBlockedError(model, text.slice(0, 300), 'credits');
-        const wait = retryWaitMs(status, retryMs, attempt, maxAttempts, Date.now(), opts.retryUntil);
+        const wait = retryWaitMs(status, retryMs, attempt, maxAttempts, Date.now(), retryUntil);
         if (wait === null) throw e;
         log(`gemini ${model} ${status} → ${Math.round(wait / 1000)}초 뒤 다시 (${attempt}/${maxAttempts})`);
         await sleep(wait + Math.floor(Math.random() * 500));
@@ -237,18 +317,22 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
     video?: boolean;
   }): Promise<{ data: T; model: string }> {
     const run = async (model: string) => {
-      const res = await withRetry(model, () =>
-        client.models.generateContent({
-          model,
-          contents: [{ role: 'user', parts: args.parts }],
-          config: {
-            systemInstruction: args.system,
-            responseMimeType: 'application/json',
-            responseJsonSchema: args.schema,
-            thinkingConfig: { thinkingLevel: args.thinking },
-            ...(args.video ? { mediaResolution: MediaResolution.MEDIA_RESOLUTION_LOW } : {}),
-          },
-        }),
+      const res = await withRetry(
+        model,
+        (abortSignal) =>
+          client.models.generateContent({
+            model,
+            contents: [{ role: 'user', parts: args.parts }],
+            config: {
+              systemInstruction: args.system,
+              responseMimeType: 'application/json',
+              responseJsonSchema: args.schema,
+              thinkingConfig: { thinkingLevel: args.thinking },
+              ...(args.video ? { mediaResolution: MediaResolution.MEDIA_RESOLUTION_LOW } : {}),
+              abortSignal,
+            },
+          }),
+        limitFor(args.video ? GEMINI_VIDEO_TIMEOUT_MS : GEMINI_TIMEOUT_MS),
       );
       const u = res.usageMetadata;
       opts.onUsage?.({
@@ -273,7 +357,8 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       return await run(args.model);
     } catch (e) {
       const { status } = parseError(e);
-      const late = opts.retryUntil !== undefined && Date.now() > opts.retryUntil;
+      const until = retryDeadline(opts.retryUntil, opts.deadline);
+      const late = until !== undefined && Date.now() > until;
       if (opts.fallbackModel && opts.fallbackModel !== args.model && (status === 503 || status === 500) && !late) {
         log(`gemini ${args.model} 혼잡 → ${opts.fallbackModel}로 대신`);
         return run(opts.fallbackModel);
@@ -328,8 +413,8 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       const out: number[][] = [];
       for (let i = 0; i < texts.length; i += 100) {
         const batch = texts.slice(i, i + 100);
-        const res = await withRetry(embedModel, () =>
-          client.models.embedContent({ model: embedModel, contents: batch, config: { outputDimensionality: EMBED_DIMENSIONS } }),
+        const res = await withRetry(embedModel, (abortSignal) =>
+          client.models.embedContent({ model: embedModel, contents: batch, config: { outputDimensionality: EMBED_DIMENSIONS, abortSignal } }),
         );
         const vectors = res.embeddings ?? [];
         if (vectors.length !== batch.length) throw new Error(`임베딩 개수가 맞지 않아요(${vectors.length}/${batch.length})`);
@@ -442,12 +527,15 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
             },
           }
         : { voiceConfig: { prebuiltVoiceConfig: { voiceName: TTS_VOICES[voice] } } };
-      const res = await withRetry(input.model, () =>
-        client.models.generateContent({
-          model: input.model,
-          contents: [{ role: 'user', parts: [{ text: ttsText(input.lines, pair) }] }],
-          config: { responseModalities: [Modality.AUDIO], speechConfig },
-        }),
+      const res = await withRetry(
+        input.model,
+        (abortSignal) =>
+          client.models.generateContent({
+            model: input.model,
+            contents: [{ role: 'user', parts: [{ text: ttsText(input.lines, pair) }] }],
+            config: { responseModalities: [Modality.AUDIO], speechConfig, abortSignal },
+          }),
+        limitFor(GEMINI_TTS_TIMEOUT_MS),
       );
       const u = res.usageMetadata;
       opts.onUsage?.({ model: res.modelVersion ?? input.model, kind: 'tts', inputTokens: u?.promptTokenCount ?? 0, outputTokens: u?.candidatesTokenCount ?? 0, thinkingTokens: 0 });

@@ -21,8 +21,9 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 /**
  * 오른쪽 아래에 떠 있는 "오늘 소식 전체 듣기". 챗봇 창처럼 누르면 플레이어(듣기 창)가 펼쳐진다.
  * 재생·멈춤은 펼치지 않고 버튼에서 바로 할 수 있다. 플레이어는 (app) 레이아웃에 있어 화면을 옮겨도 이어진다.
- * 보관함 플레이리스트를 듣는 동안은 "플레이리스트"로 바뀌고, 맨 아래 버튼으로 오늘 맹고 듣기로 돌아온다.
+ * 플레이리스트를 듣는 동안은 "플레이리스트"로 바뀌고, 맨 아래 버튼으로 오늘 소식 듣기로 돌아온다.
  * ✕로 작은 망고 버튼으로 접고, 그 버튼을 누르면 다시 편다. 접어 둔 상태는 쿠키에 두어 다음에 열어도 그대로다.
+ * 글 화면은 아래 '이 글 듣기' 막대가 있어서, 플레이어가 돌고 있지 않으면 작은 망고 버튼으로만 둔다(누르면 그 글에서는 편다).
  */
 export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }) {
   const p = usePlayer();
@@ -32,14 +33,18 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
   /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
   const [tab, setTab] = useState<"queue" | "script">("queue");
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  /** 글 화면에서 망고 버튼을 눌러 편 화면 주소(그 글에서만 펴 둔다) */
+  const [peek, setPeek] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const foldRef = useRef<HTMLButtonElement>(null);
   const bubbleRef = useRef<HTMLButtonElement>(null);
-  // 로그인한 화면 어디서나 뜬다((app) 레이아웃). 글 화면은 아래 '이 글 듣기' 막대 위로, 전체 화면 듣기(/listen)에서는 숨긴다
+  // 로그인한 화면 어디서나 뜬다((app) 레이아웃). 전체 화면 듣기(/listen)에서는 숨긴다.
+  // 글 화면은 아래 '이 글 듣기' 막대 바로 위로. 막대 높이는 상태(오류·준비 중)와 안전 영역에 따라 달라서 막대가 남긴 값(--listen-bar-h)을 쓴다
   const pathname = usePathname();
-  const dock = pathname.startsWith("/article")
-    ? "bottom-[calc(96px+env(safe-area-inset-bottom))] lg:bottom-28"
+  const onArticle = pathname.startsWith("/article");
+  const dock = onArticle
+    ? "bottom-[calc(var(--listen-bar-h,104px)+12px)]"
     : "bottom-[calc(16px+env(safe-area-inset-bottom))] lg:bottom-6";
 
   useEffect(() => {
@@ -58,6 +63,11 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
 
   const locked = !profile.audio;
   const playing = p.status === "playing";
+  // 글 화면에서는 플레이어가 돌고 있을 때(재생·멈춤·음성 기다림)만 펴 둔다. 그 밖에는 막대와 겹치지 않게 망고 버튼으로
+  const live = playing || p.status === "paused" || p.preparing;
+  const folded = collapsed || (onArticle && !live && peek !== pathname);
+  // 접혀 있는 동안 창은 닫아 둔다(글 화면에서 플레이어가 돌기 시작해 펴질 때 창이 갑자기 열리지 않게)
+  if (folded && open) setOpen(false);
   // 이름은 늘 "플레이어". 무엇을 듣는지(플레이리스트·오늘 소식)는 소제목에 쓴다
   const heading = "플레이어";
   const source = p.playlist ? "플레이리스트" : "오늘 소식";
@@ -71,11 +81,13 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
     flushSync(() => {
       setOpen(false);
       setCollapsed(v);
+      // 글 화면에서 펴면 그 글에서는 편 채로 둔다
+      setPeek(v ? null : pathname);
     });
     if (e.detail === 0) (v ? bubbleRef.current : (launcherRef.current ?? foldRef.current))?.focus();
   };
 
-  if (collapsed) {
+  if (folded) {
     return (
       <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
         <button
@@ -98,8 +110,8 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
       ref={foldRef}
       type="button"
       onClick={(e) => fold(true, e)}
-      aria-label="전체 듣기 접기"
-      className="flex size-10 shrink-0 items-center justify-center rounded-full text-faint hover:bg-snow hover:text-sub"
+      aria-label="플레이어 접기"
+      className="flex size-11 shrink-0 items-center justify-center rounded-full text-faint hover:bg-snow hover:text-sub"
     >
       <IconClose className="size-5 [stroke-width:2.4]" />
     </button>
@@ -131,9 +143,9 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
   const minutes = p.ready ? minutesLabel(p.progress.totalMs) : "";
   const voiceName = p.voice === "f" ? "여성" : "남성";
   const sub = p.error
-      ? "음성을 만들지 못했어요"
+      ? p.error
       : p.preparing
-        ? "음성 만드는 중 · 처음 한 번만 1~2분"
+        ? "음성 만드는 중"
         : ch
       ? (playing ? "듣는 중" : "멈춤")
       : p.status === "done"
@@ -143,6 +155,9 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
     setOpen(false);
     launcherRef.current?.focus();
   };
+  // 에피소드 정보를 못 받았으면 재생 버튼이 다시 받기를 한다(막혀 있지 않게)
+  const canPlay = p.ready || !!p.error;
+  const playAction = p.ready ? p.toggle : p.retry;
 
   return (
     <div className={`pointer-events-none fixed right-3 z-40 flex flex-col items-end gap-3 lg:right-6 ${dock}`}>
@@ -165,7 +180,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
                 {`${source} ${count}개${minutes && `, ${voiceName} 목소리로 ${minutes}`}`}
               </p>
             </div>
-            <button type="button" aria-label="플레이어 접기" onClick={close} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
+            <button type="button" aria-label="플레이어 창 닫기" onClick={close} className="flex size-11 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
               <IconChevronDown className="size-6" />
             </button>
           </header>
@@ -189,39 +204,40 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
               {p.preparing && (
                 <div className="mt-2 flex items-center gap-2 rounded-xl bg-sky-tint py-2 pl-3 pr-2">
                   <p role="status" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-sky-dark">
-                    음성을 만드는 중이에요. 처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요.
+                    음성 만드는 중
                   </p>
-                  <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-10 shrink-0 px-3 text-[14px]">
+                  <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
                     취소
                   </button>
                 </div>
               )}
               {p.error && (
                 <div className="mt-2 flex items-center gap-2">
-                  <p role="alert" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-orange">
+                  <p role="alert" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-cherry">
                     {p.error}
                   </p>
-                  <button type="button" onClick={p.retry} className="btn btn-ghost min-h-10 shrink-0 px-3 text-[14px]">
+                  <button type="button" onClick={p.retry} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
                     다시 시도
                   </button>
                 </div>
               )}
-              <div className="mt-2 flex items-center justify-center gap-2">
-                <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-12 min-h-0 rounded-full p-0">
+              {/* 좁은 폰(360px 아래)에서도 한 줄에 동그랗게 들어가게 버튼과 간격을 조금 줄인다 */}
+              <div className="mt-2 flex items-center justify-center gap-1 min-[360px]:gap-2">
+                <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12">
                   <IconPrev />
                 </button>
-                <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} />
+                <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12" />
                 <button
                   type="button"
-                  aria-label={playing ? "일시정지" : "재생"}
-                  onClick={p.toggle}
-                  disabled={!p.ready}
-                  className="btn btn-sky mx-1 size-16 min-h-0 rounded-full p-0"
+                  aria-label={playing ? "일시정지" : p.ready ? "재생" : "다시 시도"}
+                  onClick={playAction}
+                  disabled={!canPlay}
+                  className="btn btn-sky mx-1 size-14 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-16"
                 >
                   {playing ? <IconPause className="size-6" /> : <IconPlay className="size-7" />}
                 </button>
-                <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} />
-                <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-12 min-h-0 rounded-full p-0">
+                <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12" />
+                <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12">
                   <IconNext />
                 </button>
               </div>
@@ -283,7 +299,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
           type="button"
           aria-expanded={open}
           aria-controls={open ? "listen-widget" : undefined}
-          aria-label={`플레이어 ${open ? "접기" : "열기"}`}
+          aria-label={`플레이어 창 ${open ? "닫기" : "열기"}`}
           onClick={() => setOpen(!open)}
           className="flex min-w-0 items-center gap-2.5 rounded-full py-0.5 pl-0.5 pr-2 text-left hover:bg-snow"
         >
@@ -292,14 +308,14 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
           </span>
           <span className="min-w-0 max-w-[170px]">
             <span className="block truncate text-[15px] font-black">{ch ? ch.title : heading}</span>
-            <span className="block truncate text-[12px] font-bold text-sky">{sub}</span>
+            <span className={`block truncate text-[12px] font-bold ${p.error ? "text-cherry" : "text-sky"}`}>{sub}</span>
           </span>
         </button>
         <button
           type="button"
-          onClick={p.toggle}
-          disabled={!p.ready}
-          aria-label={playing ? "일시정지" : `${heading} 재생`}
+          onClick={playAction}
+          disabled={!canPlay}
+          aria-label={playing ? "일시정지" : p.ready ? `${heading} 재생` : "다시 시도"}
           className="btn btn-sky size-12 min-h-0 shrink-0 rounded-full p-0"
         >
           {playing ? <IconPause className="size-5" /> : <IconPlay className="size-6" />}

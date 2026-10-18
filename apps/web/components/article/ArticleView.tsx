@@ -14,6 +14,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { FeedItem } from "@/lib/types";
 import { usePlayer } from "@/components/providers/PlayerProvider";
+import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
 import { ListenBar } from "./ListenBar";
 import { PlaylistButton } from "./PlaylistButton";
 import { ShareButton } from "./ShareButton";
@@ -23,14 +24,15 @@ import { VideoThumb } from "./VideoThumb";
 
 // 좋아요 = 이 분야 가중치를 올린다(more), 싫어요 = 가중치를 내리고 이 소식을 다시 주지 않는다(skip).
 // 예전의 "이미 알아요"(known)는 화면에서 뺐다. 서버는 예전 값도 그대로 받는다.
-const CHOICES: { kind: FeedbackKind; label: string; note: string; Icon: typeof IconThumbUp }[] = [
-  { kind: "more", label: "좋아요", note: "이 분야 소식을 더 자주 골라 드릴게요.", Icon: IconThumbUp },
-  { kind: "skip", label: "싫어요", note: "이런 소식은 덜 골라 드릴게요.", Icon: IconThumbDown },
+// 누른 상태는 버튼 모양(aria-pressed)으로만 보인다(확인 문장은 두지 않는다)
+const CHOICES: { kind: FeedbackKind; label: string; Icon: typeof IconThumbUp }[] = [
+  { kind: "more", label: "좋아요", Icon: IconThumbUp },
+  { kind: "skip", label: "싫어요", Icon: IconThumbDown },
 ];
 
 /**
  * 상세: 전체 글, 출처 링크, 영상이면 썸네일. 듣는 동안 지금 읽는 문단을 짚어 준다.
- * 오늘 글은 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 오늘 브리핑 플레이어로 듣는다.
+ * 오늘 글은 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 오늘 플레이어로 듣는다.
  * 그 밖(지난 글, 아직 전체 음성이 없는 오늘 글)은 그 글 하나짜리 파일로 듣는다. 글 하나 들으려고 오늘 소식 전부의 음성을 만들지 않게.
  */
 export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: FeedItem; isToday: boolean; inPlaylist: boolean }) {
@@ -42,11 +44,24 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
   const next = index >= 0 ? data.items[index + 1] : undefined;
 
   const p = usePlayer();
-  // 플레이어 목록에 없는 오늘 글(듣는 동안 새로 받은 소식)은 글 하나 듣기로
+  // 플레이어 목록에 없는 오늘 글(듣는 동안 새로 받은 소식)은 글 하나 듣기로.
+  // 에피소드 정보를 받기 전에 누른 글 하나 듣기는 정보가 와도 끊지 않는다(lib/player/route.ts)
   const inPlayer = index >= 0 && p.chapters.some((c) => c.clusterId === item.clusterId);
-  const viaPlayer = inPlayer && !p.playlist && (p.audioReady || p.preparing || p.status !== "idle");
   const today = useTodayAudio(index >= 0 ? item.clusterId : -1, next);
-  const single = useItemAudio(item.clusterId, profile.audio && !viaPlayer);
+  const single = useItemAudio(item.clusterId, profile.audio);
+  const singleBusy = singleStarted(single.ctl);
+  const viaPlayer = viaTodayPlayer({
+    inPlayer,
+    playlist: !!p.playlist,
+    audioReady: p.audioReady,
+    playerBusy: p.preparing || p.status !== "idle",
+    singleBusy,
+  });
+  // 플레이어가 이어받으면(전체 듣기 등) 글 하나 듣기는 접는다
+  const cancelSingle = single.ctl.cancel;
+  useEffect(() => {
+    if (viaPlayer && singleBusy) cancelSingle?.();
+  }, [viaPlayer, singleBusy, cancelSingle]);
   // 무료면 오늘 쪽 막대가 잠금 안내를 보여 준다
   const audio = viaPlayer || !profile.audio ? today : single;
   const activePara = audio.activePara;
@@ -86,7 +101,8 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
         </div>
       </header>
 
-      <main className="mx-auto max-w-[680px] px-5 pb-44 pt-6">
+      {/* 아래 여백: '이 글 듣기' 막대(높이는 ListenBar가 --listen-bar-h로 남긴다) + 그 위 플레이어 버튼만큼 */}
+      <main className="mx-auto max-w-[680px] px-5 pb-[calc(var(--listen-bar-h,104px)+88px)] pt-6">
         <div className="flex flex-wrap items-center gap-2">
           <CategoryChip category={item.category} />
           <SourceChip item={item} />
@@ -184,9 +200,6 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
               );
             })}
           </div>
-          <p aria-live="polite" className="mt-2 min-h-5 text-[14px] font-bold text-leaf">
-            {CHOICES.find((c) => c.kind === fb)?.note ?? ""}
-          </p>
         </section>
 
         {next ? (

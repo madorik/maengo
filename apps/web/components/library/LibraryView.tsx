@@ -1,6 +1,6 @@
 import Form from "next/form";
 import Link from "next/link";
-import { IconBack, IconClose, IconDoc, IconNext, IconPlay, IconSearch } from "@/components/icons";
+import { IconBack, IconClose, IconDoc, IconPlay, IconSearch } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
@@ -51,7 +51,7 @@ export function LibraryView({ lib }: { lib: LibraryData }) {
                   ? "안 읽은 소식이 없어요."
                   : lib.category
                       ? "이 카테고리에는 아직 받은 소식이 없어요."
-                      : "아직 받은 소식이 없어요. 내일 아침부터 여기에 쌓여요."}
+                      : "아직 받은 소식이 없어요."}
               </p>
             </Bubble>
           </div>
@@ -156,44 +156,33 @@ function LibraryCard({ entry: e }: { entry: LibraryEntry }) {
   );
 }
 
-/** 이전 · 쪽 번호 · 다음. 쪽이 많아도 현재 쪽 앞뒤 2쪽과 처음·끝만 보여 준다 */
+/** 이전 · 지금 쪽 / 전체 쪽 · 다음. 쪽 번호를 늘어놓으면 쪽이 많을 때 좁은 화면(390px)에서 한 줄을 넘쳐서 이렇게만 둔다 */
 function Pagination({ lib }: { lib: LibraryData }) {
   const { page, pageCount, category, readFilter, query } = lib;
-  const pages = Array.from({ length: pageCount }, (_, i) => i + 1).filter((n) => n === 1 || n === pageCount || Math.abs(n - page) <= 2);
-  const box = "tile inline-flex size-11 items-center justify-center font-round text-[15px] font-black no-underline";
+  const box = "tile inline-flex size-11 shrink-0 items-center justify-center no-underline";
+  const step = (to: number, label: string, icon: React.ReactNode, on: boolean) =>
+    on ? (
+      <Link href={href(to, category, readFilter, query)} aria-label={label} className={`${box} hover:bg-snow`}>
+        {icon}
+      </Link>
+    ) : (
+      <span aria-hidden="true" className={`${box} text-line`}>
+        {icon}
+      </span>
+    );
   return (
-    <nav aria-label="페이지" className="mt-8 flex items-center justify-center gap-2">
-      {page > 1 ? (
-        <Link href={href(page - 1, category, readFilter, query)} aria-label="이전 페이지" className={`${box} hover:bg-snow`}>
-          <IconBack />
-        </Link>
-      ) : (
-        <span aria-hidden="true" className={`${box} text-line`}>
-          <IconBack />
+    <nav aria-label="페이지" className="mt-8 flex items-center justify-center gap-3">
+      {step(page - 1, "이전 페이지", <IconBack />, page > 1)}
+      <p aria-current="page" className="min-w-[84px] text-center font-round text-[16px] font-black tabular-nums">
+        <span className="sr-only">{`${pageCount}페이지 중 `}</span>
+        {page}
+        <span aria-hidden="true" className="text-sub">
+          {" "}
+          / {pageCount}
         </span>
-      )}
-      {pages.map((n, i) => (
-        <span key={n} className="contents">
-          {i > 0 && n - pages[i - 1]! > 1 && <span className="px-1 text-faint">…</span>}
-          <Link
-            href={href(n, category, readFilter, query)}
-            aria-label={`${n}페이지`}
-            aria-current={n === page ? "page" : undefined}
-            className={`${box} ${n === page ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
-          >
-            {n}
-          </Link>
-        </span>
-      ))}
-      {page < pageCount ? (
-        <Link href={href(page + 1, category, readFilter, query)} aria-label="다음 페이지" className={`${box} hover:bg-snow`}>
-          <IconNext />
-        </Link>
-      ) : (
-        <span aria-hidden="true" className={`${box} text-line`}>
-          <IconNext />
-        </span>
-      )}
+        <span className="sr-only">페이지</span>
+      </p>
+      {step(page + 1, "다음 페이지", <IconBack className="size-5 rotate-180" />, page < pageCount)}
     </nav>
   );
 }

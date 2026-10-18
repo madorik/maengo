@@ -11,7 +11,7 @@ import { env } from './lib/env';
 import type { PushMessage } from './lib/fcm';
 import { mapLimit } from './lib/limit';
 import { pushToUser } from './lib/push';
-import { isInactive, SEND_RETRY_MINUTES, sendRetryAt } from './lib/retry';
+import { DELIVERY_BUILT_BY, existingFeedResult, isInactive, SEND_RETRY_MINUTES, sendRetryAt } from './lib/retry';
 import { flushUsage, recordUsage } from './lib/usage';
 
 // 알림 시각에 소식을 지급하고 알린다(2026-10-15 사용자 결정: 소식 만들기와 따로, 요약은 이때 만든다).
@@ -24,7 +24,7 @@ import { flushUsage, recordUsage } from './lib/usage';
 //      이미 오늘 소식을 받았으면 had(다시 알리지 않음), 한 달 안에도 맞는 게 없으면 한 시간 뒤 다시(그날 세 번까지) → empty
 //      AI가 막혔으면(크레딧 소진·지출 상한) 이미 요약된 소식으로만, 그것도 없으면 30분 뒤 다시. 시간 안에 못 한 사람은 다음 실행이 잇는다
 //      일주일 넘게 앱을 안 연 사람은 새로 요약하지 않고 이미 요약된 소식으로만 만든다(알림은 보내 다시 부른다)
-//      한 사람이 실패하면(DB 오류 등) 그 사람만 5분 뒤 다시(세 번까지). 배송이 만든 피드가 이미 있으면 지난 실행이 멈춘 것이라 이어서 알린다
+//      한 사람이 실패하면(DB 오류 등) 그 사람만 5분 뒤 다시(세 번까지). 배송이 만든 피드(built_by 'delivery')가 이미 있으면 지난 실행이 멈춘 것이라 이어서 알린다
 //   4. ready 줄을 FCM으로 보낸다 → sent / no_device / muted(알림 꺼 둠). 만든 그 실행에서 바로 보낸다
 //      FCM이 잠깐 실패하면(429·5xx·인증) 1분 → 5분 → 15분 뒤 다시 보낸다(그날 안에서만)
 // 서버가 잠깐 멈췄어도 그날 안이면 다음 실행이 알림 시각이 지난 사람을 이어서 챙긴다.
@@ -39,7 +39,8 @@ const SPARE = 3;
 const BUILD_BUDGET_MS = 200_000;
 /**
  * Gemini가 429·5xx로 실패했을 때 다시 해 보는 마감과 횟수(처음 + 다시 두 번). 기본(429면 65초씩 네 번)대로 기다리면
- * 300초 실행을 넘겨 줄이 building에 멈췄다가 failed가 됐다. 이 시각을 넘겨 기다려야 하면 다시 하지 않는다
+ * 300초 실행을 넘겨 줄이 building에 멈췄다가 failed가 됐다. 이 시각을 넘겨 기다려야 하면 다시 하지 않는다.
+ * 응답도 이 시각까지만 기다린다(요청마다 남은 시간만큼, core/ai/gemini.ts deadline). 그 뒤 1분은 상태 기록과 보내기 몫
  */
 const AI_RETRY_BUDGET_MS = 240_000;
 const AI_MAX_ATTEMPTS = 3;
@@ -83,13 +84,13 @@ export interface DeliveryResult {
   retried: number;
 }
 
-function makeCtx(now: Date, retryUntil: number): Ctx {
+function makeCtx(now: Date, aiUntil: number): Ctx {
   const log = (m: string) => console.log(`[deliveries] ${m}`);
   return {
     date: kstDate(now),
     now,
     ai: guardAi(
-      createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log, maxAttempts: AI_MAX_ATTEMPTS, retryUntil }),
+      createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log, maxAttempts: AI_MAX_ATTEMPTS, retryUntil: aiUntil, deadline: aiUntil }),
     ),
     log,
     stats: {},
@@ -112,27 +113,28 @@ async function inactiveUsers(ids: string[], now: Date): Promise<Set<string>> {
   return new Set(rows.filter((p) => isInactive(p.last_seen_at, p.created_at, now)).map((p) => p.id));
 }
 
-/** 이미 있는 오늘 피드: 웹에서 받았으면 had(알리지 않음), 배송이 만든 것이면 built(지난 실행이 만들고 ready로 못 바꾸고 멈췄다. 이어서 알린다) */
-const existing = (builtBy: string): BuildResult => (builtBy === 'pipeline' ? 'built' : 'had');
-
 /**
- * 고른 소식을 오늘 피드로 넣는다. 그사이 웹에서 먼저 받았으면 그쪽을 둔다.
- * 순번이 겹치는데 오늘 피드(feed_days)가 없으면 지난 시도가 피드 줄만 넣고 멈춘 것이라 지우고 다시 넣는다
+ * 고른 소식을 오늘 피드로 넣는다. 그사이 웹에서 먼저 받았으면 그쪽을 둔다(이미 있는 피드는 lib/retry.ts existingFeedResult로 본다).
+ * 순번이 겹치는데 오늘 피드(feed_days)가 없으면 지난 시도가 피드 줄만 넣고 멈춘 것이라 지우고 다시 넣는다.
+ * attempts = 이 줄을 가져간 횟수(이번 포함)
  */
-async function saveFeed(a: Audience, date: string, got: RankedItem[], want: number): Promise<BuildResult> {
+async function saveFeed(a: Audience, date: string, got: RankedItem[], want: number, attempts: number): Promise<BuildResult> {
   const dayOf = async () => check(await db.from('feed_days').select('built_by').eq('user_id', a.id).eq('date', date).maybeSingle(), 'feed_days') as { built_by: string } | null;
   const already = await dayOf();
-  if (already) return existing(already.built_by);
+  if (already) return existingFeedResult(already.built_by, attempts);
   const rows = got.map((r, i) => ({ user_id: a.id, date, rank: i + 1, cluster_id: r.clusterId, topic_id: r.topicId }));
   let { error } = await db.from('feeds').insert(rows);
   if (error?.code === '23505') {
     const day = await dayOf();
-    if (day) return existing(day.built_by);
+    if (day) return existingFeedResult(day.built_by, attempts);
     check(await db.from('feeds').delete().eq('user_id', a.id).eq('date', date), 'feeds clear');
     ({ error } = await db.from('feeds').insert(rows));
   }
   if (error) throw new Error(`feeds insert: ${error.message}`);
-  const { error: dayError } = await db.from('feed_days').insert({ user_id: a.id, date, visible: Math.min(got.length, want) });
+  // 배송이 만든 것으로 표시한다(멈춘 뒤 다음 실행이 알아보고 이어서 알리게). 표시를 허용하는 마이그레이션(20261018201000) 전이면 거절(23514)되니 열 기본값('pipeline')으로 넣는다
+  const day = { user_id: a.id, date, visible: Math.min(got.length, want) };
+  let { error: dayError } = await db.from('feed_days').insert({ ...day, built_by: DELIVERY_BUILT_BY });
+  if (dayError?.code === '23514') ({ error: dayError } = await db.from('feed_days').insert(day));
   if (dayError?.code === '23505') return 'had';
   if (dayError) throw new Error(`feed_days insert: ${dayError.message}`);
   return 'built';
@@ -141,19 +143,22 @@ async function saveFeed(a: Audience, date: string, got: RankedItem[], want: numb
 /**
  * 이 사람들의 오늘 피드를 만든다. 사람마다 관심사로 소식을 골라(모자라면 기간을 넓혀 한 달까지), 위에서부터 요약해 하루 소식만큼 모은다.
  * 요약이 없는 소식은 지금 요약한다(같은 소식은 한 번만, 동시에 SUMMARY_CONCURRENCY개). deadline이 지나면 새 요약을 시작하지 않는다.
- * 한 사람의 실패는 그 사람만 failed로 두고(errors에 이유) 나머지는 계속한다. 사용량은 끝나면(실패해도) 마저 남긴다
+ * 한 사람의 실패는 그 사람만 failed로 두고(errors에 이유) 나머지는 계속한다. 사용량은 끝나면(실패해도) 마저 남긴다.
+ * attempts = 사람마다 이 줄을 가져간 횟수(이번 포함). 이미 있는 피드가 멈춘 배송의 것인지 볼 때 쓴다(없으면 처음으로 본다)
  */
 export async function buildFeedsFor(
   ctx: Ctx,
   userIds: string[],
   deadline: number,
+  attempts: ReadonlyMap<string, number> = new Map(),
 ): Promise<{ result: Map<string, BuildResult>; errors: Map<string, string>; summarized: number }> {
   const result = new Map<string, BuildResult>();
   const errors = new Map<string, string>();
   let summarized = 0;
+  const triesOf = (id: string) => attempts.get(id) ?? 1;
   try {
     const today = check(await db.from('feed_days').select('user_id,built_by').eq('date', ctx.date).in('user_id', userIds), 'feed_days today') as { user_id: string; built_by: string }[];
-    for (const r of today) result.set(r.user_id, existing(r.built_by));
+    for (const r of today) result.set(r.user_id, existingFeedResult(r.built_by, triesOf(r.user_id)));
     const audience = await loadAudience(ctx, userIds.filter((id) => !result.has(id)));
     // 관심사가 하나도 없는 사람은 만들 게 없다
     for (const id of userIds) if (!result.has(id) && !audience.some((a) => a.id === id)) result.set(id, 'empty');
@@ -234,7 +239,7 @@ export async function buildFeedsFor(
         if (Date.now() > deadline) break;
       }
       if (!got.length) return Date.now() > deadline ? 'later' : aiBlocked ? 'blocked' : 'empty';
-      return saveFeed(a, ctx.date, got, want);
+      return saveFeed(a, ctx.date, got, want, triesOf(a.id));
     };
 
     await mapLimit(audience, 4, async (a) => {
@@ -312,7 +317,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
   if (builds.length) {
     ctx.log(`알림 시각이 된 사람 ${builds.length}명`);
     try {
-      const { result, errors, summarized } = await buildFeedsFor(ctx, builds.map((j) => j.user_id), deadline);
+      const { result, errors, summarized } = await buildFeedsFor(ctx, builds.map((j) => j.user_id), deadline, new Map(builds.map((j) => [j.user_id, j.attempts])));
       out.summarized = summarized;
       for (const job of builds) {
         const r = result.get(job.user_id) ?? 'empty';

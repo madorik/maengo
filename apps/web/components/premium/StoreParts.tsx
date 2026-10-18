@@ -17,7 +17,7 @@ import { TRIAL_AGREE_TEXT, TrialConsent, trialChargeDay, trialNotice } from "./T
 
 function LoadFailed({ retry }: { retry: () => void }) {
   return (
-    <p role="alert" className="text-[14px] font-bold text-orange">
+    <p role="alert" className="text-[14px] font-bold text-cherry">
       스토어를 불러오지 못했어요.
       <button type="button" onClick={retry} className="ml-2 underline">
         다시 불러오기
@@ -29,7 +29,7 @@ function LoadFailed({ retry }: { retry: () => void }) {
 function ErrorText({ text }: { text: string | null }) {
   if (!text) return null;
   return (
-    <p role="alert" className="mt-2 text-[14px] font-bold text-orange">
+    <p role="alert" className="mt-2 text-[14px] font-bold text-cherry">
       {text}
     </p>
   );
@@ -44,15 +44,26 @@ export interface SubscriptionInfo {
   store?: string;
 }
 
+/** 구독 날짜 표기(한국 날짜, '10월 25일 (토)'). 체험 줄(TrialLine)과 결제 안내 띠(BillingBanner)가 같이 쓴다 */
+export const dayLabel = (iso: string) => new Date(iso).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short" });
 
-const dayLabel = (iso: string) => new Date(iso).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" });
+/**
+ * 자동 결제 금액으로 보여 줄 스토어 가격(그 나라 통화, 결제 창과 같은 값). 앱에서 스토어를 불러온 뒤에만 있고, 웹이나 불러오기 전·실패면 null.
+ * plans 표 가격은 스토어 가격과 다를 수 있어 결제 금액으로 쓰지 않는다(그때는 날짜만)
+ */
+export function useStorePrice(uid: string): string | null {
+  const s = useStore(uid);
+  return (s.inApp && s.store?.premium?.price) || null;
+}
 
-/** 체험 중이면 '무료 체험 중' + 첫 결제일(해지했으면 끝나는 날). 설정 > 플랜과 /premium이 같이 쓴다. price는 표기 그대로(₩3,800·3,800원) */
-export function TrialLine({ sub, price, className = "" }: { sub: SubscriptionInfo | null; price: string; className?: string }) {
+/** 체험 중이면 '무료 체험 중' + 첫 결제일(해지했으면 끝나는 날). 설정 > 플랜과 /premium이 같이 쓴다. 금액은 스토어 가격을 알 때만 */
+export function TrialLine({ uid, sub, className = "" }: { uid: string; sub: SubscriptionInfo | null; className?: string }) {
+  const price = useStorePrice(uid);
   if (sub?.status !== "trial") return null;
+  const day = dayLabel(sub.periodEnd);
   return (
     <p className={`text-[14px] font-bold text-sub ${className}`}>
-      무료 체험 중 · {sub.cancelAtPeriodEnd ? `${dayLabel(sub.periodEnd)}에 끝나요` : `${dayLabel(sub.periodEnd)}부터 월 ${price} 결제`}
+      무료 체험 중 · {sub.cancelAtPeriodEnd ? `${day}에 끝나요` : price ? `${day}부터 월 ${price} 결제` : `${day}부터 자동 결제`}
     </p>
   );
 }
@@ -90,7 +101,7 @@ export function PremiumPrice({ uid, priceKrw, listPriceKrw }: { uid: string; pri
  * 확인 체크박스에 체크해야 결제한다(동의 기록은 남기지 않는다, 2026-10-18 사용자 결정).
  * 전에 구독한 적 있으면 체험 없이 바로 결제(안드로이드는 체험 없는 기본 요금제로, iOS는 애플이 체험을 한 번만 준다)
  */
-export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string; plan: Plan; firstSub: boolean; sub: SubscriptionInfo | null; priceKrw: number }) {
+export function PremiumBuy({ uid, plan, firstSub, sub }: { uid: string; plan: Plan; firstSub: boolean; sub: SubscriptionInfo | null }) {
   const s = useStore(uid);
   const [consent, setConsent] = useState<{ lines: string[]; chargeLabel: string } | null>(null);
   const [checked, setChecked] = useState(false);
@@ -101,7 +112,7 @@ export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string
     return (
       <div className="text-center">
         <p className="text-[16px] font-black">{sub?.status === "trial" ? "Premium 무료 체험 중이에요" : "Premium을 쓰고 있어요"}</p>
-        <TrialLine sub={sub} price={s.store?.premium?.price ?? krwLabel(priceKrw)} className="mt-1" />
+        <TrialLine uid={uid} sub={sub} className="mt-1" />
       </div>
     );
   }
@@ -145,7 +156,7 @@ export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string
       <button type="button" onClick={start} disabled={s.busy !== null} className="btn min-h-14 w-full text-[17px]">
         {s.busy === premium.productId ? "결제 중" : trialDays ? `${trialDays}일 무료로 시작` : `Premium 시작 · 월 ${premium.price}`}
       </button>
-      <p className="mt-2 text-center text-[12px] leading-relaxed text-faint">
+      <p className="mt-2 text-center text-[13px] font-medium leading-relaxed text-sub">
         {trialDays
           ? `무료 체험이 끝나면 월 ${premium.price}이 자동으로 결제되고 매달 갱신돼요. 체험 중에 해지하면 결제되지 않아요. `
           : "매달 자동으로 갱신되고, 스토어의 구독 관리에서 언제든 해지할 수 있어요. "}
@@ -175,7 +186,7 @@ export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string
 }
 
 /**
- * 맹고 채우기: 수량을 고르고 결제하면 서버가 그만큼 지갑에 넣는다(맹고 추가 구매를 할 수 있는 플랜만, plans 표).
+ * 맹고 추가 구매: 수량을 고르고 결제하면 서버가 그만큼 지갑에 넣는다(맹고 추가 구매를 할 수 있는 플랜만, plans 표).
  * 스토어 결제에는 수량 지정이 없어 수량마다 상품이 하나씩 있다(core/plans.ts의 MAENGO_PACKS).
  * /premium과 오늘 화면의 '맹고 추가 구매하기' 시트(MoreToday)가 쓴다. onBought는 결제를 마친 뒤(시트를 닫는다)
  */
@@ -283,7 +294,7 @@ export function MaengoShop({ uid, canBuy, wallet, onBought }: { uid: string; can
             </button>
           )}
           {/* 청약철회 제한 사전 고지(전자상거래법 17조 6항, 약관 6조) */}
-          <p className="mt-2 text-center text-[12px] leading-relaxed text-faint">
+          <p className="mt-2 text-center text-[13px] font-medium leading-relaxed text-sub">
             구매한 뒤 맹고를 써서 소식을 더 받으면 환불할 수 없어요.{" "}
             <Link href="/terms" className="underline">
               이용약관
@@ -335,7 +346,7 @@ function RestoreButton({ uid }: { uid: string }) {
         {s.busy === "restore" ? "복원 중" : "구매 복원"}
       </button>
       {inUse ? (
-        <p role="alert" className="mt-2 text-[14px] font-bold text-orange">
+        <p role="alert" className="mt-2 text-[14px] font-bold text-cherry">
           다른 맹고 계정에서 산 구매라 이 계정으로 복원할 수 없어요.
           <a href={mail()} className="ml-2 underline">
             문의하기
@@ -355,13 +366,21 @@ const STORE_MANAGE_URL: Record<string, string> = {
 };
 
 /**
+ * 앱 안에서 스토어의 구독 관리 화면을 연다(useStore().run: 사용자가 닫은 건 오류로 보이지 않고, 열고 나면 화면을 새로 그린다).
+ * 설정 > 플랜의 구독 관리 버튼(ManageButton)과 결제 안내 띠의 글자 링크(ManageLink)가 이 하나를 같이 쓴다
+ */
+function useOpenManage(uid: string) {
+  const s = useStore(uid);
+  const open = () => void s.run("manage", (b) => b.openManage(uid), "구독 관리를 열지 못했어요.");
+  return { open, busy: s.busy !== null, error: s.error };
+}
+
+/**
  * 글자 링크로 스토어의 구독 관리(해지·결제 수단)를 연다. 결제 안내 띠(체험 끝남·결제 실패, BillingBanner)가 쓴다.
- * 앱은 스토어 구독 관리 화면, 웹은 구독한 스토어의 구독 관리 페이지(스토어를 모르면 그리지 않는다)
+ * 앱은 스토어 구독 관리 화면, 웹은 구독한 스토어의 구독 관리 페이지(스토어를 모르면 그리지 않는다). 오류 글은 링크 아래 줄(p)이라 p 안에 두지 않는다
  */
 export function ManageLink({ uid, store, label, className = "" }: { uid: string; store?: string; label: string; className?: string }) {
   const inApp = useInApp();
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
   if (inApp === null) return null;
   if (!inApp) {
     const url = store ? STORE_MANAGE_URL[store] : undefined;
@@ -372,27 +391,17 @@ export function ManageLink({ uid, store, label, className = "" }: { uid: string;
       </a>
     );
   }
-  const open = async () => {
-    setBusy(true);
-    setFailed(false);
-    try {
-      await (await import("@/lib/native/billing")).openManage(uid);
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
-  };
+  return <InAppManageLink uid={uid} label={label} className={className} />;
+}
+
+function InAppManageLink({ uid, label, className }: { uid: string; label: string; className: string }) {
+  const m = useOpenManage(uid);
   return (
     <>
-      <button type="button" onClick={open} disabled={busy} className={className}>
+      <button type="button" onClick={m.open} disabled={m.busy} className={className}>
         {label}
       </button>
-      {failed && (
-        <span role="alert" className="ml-2 text-[13px] font-bold text-orange">
-          구독 관리를 열지 못했어요.
-        </span>
-      )}
+      <ErrorText text={m.error} />
     </>
   );
 }
@@ -405,13 +414,13 @@ export function ManageSubscription({ uid }: { uid: string }) {
 }
 
 function ManageButton({ uid }: { uid: string }) {
-  const s = useStore(uid);
+  const m = useOpenManage(uid);
   return (
     <div className="shrink-0 text-right">
-      <button type="button" onClick={() => s.run("manage", (b) => b.openManage(uid), "구독 관리를 열지 못했어요.")} disabled={s.busy !== null} className="btn btn-ghost min-h-11 px-4 text-[14px]">
+      <button type="button" onClick={m.open} disabled={m.busy} className="btn btn-ghost min-h-11 px-4 text-[14px]">
         구독 관리
       </button>
-      <ErrorText text={s.error} />
+      <ErrorText text={m.error} />
     </div>
   );
 }

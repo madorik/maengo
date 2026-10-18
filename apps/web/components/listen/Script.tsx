@@ -24,12 +24,13 @@ export function Script() {
     boxRef.current?.scrollTo({ top: 0 });
   }, [shown]);
 
-  // 읽는 줄을 가운데로(손으로 넘겨 보는 중이면 잠시 두었다가)
+  // 읽는 줄을 가운데로(손으로 넘겨 보는 중이면 잠시 두었다가). 움직임 줄이기를 켰으면 부드럽게 굴리지 않고 바로 옮긴다
   useEffect(() => {
     const box = boxRef.current;
     const el = lineRefs.current[active];
     if (!box || !el || Date.now() - touchedAt.current < HOLD_MS) return;
-    box.scrollTo({ top: el.offsetTop - box.clientHeight / 2 + el.clientHeight / 2, behavior: "smooth" });
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    box.scrollTo({ top: el.offsetTop - box.clientHeight / 2 + el.clientHeight / 2, behavior: reduce ? "auto" : "smooth" });
   }, [active]);
 
   if (!ch) return null;
@@ -53,7 +54,7 @@ export function Script() {
             onClick={() => p.seek(line.startMs)}
             disabled={!canSeek}
             aria-current={now ? "true" : undefined}
-            className={`block w-full rounded-lg py-1 text-left text-[18px] font-extrabold leading-snug transition-colors duration-300 enabled:hover:bg-snow ${newPara ? "mt-4" : ""} ${
+            className={`block w-full rounded-lg py-1 text-left text-[18px] font-extrabold leading-snug transition-colors duration-300 motion-reduce:transition-none enabled:hover:bg-snow ${newPara ? "mt-4" : ""} ${
               now ? "text-ink" : i < active ? "text-faint" : "text-sub"
             }`}
           >

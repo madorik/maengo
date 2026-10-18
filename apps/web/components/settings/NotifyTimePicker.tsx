@@ -68,7 +68,7 @@ export function NotifyTimePicker({ current }: { current: string }) {
           :
         </span>
       </div>
-      <p aria-live="polite" className="mt-3 text-[14px] font-bold text-mango-deep empty:hidden">
+      <p aria-live="polite" className="mt-3 text-[14px] font-bold text-cherry empty:hidden">
         {state?.error}
       </p>
     </>

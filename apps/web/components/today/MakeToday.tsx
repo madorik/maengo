@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { withBase } from "@/lib/base-path";
+import type { TodayData } from "@/lib/types";
 
 type Progress =
   | { stage: "finding" }
@@ -23,6 +24,8 @@ type Progress =
 type State =
   | { kind: "idle" }
   | { kind: "running"; p: Progress }
+  /** 다른 탭·기기(또는 아까 이 화면)에서 만드는 중이다(api/feed/today 409 already_running). 화면을 새로 그려 가며 기다린다(polls = 새로 그린 횟수) */
+  | { kind: "waiting"; polls: number }
   | { kind: "empty" }
   | { kind: "blocked" }
   | { kind: "error" }
@@ -130,25 +133,62 @@ function Making({ p }: { p: Progress }) {
   );
 }
 
-/**
- * 오늘의 맹고가 비었을 때(가입 직후 첫 방문은 늘, 그 뒤엔 새벽 배치 전): "오늘 소식 받기"를 누르면 이미 요약된 소식을 가져오고 없으면 지금 만든다.
- * 서버가 보내는 진행 상황(찾기 → (고를 게 없으면) 새 소식 모으기 → 요약 n/N → 담기)에 맞춰 진행 바와 말을 바꾸고, 끝나면 화면을 새로 그린다.
- */
 /** 단계마다 최소 이만큼은 보여 준다(이미 준비된 소식을 가져오면 1초도 안 걸려 진행이 안 보이므로) */
 const MIN_STAGE_MS = 700;
 /** 다 되면 이만큼 '준비됐어요'를 보여 주고 목록으로 넘어간다 */
 const DONE_HOLD_MS = 1200;
+/** 다 됐는데 이만큼 지나도 목록으로 안 바뀌면(새로 그린 화면에도 보일 소식이 없음) 받기 버튼으로 되돌린다 */
+const DONE_GIVE_UP_MS = 15_000;
+/** 다른 곳에서 만드는 중이면 이 간격으로 화면을 새로 그려 본다 */
+const BUILDING_POLL_MS = 5_000;
+/** 기다리기 시작해 이만큼 새로 그려도 서버가 만드는 중(building)이라 하지 않으면 그사이 끝난 것이라 받기 버튼으로 되돌린다 */
+const WAIT_POLLS = 2;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function MakeToday({ reason, notifyLabel }: { reason: "first" | "scheduled" | "arriving" | "waiting" | "exhausted" | null; notifyLabel: string }) {
+/**
+ * 이 탭에서 '오늘 소식 받기'가 도는 중인지. 오늘 데이터(emptyReason)는 (app) 레이아웃이 들고 있어 화면을 옮겨도 다시 읽지 않으므로,
+ * 만드는 중에 다른 화면에 갔다 돌아와 이 화면이 새로 붙으면 이것을 보고 받기 버튼 대신 기다린다(다른 탭·기기는 409, 새로 열면 서버의 'building')
+ */
+let buildingHere = false;
+
+/**
+ * 오늘의 맹고가 비었을 때(가입 직후 첫 방문은 늘, 그 뒤엔 새벽 배치 전): "오늘 소식 받기"를 누르면 이미 요약된 소식을 가져오고 없으면 지금 만든다.
+ * 서버가 보내는 진행 상황(찾기 → (고를 게 없으면) 새 소식 모으기 → 요약 n/N → 담기)에 맞춰 진행 바와 말을 바꾸고, 끝나면 화면을 새로 그린다.
+ * 다른 탭·기기에서 만드는 중이거나(409 already_running) 만드는 중에 화면을 옮겼다 돌아오면(서버 emptyReason 'building') 받기 버튼 대신
+ * 만드는 중으로 보여 주고, 소식이 생길 때까지 화면을 새로 그린다.
+ */
+export function MakeToday({ reason, notifyLabel }: { reason: TodayData["emptyReason"]; notifyLabel: string }) {
   const router = useRouter();
-  const [state, setState] = useState<State>({ kind: "idle" });
+  const [state, setState] = useState<State>(() => (buildingHere ? { kind: "waiting", polls: 0 } : { kind: "idle" }));
+  // 이 화면이 직접 만드는 중이면 그 진행을 보여 주고, 아니면 서버가 만드는 중이라 할 때 기다린다
+  const othersBuilding = state.kind === "waiting" || (reason === "building" && state.kind !== "running" && state.kind !== "done");
+
   // 알림 시각이 돼 배송이 만드는 중이면 20초마다 다시 본다(보통 1~2분 안에 온다)
   useEffect(() => {
     if (reason !== "arriving") return;
     const t = setInterval(() => router.refresh(), 20_000);
     return () => clearInterval(t);
   }, [reason, router]);
+
+  // 다른 곳에서 만드는 중이면 소식이 생길 때까지 다시 본다(생기면 이 화면은 목록으로 바뀐다)
+  useEffect(() => {
+    if (!othersBuilding) return;
+    const t = setInterval(() => {
+      if (state.kind === "waiting") {
+        if (reason !== "building" && state.polls >= WAIT_POLLS) return setState({ kind: "idle" });
+        setState({ kind: "waiting", polls: state.polls + 1 });
+      }
+      router.refresh();
+    }, BUILDING_POLL_MS);
+    return () => clearInterval(t);
+  }, [othersBuilding, state, reason, router]);
+
+  // 다 됐다고 했는데 목록으로 안 바뀌면 받기 버튼으로 되돌린다
+  useEffect(() => {
+    if (state.kind !== "done") return;
+    const t = setTimeout(() => setState({ kind: "idle" }), DONE_HOLD_MS + DONE_GIVE_UP_MS);
+    return () => clearTimeout(t);
+  }, [state.kind]);
 
   const start = async () => {
     track("today_build", { reason: reason ?? "none" });
@@ -160,6 +200,8 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
       setState(next);
       shownAt = Date.now();
     };
+    // 진행을 받기 시작한 뒤에 끊기면(앱이 뒤로 감 등) 서버는 끝까지 만든다. 그때는 화면을 새로 그려 만드는 중이면 기다린다
+    let streaming = false;
     try {
       const res = await fetch(withBase("/api/feed/today"), { method: "POST" });
       // 그사이 오늘 소식이 생겼거나(다른 기기·배송) 알림 시각 전이면 화면을 새로 그린다. 하루 횟수를 다 썼으면 그렇다고만
@@ -169,9 +211,16 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
           setState({ kind: "idle" });
           return router.refresh();
         }
+        // 다른 탭·기기(또는 아까 이 화면)에서 만드는 중이다
+        if (error === "already_running") {
+          setState({ kind: "waiting", polls: 0 });
+          return router.refresh();
+        }
       }
       if (res.status === 429) return setState({ kind: "limit" });
       if (!res.ok || !res.body) throw new Error(String(res.status));
+      streaming = true;
+      buildingHere = true;
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -195,15 +244,35 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
       if (last?.stage === "done") {
         await sleep(DONE_HOLD_MS);
         router.refresh();
+      } else if (!last || (last.stage !== "empty" && last.stage !== "blocked" && last.stage !== "error")) {
+        // 끝을 못 받고 끊겼다
+        setState({ kind: "error" });
+        router.refresh();
       }
-      else if (!last || (last.stage !== "empty" && last.stage !== "blocked" && last.stage !== "error")) setState({ kind: "error" });
     } catch {
       setState({ kind: "error" });
+      if (streaming) router.refresh();
+    } finally {
+      buildingHere = false;
     }
   };
 
   if (state.kind === "running" || state.kind === "done") {
     return <Making p={state.kind === "done" ? { stage: "done", items: state.items } : state.p} />;
+  }
+
+  // 다른 탭·기기에서, 또는 만드는 중에 화면을 옮겼다 돌아왔을 때(받기 버튼 없음)
+  if (othersBuilding) {
+    return (
+      <div className="mt-10 flex items-end gap-3">
+        <Mascot mood="listen" className="bob size-24 shrink-0" />
+        <Bubble className="mb-6 flex-1">
+          <p role="status" className="text-[15px] font-bold leading-relaxed">
+            오늘의 소식을 만들고 있어요. 곧 도착해요.
+          </p>
+        </Bubble>
+      </div>
+    );
   }
 
   // 알림 시각이 돼 배송이 만드는 중(받기 버튼 없음)
@@ -244,7 +313,7 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
                 : state.kind === "error"
                 ? "오늘의 소식을 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
                 : reason === "first"
-                  ? "첫 소식을 받아 볼까요? 누르면 관심사에 맞는 소식을 찾아 오고, 없으면 바로 만들어 드려요."
+                  ? "첫 소식을 받아 볼까요?"
                   : reason === "scheduled"
                     ? `오늘의 소식은 ${notifyLabel}에 와요.`
                   : reason === "exhausted"

@@ -20,7 +20,7 @@ export default async function LoginPage({ searchParams }: Props) {
           맹고
         </span>
       </Link>
-      <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">관심 분야 소식을 매일 아침 골라 드려요</h1>
+      <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">관심 분야 소식을 매일 골라 드려요</h1>
 
       <form action={signIn} className="mt-10 flex flex-col gap-3">
         {deleted && (
@@ -29,13 +29,13 @@ export default async function LoginPage({ searchParams }: Props) {
           </p>
         )}
         {error && (
-          <p role="alert" className="text-center text-[14px] font-bold text-orange">
+          <p role="alert" className="text-center text-[14px] font-bold text-cherry">
             로그인을 마치지 못했어요. 다시 눌러 주세요.
           </p>
         )}
         <LoginButtons demo={demoLoginEnabled()} />
       </form>
-      <p className="mt-5 text-center text-[12px] font-medium text-faint">
+      <p className="mt-5 text-center text-[13px] font-medium leading-relaxed text-sub">
         계속하면{" "}
         <Link href="/terms" className="font-bold text-sub underline">
           이용약관

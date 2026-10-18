@@ -133,21 +133,25 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
           {chips.map((c) => (
             <li key={c.id} className={`inline-flex min-h-9 items-center gap-0.5 rounded-xl py-0.5 pl-3 pr-1 text-[14px] font-extrabold ${topicTone(c.tone)}`}>
               {c.name}
+              {/* 누르는 곳은 44px(위아래는 음수 여백으로 라벨 높이를 그대로 둔다), 보이는 ✕는 28px. 누르면 바로 저장된다 */}
               <button
                 type="button"
                 onClick={c.remove}
                 disabled={only}
                 aria-label={`${c.name} 빼기`}
                 title={only ? "관심사가 하나는 있어야 해요" : undefined}
-                className="flex size-7 items-center justify-center rounded-lg opacity-60 hover:bg-white/70 hover:opacity-100 disabled:opacity-25"
+                className="group/x -my-1.5 -mr-1 flex size-11 shrink-0 items-center justify-center rounded-xl"
               >
-                <IconClose className="size-3.5 [stroke-width:2.8]" />
+                <span className={`flex size-7 items-center justify-center rounded-lg ${only ? "opacity-25" : "opacity-60 group-hover/x:bg-white/70 group-hover/x:opacity-100"}`}>
+                  <IconClose className="size-3.5 [stroke-width:2.8]" />
+                </span>
               </button>
             </li>
           ))}
         </ul>
       )}
-      <p aria-live="polite" className="mt-2 text-[14px] font-bold text-mango-deep empty:hidden">
+      {/* 한도·막힘 같은 오류만 온다(잘 바뀐 건 라벨로 보인다) */}
+      <p aria-live="polite" className="mt-2 text-[14px] font-bold text-cherry empty:hidden">
         {state?.message}
       </p>
 
@@ -214,7 +218,7 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="목록에 없는 관심사(예: 드론, 게임)"
-                  className="tile min-h-12 min-w-0 flex-1 px-4 text-[15px] font-semibold placeholder:text-faint"
+                  className="tile min-h-12 min-w-0 flex-1 px-4 text-[16px] font-semibold placeholder:text-faint"
                 />
                 <button type="submit" disabled={!text.trim()} className="btn min-h-12 shrink-0 px-5">
                   넣기

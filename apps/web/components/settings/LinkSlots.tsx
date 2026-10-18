@@ -153,7 +153,7 @@ function Slot({ slot, saved }: { slot: number; saved: LinkView | null }) {
             disabled={pending}
             aria-invalid={status === "error" || undefined}
             aria-describedby={`${id}-msg`}
-            className={`tile min-h-12 w-full px-4 pr-11 text-[15px] font-semibold placeholder:text-faint disabled:opacity-60 ${status === "error" ? "border-cherry" : ""}`}
+            className={`tile min-h-12 w-full px-4 pr-11 text-[16px] font-semibold placeholder:text-faint disabled:opacity-60 ${status === "error" ? "border-cherry" : ""}`}
           />
           {status === "checking" && (
             <span aria-hidden="true" className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 rounded-full border-2 border-line border-t-sub motion-safe:animate-spin" />

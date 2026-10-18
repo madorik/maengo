@@ -12,7 +12,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { track } from "@/lib/analytics";
 
 const ERRORS = {
-  no_more: "최근 한 달 동안 관심사에 맞는 새 소식이 없어요. 관심사를 넓혀 보세요.",
+  no_more: "최근 한 달 동안 관심사에 맞는 새 소식이 없어요.",
   blocked: "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요.",
   no_balance: "맹고가 모자라요.",
   busy: "다시 눌러 주세요.",
@@ -21,7 +21,7 @@ const ERRORS = {
 } as const;
 
 /**
- * 오늘 목록 아래 '하나 더 받기'. 하루 맹고(플랜의 하루 소식 수)를 넘으면 지갑에서 1맹고를 쓴다(그때는 아래에 지갑 잔액).
+ * 오늘 목록 아래 '하나 더 받기'. 하루 맹고(플랜의 하루 소식 수)를 넘으면 지갑에서 1맹고를 쓴다(잔액은 오늘 화면에 보이지 않는다).
  * 골라 둔 소식이 있으면 그것부터, 없으면 서버가 요약된 소식에서 하나 더 고른다. 붙으면 액션이 오늘 화면을 새로 그린다.
  * 지갑이 비면 '맹고 추가 구매하기': 앱은 이 자리에서 묶음 결제 시트(MaengoShop)를 열고, 웹은 결제 화면(/premium, 웹에는 결제가 없다)으로
  */
@@ -82,15 +82,14 @@ export function MoreToday({ cost, kept }: { cost: number; kept: number }) {
           {cost > 0 && <span className="font-round text-[14px] opacity-80">{cost}맹고</span>}
         </button>
       )}
-      {/* 지갑에서 쓰는 때만 남은 맹고(비었으면 위 버튼이 '맹고 추가 구매하기') */}
-      {cost > 0 && !short && (
-        <p className="mt-2 text-center text-[13px] font-bold text-sub">
-          지갑 맹고 <span className="font-round font-black tabular-nums text-ink">{kept.toLocaleString("ko-KR")}</span>개
-        </p>
-      )}
       {error && (
-        <p role="alert" className="mt-2 px-1 text-[14px] font-bold text-orange">
+        <p role="alert" className="mt-2 px-1 text-[14px] font-bold text-cherry">
           {ERRORS[error]}
+          {error === "no_more" && (
+            <Link href="/settings#topics" className="ml-2 underline">
+              관심사 넓히기
+            </Link>
+          )}
           {error === "no_balance" &&
             (inAppShop ? (
               <button type="button" onClick={openShop} className="ml-2 underline">

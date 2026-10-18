@@ -20,6 +20,12 @@ function serviceAccount(): ServiceAccount | null {
 
 export const fcmReady = () => serviceAccount() !== null;
 
+/**
+ * FCM·구글 인증 요청 하나를 기다리는 최대 시간. 넘으면 끊고 던진다(pushToUser가 잠깐의 실패 'retry'로 본다).
+ * 제한이 없으면 응답이 멈췄을 때 300초 함수가 통째로 끊겨 가져간 줄이 남았다(2026-10-18 점검)
+ */
+export const FCM_TIMEOUT_MS = 10_000;
+
 let cached: { token: string; until: number } | null = null;
 async function accessToken(sa: ServiceAccount): Promise<string> {
   if (cached && cached.until > Date.now() + 60_000) return cached.token;
@@ -31,6 +37,7 @@ async function accessToken(sa: ServiceAccount): Promise<string> {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${sig}` }),
+    signal: AbortSignal.timeout(FCM_TIMEOUT_MS),
   });
   const body = (await res.json()) as { access_token?: string; expires_in?: number; error?: string };
   if (!body.access_token) throw new Error(`FCM 인증 실패: ${body.error ?? res.status}`);
@@ -82,6 +89,7 @@ export async function sendPush(token: string, msg: PushMessage, siteUrl: string)
         apns: { payload: { aps: { sound: 'default' } } },
       },
     }),
+    signal: AbortSignal.timeout(FCM_TIMEOUT_MS),
   });
   if (res.ok) return 'ok';
   // 받아 둔 접근 토큰이 거절됐으면 다음엔 새로 받는다

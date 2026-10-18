@@ -17,7 +17,7 @@ export function PlaylistButton({ clusterId, initial }: { clusterId: number; init
 
   if (!profile.audio) {
     return (
-      <Link href="/premium" aria-label="플레이리스트에 담기, Premium에서 쓸 수 있어요" className={`${cls} text-faint`}>
+      <Link href="/premium" aria-label="플레이리스트에 담기, Premium에서 쓸 수 있어요" className={`${cls} text-sub`}>
         <IconPlus className="size-5" />
         플레이리스트에 담기
         <PremiumBadge />
@@ -38,7 +38,7 @@ export function PlaylistButton({ clusterId, initial }: { clusterId: number; init
         {on ? "플레이리스트에 담김" : "플레이리스트에 담기"}
       </button>
       {error && (
-        <p role="alert" className="mt-2 text-[14px] font-bold text-orange">
+        <p role="alert" className="mt-2 text-[14px] font-bold text-cherry">
           {error}
         </p>
       )}

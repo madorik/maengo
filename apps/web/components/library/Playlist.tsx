@@ -88,7 +88,7 @@ export function LibraryHeader({ total, pickIds }: { total: number; pickIds: numb
         보관함 <span className="font-round text-[20px] text-faint">{total}</span>
       </h1>
       {total > 0 && !profile.audio ? (
-        <Link href="/premium" aria-label="골라 듣기, Premium에서 쓸 수 있어요" className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-extrabold text-faint no-underline">
+        <Link href="/premium" aria-label="골라 듣기, Premium에서 쓸 수 있어요" className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-extrabold text-sub no-underline">
           <IconHeadphones className="size-4" />
           골라 듣기
           <PremiumBadge />
@@ -136,7 +136,10 @@ export function PickBar() {
   );
 }
 
-/** 고르는 중에 카드 위에 덮는 고르기 버튼. 고른 카드에는 체크가 붙는다(카드의 읽음 표시는 data-pick으로 감춘다) */
+/**
+ * 고르는 중에 카드 위에 덮는 고르기 버튼. 고른 카드에는 하늘색 테두리와 체크가 붙는다(카드의 읽음 표시는 data-pick으로 감춘다).
+ * 덮개는 글자 위에 얹히므로 옅게 비치는 색만 쓴다(섞기 모드 multiply는 다크에서 카드를 거의 검게 만든다)
+ */
 export function PickTarget({ id, title }: { id: number; title: string }) {
   const pick = usePick();
   if (!pick.picking) return null;
@@ -148,7 +151,7 @@ export function PickTarget({ id, title }: { id: number; title: string }) {
       aria-pressed={on}
       aria-label={title}
       onClick={() => pick.toggle(id)}
-      className={`absolute inset-0 z-10 rounded-2xl disabled:cursor-not-allowed ${on ? "bg-sky-tint mix-blend-multiply ring-2 ring-sky ring-inset" : "enabled:hover:bg-snow enabled:hover:mix-blend-multiply"}`}
+      className={`absolute inset-0 z-10 rounded-2xl disabled:cursor-not-allowed ${on ? "bg-sky/10 ring-2 ring-sky ring-inset" : "enabled:hover:bg-ink/[0.04]"}`}
     >
       <span
         className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 ${on ? "border-sky bg-sky text-white" : "border-line bg-paper"}`}

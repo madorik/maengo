@@ -73,7 +73,7 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
           </button>
         </div>
       )}
-      <p aria-live="polite" className="mt-2 basis-full text-[14px] font-bold text-mango-deep empty:hidden">
+      <p aria-live="polite" className="mt-2 basis-full text-[14px] font-bold text-cherry empty:hidden">
         {error}
       </p>
     </>

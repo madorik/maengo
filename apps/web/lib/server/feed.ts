@@ -3,7 +3,6 @@ import { cache } from 'react';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
 import { libraryMatcher } from '../library-search';
-import { LEGAL_CHANGED_ON } from '../site';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { daysBefore } from '@maengo/core/plans';
 import { isLinkTopicId, rankingWeights, whyLead } from '@maengo/core/topics';
@@ -12,6 +11,7 @@ import type { FeedbackKind, Tier } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, LibraryReadFilter, ProfileView, TodayData } from '../types';
 import { ai } from './ai';
 import { db, must } from './db';
+import { instantBuilding } from './instant-lock';
 import { entitlements, type Profile } from './profile';
 import { topicNames } from './topics';
 import { recentSignupGift, refundMaengo, spendMaengo, syncWallet } from './wallet';
@@ -132,12 +132,6 @@ async function readDay(userId: string, date: string): Promise<FeedDay | null> {
   if (!d) return null;
   const rows = (must(feeds, 'feeds') as { rank: number; cluster_id: number; topic_id: string }[]).map((r) => ({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id }));
   return { date, rows, visible: d.visible, extra: d.extra };
-}
-
-/** 오늘 피드가 이미 있는지(날짜 행과 소식이 둘 다). '오늘 소식 받기'(api/feed/today)는 빈 날에만 만든다 */
-export async function hasTodayFeed(userId: string): Promise<boolean> {
-  const day = await readDay(userId, kstDate());
-  return !!day && day.rows.length > 0;
 }
 
 /** 전에 받은 피드가 있는지. 가입하고 아직 한 번도 받지 않았으면 false */
@@ -274,6 +268,34 @@ export async function receiveMore(profile: Profile): Promise<MoreResult> {
 }
 
 const visibleRows = (day: FeedDay | null) => (day ? day.rows.slice(0, day.visible) : []);
+
+/**
+ * '오늘 소식 받기'(api/feed/today)가 다시 만들어도 되는지 본다. 오늘 화면과 같은 기준(todayFeed의 보여 줄 칸 중 요약이 남은 소식)으로
+ * 보일 소식이 있으면 막는다. 줄은 있어도 묶음이 합쳐지거나 지워져 보일 게 없으면 오늘 화면이 비어 '오늘 소식 받기'가 보이므로 그때는 다시 만든다.
+ * extra는 맹고로 더 받은 개수(다시 만들어도 지킨다, restoreTodayExtra)
+ */
+export async function todayForRebuild(profile: Profile): Promise<{ date: string; hasItems: boolean; extra: number }> {
+  const day = await todayFeed(profile);
+  const rows = visibleRows(day);
+  const hasItems = rows.length > 0 && (await clusterInfo(rows.map((r) => r.clusterId))).size > 0;
+  return { date: day.date, hasItems, extra: day.extra };
+}
+
+/**
+ * 다시 만들기가 소식 없이 끝났거나 실패해 그날 행(feed_days)이 지워졌으면, 맹고로 더 받은 개수(extra)만 든 빈 행을 되살린다.
+ * 행이 있으면(잘 만들어졌으면) 그대로 둔다. 빈 행이면 오늘 화면을 열 때 요약된 소식으로 하루 맹고 + extra만큼 채워 본다(todayFeed → topUp)
+ */
+export async function restoreTodayExtra(userId: string, date: string, extra: number): Promise<void> {
+  if (extra <= 0) return;
+  try {
+    const { error } = await db
+      .from('feed_days')
+      .upsert({ user_id: userId, date, visible: 0, extra, built_by: 'web' }, { onConflict: 'user_id,date', ignoreDuplicates: true });
+    if (error) console.error('[instant] 더 받은 개수 되살리기 실패', error.message);
+  } catch (e) {
+    console.error('[instant] 더 받은 개수 되살리기 실패', String((e as Error)?.message ?? e));
+  }
+}
 
 export async function rebuildFeed(profile: Profile) {
   const date = kstDate();
@@ -536,17 +558,20 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
   const walletAndGift = syncWallet(profile.id).then(async (w) => [w, await recentSignupGift(profile.id, profile.createdAt)] as const);
   const [items, { reads, feedback }, [wallet, signupGift]] = await Promise.all([itemsFor(profile, visibleRows(day), day.date), readsAndFeedback(profile.id), walletAndGift]);
   const dailyLimit = entitlements(profile).dailyItems;
+  // 비었는데 '오늘 소식 받기'가 돌고 있으면(다른 탭·기기, 만드는 중에 화면을 옮겼다 돌아옴) 받기 버튼 대신 만드는 중으로
   const emptyReason = items.length
     ? null
-    : !(await hadFeedBefore(profile.id, day.date))
-      ? 'first'
-      : beforeDelivery(profile)
-        ? 'scheduled'
-        : beforeNotify(profile.notifyAt, new Date(), DELIVERY_GRACE_MS)
-          ? 'arriving'
-          : (await batchRanToday(day.date))
-        ? 'exhausted'
-        : 'waiting';
+    : (await instantBuilding(profile.id))
+      ? 'building'
+      : !(await hadFeedBefore(profile.id, day.date))
+        ? 'first'
+        : beforeDelivery(profile)
+          ? 'scheduled'
+          : beforeNotify(profile.notifyAt, new Date(), DELIVERY_GRACE_MS)
+            ? 'arriving'
+            : (await batchRanToday(day.date))
+              ? 'exhausted'
+              : 'waiting';
   const topicNames = [...new Set(items.map((i) => i.topicName))].slice(0, 3);
   return {
     date: day.date,
@@ -559,7 +584,6 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     moreCost: day.visible >= dailyLimit ? 1 : 0,
     wallet,
     emptyReason,
-    termsNotice: profile.createdAt < Date.parse(`${LEGAL_CHANGED_ON}T00:00:00+09:00`),
     signupGift,
     items,
     read: reads.filter((r) => r.read_at).map((r) => r.cluster_id),

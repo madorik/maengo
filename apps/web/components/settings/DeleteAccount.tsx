@@ -20,10 +20,10 @@ function ConfirmButton() {
 /** 설정 > 계정: 한 번 더 확인을 받고 지운다. 데모 계정은 지울 수 없다 */
 export function DeleteAccount({ demo }: { demo: boolean }) {
   const [asking, setAsking] = useState(false);
-  if (demo) return <p className="mt-4 text-[14px] font-semibold text-faint">데모 계정은 지울 수 없어요.</p>;
+  if (demo) return <p className="mt-4 text-[14px] font-semibold text-sub">데모 계정은 지울 수 없어요.</p>;
   if (!asking) {
     return (
-      <button type="button" onClick={() => setAsking(true)} className="mt-4 text-[15px] font-extrabold text-orange hover:underline">
+      <button type="button" onClick={() => setAsking(true)} className="mt-4 min-h-11 text-[15px] font-extrabold text-cherry hover:underline">
         계정 삭제
       </button>
     );

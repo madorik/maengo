@@ -120,6 +120,22 @@ export function withRealChapter(chapters: Chapter[], index: number, real: Chapte
   return chapters.map((x, i) => (i === index ? fixed : x));
 }
 
+/**
+ * 지금 소식(cur) 안에서 들은 자리(ms). 목록을 갈아 끼울 때 이 자리에서 이어 간다.
+ * 옮겨 갈 자리를 기다리는 중이면(pending) 그 자리, 파일이 열려 있으면 실제 재생 위치(fileMs, 에피소드 시각),
+ * 아니면(취소·오류로 파일을 떼어 냈거나 아직 안 열림: fileMs null) 화면의 자리(posMs)
+ */
+export function heldOffset(
+  chapters: Chapter[],
+  cur: number,
+  { pending, fileMs, posMs }: { pending: { index: number; offsetMs?: number } | null; fileMs: number | null; posMs: number },
+): number {
+  const ch = chapters[cur];
+  if (!ch) return 0;
+  if (pending) return pending.index === cur ? Math.max(0, pending.offsetMs ?? 0) : 0;
+  return Math.max(0, (fileMs ?? posMs) - ch.startMs);
+}
+
 /** 진행 막대 끝까지 끌어도 바로 끝나지 않게 마지막 항목 끝에서 이만큼 앞에 둔다 */
 const END_GUARD_MS = 500;
 

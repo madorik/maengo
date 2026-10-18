@@ -46,13 +46,14 @@ export interface TodayData {
   moreCost: number;
   /** 지갑 맹고(가입 선물·추가 구매한 맹고, 사라지지 않음). 하루 맹고보다 더 받을 때 1맹고씩 쓴다 */
   wallet: number;
-  /** 오늘 소식이 비었을 때 왜 비었는지. first = 가입하고 아직 한 번도 안 받았다(눌러야 받는다), waiting = 오늘 배치가 아직 안 돌았다, exhausted = 토픽에서 안 본 소식을 다 썼다 */
-  /** 약관이 바뀌기 전에 가입한 회원이라 바뀐 약관을 알려야 하는지(한 번 닫으면 이 기기에서는 다시 안 보인다) */
-  termsNotice: boolean;
   /** 최근 가입 선물(가입 이벤트 팝업, 이 기기에서 한 번). 가입한 지 오래됐으면 null */
   signupGift: { amount: number; at: string } | null;
-  /** scheduled = 알림 시각 전이라 오늘 소식을 아직 지급하지 않았다, arriving = 알림 시각이 돼 배송이 만드는 중 */
-  emptyReason: 'first' | 'scheduled' | 'arriving' | 'waiting' | 'exhausted' | null;
+  /**
+   * 오늘 소식이 비었을 때 왜 비었는지. first = 가입하고 아직 한 번도 안 받았다(눌러야 받는다), waiting = 오늘 배치가 아직 안 돌았다,
+   * exhausted = 토픽에서 안 본 소식을 다 썼다, scheduled = 알림 시각 전(지금 받기로 먼저 받을 수 있다), arriving = 알림 시각이 돼 배송이 만드는 중,
+   * building = '오늘 소식 받기'가 만드는 중(다른 탭·기기에서 눌렀거나 만드는 중에 화면을 옮겼다 돌아옴)
+   */
+  emptyReason: 'first' | 'scheduled' | 'arriving' | 'waiting' | 'exhausted' | 'building' | null;
   items: FeedItem[];
   read: number[];
   listened: number[];

@@ -39,7 +39,7 @@ export function LoginButtons({ demo }: { demo: boolean }) {
   return (
     <>
       {appError && (
-        <p role="alert" className="text-center text-[14px] font-bold text-orange">
+        <p role="alert" className="text-center text-[14px] font-bold text-cherry">
           로그인을 마치지 못했어요. 다시 눌러 주세요.
         </p>
       )}

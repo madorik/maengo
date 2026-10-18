@@ -4,11 +4,11 @@ import type { Chapter, Persona, Voice } from "@maengo/core/types";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { savePlayerPrefs } from "@/app/actions";
 import {
-  chapterAt, lineAt, nextPlayable, positionAt, prevPlayable, progress as progressOf, startIndex, tick, withRealChapter, type Progress,
+  chapterAt, heldOffset, lineAt, nextPlayable, positionAt, prevPlayable, progress as progressOf, startIndex, tick, withRealChapter, type Progress,
 } from "@/lib/player/machine";
 import { ITEM_PLAY_EVENT, itemAudioUrl, itemInfoUrl, itemQuery } from "@/lib/player/item";
 import { initialRate, nextRate } from "@/lib/player/rate";
-import { keptIds, parseRemoved, saveRemoved, useRemovedRaw } from "@/lib/player/removed";
+import { keptIds, parseRemoved, planTodaySwap, saveRemoved, useRemovedRaw } from "@/lib/player/removed";
 import { clearResume, parseResume, resumeTarget, saveResume, useResumeRaw } from "@/lib/player/resume";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import { track } from "@/lib/analytics";
@@ -22,7 +22,7 @@ import { useToday } from "./TodayProvider";
 // 파일을 바꿔 끼우지 않으니 첫 탭 이후 잠금 화면·백그라운드에서도 끝까지 이어진다.
 // 이 Provider는 (app) 레이아웃에 있어서 /today ↔ /listen을 오가도 재생이 끊기지 않는다.
 // 음성은 재생을 누를 때 만든다(Gemini TTS, 소식당 수십 초). 페이지를 열 때는 이미 만든 음성만 미리 받는다.
-// 보관함 플레이리스트(playPlaylist)도 같은 <audio>로 튼다: 그동안은 오늘 피드 대신 고른 소식이 챕터가 되고, exitPlaylist로 오늘로 돌아온다.
+// 플레이리스트(playPlaylist)도 같은 <audio>로 튼다: 그동안은 오늘 피드 대신 고른 소식이 챕터가 되고, exitPlaylist로 오늘로 돌아온다.
 // 아직 없으면 탭하는 순간 파일 주소를 걸고 play()를 불러 두고(iOS 자동 재생 정책), 서버가 음성을 다 만들면 그대로 재생이 시작된다.
 // 오늘 전체 음성이 아직 없을 때는 기다리지 않게 첫 소식만 먼저 그 소식 하나짜리 파일로 틀고(Lead), 그동안 서버가 나머지를 만든다.
 // 첫 소식이 끝나면 같은 <audio>에 전체 파일을 걸어 다음 소식 자리부터 이어 간다. 전체 파일이 아직이면 다 될 때까지 기다린다.
@@ -130,9 +130,13 @@ export interface PlayerApi {
   canEdit: boolean;
 }
 
-const LOAD_ERROR = "오늘 브리핑을 불러오지 못했어요. 새로고침한 뒤 다시 눌러 주세요.";
-const PLAY_ERROR = "재생을 시작하지 못했어요. 재생 버튼을 한 번 더 눌러 주세요.";
-const ADD_ERROR = "플레이어에 추가하지 못했어요. 잠시 뒤 다시 눌러 주세요.";
+// 오류는 짧게 한 줄로(옆에 '다시 시도' 버튼이 있다)
+/** 에피소드 정보(목록·챕터 표)를 못 받았을 때 */
+const LOAD_ERROR = "소식을 불러오지 못했어요";
+/** 다 만든 음성 파일을 못 열었을 때 */
+const FILE_ERROR = "음성을 불러오지 못했어요";
+const PLAY_ERROR = "재생하지 못했어요";
+const ADD_ERROR = "플레이어에 추가하지 못했어요";
 /** 듣던 자리는 이만큼 움직일 때마다 저장한다(멈출 때는 바로) */
 const SAVE_EVERY_MS = 3000;
 
@@ -148,6 +152,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   /** 음성을 만들며 연 파일이면, 다 받은 뒤 실제 길이로 챕터 표를 다시 받는다(ids: 그 파일을 만든 오늘 소식) */
   const refreshRef = useRef<{ persona: Persona; voice: Voice; ids: number[] | null } | null>(null);
   const loadSeq = useRef(0);
+  /** 파일을 걸 때마다 늘린다(늦게 온 응답이 지금 걸린 파일 것인지 본다) */
+  const fileRef = useRef(0);
   /** playOne으로 시작한 항목. 이 항목이 끝나면 자동 재생 설정과 관계없이 멈춘다 */
   const onceRef = useRef<number | null>(null);
   /** 첫 소식만 먼저 듣는 중(이벤트 처리용. 화면은 lead 상태를 본다) */
@@ -212,6 +218,11 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   /** 화면에 보이는 오늘 소식. 오늘 에피소드도 이 소식들로만 만든다(화면 목록·재생 목록·길이가 같은 소식을 가리키게) */
   const todayIdsRef = useRef<number[]>([]);
+  /**
+   * 지금 오늘 에피소드를 받을 때(load)의 소식. 듣는 중에 빼고 되돌리는 건 이 안에서만 한다(planTodaySwap):
+   * 듣는 동안 피드에 새로 온 소식은 음성이 없어서, 넣으면 듣던 소리가 멈추고 음성을 새로 만든다
+   */
+  const baseIdsRef = useRef<number[]>([]);
 
   /** 에피소드 정보. 오늘이면 ids(기본은 화면에 보이는 오늘 소식)로, 플레이리스트면 듣는 묶음으로 */
   const fetchEpisode = useCallback(async (p: Persona, v: Voice, ids?: number[]): Promise<EpisodeData> => {
@@ -233,6 +244,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       const audio = audioRef.current;
       if (!audio) return;
       setLead(null);
+      fileRef.current++;
       pendingRef.current = index >= 0 ? { index, play, offsetMs } : null;
       refreshRef.current = ep.ready ? null : { persona: ep.persona, voice: ep.voice, ids: ep.chapters?.map((c) => c.clusterId) ?? null };
       setPreparing(!ep.ready);
@@ -284,6 +296,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       const ch = ep.chapters[index];
       if (!audio || !ch) return;
       const query = itemQuery(ch.clusterId, ep.persona, ep.voice);
+      fileRef.current++;
       pendingRef.current = null;
       refreshRef.current = null;
       setLead({ index, clusterId: ch.clusterId, query, offsetMs, chapter: null });
@@ -311,6 +324,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         setError(null);
         setPreparing(false);
         setEpisode(ep);
+        if (!playlistRef.current) baseIdsRef.current = ep.chapters.map((c) => c.clusterId);
         // 듣던 소식은 번호가 아니라 소식으로 찾는다(목록이 늘어 번호가 밀렸어도 같은 소식)
         const kept = keep.clusterId === undefined ? -1 : ep.chapters.findIndex((c) => c.clusterId === keep.clusterId);
         const index = kept >= 0 ? kept : Math.min(keep.index, ep.chapters.length - 1);
@@ -435,6 +449,17 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     fetch(url, { redirect: "manual", cache: "no-store" }).catch(() => {});
   };
 
+  /** 먼저 듣는 첫 소식 파일 안에서 옮긴다. 파일이 아직 안 열렸으면 열릴 때(onLoadedMetadata) 옮겨 갈 자리로 남긴다 */
+  const moveInLead = (offsetMs: number) => {
+    const audio = audioRef.current;
+    const l = leadRef.current;
+    const ch = l && chapters[l.index];
+    if (!audio || !l || !ch) return;
+    if (audio.readyState >= 1) audio.currentTime = offsetMs / 1000;
+    else setLead({ ...l, offsetMs });
+    setPosMs(ch.startMs + offsetMs);
+  };
+
   const goTo = (index: number, { offsetMs = 0, once = false }: { offsetMs?: number; once?: boolean } = {}) => {
     const ch = chapters[index];
     const audio = audioRef.current;
@@ -445,11 +470,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     enter(index);
     const l = leadRef.current;
     if (l && l.index === index) {
-      // 먼저 듣는 첫 소식 안에서 옮길 때는 파일을 다시 걸지 않는다(아직 받는 중이면 그대로 기다린다)
-      if (audio.readyState >= 1) {
-        audio.currentTime = offsetMs / 1000;
-        setPosMs(ch.startMs + offsetMs);
-      }
+      // 먼저 듣는 첫 소식 안에서 옮길 때는 파일을 다시 걸지 않는다(아직 받는 중이면 파일이 열릴 때 그 자리로 간다)
+      moveInLead(offsetMs);
       if (audio.paused) startPlayback();
       return;
     }
@@ -481,8 +503,14 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     setError(null);
     onceRef.current = null;
     const ms = ch.startMs + offsetMs;
+    const l = leadRef.current;
+    if (l) {
+      // 첫 소식을 먼저 듣다 멈춘 중: 그 소식이면 그 파일 안에서 옮겨 둔다(재생을 누르면 여기서).
+      // 다른 소식이면 자리만 옮겨 둔다. 그 소식은 전체 파일에 있어서 재생을 누르면 play가 그 소식부터 튼다(needsFile)
+      if (l.index === index) moveInLead(offsetMs);
+    }
     // 음성을 기다리는 중이면 다 받은 뒤 이 자리로만 옮긴다(재생은 하지 않는다)
-    if (pendingRef.current) pendingRef.current = { index, play: false, offsetMs };
+    else if (pendingRef.current) pendingRef.current = { index, play: false, offsetMs };
     else if (fileOpen() && !preparing) audio.currentTime = ms / 1000;
     // 다 들은 뒤 고르면 그 소식에 멈춰 둔다(재생을 누르면 처음부터가 아니라 여기서)
     if (status === "done") setStatus("paused");
@@ -583,12 +611,17 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     setError(null);
     const l = leadRef.current;
     if (l) {
-      // 첫 소식을 먼저 듣는 중: 그 소식 안이면 파일 안 시각으로, 다른 소식이면 그 소식으로 간다
-      if (index !== l.index) return goTo(index, { offsetMs: Math.max(0, ms - ch.startMs) });
-      if (preparing || audio.readyState < 1) return;
-      const t = Math.max(0, ms - ch.startMs);
-      audio.currentTime = t / 1000;
-      setPosMs(ch.startMs + t);
+      // 첫 소식을 먼저 듣는 중: 그 소식 안이면 파일 안 시각으로, 다른 소식이면 그 소식으로 간다.
+      // 멈춰 있는데 바로 듣지 않을 때는 자리만 옮겨 둔다(재생을 누르면 play가 그 자리부터 튼다)
+      if (index !== l.index) {
+        if (andPlay || status === "playing") return goTo(index, { offsetMs: Math.max(0, ms - ch.startMs) });
+        setPosMs(ms);
+        setCur(index);
+        return;
+      }
+      // 다른 소식에 자리만 옮겨 두었다가 돌아온 경우도 있다(그 소식에 다시 들어선다)
+      moveInLead(Math.max(0, ms - ch.startMs));
+      if (index !== cur) setCur(index);
       if (andPlay && audio.paused) startPlayback();
       return;
     }
@@ -737,24 +770,41 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   };
 
   /**
-   * 플레이어 목록을 ids로 갈아 끼운다(순서 바꾸기·빼기·추가가 끝난 뒤). 음성 조각이 다 있는 목록만 넘긴다(이어 붙이기만 하면 된다).
-   * 듣던 소식이 남아 있으면 그 소식의 듣던 자리에서, 뺐으면 그 자리에 온 소식 처음부터 이어 간다
+   * 듣는 중에 플레이어 목록을 ids로 갈아 끼운다(순서 바꾸기·빼기·되돌리기·추가가 끝난 뒤). 음성 조각이 다 있는 목록만 넘긴다(이어 붙이기만 하면 된다).
+   * 플레이리스트를 듣는 중이면 그 묶음을, 아니면 오늘 목록을 바꾼다. 듣던 소식이 남아 있으면 그 소식의 듣던 자리에서,
+   * 뺐으면 그 자리에 온 소식 처음부터 이어 간다. 다 뺐으면 플레이리스트는 닫고, 오늘은 멈추고 다시 받는다
    */
-  const swapList = (ids: number[]) => {
+  const swap = (ids: number[]) => {
     const audio = audioRef.current;
-    const prev = playlistRef.current;
-    if (!audio || !prev) return;
-    if (!ids.length) return exitPlaylist();
-    const curId = cur >= 0 ? chapters[cur]?.clusterId : undefined;
-    const offsetMs = curId !== undefined ? Math.max(0, audio.currentTime * 1000 - chapters[cur]!.startMs) : 0;
-    const resume = !audio.paused;
-    const fallback = curId !== undefined && !ids.includes(curId) ? Math.min(prev.indexOf(curId), ids.length - 1) : -1;
-    playlistRef.current = ids;
-    setPlaylist(ids);
+    if (!audio) return;
+    const list = playlistRef.current;
+    if (!ids.length) {
+      if (list) return exitPlaylist();
+      todayIdsRef.current = ids;
+      audio.pause();
+      setStatus("idle");
+      setCur(-1);
+      setPosMs(0);
+      void load(persona, voice, { index: -1, resume: false });
+      return;
+    }
+    if (list) {
+      playlistRef.current = ids;
+      setPlaylist(ids);
+    }
     const seq = ++loadSeq.current;
-    fetchEpisode(persona, voice)
+    fetchEpisode(persona, voice, list ? undefined : ids)
       .then((ep) => {
         if (seq !== loadSeq.current) return;
+        // 받는 동안에도 듣던 소리는 이어지므로 듣던 소식·자리·재생 여부는 지금 값으로 본다(그사이 다음 소식으로 넘어갔거나 멈췄을 수 있다).
+        // 파일은 아직 예전 것이라 예전 챕터 표로 본다. 옮길 자리가 걸려 있으면 그 자리, 파일을 떼어 냈으면(취소·오류 뒤) 화면의 자리로
+        const pending = pendingRef.current;
+        const fileMs = fileOpen() ? audio.currentTime * 1000 : null;
+        const at = pending ? pending.index : fileMs !== null && chapters.length ? Math.min(chapterAt(chapters, fileMs), chapters.length - 1) : cur;
+        const curId = chapters[at]?.clusterId;
+        const offsetMs = heldOffset(chapters, at, { pending, fileMs, posMs });
+        const fallback = curId !== undefined && !ids.includes(curId) ? Math.min(at, ids.length - 1) : -1;
+        const resume = !audio.paused;
         setEpisode(ep);
         const kept = curId === undefined ? -1 : ep.chapters.findIndex((c) => c.clusterId === curId);
         const index = kept >= 0 ? kept : fallback;
@@ -769,9 +819,9 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       });
   };
   // 음성을 미리 만든 뒤(비동기) 부를 때도 그때의 최신 상태로 갈아 끼우게 ref로 둔다
-  const swapRef = useRef(swapList);
+  const swapRef = useRef(swap);
   useEffect(() => {
-    swapRef.current = swapList;
+    swapRef.current = swap;
   });
 
   /** 음성 조각이 다 있고 만드는 중이 아닐 때만 목록을 바로 바꿀 수 있다 */
@@ -780,48 +830,19 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const canRemove = playlist ? canEdit : !!episode && (idle || (!!episode.ready && !preparing && !lead));
 
   /**
-   * 오늘 목록을 ids로 갈아 끼운다(듣는 중에 빼거나 되돌릴 때). 듣던 소식이 남아 있으면 그 소식의 듣던 자리에서,
-   * 뺐으면 그 자리에 온 소식 처음부터 이어 간다. 다 뺐으면 멈춘다
+   * 오늘 목록에서 뺀 소식을 바꾼다. 듣기 전이면 저장만 하고(목록이 바뀌어 다시 받는다), 듣는 중이면 바로 갈아 끼운다.
+   * 듣는 중에는 지금 에피소드를 받을 때의 소식 안에서만 바꾼다(planTodaySwap: 음성이 없는 소식을 넣어 듣던 소리가 멈추지 않게)
    */
-  const swapToday = (ids: number[], key: string) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    todayIdsRef.current = ids;
-    loadedKeyRef.current = key;
-    if (!ids.length) {
-      audio.pause();
-      setStatus("idle");
-      setCur(-1);
-      setPosMs(0);
-      void load(persona, voice, { index: -1, resume: false });
-      return;
-    }
-    const prev = chapters.map((c) => c.clusterId);
-    const curId = cur >= 0 ? chapters[cur]?.clusterId : undefined;
-    const offsetMs = curId !== undefined ? Math.max(0, audio.currentTime * 1000 - chapters[cur]!.startMs) : 0;
-    const resume = !audio.paused;
-    const fallback = curId !== undefined && !ids.includes(curId) ? Math.min(prev.indexOf(curId), ids.length - 1) : -1;
-    const seq = ++loadSeq.current;
-    fetchEpisode(persona, voice, ids)
-      .then((ep) => {
-        if (seq !== loadSeq.current) return;
-        setEpisode(ep);
-        const kept = curId === undefined ? -1 : ep.chapters.findIndex((c) => c.clusterId === curId);
-        const index = kept >= 0 ? kept : fallback;
-        if (index < 0) return setCur(-1);
-        setCur(index);
-        const ch = ep.chapters[index]!;
-        openFile(ep, index, resume, kept >= 0 ? Math.min(offsetMs, Math.max(0, ch.endMs - ch.startMs - 500)) : 0);
-      })
-      .catch(() => {
-        if (seq === loadSeq.current) setError(LOAD_ERROR);
-      });
-  };
-
-  /** 오늘 목록에서 뺀 소식을 바꾼다. 듣기 전이면 저장만 하고(목록이 바뀌어 다시 받는다), 듣는 중이면 바로 갈아 끼운다 */
   const setRemovedToday = (next: ReadonlySet<number>) => {
     if (!canRemove) return;
-    if (!idle) swapToday(keptIds(data.items.map((i) => i.clusterId), next), `${contentKey}#${[...next].join(",")}`);
+    if (!idle) {
+      const now = chapters.map((c) => c.clusterId);
+      const base = baseIdsRef.current.length ? baseIdsRef.current : now;
+      const plan = planTodaySwap(base, now, data.items.map((i) => i.clusterId), next);
+      // 화면 목록과 같아졌으면 다시 받지 않는다. 아니면 받은 목록 표시를 그대로 두어, 목록이 바뀐 걸로 보고 듣기가 끝난 뒤 받는다(staleRef)
+      if (plan.synced) loadedKeyRef.current = `${contentKey}#${[...next].join(",")}`;
+      if (plan.ids) swap(plan.ids);
+    }
     saveRemoved(data.date, next);
   };
 
@@ -833,7 +854,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     const list = playlistRef.current;
     if (!list || !canEdit) return;
     if (ids.length !== list.length || ids.every((id, i) => id === list[i])) return;
-    swapList(ids);
+    swap(ids);
   };
 
   const removeFromPlayer = (id: number) => {
@@ -849,7 +870,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       return;
     }
     if (!canEdit || !list.includes(id)) return;
-    swapList(list.filter((x) => x !== id));
+    swap(list.filter((x) => x !== id));
   };
 
   const addToPlayer = (items: { clusterId: number; title: string }[]) => {
@@ -916,6 +937,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     const sounding = !audio.paused && audio.readyState >= 3;
     const l = leadRef.current;
     if (l) {
+      // 멈춘 채 다른 소식으로 자리만 옮겨 두었으면 이 파일의 시각으로 덮지 않는다(파일이 늦게 열려 오는 timeupdate)
+      if (cur !== l.index) return;
       const t = audio.currentTime * 1000;
       setPosMs((chapters[l.index]?.startMs ?? 0) + t);
       if (sounding) {
@@ -980,12 +1003,15 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     }
     const refresh = refreshRef.current;
     refreshRef.current = null;
-    const target = pendingRef.current;
+    /**
+     * 기다리던 이동을 적용한다. 기다리는 동안 select·goTo가 자리를 바꿨으면 마지막 값으로(멈춤은 play를 false로 바꿔 둔다),
+     * 그사이 바로 옮겼으면(moveTo·goTo가 pendingRef를 비운다) 할 일이 없다. 어느 쪽이든 비워서 timeupdate가 다시 돌게 한다
+     */
     const apply = (chs: Chapter[]) => {
       audio.muted = false;
-      // 그사이 다른 자리로 바로 옮겼으면 이 이동은 버린다(멈춤을 눌렀으면 play가 false로 바뀌어 있다)
-      if (!target || pendingRef.current !== target) return;
+      const target = pendingRef.current;
       pendingRef.current = null;
+      if (!target) return;
       const ms = (chs[target.index]?.startMs ?? 0) + (target.offsetMs ?? 0);
       audio.currentTime = ms / 1000;
       setPosMs(ms);
@@ -993,21 +1019,28 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     };
     if (!refresh) return apply(chapters);
     // 첫 자리가 아닌 곳으로 옮겨 가야 하면 실제 시각표가 올 때까지 소리를 죽여 둔다(파일 맨 앞이 잠깐 들리지 않게)
+    const target = pendingRef.current;
     if (target?.play && (target.index > 0 || (target.offsetMs ?? 0) > 0)) audio.muted = true;
     // 방금 만든 음성의 실제 길이로 챕터 표를 다시 받는다(만들기 전에는 글자 수로 어림했다)
     const seq = loadSeq.current;
+    const file = fileRef.current;
+    const settle = (chs: Chapter[]) => {
+      // 그사이 다른 파일을 걸었으면 그 파일이 따로 처리한다(기다리는 이동·소리 죽임도 그 파일 것)
+      if (fileRef.current !== file) return;
+      if (seq !== loadSeq.current) {
+        // 목록·목소리를 바꾸는 중이다(곧 새 파일을 건다). 기다리던 이동만 비워 timeupdate가 다시 돌게 한다
+        pendingRef.current = null;
+        audio.muted = false;
+        return;
+      }
+      apply(chs);
+    };
     fetchEpisode(refresh.persona, refresh.voice, refresh.ids ?? undefined)
       .then((ep) => {
-        if (seq !== loadSeq.current) {
-          // 그사이 목록·목소리를 바꿨다(새로 건 파일이 따로 처리한다)
-          if (pendingRef.current === target) pendingRef.current = null;
-          audio.muted = false;
-          return;
-        }
-        setEpisode(ep);
-        apply(ep.chapters);
+        if (seq === loadSeq.current) setEpisode(ep);
+        settle(ep.chapters);
       })
-      .catch(() => apply(chapters));
+      .catch(() => settle(chapters));
   };
 
   const live = !idle;
@@ -1099,7 +1132,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   });
   const title = chapters[cur]?.title;
   const mediaTitle = title ?? (playlist ? `플레이리스트 ${chapters.length || playlist.length}개` : `오늘 ${chapters.length}개 이어 듣기`);
-  const mediaAlbum = playlist ? "보관함 플레이리스트" : "오늘 브리핑";
+  const mediaAlbum = playlist ? "플레이리스트" : "오늘 소식";
   // 플레이리스트 다음 묶음으로 넘어가는 동안에는 챕터 표가 잠깐 비어도 그대로 띄워 둔다
   const active = (!!episode || !!playlist) && (status === "playing" || status === "paused");
   useEffect(() => {
@@ -1160,7 +1193,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           const audio = e.currentTarget;
           if (!audio.getAttribute("src")) return;
           if (preparing) void ttsErrorMessage().then(setError);
-          else setError(LOAD_ERROR);
+          else setError(FILE_ERROR);
           setPreparing(false);
           setLead(null);
           pendingRef.current = null;

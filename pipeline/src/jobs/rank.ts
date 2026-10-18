@@ -2,6 +2,7 @@ import { linkCap, rankFeed } from '@maengo/core/feed';
 import { db, check } from '../lib/db';
 import { loadAudience, loadCandidates, withSimilarExcluded } from '../lib/audience';
 import type { Ctx } from '../lib/ctx';
+import { DELIVERY_BUILT_BY } from '../lib/retry';
 
 /** 지금부터 30분 뒤의 KST 시각('HH:MM'). 알림 시각이 이보다 이르거나 같으면 오늘 피드를 만들 때가 됐다. 자정을 넘기면 23:59 */
 export function dueClock(now: Date): string {
@@ -20,9 +21,9 @@ export async function rank(ctx: Ctx) {
   const due = dueClock(ctx.now);
   const audience = (await loadAudience(ctx)).filter((a) => a.notifyAt <= due);
   const candidates = (await loadCandidates(ctx)).filter((c) => c.summarized);
-  // 배치가 이미 만든 피드는 건너뛴다. 웹이 임시로 만든 피드(built_by='web')는 새 소식으로 다시 만든다
+  // 배치·배송이 이미 만든 피드(built_by 'pipeline'·'delivery')는 건너뛴다. 웹이 임시로 만든 피드(built_by='web')는 새 소식으로 다시 만든다
   const days = check(await db.from('feed_days').select('user_id,built_by').eq('date', ctx.date), 'feed_days') as { user_id: string; built_by: string }[];
-  const done = new Set(days.filter((d) => d.built_by === 'pipeline').map((d) => d.user_id));
+  const done = new Set(days.filter((d) => d.built_by === 'pipeline' || d.built_by === DELIVERY_BUILT_BY).map((d) => d.user_id));
   const provisional = new Set(days.filter((d) => d.built_by === 'web').map((d) => d.user_id));
 
   let built = 0;

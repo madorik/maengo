@@ -1,4 +1,3 @@
-import { krwLabel } from "@maengo/core/plans";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Crown } from "@/components/icons";
@@ -100,21 +99,21 @@ export default async function SettingsPage() {
             )}
           </div>
           {/* 무료 체험 중이면 첫 결제일(해지했으면 끝나는 날) */}
-          {view.plan !== "free" && <TrialLine sub={sub} price={krwLabel(profile.limits.priceKrw)} />}
+          {view.plan !== "free" && <TrialLine uid={profile.id} sub={sub} />}
           {/* 갱신 결제가 실패했으면 결제 수단 확인(오늘 화면 맨 위와 같은 띠). 체험이 곧 끝나는 건 위 줄과 구독 관리가 이미 보여 준다 */}
-          <BillingBanner notice={pastDue} uid={profile.id} price={krwLabel(profile.limits.priceKrw)} className="mt-3" />
+          <BillingBanner notice={pastDue} uid={profile.id} className="mt-3" />
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="tile p-4">
               <p className="text-[13px] font-extrabold text-sub">하루 소식</p>
               {/* 오늘 지급한 소식 / 플랜의 하루 소식 */}
               <p className="font-round text-[26px] font-black leading-tight tabular-nums">
                 {usage.given}
-                <span className="text-[16px] text-faint">/{usage.daily}</span>
+                <span className="text-[16px] text-sub">/{usage.daily}</span>
               </p>
             </div>
             <div className="tile p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-extrabold text-sub">지갑</p>
+                <p className="text-[13px] font-extrabold text-sub">지갑 맹고</p>
                 {/* 맹고 추가 구매를 할 수 있는 플랜만(plans 표) */}
                 {view.canBuyMaengo && (
                   <Link href="/premium#maengo" className="shrink-0 text-[13px] font-extrabold text-mango-deep no-underline hover:underline">
@@ -122,9 +121,8 @@ export default async function SettingsPage() {
                   </Link>
                 )}
               </div>
-              {/* 맹고 n개: 숫자만 크게(하루 소식 칸과 같은 모양) */}
-              <p className="font-round text-[26px] font-black leading-tight tabular-nums">
-                <span className="mr-1 font-sans text-[16px] text-sub">맹고</span>
+              {/* n개: 숫자만 크게(하루 소식 칸과 같은 모양). '맹고'는 위 이름에 둬서 1,000개가 넘어도 375px 두 칸에서 줄이 안 바뀐다 */}
+              <p className="whitespace-nowrap font-round text-[26px] font-black leading-tight tabular-nums">
                 {wallet.toLocaleString("ko-KR")}
                 <span className="ml-0.5 font-sans text-[16px] text-sub">개</span>
               </p>
@@ -148,8 +146,8 @@ export default async function SettingsPage() {
           <LinkSlots links={links} limit={entitlements(profile).linkLimit} />
         </Section>
 
-        <Section id="listen" title="듣기 모드">
-          <ListenPrefs audio={view.audio} />
+        <Section id="listen" title="목소리">
+          <ListenPrefs />
         </Section>
 
         <Section id="notify" title="알림" action={<PushToggle enabled={profile.pushEnabled} webTokens={webTokens} />}>

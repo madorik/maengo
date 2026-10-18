@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { afterTaskFailure, afterTaskSuccess, anchoredNext, isInactive, sendRetryAt, TASK_RETRIES } from '../retry';
+import { afterTaskFailure, afterTaskSuccess, anchoredNext, DELIVERY_BUILT_BY, existingFeedResult, isInactive, sendRetryAt, TASK_RETRIES } from '../retry';
 
 const kst = (s: string) => new Date(`${s}+09:00`);
 
@@ -91,4 +91,23 @@ test('다시 시도하다 성공하면 원래 시각으로 되돌리고, 평소 
   assert.equal(afterTaskSuccess(ingest(), kst('2026-10-18T06:05:00')), null);
   // 예전 형식의 실패 기록(last_stats null)은 이어 세지 않는다
   assert.equal(afterTaskSuccess(ingest({ last_status: 'failed', last_stats: null }), kst('2026-10-18T06:05:00')), null);
+});
+
+test('이미 있는 오늘 피드: 배송이 만든 것(delivery)이면 멈춘 배송이라 이어서 알린다', () => {
+  assert.equal(DELIVERY_BUILT_BY, 'delivery');
+  assert.equal(existingFeedResult('delivery', 1), 'built');
+  assert.equal(existingFeedResult('delivery', 3), 'built');
+});
+
+test('이미 있는 오늘 피드: 화면에서 받은 것(web)이나 모르는 표시는 알리지 않는다', () => {
+  assert.equal(existingFeedResult('web', 1), 'had');
+  assert.equal(existingFeedResult('web', 3), 'had');
+  assert.equal(existingFeedResult('something', 3), 'had');
+});
+
+test("이미 있는 오늘 피드: 'pipeline'(열 기본값)은 이 줄을 전에 가져간 적이 있을 때만 멈춘 배송(표시 전 배송 피드)으로 본다", () => {
+  // 처음 가져간 줄이면 배송이 만들었을 수 없다(손으로 돌린 rank 등)
+  assert.equal(existingFeedResult('pipeline', 1), 'had');
+  assert.equal(existingFeedResult('pipeline', 0), 'had');
+  assert.equal(existingFeedResult('pipeline', 2), 'built');
 });

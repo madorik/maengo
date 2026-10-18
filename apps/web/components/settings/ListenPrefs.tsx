@@ -8,11 +8,11 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { sampleUrl } from "@/lib/voice-samples";
 
 /**
- * 설정 > 듣기 모드: 목소리(여성·남성). 말투는 아나운서 하나다. 고르면 바로 저장되고(profiles.voice),
+ * 설정 > 목소리: 여성·남성. 말투는 아나운서 하나다. 고르면 바로 저장되고(profiles.voice),
  * 오늘 전체 듣기와 글 하나 듣기가 모두 이 목소리로 시작한다. 듣는 중에 듣기 창에서 바꾼 것도 같은 값이다.
  * 목소리 버튼마다 재생 버튼이 겹쳐 있어 고르기 전에 들어 볼 수 있다. 미리 만들어 둔 짧은 인사(public/voice-samples)라 Free도 들을 수 있다.
  */
-export function ListenPrefs({ audio }: { audio: boolean }) {
+export function ListenPrefs() {
   const p = usePlayer();
   // 샘플은 audio 하나로 튼다(다른 목소리를 누르면 듣던 것은 멈춘다)
   const ref = useRef<HTMLAudioElement>(null);
@@ -75,8 +75,7 @@ export function ListenPrefs({ audio }: { audio: boolean }) {
                 type="button"
                 onClick={() => preview(v.id)}
                 aria-label={failed === v.id ? `${label} 미리 듣기 다시 시도` : `${label} ${now ? "미리 듣기 멈추기" : "미리 듣기"}`}
-                title={failed === v.id ? "샘플을 불러오지 못했어요. 눌러서 다시 시도" : undefined}
-                className={`absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center rounded-full border-2 transition-colors ${now ? "border-sky bg-sky text-white" : "border-line bg-paper text-ink hover:bg-snow"}`}
+                className={`absolute top-1/2 right-2 grid size-11 -translate-y-1/2 place-items-center rounded-full border-2 transition-colors ${now ? "border-sky bg-sky text-white" : "border-line bg-paper text-ink hover:bg-snow"}`}
               >
                 {now ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
               </button>
@@ -84,7 +83,11 @@ export function ListenPrefs({ audio }: { audio: boolean }) {
           );
         })}
       </div>
-      {!audio && <p className="mt-1 text-[13px] text-sub">듣기는 Premium에서 쓸 수 있어요. 목소리는 미리 들어 보고 골라 둘 수 있어요.</p>}
+      {failed && (
+        <p role="alert" className="mt-1 px-1 text-[13px] font-bold text-cherry">
+          {`${VOICES.find((v) => v.id === failed)?.label ?? ""} 목소리 샘플을 불러오지 못했어요`}
+        </p>
+      )}
     </>
   );
 }

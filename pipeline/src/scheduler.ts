@@ -1,4 +1,4 @@
-import { createGeminiAi } from '@maengo/core/gemini';
+import { createGeminiAi, GEMINI_MIN_REQUEST_MS, GeminiTimeoutError } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
 import { cluster } from './jobs/cluster';
 import { collect } from './jobs/collect';
@@ -11,6 +11,7 @@ import { check, db, selectAll } from './lib/db';
 import { guardAi } from './lib/ai-guard';
 import { env } from './lib/env';
 import { afterTaskFailure, afterTaskSuccess, type TaskRow } from './lib/retry';
+import { TRIAL_PUSH_MS } from './lib/trial';
 import { flushUsage, recordUsage } from './lib/usage';
 import { remindTrialEnding } from './trial-reminder';
 
@@ -21,11 +22,17 @@ import { remindTrialEnding } from './trial-reminder';
 // Vercel 함수는 300초까지라 한 번에 약 4분 예산을 두고, 다 못 한 작업은 놓아줘 다음 실행이 이어받는다.
 // 작업이 실패하면 30분 뒤 다시(하루 세 번까지, lib/retry.ts). 관리자 화면 맨 위에 빨간 줄로 띄운다(apps/web/lib/server/admin-alerts.ts).
 // trial_reminder(하루 한 번 12:00 KST): 내일 무료 체험이 끝나는 사람에게 푸시 한 번(trial-reminder.ts).
+// 작업이 '다 못 했다'(unfinished)고 하면 성공으로 적지 않고 놓아줘 다음 실행(5분 뒤)이 바로 잇는다(차례 시각은 그대로).
 
 /** 이 시각까지만 새 작업을 시작한다(시작 후 4분) */
 const BUDGET_MS = 240_000;
-/** 작업마다 최소 이만큼은 남아 있어야 시작한다(수집은 출처 79곳에 약 10초, 임베딩은 300개에 수십 초) */
-const MIN_LEFT_MS: Record<string, number> = { daily: 0, trial_reminder: 0, ingest: 60_000, summarize: 60_000 };
+/**
+ * Gemini 요청은 이 시각까지 끊는다(시작 후 280초). Vercel 함수는 300초에 끊겨, 그 전에 실패로 적고 잠금을 풀 시간을 남긴다.
+ * 전엔 4분 예산 끝에 시작한 요청이 응답을 오래 기다리면 실행이 통째로 끊겼다(2026-10-18 점검)
+ */
+const AI_HARD_MS = 280_000;
+/** 작업마다 최소 이만큼은 남아 있어야 시작한다(수집은 출처 79곳에 약 10초, 임베딩은 300개에 수십 초, 체험 끝 알림은 한 사람 보낼 시간) */
+const MIN_LEFT_MS: Record<string, number> = { daily: 0, trial_reminder: TRIAL_PUSH_MS, ingest: 60_000, summarize: 60_000 };
 /** 가벼운 하루 정리를 먼저, 무거운 요약은 마지막에 */
 const ORDER = ['daily', 'trial_reminder', 'ingest', 'summarize'];
 
@@ -37,7 +44,7 @@ function makeCtx(now: Date, deadline: number, config: Record<string, number>): C
   return {
     date: kstDate(now),
     now,
-    ai: guardAi(createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log })),
+    ai: guardAi(createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log, deadline: now.getTime() + AI_HARD_MS })),
     log,
     stats: {},
     force: false,
@@ -90,14 +97,17 @@ async function expirePremium(now: Date, deadline: number, hooks: SchedulerHooks)
   return { expired: (data as number | null) ?? 0, rechecked, skipped: skip.length };
 }
 
-async function runTask(task: Task, now: Date, deadline: number, hooks: SchedulerHooks): Promise<Record<string, unknown>> {
+/** 작업 결과. unfinished면 다 못 해서 놓아줘 다음 실행이 잇는다 */
+type TaskOutcome = { stats: Record<string, unknown>; unfinished?: boolean };
+
+async function runTask(task: Task, now: Date, deadline: number, hooks: SchedulerHooks): Promise<TaskOutcome> {
   if (task.name === 'daily') {
     const premium = await expirePremium(now, deadline, hooks);
     // 오래된 벡터·행 정리(무료 DB 500MB 안에 머물게, 마이그레이션 20261017150000)
     const pruned = check(await db.rpc('prune_storage'), 'prune_storage');
-    return { ...premium, pruned };
+    return { stats: { ...premium, pruned } };
   }
-  if (task.name === 'trial_reminder') return remindTrialEnding(now);
+  if (task.name === 'trial_reminder') return remindTrialEnding(now, deadline);
   const ctx = makeCtx(now, deadline, task.config);
   try {
     if (task.name === 'ingest') {
@@ -113,7 +123,7 @@ async function runTask(task: Task, now: Date, deadline: number, hooks: Scheduler
     } else {
       throw new Error(`모르는 작업: ${task.name}`);
     }
-    return ctx.stats;
+    return { stats: ctx.stats };
   } finally {
     await flushUsage();
   }
@@ -164,10 +174,25 @@ export async function runScheduler(now = new Date(), hooks: SchedulerHooks = {})
     }
     const t0 = Date.now();
     try {
-      const stats = await runTask(task, now, deadline, hooks);
-      await finishOk(task, stats);
-      out[task.name] = `ok ${((Date.now() - t0) / 1000).toFixed(0)}초`;
+      const { stats, unfinished } = await runTask(task, now, deadline, hooks);
+      if (unfinished) {
+        // 다 못 했다: 차례 시각을 그대로 두고 놓아줘 다음 실행(5분 뒤)이 잇는다. 못 놓아주면 잠금은 10분 뒤 풀린다
+        const { error } = await db.rpc('release_scheduler_task', { p_name: task.name });
+        if (error) console.error('[scheduler] 놓아주기', error.message);
+        out[task.name] = `다음 실행이 이어서 ${((Date.now() - t0) / 1000).toFixed(0)}초 ${JSON.stringify(stats)}`;
+      } else {
+        await finishOk(task, stats);
+        out[task.name] = `ok ${((Date.now() - t0) / 1000).toFixed(0)}초`;
+      }
     } catch (e) {
+      // 실행 시간 마감에 걸려 Gemini를 못 불렀거나 끊긴 것(시간이 모자랐을 뿐)이면 실패로 적지 않고 놓아줘 다음 실행(5분 뒤)이 잇는다.
+      // 마감 전에 기본 제한(60초)으로 끊긴 건 진짜 느린 것이라 실패로 둔다(30분 뒤 다시)
+      if (e instanceof GeminiTimeoutError && Date.now() >= now.getTime() + AI_HARD_MS - GEMINI_MIN_REQUEST_MS) {
+        const { error } = await db.rpc('release_scheduler_task', { p_name: task.name });
+        if (error) console.error('[scheduler] 놓아주기', error.message);
+        out[task.name] = `시간이 모자라 다음 실행이 이어서 ${((Date.now() - t0) / 1000).toFixed(0)}초`;
+        continue;
+      }
       const msg = String((e as Error).message ?? e).slice(0, 300);
       hooks.onTaskError?.(task.name, e);
       const retryAt = await finishFailed(task, msg);

@@ -87,3 +87,18 @@ export function afterTaskSuccess(t: TaskRow, now: Date): Date | null {
   const prev = prevFailure(t);
   return prev ? anchoredNext(prev.anchor, t.every_minutes, now) : null;
 }
+
+// ---- 배송이 만들려는데 오늘 피드가 이미 있을 때(deliveries.ts) ----
+
+/** 배송이 만든 오늘 피드 표시(feed_days.built_by, 마이그레이션 20261018201000). 'pipeline'은 열 기본값이라 손으로 돌린 rank 등도 쓴다 */
+export const DELIVERY_BUILT_BY = 'delivery';
+
+/**
+ * 이미 있는 오늘 피드를 어떻게 볼지. built: 지난 배송 실행이 만들고 ready로 못 바꾸고 멈췄다(이어서 알린다). had: 화면 등에서 받았다(알리지 않는다).
+ * 'delivery'만 확실히 배송이 만든 것이다. 'pipeline'(표시 전 배송 피드, 손으로 돌린 rank)은 이 줄을 전에 가져간 적이 있을 때
+ * (attempts ≥ 2, 이번 것까지 센 값)만 멈춘 배송으로 본다. 처음 가져간 줄이면 배송이 만들었을 수 없다
+ */
+export function existingFeedResult(builtBy: string, attempts: number): 'built' | 'had' {
+  if (builtBy === DELIVERY_BUILT_BY) return 'built';
+  return builtBy === 'pipeline' && attempts >= 2 ? 'built' : 'had';
+}

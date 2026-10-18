@@ -183,7 +183,8 @@ const FRESH_MAX_ITEMS = 50;
 export async function prepareFresh(base: Ctx, a: Audience, { collectAfter = COLLECT_AFTER }: { collectAfter?: number } = {}) {
   // 이미 태그한 묶음은 다시 태그하지 않는다(즉석 피드의 force는 오늘 피드를 다시 만든다는 뜻이라 여기선 끈다)
   const ctx: Ctx = { ...base, force: false };
-  if (!(await tryLock(FRESH_LOCK, FRESH_LOCK_STALE))) {
+  const lock = await tryLock(FRESH_LOCK, FRESH_LOCK_STALE);
+  if (!lock) {
     ctx.log('다른 요청이 최근 글을 처리하는 중이라 기다림');
     await waitUnlock(FRESH_LOCK, FRESH_LOCK_STALE);
     return;
@@ -208,7 +209,7 @@ export async function prepareFresh(base: Ctx, a: Audience, { collectAfter = COLL
     await cluster(ctx);
     await tag(ctx);
   } finally {
-    await unlock(FRESH_LOCK);
+    await unlock(FRESH_LOCK, lock);
   }
 }
 

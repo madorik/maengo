@@ -18,11 +18,12 @@ import type { LibraryEntry } from "@/lib/types";
 
 /**
  * 플레이리스트 화면: 담은 순서대로 전체 듣기, 손잡이를 끌어 순서 바꾸기(터치·마우스·키보드), +로 플레이어에 추가, ×로 빼기, 비우기.
- * 끌어 놓으면 화면 순서를 먼저 바꾸고 서버에 저장한다
+ * 끌어 놓으면 화면 순서를 먼저 바꾸고 서버에 저장한다. 비우기는 되돌릴 수 없어 한 번 더 묻는다(그 자리에서 비우기·취소)
  */
 export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; locked: boolean }) {
   const p = usePlayer();
   const [busy, start] = useTransition();
+  const [confirming, setConfirming] = useState(false);
   // 서버가 준 목록이 바뀌면(빼기·비우기 뒤) 그 순서로 다시 맞춘다
   const serverKey = entries.map((e) => e.clusterId).join(",");
   const [order, setOrder] = useState({ key: serverKey, ids: entries.map((e) => e.clusterId) });
@@ -47,17 +48,37 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
         <h1 className="text-[28px] font-black tracking-[-0.03em]">
           플레이리스트 <span className="font-round text-[20px] text-faint">{locked ? "" : entries.length}</span>
         </h1>
-        {entries.length > 0 && (
-          <span className="flex shrink-0 items-center gap-2">
-            <button type="button" onClick={() => start(() => playlistClear())} disabled={busy} className="btn btn-ghost min-h-11 px-4 text-[14px]">
-              비우기
-            </button>
-            <button type="button" onClick={() => p.playPlaylist(ids)} className="btn btn-sky inline-flex min-h-11 items-center gap-1.5 px-4 text-[14px]">
-              <IconPlay className="size-4" />
-              전체 듣기
-            </button>
-          </span>
-        )}
+        {entries.length > 0 &&
+          (confirming ? (
+            <span role="group" aria-label="플레이리스트 비우기 확인" className="flex shrink-0 items-center gap-2">
+              <span className="text-[15px] font-extrabold">정말 비울까요?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirming(false);
+                  start(() => playlistClear());
+                }}
+                disabled={busy}
+                className="btn btn-ghost min-h-11 px-4 text-[14px] [--btn-text:var(--color-cherry)]"
+              >
+                비우기
+              </button>
+              {/* 실수로 누른 게 기본: 확인을 열면 취소에 포커스 */}
+              <button type="button" autoFocus onClick={() => setConfirming(false)} className="btn btn-ghost min-h-11 px-4 text-[14px]">
+                취소
+              </button>
+            </span>
+          ) : (
+            <span className="flex shrink-0 items-center gap-2">
+              <button type="button" onClick={() => setConfirming(true)} disabled={busy} className="btn btn-ghost min-h-11 px-4 text-[14px]">
+                비우기
+              </button>
+              <button type="button" onClick={() => p.playPlaylist(ids)} className="btn btn-sky inline-flex min-h-11 items-center gap-1.5 px-4 text-[14px]">
+                <IconPlay className="size-4" />
+                전체 듣기
+              </button>
+            </span>
+          ))}
       </div>
 
       {locked ? (

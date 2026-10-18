@@ -173,7 +173,8 @@ function makeCtx(): Ctx {
  */
 export async function ingestLinkNow(source: { id: number; url: string; name: string; lang: 'ko' | 'en'; custom: boolean }, entries: FeedEntry[]): Promise<void> {
   const ctx = makeCtx();
-  if (!(await tryLock(LOCK, LOCK_STALE_MS))) {
+  const lock = await tryLock(LOCK, LOCK_STALE_MS);
+  if (!lock) {
     ctx.log(`${source.name}: 다른 요청이 처리 중이라 다음 수집에 맡김`);
     return;
   }
@@ -194,7 +195,7 @@ export async function ingestLinkNow(source: { id: number; url: string; name: str
   } catch (e) {
     ctx.log(`${source.name}: 처리 실패(다음 수집이 잇는다): ${String((e as Error).message ?? e).slice(0, 200)}`);
   } finally {
-    await unlock(LOCK);
+    await unlock(LOCK, lock);
     await flushUsage();
   }
 }

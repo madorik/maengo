@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Chapter } from '@maengo/core/types';
-import { chapterAt, lineAt, nextPlayable, positionAt, progress, startIndex, tick, withRealChapter } from '../machine';
+import { chapterAt, heldOffset, lineAt, nextPlayable, positionAt, progress, startIndex, tick, withRealChapter } from '../machine';
 
 // 10초짜리 챕터 5개. clusterId = 101~105
 const chapters: Chapter[] = [0, 1, 2, 3, 4].map((i) => ({
@@ -100,4 +100,24 @@ test('첫 소식 먼저 듣기: 어림값 챕터를 실제 시각표로 바꿔 �
   assert.equal(lineAt(fixed[1], 16_000), 1);
   // 다른 소식의 시각표면 그대로
   assert.equal(withRealChapter(chapters, 0, real), chapters);
+});
+
+test('heldOffset: 파일이 열려 있으면 실제 재생 위치로', () => {
+  assert.equal(heldOffset(chapters, 1, { pending: null, fileMs: 13_500, posMs: 11_000 }), 3_500);
+});
+
+test('heldOffset: 파일을 떼어 냈으면(취소·오류 뒤) 화면의 자리로', () => {
+  // 떼어 낸 <audio>의 currentTime은 0이라 그대로 쓰면 듣던 자리를 잃는다
+  assert.equal(heldOffset(chapters, 1, { pending: null, fileMs: null, posMs: 17_200 }), 7_200);
+});
+
+test('heldOffset: 옮겨 갈 자리를 기다리는 중이면 그 자리로', () => {
+  assert.equal(heldOffset(chapters, 2, { pending: { index: 2, offsetMs: 4_000 }, fileMs: 0, posMs: 20_000 }), 4_000);
+  assert.equal(heldOffset(chapters, 2, { pending: { index: 2 }, fileMs: 0, posMs: 25_000 }), 0);
+  assert.equal(heldOffset(chapters, 2, { pending: { index: 3, offsetMs: 4_000 }, fileMs: 0, posMs: 25_000 }), 0);
+});
+
+test('heldOffset: 고른 소식이 없거나 소식 앞 자리면 0', () => {
+  assert.equal(heldOffset(chapters, -1, { pending: null, fileMs: 5_000, posMs: 5_000 }), 0);
+  assert.equal(heldOffset(chapters, 2, { pending: null, fileMs: 19_000, posMs: 19_000 }), 0);
 });

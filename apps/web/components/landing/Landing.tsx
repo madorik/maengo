@@ -127,7 +127,7 @@ export async function Landing() {
           <div className="mx-auto flex max-w-[1100px] flex-col gap-20 px-5 py-16 md:gap-28 md:py-24">
             <Feature
               title="관심 있는 분야만, 매일 받아요"
-              body="요즘은 하루에도 너무 많은 정보가 쏟아져요. AI, 주식, 코인, 반도체처럼 관심 있는 분야만 고르면 그 분야 소식만 매일 골라 드려요. 목록에 없으면 직접 적어도 되고, 여러 곳에서 다룬 같은 소식은 하나로 묶어요."
+              body="요즘은 하루에도 너무 많은 정보가 쏟아져요. AI, 주식, 코인, 반도체처럼 관심 있는 분야만 고르면 그 분야 소식만 매일 골라 드려요. 목록에 없는 관심사는 Premium에서 직접 적을 수 있고, 여러 곳에서 다룬 같은 소식은 하나로 묶어요."
             >
               <div className="tile p-5">
                 <p className="text-[14px] font-black text-sub">내 관심사</p>
@@ -249,9 +249,9 @@ export async function Landing() {
           </h2>
           <ol className="mt-10 grid gap-4 md:grid-cols-3">
             {[
-              ["관심사를 골라요", "목록에서 고르고, 목록에 없는 건 기타에 직접 적으면 돼요."],
+              ["관심사를 골라요", "목록에서 고르면 돼요. 목록에 없는 관심사는 Premium에서 직접 적을 수 있어요."],
               ["새벽에 AI가 훑고 골라요", "매일 새벽 소식을 모아 같은 소식은 묶고, 요약하고, 나에게 맞는 순서로 골라요."],
-              ["아침에 받아서 읽고 들어요", "고른 시각에 오늘의 소식이 도착해요. 읽어도 되고, 이어서 들어도 돼요."],
+              ["받아서 읽고 들어요", "고른 시각에 오늘의 소식이 도착해요. 읽어도 되고, 이어서 들어도 돼요."],
             ].map(([title, body], i) => (
               <li key={title} className="tile flex flex-col gap-3 p-6">
                 <span className="flex size-11 items-center justify-center keep-light rounded-full bg-mango font-round text-[20px] font-black text-ink shadow-[0_3px_0_var(--color-mango-dark)]">
@@ -326,7 +326,7 @@ export async function Landing() {
             <Mascot mood="listen" className="size-28 shrink-0 md:size-36" />
             <div className="flex-1">
               <h2 id="cta-title" className="text-[26px] font-black leading-snug tracking-[-0.03em] md:text-[34px]">
-                내일 아침부터 받아 보세요
+                오늘부터 받아 보세요
               </h2>
               <p className="mt-2 text-[16px] font-semibold text-ink/75">관심사만 고르면 첫 소식을 바로 보여 드려요.</p>
             </div>

@@ -95,14 +95,14 @@ export default async function PremiumPage() {
         </table>
 
         <div id="premium-buy" className="mt-6 scroll-mt-20">
-          <PremiumBuy uid={profile.id} plan={profile.plan} firstSub={!hadSub} sub={sub} priceKrw={plus.priceKrw} />
+          <PremiumBuy uid={profile.id} plan={profile.plan} firstSub={!hadSub} sub={sub} />
           <PlanSync plan={profile.plan} />
           <PurchaseDoneHost />
         </div>
 
         <section id="maengo" aria-labelledby="maengo-title" className="mt-12 scroll-mt-20">
           <h2 id="maengo-title" className="text-[20px] font-black tracking-[-0.02em]">
-            맹고 채우기
+            맹고 추가 구매
           </h2>
           <p className="mb-3 mt-1 text-[14px] leading-relaxed text-sub">1맹고로 오늘 소식을 하나 더 받아요. 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요.</p>
           <MaengoShop uid={profile.id} canBuy={profile.limits.canBuyMaengo} wallet={wallet} />

@@ -45,7 +45,6 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
     <dialog
       ref={ref}
       aria-labelledby="signup-gift-title"
-      aria-describedby="signup-gift-body"
       onClose={done}
       onClick={(e) => {
         if (e.target === e.currentTarget) ref.current?.close();
@@ -74,9 +73,6 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
             <br />
             {gift.amount}맹고를 지갑에 넣어드렸어요~!
           </h2>
-          <p id="signup-gift-body" className="mt-2 text-[15px] font-semibold leading-relaxed text-sub">
-            맹고를 소모해서 소식을 추가로 받을 수 있어요~
-          </p>
           <button type="button" autoFocus onClick={() => ref.current?.close()} className="btn mt-6 min-h-[52px] w-full text-[17px]">
             고마워요!
           </button>

@@ -81,11 +81,13 @@ export async function signOut() {
 /**
  * 처음 고른 관심 분야를 저장하고 오늘 피드로 간다(PLAN.md 5.2).
  * 기타를 고르고 적은 말은 설정 > 관심사의 기타와 같은 규칙으로 넣는다(목록에 있는 말은 관심사로). 기타만 골라도 된다.
+ * 플랜 한도(topicLimit)보다 많이 고르면 몰래 자르지 않고 되돌려 보낸다(화면은 한도가 차면 더 못 고르게 막는다)
  */
 export async function completeOnboarding(formData: FormData) {
   const profile = await requireProfile();
   const limit = entitlements(profile).topicLimit;
-  const picked = [...new Set(formData.getAll("topic").map(String))].filter((id) => TOPIC_BY_ID.has(id)).slice(0, limit);
+  const picked = [...new Set(formData.getAll("topic").map(String))].filter((id) => TOPIC_BY_ID.has(id));
+  if (picked.length > limit) redirect("/onboarding?error=limit");
   const etc = formData.get("etc") === "on";
   const etcText = etc ? String(formData.get("etcText") ?? "").trim() : "";
   if (etc && !etcText) redirect("/onboarding?error=etc");
