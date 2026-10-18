@@ -103,12 +103,17 @@ export default async function SettingsPage() {
                 <p className="text-[13px] font-extrabold text-sub">지갑</p>
                 {/* 맹고 추가 구매를 할 수 있는 플랜만(plans 표) */}
                 {view.canBuyMaengo && (
-                  <Link href="/premium#maengo" className="text-[13px] font-extrabold text-mango-deep no-underline hover:underline">
-                    채우기
+                  <Link href="/premium#maengo" className="shrink-0 text-[13px] font-extrabold text-mango-deep no-underline hover:underline">
+                    맹고 추가 구매
                   </Link>
                 )}
               </div>
-              <p className="font-round text-[26px] font-black leading-tight tabular-nums">{wallet.toLocaleString("ko-KR")}</p>
+              {/* 맹고 n개: 숫자만 크게(하루 소식 칸과 같은 모양) */}
+              <p className="font-round text-[26px] font-black leading-tight tabular-nums">
+                <span className="mr-1 font-sans text-[16px] text-sub">맹고</span>
+                {wallet.toLocaleString("ko-KR")}
+                <span className="ml-0.5 font-sans text-[16px] text-sub">개</span>
+              </p>
             </div>
           </div>
         </Section>
