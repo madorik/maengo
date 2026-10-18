@@ -70,6 +70,23 @@ REVENUECAT_WEBHOOK_AUTH=…
 - 맹고 추가 구매(Free·Premium) → 수량 고르고 결제 → 지갑 +수량, 같은 거래가 웹훅·sync로 두 번 와도 한 번만
 - 앱 지우고 다시 깔아 구매 복원 → Premium 그대로
 
+## Test Store로 먼저 시험(로컬, 2026-10-18)
+
+애플·구글 계약 없이 RevenueCat 안의 가짜 스토어로 결제 흐름(구독 → Premium, 묶음 → 지갑, 복원)을 본다. 실제 결제창·가격·무료 체험 자격·웹훅은 못 본다(RevenueCat이 로컬 서버에 닿지 않음. 앱이 결제 직후 `/api/billing/sync`를 부르니 상태는 맞춰진다).
+
+1. **사용자**: RevenueCat 가입 → 프로젝트 `맹고` → Apps & providers → Test configuration에서 Test Store 만들기 → 키 `test_…`
+2. **사용자**: Project settings → API keys → 비밀 키 두 개: v1(`sk_…`, 서버가 구독 상태를 읽음), v2(`sk_…`, 권한 Project configuration 읽기·쓰기, 아래 스크립트용). 프로젝트 ID(`proj…`)는 주소창이나 Project settings
+3. `apps/web/.env.local`에만 넣는다(운영 Vercel에는 **절대** `test_` 키를 넣지 않는다. 릴리스 앱이 이 키를 받으면 SDK가 일부러 멈춘다. `lib/native/billing.ts`도 운영 빌드에서는 `test_` 키를 무시한다)
+   ```
+   NEXT_PUBLIC_REVENUECAT_IOS_KEY=test_…
+   NEXT_PUBLIC_REVENUECAT_ANDROID_KEY=test_…
+   REVENUECAT_SECRET_KEY=sk_…(v1)
+   REVENUECAT_API_V2_KEY=sk_…(v2)
+   REVENUECAT_PROJECT_ID=proj…
+   ```
+4. **나**: `pnpm revenuecat:setup`(상품 5개·권한 `premium`·오퍼링 `default` Current. 테스트 상품은 API로 가격을 못 넣어 RevenueCat 기본값으로 보인다) → 로컬 서버 다시 띄우기(`NEXT_PUBLIC_`은 서버를 켤 때 들어감) → 디버그 앱(`CAP_SERVER_URL=http://localhost:3100/maengo`)에서 아래 5. 확인
+5. 실제 스토어를 붙일 때도 같은 스크립트를 `pnpm revenuecat:setup app_store`·`play_store`로 돌릴 수 있다(스토어에 상품을 먼저 만든 뒤)
+
 ## 베타 종료(2026-10-14, 코드 반영)
 - `BETA` 상수와 Beta 배지를 없앴다. Premium 하루 10개, 설정에 결제가 늘 보인다(앱에서만)
 - 마이그레이션 `20261014100000_end_beta.sql`: 가입하면 Free, 베타 Premium(`premium_until` 없음)은 Free로

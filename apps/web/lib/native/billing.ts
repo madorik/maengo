@@ -11,8 +11,10 @@ import { withBase } from "@/lib/base-path";
 export const inAppStore = () => Capacitor.isNativePlatform();
 
 function apiKey(): string | undefined {
-  const key = Capacitor.getPlatform() === "ios" ? process.env.NEXT_PUBLIC_REVENUECAT_IOS_KEY : process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_KEY;
-  return key?.trim() || undefined;
+  const key = (Capacitor.getPlatform() === "ios" ? process.env.NEXT_PUBLIC_REVENUECAT_IOS_KEY : process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_KEY)?.trim();
+  // RevenueCat Test Store 키(test_…)는 로컬 개발 서버에서만 쓴다. 릴리스 앱은 이 키를 받으면 SDK가 일부러 멈춰서, 운영 빌드에 잘못 들어가도 쓰지 않는다
+  if (!key || (key.startsWith("test_") && process.env.NODE_ENV === "production")) return undefined;
+  return key;
 }
 
 let configuredFor: string | null = null;

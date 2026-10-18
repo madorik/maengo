@@ -15,6 +15,7 @@
     "test": "tsx --test 'packages/core/src/**/__tests__/*.test.ts' 'apps/web/lib/**/__tests__/*.test.ts' 'pipeline/src/**/__tests__/*.test.ts'",
     "setup:auth": "node --env-file=apps/web/.env.local scripts/supabase-auth.mjs",
     "apple:secret": "node --env-file=apps/web/.env.local scripts/apple-client-secret.mjs",
+    "revenuecat:setup": "node --env-file=apps/web/.env.local scripts/revenuecat-setup.mjs",
     "db:push": "supabase db push",
     "daily": "pnpm --filter @maengo/pipeline daily"
   },
