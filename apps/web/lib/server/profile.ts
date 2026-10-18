@@ -49,6 +49,22 @@ interface ProfileRow {
   created_at: string;
 }
 
+/** 기한이 지난 Premium이 스토어에서 갱신됐는지 RevenueCat에서 다시 읽는다. 갱신됐으면 새 기한(ms), 아니거나 못 읽으면 null */
+async function renewedUntil(userId: string): Promise<number | null> {
+  // billing.ts가 지갑·구독 모듈을 끌고 와서 여기서만 불러온다
+  const { billingConfigured, syncBilling } = await import('./billing');
+  if (!billingConfigured()) return null;
+  try {
+    if ((await syncBilling(userId)).plan !== 'plus') return null;
+    const row = must(await db.from('profiles').select('premium_until').eq('id', userId).single(), 'profiles') as { premium_until: string | null };
+    const until = row.premium_until ? Date.parse(row.premium_until) : null;
+    return until !== null && until > Date.now() ? until : null;
+  } catch (e) {
+    console.error('Premium 갱신 확인 실패', String((e as Error).message ?? e).slice(0, 200));
+    return null;
+  }
+}
+
 export async function loadProfile(
   userId: string,
   who: { provider: Provider; email: string | null; avatarUrl: string | null; demo: boolean },
@@ -60,12 +76,17 @@ export async function loadProfile(
   if (!row) return null;
   let premiumUntil = row.premium_until ? Date.parse(row.premium_until) : null;
   let plan: Plan = row.plan;
-  // Premium 기한이 지났으면 Free로 돌린다(DB도 바로 고친다. 배치도 새벽마다 한꺼번에 돌린다)
+  // Premium 기한이 지났으면 Free로 돌린다(DB도 바로 고친다. 배치도 새벽마다 한꺼번에 돌린다).
+  // 스토어 자동 갱신은 웹훅이 오기 전에 기한이 지나 보일 수 있어서, 내리기 전에 RevenueCat에서 한 번 다시 읽는다
   if (plan === 'plus' && premiumUntil !== null && premiumUntil < Date.now()) {
-    plan = 'free';
-    premiumUntil = null;
-    const { error } = await db.from('profiles').update({ plan: 'free', premium_until: null }).eq('id', row.id).eq('plan', 'plus');
-    if (error) console.error('Premium 만료 처리 실패', error.message);
+    const renewed = await renewedUntil(row.id);
+    if (renewed) premiumUntil = renewed;
+    else {
+      plan = 'free';
+      premiumUntil = null;
+      const { error } = await db.from('profiles').update({ plan: 'free', premium_until: null }).eq('id', row.id).eq('plan', 'plus');
+      if (error) console.error('Premium 만료 처리 실패', error.message);
+    }
   }
   return {
     id: row.id,

@@ -87,6 +87,15 @@ REVENUECAT_WEBHOOK_AUTH=…
 4. **나**: `pnpm revenuecat:setup`(상품 5개·권한 `premium`·오퍼링 `default` Current. 테스트 상품은 API로 가격을 못 넣어 RevenueCat 기본값으로 보인다) → 로컬 서버 다시 띄우기(`NEXT_PUBLIC_`은 서버를 켤 때 들어감) → 디버그 앱(`CAP_SERVER_URL=http://localhost:3100/maengo`)에서 아래 5. 확인
 5. 실제 스토어를 붙일 때도 같은 스크립트를 `pnpm revenuecat:setup app_store`·`play_store`로 돌릴 수 있다(스토어에 상품을 먼저 만든 뒤)
 
+### 시험 결과(2026-10-18, 프로젝트 `proj292731ea`, 데모 계정)
+- 안드로이드 에뮬레이터·iOS 시뮬레이터 모두 Test Store 결제 창(정상·실패·취소)이 뜨고 원화 가격(₩3,800, 묶음 ₩1,100~₩7,900)으로 보임
+- 구독 정상 → Premium(만료 5분 뒤), 묶음 10 정상 → 지갑 +10(안드로이드·iOS 각각, 거래마다 한 줄), 같은 거래로 `/api/billing/sync`를 두 번 더 불러도 추가 지급 0
+- 실패 → "결제하지 못했어요. 다시 시도해 주세요.", 취소 → 아무 문구·변화 없음(구독·묶음, 두 플랫폼). 처음 한 번 안드로이드 구독 창에서 취소를 눌렀는데 결제가 된 적이 있으나 다시는 재현되지 않음(터치가 다른 버튼에 걸린 것으로 봄)
+- 구매 복원 → RevenueCat 복원 + 서버 동기화
+- Test Store 구독은 5분짜리이고 자동 갱신된다. 로컬엔 웹훅이 안 와서 만료 시각이 지나면 Free로 내려갔다 → 내리기 직전에 RevenueCat을 다시 읽도록 고침(`lib/server/profile.ts` renewedUntil). 운영에서도 갱신 웹훅이 늦을 때 Premium이 끊겨 보이지 않는다
+- 알게 된 것: 새 프로젝트에는 예시(상품 monthly·yearly·lifetime, 권한 `maengo_pro`, 오퍼링 `default`의 `$rc_monthly`에 monthly)가 있다. 스크립트가 `$rc_monthly`에서 예시를 떼고 우리 상품을 붙인다. 예시 자체는 앱이 무시하니 그대로 둠. Test Store 상품은 가격이 없으면 SDK가 "Could not find ProductDetails"로 못 찾고, 가격은 만들기 API에 칸이 없어 `test_store_prices`로 넣는다. 고객 지우기(`DELETE /v1/subscribers`)를 해도 Test Store 구독은 다시 붙는다
+- 못 본 것: 실제 애플·구글 결제창, 7일 무료 체험(Test Store 상품엔 체험 없음), 웹훅, 해지 → 만료
+
 ## 베타 종료(2026-10-14, 코드 반영)
 - `BETA` 상수와 Beta 배지를 없앴다. Premium 하루 10개, 설정에 결제가 늘 보인다(앱에서만)
 - 마이그레이션 `20261014100000_end_beta.sql`: 가입하면 Free, 베타 Premium(`premium_until` 없음)은 Free로

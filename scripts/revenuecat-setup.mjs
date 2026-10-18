@@ -12,8 +12,10 @@ if (!project || !key) {
   process.exit(1);
 }
 
-const PREMIUM = { id: "maengo_premium_monthly", title: "맹고 Premium(월)", package: "$rc_monthly", packageName: "Premium 월 구독" };
-const PACKS = [10, 30, 50, 100].map((n) => ({ id: `maengo_pack_${n}`, title: `맹고 ${n}개`, package: `pack_${n}`, packageName: `맹고 ${n}개` }));
+// 가격(원)은 Test Store에만 넣는다(실제 스토어는 스토어에서 정한다). BILLING.md 상품 표와 같다
+const PREMIUM = { id: "maengo_premium_monthly", title: "맹고 Premium(월)", package: "$rc_monthly", packageName: "Premium 월 구독", krw: 3800 };
+const PACK_KRW = { 10: 1100, 30: 2900, 50: 4400, 100: 7900 };
+const PACKS = [10, 30, 50, 100].map((n) => ({ id: `maengo_pack_${n}`, title: `맹고 ${n}개`, package: `pack_${n}`, packageName: `맹고 ${n}개`, krw: PACK_KRW[n] }));
 
 async function call(method, path, body) {
   const res = await fetch(`${API}/projects/${project}${path}`, {
@@ -51,15 +53,23 @@ const products = await list("/products");
 const storeId = (p, sub) => (appType === "play_store" && sub ? `${p.id}:monthly` : p.id);
 async function product(p, type, sub) {
   const sid = storeId(p, sub);
-  const found = products.find((x) => x.app_id === app.id && x.store_identifier === sid);
-  if (found) {
-    console.log(`상품 있음: ${sid}`);
-    return found;
+  let made = products.find((x) => x.app_id === app.id && x.store_identifier === sid);
+  if (made) console.log(`상품 있음: ${sid}`);
+  else {
+    const body = { store_identifier: sid, app_id: app.id, type, display_name: p.title, title: p.title };
+    if (sub && appType === "test_store") body.subscription = { duration: "P1M" };
+    made = await call("POST", "/products", body);
+    console.log(`상품 만듦: ${sid}`);
   }
-  const body = { store_identifier: sid, app_id: app.id, type, display_name: p.title, title: p.title };
-  if (sub && appType === "test_store") body.subscription = { duration: "P1M" };
-  const made = await call("POST", "/products", body);
-  console.log(`상품 만듦: ${sid}`);
+  // Test Store 상품은 가격이 없으면 SDK가 상품을 못 찾는다("Could not find ProductDetails").
+  // 만들기 API에는 가격 칸이 없어서 test_store_prices로 넣는다(2026-10-18 기준 문서에 없는 경로, 대시보드가 쓰는 것)
+  if (appType === "test_store") {
+    const prices = await call("GET", `/products/${made.id}/test_store_prices`);
+    if (!prices.length) {
+      await call("POST", `/products/${made.id}/test_store_prices`, { prices: [{ amount_micros: p.krw * 1_000_000, currency: "KRW" }] });
+      console.log(`가격 넣음: ${sid} ₩${p.krw.toLocaleString("ko-KR")}`);
+    }
+  }
   return made;
 }
 const premium = await product(PREMIUM, "subscription", true);
@@ -95,12 +105,19 @@ for (const [i, p] of wanted.entries()) {
     pkg = await call("POST", `/offerings/${offering.id}/packages`, { lookup_key: p.package, display_name: p.packageName, position: i + 1 });
     console.log(`패키지 만듦: ${p.package}`);
   }
-  try {
-    await call("POST", `/packages/${pkg.id}/actions/attach_products`, { products: [{ product_id: p.product.id, eligibility_criteria: "all" }] });
-    console.log(`패키지 ${p.package} ← ${p.id}`);
-  } catch (e) {
-    console.log(`패키지에 붙이기 건너뜀(이미 붙어 있을 수 있음): ${e.message}`);
+  // 새 프로젝트의 예시 상품(monthly 등)처럼 이 앱의 다른 상품이 붙어 있으면 뗀다(한 패키지에 앱마다 상품 하나)
+  const attached = await list(`/packages/${pkg.id}/products`);
+  if (attached.some((x) => x.product.id === p.product.id)) {
+    console.log(`패키지 ${p.package}에 ${p.id} 붙어 있음`);
+    continue;
   }
+  const others = attached.filter((x) => x.product.app_id === app.id).map((x) => x.product.id);
+  if (others.length) {
+    await call("POST", `/packages/${pkg.id}/actions/detach_products`, { product_ids: others });
+    console.log(`패키지 ${p.package}에서 다른 상품 뗌: ${attached.filter((x) => others.includes(x.product.id)).map((x) => x.product.store_identifier).join(", ")}`);
+  }
+  await call("POST", `/packages/${pkg.id}/actions/attach_products`, { products: [{ product_id: p.product.id, eligibility_criteria: "all" }] });
+  console.log(`패키지 ${p.package} ← ${p.id}`);
 }
 await call("POST", `/offerings/${offering.id}`, { is_current: true });
 console.log("오퍼링 default를 Current로. 끝");
