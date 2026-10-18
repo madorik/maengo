@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Mascot } from "@/components/Mascot";
+import { Confetti } from "@/components/ui/Confetti";
 
 /** 이 기기에서 본 가입 선물(받은 시각). 같은 선물은 한 번만 띄운다 */
 const SEEN_KEY = "maengo_signup_gift_seen";
@@ -14,20 +15,6 @@ const seenHere = () => {
     return null;
   }
 };
-
-/** 위쪽 축하 영역에 흩뿌린 색종이(위치 %, 기울기, 크기 px, 둥근지) */
-const CONFETTI: { x: number; y: number; r: number; w: number; h: number; c: string; dot?: boolean }[] = [
-  { x: 9, y: 22, r: -24, w: 7, h: 14, c: "#34B36A" },
-  { x: 18, y: 64, r: 0, w: 9, h: 9, c: "#1A8FE0", dot: true },
-  { x: 25, y: 34, r: 28, w: 6, h: 12, c: "#FF6F61" },
-  { x: 33, y: 12, r: 0, w: 7, h: 7, c: "#FF9F2E", dot: true },
-  { x: 70, y: 14, r: -12, w: 8, h: 8, c: "#FF6F61", dot: true },
-  { x: 78, y: 40, r: 38, w: 7, h: 14, c: "#1A8FE0" },
-  { x: 88, y: 20, r: 0, w: 6, h: 6, c: "#34B36A", dot: true },
-  { x: 90, y: 66, r: -30, w: 6, h: 12, c: "#FF9F2E" },
-  { x: 12, y: 86, r: 50, w: 6, h: 11, c: "#FF9F2E" },
-  { x: 84, y: 88, r: 0, w: 8, h: 8, c: "#34B36A", dot: true },
-];
 
 /**
  * 가입 축하 이벤트 팝업: 가입 선물 맹고를 지갑에 넣었다고 한 번 알린다
@@ -68,13 +55,7 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
       <div className="pop overflow-hidden rounded-[28px] bg-paper text-center text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
         {/* 축하 영역: 연한 망고색 위에 색종이, 마스코트와 맹고 동전 */}
         <div aria-hidden="true" className="keep-light relative h-[168px] bg-[#FFF4D6]">
-          {CONFETTI.map((p, i) => (
-            <span
-              key={i}
-              className={`absolute ${p.dot ? "rounded-full" : "rounded-[2px]"}`}
-              style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.w, height: p.h, background: p.c, transform: `rotate(${p.r}deg)` }}
-            />
-          ))}
+          <Confetti />
           <div className="absolute left-1/2 top-6 -translate-x-1/2">
             <Mascot mood="cheer" className="size-[120px]" />
             <span

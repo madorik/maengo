@@ -7,6 +7,7 @@ import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { track } from "@/lib/analytics";
 import { useInApp, useStore } from "./useStore";
 import { AppOnlyNotice } from "./AppOnlyNotice";
+import { announcePurchase } from "./PurchaseDone";
 
 // /premium 페이지의 앱 안 결제 조각. 웹 브라우저에서는 앱에서 살 수 있다는 것만 알린다(웹 결제는 없다).
 
@@ -50,9 +51,9 @@ export function PremiumBuy({ uid, plan }: { uid: string; plan: Plan }) {
   if (!s.store) return <div aria-hidden="true" className="h-14 animate-pulse rounded-2xl bg-snow" />;
   const premium = s.store.premium;
   if (!premium) return <LoadFailed retry={s.retry} />;
-  const buy = () => {
+  const buy = async () => {
     track("purchase_start", { product: premium.productId });
-    return s.run(
+    const ok = await s.run(
       premium.productId,
       async (b) => {
         await b.buy(uid, premium);
@@ -60,6 +61,7 @@ export function PremiumBuy({ uid, plan }: { uid: string; plan: Plan }) {
       },
       "결제하지 못했어요. 다시 시도해 주세요.",
     );
+    if (ok) announcePurchase({ kind: "premium", trialDays: premium.trialDays });
   };
   return (
     <div>
@@ -91,7 +93,6 @@ export function MaengoShop({ uid, canBuy, wallet }: { uid: string; canBuy: boole
   const s = useStore(uid);
   const [pick, setPick] = useState<string | null>(null);
   const [added, setAdded] = useState<number | null>(null);
-  const [late, setLate] = useState(false);
 
   // 방금 넣은 수량을 지갑 옆에 잠깐 보여 준다
   useEffect(() => {
@@ -143,7 +144,6 @@ export function MaengoShop({ uid, canBuy, wallet }: { uid: string; canBuy: boole
 
   const buy = async () => {
     if (!chosen) return;
-    setLate(false);
     track("purchase_start", { product: chosen.productId });
     let synced = true;
     const ok = await s.run(
@@ -155,7 +155,7 @@ export function MaengoShop({ uid, canBuy, wallet }: { uid: string; canBuy: boole
       "결제하지 못했어요. 다시 시도해 주세요.",
     );
     if (ok && synced) setAdded(chosen.maengo);
-    if (ok && !synced) setLate(true);
+    if (ok) announcePurchase({ kind: "maengo", amount: chosen.maengo!, late: !synced });
   };
 
   return (
@@ -189,7 +189,6 @@ export function MaengoShop({ uid, canBuy, wallet }: { uid: string; canBuy: boole
               {s.busy === chosen.productId ? "결제 중" : `${chosen.maengo}맹고 구매 · ${chosen.price}`}
             </button>
           )}
-          {late && <p className="mt-2 text-[14px] font-bold text-sub">결제됐어요. 맹고가 지갑에 들어오는 데 조금 걸릴 수 있어요.</p>}
           <ErrorText text={s.error} />
         </>
       )}

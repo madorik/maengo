@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { MaengoShop, PremiumBuy, RestorePurchases } from "@/components/premium/StoreParts";
+import { PurchaseDoneHost } from "@/components/premium/PurchaseDone";
 import { BackButton } from "@/components/ui/BackButton";
 import { getPlans } from "@/lib/server/plans";
 import { PlanSync } from "@/components/app/PlanSync";
@@ -103,6 +104,7 @@ export default async function PremiumPage() {
         <div id="premium-buy" className="mt-6 scroll-mt-20">
           <PremiumBuy uid={profile.id} plan={profile.plan} />
           <PlanSync plan={profile.plan} />
+          <PurchaseDoneHost />
         </div>
 
         <section id="maengo" aria-labelledby="maengo-title" className="mt-12 scroll-mt-20">
