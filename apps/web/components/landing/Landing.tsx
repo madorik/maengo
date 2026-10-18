@@ -5,9 +5,13 @@ import Link from "next/link";
 import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot } from "@/components/Mascot";
+import { JsonLd } from "@/components/public/PublicPage";
+import { SiteFooter } from "@/components/public/SiteFooter";
+import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
-import { SITE_DESCRIPTION, SITE_NAME, SUPPORT_EMAIL, appUrl } from "@/lib/site";
+import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
+import { SITE_DEFINITION, SITE_DESCRIPTION, SITE_NAME, SITE_NAME_EN, SUPPORT_EMAIL, appUrl, organizationId, organizationJsonLd } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AuthLink } from "./AuthLink";
 import playlistScriptShot from "./playlist-script.webp";
@@ -21,12 +25,26 @@ const START = { href: "/login", label: "무료로 시작하기" };
 const archiveLabel = (days: number) => (days >= 30 && days % 30 === 0 ? `${days / 30}개월` : `${days}일`);
 const OPEN = { href: "/today", label: "오늘의 소식 열기" };
 
-/** 자주 묻는 질문. 플랜 숫자는 plans 표 값 */
+/**
+ * 자주 묻는 질문. 플랜 숫자는 plans 표 값. 검색·AI 답변이 그대로 옮겨 가도 맞도록 답의 첫 문장에 결론을 쓴다.
+ * 분야 이름은 토픽 사전(PUBLIC_TOPICS·NEWS_SECTION_NAMES)에서 읽는다
+ */
 const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
+  ["맹고는 어떤 앱인가요?", `${SITE_DEFINITION} AI, 주식, 코인처럼 관심 있는 분야를 고르면 매일 아침 그 분야 소식만 골라 출처와 함께 요약해요. 웹에서 바로 쓰고, Android·iPhone 앱은 지금 테스트 중이에요.`],
+  [
+    "고를 수 있는 관심 분야는 뭐예요?",
+    `관심 분야 ${PUBLIC_TOPICS.length}개(${PUBLIC_TOPICS.map((t) => t.name).join(", ")})와 뉴스 분야 ${NEWS_SECTION_NAMES.length}개(${NEWS_SECTION_NAMES.join(", ")})에서 골라요. AI 안의 바이브코딩, 주식 안의 미국 주식처럼 세부 관심사를 고르면 더 좁혀 받고, 목록에 없는 관심사는 Premium에서 직접 적을 수 있어요.`,
+  ],
   ["어떤 소식을 모아요?", "테크 소식은 공식 기술 문서와 국내 대기업 테크 블로그, AI·코인·반도체 전문 매체에서 모으고, 정치·경제·사회·생활/문화·IT/과학·세계 뉴스는 네이버 뉴스 헤드라인에 오른 기사에서 골라요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 모든 소식에 원문 출처를 붙여요."],
+  ["소식은 언제 와요?", "매일 아침 6시에 새 소식을 모아 요약하고, 설정에서 고른 시각에 오늘의 소식이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
+  [
+    "음성으로 들을 수 있나요?",
+    "네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.",
+  ],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
   ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
 ];
 
@@ -67,7 +85,7 @@ export async function Landing() {
   const FAQ = faq(free, plus);
   return (
     <div className="min-h-dvh bg-paper">
-      <JsonLd faq={FAQ} premiumKrw={plus.priceKrw} />
+      <LandingJsonLd faq={FAQ} premiumKrw={plus.priceKrw} />
       <header className="sticky top-0 z-20 border-b-2 border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1100px] items-center justify-between gap-3 px-5">
           <Link href="/" className="flex items-center gap-2 no-underline">
@@ -78,6 +96,9 @@ export async function Landing() {
             <a href="#features" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
               무엇을 해 주나요
             </a>
+            <Link href={topicsPath()} className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
+              관심 분야
+            </Link>
             {/* 요금은 휴대폰에서도 보인다(기능은 넓은 화면에서만) */}
             <a href="#pricing" className="inline-flex min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow">
               요금
@@ -97,7 +118,7 @@ export async function Landing() {
               내 관심 분야만.
             </h1>
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
-              AI, 주식, 반도체처럼 고른 분야의 소식만 매일 모아 드려요. 출처와 함께 핵심만 요약하고, 출퇴근길엔 플레이리스트로 이어서 들려 드려요.
+              {SITE_DEFINITION} AI, 주식, 반도체처럼 고른 분야의 소식만 매일 모아 출처와 함께 핵심만 짚고, 출퇴근길엔 플레이리스트로 이어서 들려 드려요.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
@@ -264,6 +285,34 @@ export async function Landing() {
           </ol>
         </section>
 
+        {/* 고를 수 있는 관심 분야. 분야마다 이번 주 소식을 보여 주는 공개 페이지로 잇는다 */}
+        <section id="topics" aria-labelledby="topics-title" className="mx-auto max-w-[1100px] scroll-mt-20 px-5 pb-16 md:pb-24">
+          <h2 id="topics-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
+            고를 수 있는 관심 분야
+          </h2>
+          <p className="mt-3 text-center text-[16px] font-medium text-sub">분야를 누르면 이번 주에 맹고가 고른 소식을 볼 수 있어요.</p>
+          <ul className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {PUBLIC_TOPICS.map((t) => (
+              <li key={t.slug}>
+                <Link href={topicsPath(t.slug)} className="tile flex h-full items-center gap-3 p-4 no-underline hover:border-line-dark">
+                  <TopicGroupIcon id={t.id} className="size-11 rounded-2xl" iconClassName="size-6" />
+                  <span className="min-w-0">
+                    <span className="block text-[17px] font-black">{t.name}</span>
+                    <span className="block truncate text-[14px] font-semibold text-sub">{detailsLine(t, 3)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+            <li className="tile flex items-center gap-3 p-4">
+              <TopicGroupIcon id="politics" className="size-11 rounded-2xl" iconClassName="size-6" />
+              <span className="min-w-0">
+                <span className="block text-[17px] font-black">뉴스 분야</span>
+                <span className="block text-[14px] font-semibold text-sub">{NEWS_SECTION_NAMES.join(", ")}</span>
+              </span>
+            </li>
+          </ul>
+        </section>
+
         <section id="pricing" aria-labelledby="pricing-title" className="scroll-mt-20 border-y-2 border-line bg-snow">
           <div className="mx-auto max-w-[880px] px-5 py-16 md:py-24">
             <h2 id="pricing-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
@@ -335,23 +384,7 @@ export async function Landing() {
         </section>
       </main>
 
-      <footer className="border-t-2 border-line">
-        <div className="mx-auto flex max-w-[1100px] flex-col gap-2 px-5 py-8 text-[13px] font-semibold text-sub sm:flex-row sm:items-center sm:justify-between">
-          <span className="flex items-center gap-2">
-            <MangoIcon className="size-6" />
-            관심사에 맞춘 오늘의 소식, 맹고
-          </span>
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link href="/terms" className="text-sub no-underline hover:text-ink hover:underline">
-              이용약관
-            </Link>
-            <Link href="/privacy" className="font-extrabold text-sub no-underline hover:text-ink hover:underline">
-              개인정보 처리방침
-            </Link>
-            <span>© 2026 맹고</span>
-          </span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
@@ -468,30 +501,41 @@ function Plan({
   );
 }
 
-/** 검색엔진용 구조화 데이터: 사이트, 서비스(웹앱과 요금), 자주 묻는 질문 */
-function JsonLd({ faq, premiumKrw }: { faq: [string, string][]; premiumKrw: number }) {
+/** 검색엔진용 구조화 데이터: 운영사, 사이트, 서비스(웹앱과 월 요금), 자주 묻는 질문. 서로 @id로 잇는다 */
+function LandingJsonLd({ faq, premiumKrw }: { faq: [string, string][]; premiumKrw: number }) {
   const url = appUrl("/");
-  const data = [
-    { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url, inLanguage: "ko-KR", description: SITE_DESCRIPTION },
-    {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      name: SITE_NAME,
-      url,
-      applicationCategory: "NewsApplication",
-      operatingSystem: "Web",
-      inLanguage: "ko-KR",
-      description: SITE_DESCRIPTION,
-      offers: [
-        { "@type": "Offer", name: "Free", price: "0", priceCurrency: "KRW" },
-        { "@type": "Offer", name: "Premium", price: String(premiumKrw), priceCurrency: "KRW" },
-      ],
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
-    },
-  ];
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />;
+  const publisher = { "@id": organizationId() };
+  const monthly = (price: number) => ({ "@type": "UnitPriceSpecification", price: String(price), priceCurrency: "KRW", billingDuration: "P1M", unitCode: "MON" });
+  return (
+    <JsonLd
+      data={{
+        "@context": "https://schema.org",
+        "@graph": [
+          organizationJsonLd(),
+          { "@type": "WebSite", "@id": `${url}#website`, name: SITE_NAME, alternateName: SITE_NAME_EN, url, inLanguage: "ko-KR", description: SITE_DESCRIPTION, publisher },
+          {
+            "@type": "WebApplication",
+            "@id": `${url}#app`,
+            name: SITE_NAME,
+            alternateName: SITE_NAME_EN,
+            url,
+            applicationCategory: "NewsApplication",
+            operatingSystem: "Web",
+            inLanguage: "ko-KR",
+            description: SITE_DESCRIPTION,
+            publisher,
+            offers: [
+              { "@type": "Offer", name: "Free", price: "0", priceCurrency: "KRW" },
+              { "@type": "Offer", name: "Premium", price: String(premiumKrw), priceCurrency: "KRW", priceSpecification: monthly(premiumKrw) },
+            ],
+          },
+          {
+            "@type": "FAQPage",
+            "@id": `${url}#faq`,
+            mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+          },
+        ],
+      }}
+    />
+  );
 }

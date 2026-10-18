@@ -1,8 +1,8 @@
 # watalabs.com 전체 규칙. 맹고 부분은 apps/web/app/robots.ts와 같게 둔다.
+# 맹고 로그인 화면(/maengo/login)은 막지 않는다: noindex가 걸려 있어 검색엔진이 그걸 읽어야 색인에서 빠진다.
 User-agent: *
 Allow: /
 Disallow: /maengo/api/
-Disallow: /maengo/login
 Disallow: /maengo/today
 Disallow: /maengo/article/
 Disallow: /maengo/listen

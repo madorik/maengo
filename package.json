@@ -17,7 +17,8 @@
     "apple:secret": "node --env-file=apps/web/.env.local scripts/apple-client-secret.mjs",
     "revenuecat:setup": "node --env-file=apps/web/.env.local scripts/revenuecat-setup.mjs",
     "db:push": "supabase db push",
-    "daily": "pnpm --filter @maengo/pipeline daily"
+    "daily": "pnpm --filter @maengo/pipeline daily",
+    "indexnow": "node scripts/indexnow.mjs"
   },
   "devDependencies": {
     "tsx": "^4.19.2"

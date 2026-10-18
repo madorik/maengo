@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- 회사 사이트 페이지. 맹고 페이지는 https://watalabs.com/maengo/sitemap.xml(robots.txt에 둘 다 있다). lastmod는 index.html을 바꾼 날 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://watalabs.com/</loc>
+    <lastmod>2026-10-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1</priority>
   </url>

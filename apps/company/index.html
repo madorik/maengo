@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>와타랩스</title>
-  <meta name="description" content="와타랩스는 쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요. 관심 분야 소식을 매일 아침 요약하고 읽어 주는 맹고를 만들어요." />
+  <meta name="description" content="와타랩스는 쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요. 관심 분야의 소식을 AI로 요약해서 음성 지원해 주는 맹고를 만들어요." />
   <link rel="canonical" href="https://watalabs.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="ko_KR" />
@@ -12,7 +12,51 @@
   <meta property="og:title" content="와타랩스" />
   <meta property="og:description" content="쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요." />
   <meta property="og:url" content="https://watalabs.com/" />
+  <meta property="og:image" content="https://watalabs.com/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="와타랩스 - 쓸모 있는 작은 앱을 혼자 만들어요" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="와타랩스" />
+  <meta name="twitter:description" content="쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요." />
+  <meta name="twitter:image" content="https://watalabs.com/og.png" />
   <meta name="theme-color" content="#FFC23D" />
+  <!-- 검색엔진용 운영사·사이트 정보. 맹고 페이지(apps/web lib/site.ts organizationJsonLd)가 같은 @id로 운영사를 가리킨다 -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://watalabs.com/#organization",
+        "name": "와타랩스",
+        "alternateName": "Watalabs",
+        "url": "https://watalabs.com/",
+        "logo": "https://watalabs.com/apple-touch-icon.png",
+        "email": "watalabs.help@gmail.com",
+        "description": "쓸모 있는 작은 앱을 혼자 만드는 1인 회사. 관심 분야의 소식을 AI로 요약해서 음성 지원해 주는 맹고를 만든다."
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://watalabs.com/#website",
+        "name": "와타랩스",
+        "url": "https://watalabs.com/",
+        "inLanguage": "ko-KR",
+        "publisher": { "@id": "https://watalabs.com/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://watalabs.com/maengo#app",
+        "name": "맹고",
+        "alternateName": "Maengo",
+        "url": "https://watalabs.com/maengo",
+        "applicationCategory": "NewsApplication",
+        "operatingSystem": "Web",
+        "publisher": { "@id": "https://watalabs.com/#organization" }
+      }
+    ]
+  }
+  </script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -181,7 +225,7 @@
           </svg>
           <div>
             <h3>맹고</h3>
-            <p class="lede">관심 분야 소식을 매일 아침 요약하고 읽어 드려요.</p>
+            <p class="lede">관심 분야의 소식을 AI로 요약해서 음성 지원해줘요.</p>
             <ul>
               <li>AI, 주식, 코인, 반도체처럼 관심 있는 분야만 골라요.</li>
               <li>국내외 매체와 공식 블로그를 AI가 훑어 그 분야 소식만 요약해요.</li>

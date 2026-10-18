@@ -1,0 +1,28 @@
+# 와타랩스
+
+> 와타랩스(Watalabs)는 개발자 한 명이 기획부터 디자인, 개발, 운영까지 직접 하는 1인 회사예요. 지금 만드는 앱은 맹고(Maengo)예요.
+
+## 맹고 (Maengo)
+
+맹고는 관심 분야의 소식을 AI로 요약해서 음성 지원해 주는 앱이에요.
+
+- 관심 분야: AI, 주식, 코인, 반도체·로봇, Tech, 그리고 뉴스 분야(정치, 경제, 사회, 생활/문화, IT/과학, 세계). 분야 안의 세부 관심사(바이브코딩, 미국 주식 등)를 고르면 더 좁혀 받아요.
+- 매일 아침 6시에 국내외 매체, 공식 블로그, 기업 테크 블로그, 유튜브에서 새 글을 모아 같은 소식은 하나로 묶고 AI로 요약해요. 모든 소식에 원문 출처가 붙어요.
+- 요금: Free(하루 소식 3개, 0원), Premium(하루 소식 10개, 음성 듣기, 목록에 없는 관심사 직접 입력). 최신 가격은 소개 페이지의 요금 항목에 있어요.
+- 웹(https://watalabs.com/maengo)에서 바로 쓰고, Android·iPhone 앱은 테스트 중이에요.
+
+## 주요 페이지
+
+- [맹고 소개](https://watalabs.com/maengo): 무엇을 해 주는지, 요금, 자주 묻는 질문
+- [맹고 관심 분야](https://watalabs.com/maengo/topics): 고를 수 있는 분야 목록
+- [AI 소식](https://watalabs.com/maengo/topics/ai): 지난 7일 맹고가 고른 AI 소식과 출처
+- [주식 소식](https://watalabs.com/maengo/topics/stock)
+- [코인 소식](https://watalabs.com/maengo/topics/coin)
+- [반도체·로봇 소식](https://watalabs.com/maengo/topics/chip-robot)
+- [Tech 소식](https://watalabs.com/maengo/topics/tech)
+- [이용약관](https://watalabs.com/maengo/terms)
+- [개인정보 처리방침](https://watalabs.com/maengo/privacy)
+
+## 문의
+
+- watalabs.help@gmail.com
