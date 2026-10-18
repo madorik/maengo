@@ -7,7 +7,7 @@ import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
-import { SITE_DESCRIPTION, SITE_NAME, appUrl } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_NAME, SUPPORT_EMAIL, appUrl } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AuthLink } from "./AuthLink";
 import playlistScriptShot from "./playlist-script.webp";
@@ -304,6 +304,18 @@ export async function Landing() {
               </details>
             ))}
           </div>
+          {/* 질문 목록에 없는 건 메일로 */}
+          {SUPPORT_EMAIL && (
+            <div className="tile mt-6 flex flex-col items-center gap-4 p-5 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div className="min-w-0">
+                <p className="text-[17px] font-black">더 궁금한 게 있나요?</p>
+                <p className="mt-1 break-all text-[14px] font-semibold text-sub">{SUPPORT_EMAIL}</p>
+              </div>
+              <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("[맹고 문의]")}`} className="btn btn-ghost min-h-12 shrink-0 px-6 text-[15px]">
+                문의하기
+              </a>
+            </div>
+          )}
         </section>
 
         <section aria-labelledby="cta-title" className="mx-auto max-w-[1100px] px-5 py-16 md:py-24">
