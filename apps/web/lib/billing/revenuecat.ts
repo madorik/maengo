@@ -15,6 +15,8 @@ export interface RcEntitlement {
 export interface RcSubscription {
   expires_date: string | null;
   purchase_date?: string;
+  /** trial(무료 체험) | intro(첫 할인) | normal */
+  period_type?: string | null;
   price?: { amount: number; currency: string } | null;
   grace_period_expires_date?: string | null;
   store: string;
@@ -51,6 +53,8 @@ export interface PremiumState {
   cancelAtPeriodEnd: boolean;
   /** 갱신 결제가 실패해 스토어가 다시 시도하는 중 */
   billingIssue: boolean;
+  /** 무료 체험 기간(끝나면 스토어가 자동 결제) */
+  trial: boolean;
   /** 스토어 원거래 ID(subscriptions.store_ref) */
   ref: string | null;
 }
@@ -91,6 +95,7 @@ export function readSubscriber(sub: RcSubscriber, now: Date): BillingState {
       store: storeOf(s?.store),
       cancelAtPeriodEnd: !!s?.unsubscribe_detected_at,
       billingIssue: !!s?.billing_issues_detected_at,
+      trial: s?.period_type === 'trial',
       ref: s?.store_transaction_id ?? null,
     };
   }
@@ -114,6 +119,8 @@ export interface PaymentRow {
   rc_id: string | null;
   product_id: string;
   kind: 'subscription' | 'pack' | 'other';
+  /** trial | intro | normal(구독만) */
+  period_type: string | null;
   purchased_at: string | null;
   expires_at: string | null;
   price: number | null;
@@ -141,6 +148,7 @@ export function paymentsFromSubscriber(sub: RcSubscriber, userId: string): Payme
       rc_id: null,
       product_id: productId,
       kind: kindOf(productId),
+      period_type: s.period_type ?? null,
       purchased_at: s.purchase_date ?? null,
       expires_at: s.expires_date,
       price: s.price?.amount ?? null,
@@ -161,6 +169,7 @@ export function paymentsFromSubscriber(sub: RcSubscriber, userId: string): Payme
         rc_id: p.id,
         product_id: productId,
         kind: kindOf(productId),
+        period_type: null,
         purchased_at: p.purchase_date ?? null,
         expires_at: null,
         price: null,
@@ -186,6 +195,7 @@ export interface RcEvent {
   product_id?: string;
   store?: string;
   environment?: string;
+  period_type?: string | null;
   transaction_id?: string | null;
   original_transaction_id?: string | null;
   purchased_at_ms?: number | null;
@@ -209,6 +219,7 @@ export function paymentFromEvent(e: RcEvent, userId: string): PaymentRow | null 
     rc_id: null,
     product_id: e.product_id,
     kind: kindOf(e.product_id),
+    period_type: e.period_type ? e.period_type.toLowerCase() : null,
     purchased_at: isoOf(e.purchased_at_ms),
     expires_at: isoOf(e.expiration_at_ms),
     price: e.price_in_purchased_currency ?? null,

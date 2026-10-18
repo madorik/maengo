@@ -17,8 +17,22 @@ test('구독 중: 기한·스토어·원거래 ID', () => {
     store: 'app_store',
     cancelAtPeriodEnd: false,
     billingIssue: false,
+    trial: false,
     ref: 't1',
   });
+});
+
+test('무료 체험 중이면 trial', () => {
+  const s = readSubscriber(
+    {
+      entitlements: { premium: { expires_date: '2026-10-20T00:00:00Z', product_identifier: 'maengo_premium_monthly' } },
+      subscriptions: { maengo_premium_monthly: { expires_date: '2026-10-20T00:00:00Z', store: 'app_store', period_type: 'trial' } },
+    },
+    now,
+  );
+  assert.equal(s.premium?.active, true);
+  assert.equal(s.premium?.trial, true);
+  assert.equal(paymentsFromSubscriber({ subscriptions: { maengo_premium_monthly: { expires_date: null, store: 'app_store', store_transaction_id: 'x', period_type: 'trial' } } }, 'u1')[0]?.period_type, 'trial');
 });
 
 test('기간이 지났으면 끝, 유예 기간이면 아직', () => {

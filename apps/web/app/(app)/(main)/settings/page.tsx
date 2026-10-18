@@ -8,7 +8,8 @@ import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { LinkSlots } from "@/components/settings/LinkSlots";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
-import { ManageSubscription } from "@/components/premium/StoreParts";
+import { ManageSubscription, TrialLine } from "@/components/premium/StoreParts";
+import { subscriptionView } from "@/lib/server/billing";
 import { PushToggle } from "@/components/settings/PushToggle";
 import { TopicSettings } from "@/components/settings/TopicSettings";
 import { demoRebuildFeed, demoReset } from "@/app/actions";
@@ -47,7 +48,14 @@ function Section({ id, title, action, children }: { id: string; title: string; a
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const demoTools = demoToolsEnabled();
-  const [topics, links, webTokens, wallet, usage] = await Promise.all([userTopics(profile), userLinks(profile), webPushTokens(profile.id), syncWallet(profile.id), dailyMaengoUsage(profile)]);
+  const [topics, links, webTokens, wallet, usage, sub] = await Promise.all([
+    userTopics(profile),
+    userLinks(profile),
+    webPushTokens(profile.id),
+    syncWallet(profile.id),
+    dailyMaengoUsage(profile),
+    subscriptionView(profile.id),
+  ]);
   const view = toProfileView(profile);
   const ua = (await headers()).get("user-agent");
   const app = appInfoOf(ua);
@@ -89,6 +97,8 @@ export default async function SettingsPage() {
               <ManageSubscription uid={profile.id} />
             )}
           </div>
+          {/* 무료 체험 중이면 첫 결제일(해지했으면 끝나는 날) */}
+          {view.plan !== "free" && <TrialLine sub={sub} priceKrw={profile.limits.priceKrw} />}
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="tile p-4">
               <p className="text-[13px] font-extrabold text-sub">하루 소식</p>

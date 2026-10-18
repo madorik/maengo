@@ -10,7 +10,8 @@ import { Confetti } from "@/components/ui/Confetti";
 // 띄울 내용은 컴포넌트 밖(이 모듈)에 둔다: 결제 직후 router.refresh로 화면이 다시 붙으면 컴포넌트 상태가 사라져 팝업이 바로 닫히는 일이 있었다.
 
 export type PurchaseDoneDetail =
-  | { kind: "premium"; trialDays: number | null }
+  /** 체험이면 chargeLabel(첫 결제일)·price(체험 뒤 금액) */
+  | { kind: "premium"; trialDays: number | null; chargeLabel?: string | null; price?: string }
   /** late: 결제는 됐지만 서버가 아직 지갑에 못 넣음(웹훅이 곧 넣는다) */
   | { kind: "maengo"; amount: number; late: boolean };
 
@@ -36,7 +37,10 @@ function dismiss() {
 function copy(d: PurchaseDoneDetail): { title: [string, string]; body: string } {
   if (d.kind === "premium") {
     return d.trialDays
-      ? { title: [`${d.trialDays}일 무료 체험을`, "시작했어요~!"], body: "체험이 끝나기 전에 해지하면 결제되지 않아요." }
+      ? {
+          title: [`${d.trialDays}일 무료 체험을`, "시작했어요~!"],
+          body: d.chargeLabel && d.price ? `${d.chargeLabel}에 월 ${d.price}이 결제돼요. 그 전에 해지하면 결제되지 않아요.` : "체험이 끝나기 전에 해지하면 결제되지 않아요.",
+        }
       : { title: ["맹고 Premium을", "시작했어요~!"], body: "음성 듣기, 관심사 추가, 내 관심 링크를 바로 쓸 수 있어요." };
   }
   return d.late

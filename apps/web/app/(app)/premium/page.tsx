@@ -7,6 +7,7 @@ import { PurchaseDoneHost } from "@/components/premium/PurchaseDone";
 import { BackButton } from "@/components/ui/BackButton";
 import { getPlans } from "@/lib/server/plans";
 import { PlanSync } from "@/components/app/PlanSync";
+import { hadSubscription, subscriptionView } from "@/lib/server/billing";
 import { requireProfile } from "@/lib/server/session";
 import { syncWallet } from "@/lib/server/wallet";
 
@@ -30,7 +31,7 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
 
 export default async function PremiumPage() {
   const profile = await requireProfile();
-  const [wallet, plans] = await Promise.all([syncWallet(profile.id), getPlans()]);
+  const [wallet, plans, hadSub, sub] = await Promise.all([syncWallet(profile.id), getPlans(), hadSubscription(profile.id), subscriptionView(profile.id)]);
   const free = plans.get("free")!;
   const plus = plans.get("plus")!;
 
@@ -102,7 +103,7 @@ export default async function PremiumPage() {
         </table>
 
         <div id="premium-buy" className="mt-6 scroll-mt-20">
-          <PremiumBuy uid={profile.id} plan={profile.plan} />
+          <PremiumBuy uid={profile.id} plan={profile.plan} firstSub={!hadSub} sub={sub} priceKrw={plus.priceKrw} />
           <PlanSync plan={profile.plan} />
           <PurchaseDoneHost />
         </div>

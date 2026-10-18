@@ -91,10 +91,18 @@ async function syncServer(): Promise<boolean> {
   }
 }
 
-/** 결제한다. 결제를 마쳤으면 synced는 서버 반영까지 끝났는지(false면 웹훅으로 조금 뒤에 들어온다). 결제 실패·취소는 예외 */
-export async function buy(userId: string, item: StoreItem): Promise<{ synced: boolean }> {
+/**
+ * 결제한다. 결제를 마쳤으면 synced는 서버 반영까지 끝났는지(false면 웹훅으로 조금 뒤에 들어온다). 결제 실패·취소는 예외.
+ * noTrial: 전에 구독한 적 있는 회원이 다시 구독할 때. 안드로이드는 무료 체험 없는 기본 요금제로 결제한다
+ * (iOS는 애플이 체험을 계정당 한 번만 주므로 그대로 둔다)
+ */
+export async function buy(userId: string, item: StoreItem, { noTrial = false }: { noTrial?: boolean } = {}): Promise<{ synced: boolean }> {
   await ready(userId);
-  await Purchases.purchasePackage({ aPackage: item.pkg });
+  // 기본 선택지에 무료 체험이 있을 때만 체험 없는 기본 요금제를 고른다(체험이 없으면 그냥 결제. Test Store는 요금제 고르기를 못 한다)
+  const hasTrial = !!item.pkg.product.defaultOption?.freePhase;
+  const base = noTrial && hasTrial && Capacitor.getPlatform() === "android" ? item.pkg.product.subscriptionOptions?.find((o) => o.isBasePlan) : undefined;
+  if (base) await Purchases.purchaseSubscriptionOption({ subscriptionOption: base });
+  else await Purchases.purchasePackage({ aPackage: item.pkg });
   return { synced: await syncServer() };
 }
 

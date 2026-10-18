@@ -84,7 +84,7 @@ export async function syncBilling(userId: string, reason: string): Promise<Billi
           user_id: userId,
           store: p.store,
           store_ref: p.ref,
-          status: !p.active ? 'canceled' : p.billingIssue ? 'past_due' : 'active',
+          status: !p.active ? 'canceled' : p.trial ? 'trial' : p.billingIssue ? 'past_due' : 'active',
           current_period_end: p.until ?? '9999-12-31T00:00:00Z',
           cancel_at_period_end: p.cancelAtPeriodEnd,
         },
@@ -97,4 +97,49 @@ export async function syncBilling(userId: string, reason: string): Promise<Billi
   let credited = 0;
   for (const pack of state.packs) if (await creditMaengo(userId, pack.amount, pack.ref)) credited += pack.amount;
   return { plan, credited };
+}
+
+// ---- 무료 체험(첫 구독만 7일, 앱 안 동의 팝업) ----
+
+/** 이 회원이 전에 Premium을 구독한 적이 있는지(체험 중·해지 포함). 있으면 다시 구독할 때 체험 없이 바로 결제한다 */
+export async function hadSubscription(userId: string): Promise<boolean> {
+  const [sub, paid] = await Promise.all([
+    db.from('subscriptions').select('user_id', { count: 'exact', head: true }).eq('user_id', userId),
+    db.from('purchases').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', 'subscription'),
+  ]);
+  return (sub.count ?? 0) > 0 || (paid.count ?? 0) > 0;
+}
+
+/** 지금 구독 상태(화면 표시용). 구독한 적이 없으면 null */
+export async function subscriptionView(userId: string): Promise<{ status: 'trial' | 'active' | 'past_due' | 'canceled'; periodEnd: string; cancelAtPeriodEnd: boolean } | null> {
+  const row = must(await db.from('subscriptions').select('status,current_period_end,cancel_at_period_end').eq('user_id', userId).maybeSingle(), 'subscriptions') as
+    | { status: 'trial' | 'active' | 'past_due' | 'canceled'; current_period_end: string; cancel_at_period_end: boolean }
+    | null;
+  return row ? { status: row.status, periodEnd: row.current_period_end, cancelAtPeriodEnd: row.cancel_at_period_end } : null;
+}
+
+export interface TrialConsentInput {
+  productId: string;
+  trialDays: number;
+  price: string;
+  /** 첫 결제 예정일(YYYY-MM-DD, 한국 날짜) */
+  chargeOn: string;
+  platform: string | null;
+  notice: string;
+}
+
+/** 체험 동의를 남긴다(결제 창을 띄우기 직전) */
+export async function recordTrialConsent(userId: string, c: TrialConsentInput): Promise<void> {
+  must(
+    await db.from('trial_consents').insert({
+      user_id: userId,
+      product_id: c.productId,
+      trial_days: c.trialDays,
+      price: c.price,
+      charge_on: c.chargeOn,
+      platform: c.platform,
+      notice: c.notice,
+    }),
+    'trial_consents',
+  );
 }
