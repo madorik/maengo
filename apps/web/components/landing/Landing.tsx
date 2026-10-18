@@ -17,6 +17,8 @@ import playlistShot from "./playlist.webp";
 // 검색과 속도를 위해 정적으로 만들고, 로그인 여부에 따라 달라지는 버튼만 AuthLink가 브라우저에서 바꾼다.
 
 const START = { href: "/login", label: "무료로 시작하기" };
+/** 보관 기간: 30일 단위면 'n개월'(90 → 3개월), 아니면 'n일' */
+const archiveLabel = (days: number) => (days >= 30 && days % 30 === 0 ? `${days / 30}개월` : `${days}일`);
 const OPEN = { href: "/today", label: "오늘의 소식 열기" };
 
 /** 자주 묻는 질문. 플랜 숫자는 plans 표 값 */
@@ -270,7 +272,7 @@ export async function Landing() {
               <Plan
                 name="Free"
                 price="0원"
-                items={[`하루 소식 ${free.dailyItems}개`, free.canBuyMaengo ? `가입하면 ${SIGNUP_BONUS}맹고, 맹고 추가 구매` : `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${free.archiveDays ?? 0}일, 관심사 ${free.topicLimit}개`]}
+                items={[`하루 소식 ${free.dailyItems}개`, free.canBuyMaengo ? `가입하면 ${SIGNUP_BONUS}맹고, 맹고 추가 구매` : `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${archiveLabel(free.archiveDays ?? 0)}, 관심사 ${free.topicLimit}개`]}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan

@@ -273,7 +273,7 @@ export async function dailyMaengoUsage(profile: Profile): Promise<{ given: numbe
   return { given: Math.min(day.visible, daily), daily };
 }
 
-/** 보관함에서 볼 수 있는 가장 오래된 날(Free는 최근 7일). null이면 전부 */
+/** 보관함에서 볼 수 있는 가장 오래된 날(plans 표 archive_days, Free는 최근 90일). null이면 전부 */
 function archiveFrom(profile: Profile, today: string): string | null {
   const days = entitlements(profile).archiveDays;
   return days === null ? null : daysBefore(today, days - 1);
