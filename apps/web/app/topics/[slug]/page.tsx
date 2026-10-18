@@ -10,8 +10,9 @@ import { SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
 
 // 공개 분야 페이지. 지난 7일 이 분야 소식(제목·한 줄 요약·원문 링크)과 출처를 보여 준다.
 // 수집은 하루 한 번(06시)이지만 요약은 그 뒤로도 이어지므로 한 시간마다 새로 그린다.
+// 없는 분야는 아래 notFound()가 404로 답한다. dynamicParams = false로 막으면 basePath 밖 주소를 /maengo로 넘기는
+// next.config.ts의 리다이렉트와 엮여 같은 주소로 끝없이 307을 낸다(2026-10-18 확인)
 export const revalidate = 3600;
-export const dynamicParams = false;
 
 export function generateStaticParams() {
   return PUBLIC_TOPICS.map((t) => ({ slug: t.slug }));
@@ -149,7 +150,7 @@ function TopicItem({ item: it }: { item: PublicTopicItem }) {
           {video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
           {it.sourceLabel}
         </span>
-        <time dateTime={it.date} className="font-semibold text-faint">
+        <time dateTime={it.date} className="font-semibold text-sub">
           {dayLabel(it.date)}
         </time>
       </p>
