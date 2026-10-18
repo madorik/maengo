@@ -5,6 +5,7 @@ import { SESSION_COOKIE, SIGNED_IN_HINT } from "./lib/session-cookie";
 import { readSession } from "./lib/session-token";
 
 // 로그인 확인: 구글 로그인(Supabase 세션 쿠키)이나 데모 세션(서명한 쿠키) 중 하나면 로그인으로 본다.
+// 데모 세션은 운영 배포(VERCEL_ENV=production)에서는 보지 않고 쿠키를 지운다(lib/server/demo.ts와 같은 규칙).
 // Supabase 토큰이 만료됐으면 여기서 갱신해 응답 쿠키에 다시 쓴다(서버 컴포넌트는 쿠키를 못 쓴다).
 // 소개 페이지(/)는 누구나 볼 수 있는 정적 페이지라 여기서 다루지 않는다. 앱(User-Agent에 MaengoApp)만 예외로,
 // 소개 대신 로그인 여부에 따라 /today·/login으로 보낸다. 브라우저 요청은 matcher에서 걸러져 이 함수를 타지 않는다.
@@ -29,7 +30,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const raw = request.cookies.get(SESSION_COOKIE)?.value;
-  const demo = (await readSession(raw)) !== null;
+  const demo = process.env.VERCEL_ENV !== "production" && (await readSession(raw)) !== null;
   const signedIn = supabaseUser || demo;
 
   const { pathname } = request.nextUrl;

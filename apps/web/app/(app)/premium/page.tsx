@@ -1,8 +1,8 @@
-import { discountPct, type PlanLimits } from "@maengo/core/plans";
+import type { PlanLimits } from "@maengo/core/plans";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
-import { MaengoShop, PremiumBuy, RestorePurchases } from "@/components/premium/StoreParts";
+import { MaengoShop, PremiumBuy, PremiumPrice, RestorePurchases } from "@/components/premium/StoreParts";
 import { PurchaseDoneHost } from "@/components/premium/PurchaseDone";
 import { BackButton } from "@/components/ui/BackButton";
 import { getPlans } from "@/lib/server/plans";
@@ -63,16 +63,8 @@ export default async function PremiumPage() {
               <Mascot mood="listen" className="size-[76px]" />
             </span>
           </div>
-          {discountPct(plus) > 0 && (
-            <p className="relative mt-6 flex items-center gap-2">
-              <del className="font-round text-[17px] font-bold text-white/50">{plus.listPriceKrw!.toLocaleString("ko-KR")}원</del>
-              <span className="rounded-lg bg-orange px-2 py-0.5 font-round text-[13px] font-black text-white">{discountPct(plus)}% 할인</span>
-            </p>
-          )}
-          <p className={`relative flex items-baseline gap-1.5 ${discountPct(plus) > 0 ? "mt-1.5" : "mt-6"}`}>
-            <span className="font-round text-[34px] font-black leading-none tracking-[-0.02em] text-mango">{plus.priceKrw.toLocaleString("ko-KR")}원</span>
-            <span className="text-[15px] font-bold text-white/60">/ 월</span>
-          </p>
+          {/* 앱은 결제 버튼과 같은 스토어 가격, 웹은 plans 표 가격 */}
+          <PremiumPrice uid={profile.id} priceKrw={plus.priceKrw} listPriceKrw={plus.listPriceKrw} />
         </section>
 
         <table className="mt-6 w-full overflow-hidden rounded-2xl border-2 border-separate border-spacing-0 border-line text-[15px]">

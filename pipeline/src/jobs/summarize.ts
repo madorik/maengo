@@ -1,6 +1,6 @@
 import { GEMINI_MODELS } from '@maengo/core/ai';
 import { credibilityLabel, itemQuality, linkCap, rankFeed } from '@maengo/core/feed';
-import { GeminiQuotaError, PROMPT_VERSION } from '@maengo/core/gemini';
+import { GeminiOutputError, GeminiQuotaError, PROMPT_VERSION } from '@maengo/core/gemini';
 import { isNewsSection, NEWS_SECTIONS, TOPIC_BY_ID, whyLead, withParents } from '@maengo/core/topics';
 import type { SummarizeSource } from '@maengo/core/ai';
 import type { Tier } from '@maengo/core/types';
@@ -17,6 +17,18 @@ import type { Ctx } from '../lib/ctx';
 
 /** 피드에 실제로 들어갈 수보다 넉넉히 요약해 둔다(요약하면서 토픽이 바뀌거나 소식이 아니라고 빠질 수 있어서) */
 const BUFFER = { free: 2, paid: 5 };
+/**
+ * 돈을 내고 받은 요약이 비었거나(안전 필터·출력 토큰 한도) JSON이 깨진 횟수가 이만큼 되면 그 묶음은 건너뛴다(skip_reason).
+ * 세지 않으면 1분 배송이 사람마다·실행마다 같은 묶음을 다시 골라 또 부른다(마이그레이션 20261018192000)
+ */
+const MAX_SUMMARY_FAILURES = 3;
+
+async function noteSummaryFailure(clusterId: number, reason: string) {
+  const { data, error } = await db.rpc('note_summary_failure', { p_cluster: clusterId, p_reason: reason.slice(0, 120), p_max: MAX_SUMMARY_FAILURES });
+  // 마이그레이션 전이면 함수가 없다: 세지 못할 뿐 요약 실패는 그대로 알린다
+  if (error) return void console.error('note_summary_failure', error.message);
+  if (Number(data) >= MAX_SUMMARY_FAILURES) console.log(`[summarize] #${clusterId} 요약이 ${data}번 실패해 건너뜀: ${reason.slice(0, 80)}`);
+}
 
 interface MemberRow {
   id: number;
@@ -106,7 +118,13 @@ export async function summarizeCluster(
   const sections = new Set(headline.map((r) => r.topic_id));
   const topicDict = (await dictionary(ctx)).filter((t) => !isNewsSection(t.id) || sections.has(t.id));
   const nameOf = new Map(topicDict.map((t) => [t.id, t.name]));
-  const out = await ctx.ai.summarize({ model: GEMINI_MODELS.summary, kind: rep.kind, sources, videoUrl, dictionary: topicDict });
+  let out: Awaited<ReturnType<Ctx['ai']['summarize']>>;
+  try {
+    out = await ctx.ai.summarize({ model: GEMINI_MODELS.summary, kind: rep.kind, sources, videoUrl, dictionary: topicDict });
+  } catch (e) {
+    if (e instanceof GeminiOutputError && tier === 'basic') await noteSummaryFailure(clusterId, e.message);
+    throw e;
+  }
   if (out.skip || !out.title || !out.body.length) {
     if (tier === 'basic') await db.from('clusters').update({ skip_reason: out.skip ?? '요약이 비어 있음' }).eq('id', clusterId);
     return 'skipped';

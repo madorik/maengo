@@ -92,6 +92,18 @@ export const isCancelled = (e: unknown) => {
   return !!err && (err.userCancelled === true || String(err.code) === "1");
 };
 
+/**
+ * 스토어 계정의 구매가 다른 맹고 계정(RevenueCat 회원)에 붙어 있어 복원할 수 없음. RevenueCat '복원 동작'을
+ * 'Keep with original App User ID'로 둬서 저절로 옮기지 않는다(BILLING.md 구매 복원). 이 경우는 문의하기로 받는다.
+ * RECEIPT_ALREADY_IN_USE_ERROR(7)·RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER_ERROR(13)
+ */
+export const isReceiptInUse = (e: unknown) => {
+  const err = e as { code?: string | number; readableErrorCode?: string; userInfo?: { readableErrorCode?: string } } | null;
+  if (!err) return false;
+  const readable = err.userInfo?.readableErrorCode ?? err.readableErrorCode ?? "";
+  return String(err.code) === "7" || String(err.code) === "13" || /RECEIPT_(ALREADY_IN_USE|IN_USE_BY_OTHER_SUBSCRIBER)/i.test(readable);
+};
+
 /** 서버가 RevenueCat에서 다시 읽어 플랜·지갑을 맞춘다. 실패해도 RevenueCat 웹훅이 곧 같은 일을 한다 */
 async function syncServer(): Promise<boolean> {
   try {
@@ -116,7 +128,10 @@ export async function buy(userId: string, item: StoreItem, { noTrial = false }: 
   return { synced: await syncServer() };
 }
 
-/** 구매 복원(애플 심사 필수). 다른 기기·재설치 뒤 구독을 다시 잇는다 */
+/**
+ * 구매 복원(애플 심사 필수, 누를 때만). 같은 맹고 계정으로 다른 기기·재설치 뒤 구독을 다시 잇는다.
+ * 다른 맹고 계정에서 산 구매는 옮기지 않고 isReceiptInUse 오류가 난다(문의하기로 처리). 앱을 열거나 로그인할 때 저절로 부르지 않는다
+ */
 export async function restore(userId: string): Promise<void> {
   await ready(userId);
   await Purchases.restorePurchases();

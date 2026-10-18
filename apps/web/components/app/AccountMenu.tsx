@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/actions";
 import { isAppUserAgent } from "@/lib/app-client";
+import { unregisterThisBrowser } from "@/lib/web-push";
 import { Crown, IconChevronDown, IconGear, IconLogout } from "@/components/icons";
 import { useProfile } from "@/components/providers/ProfileProvider";
 
@@ -42,9 +43,10 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
   const name = p.displayName ?? (p.demo ? "데모 계정" : "맹고 사용자");
   const premium = p.plan === "plus";
   const account = p.demo ? "공용 데모 계정(로컬 개발용)" : `${p.provider === "apple" ? "Apple" : "Google"} 계정${p.email ? ` · ${p.email}` : ""}`;
-  // 앱이면 로그아웃 전에 이 기기의 알림 토큰을 지운다(다음 사람이 이 기기로 로그인해도 앞사람 알림이 오지 않게)
+  // 로그아웃 전에 이 기기(앱)·이 브라우저(웹 푸시)의 알림 토큰을 지운다(다음 사람이 여기서 로그인해도 앞사람 알림이 오지 않게)
   const logout = async () => {
     if (isAppUserAgent(navigator.userAgent)) await (await import("@/lib/native/push")).unregisterApp();
+    else await unregisterThisBrowser();
     await signOut();
   };
 

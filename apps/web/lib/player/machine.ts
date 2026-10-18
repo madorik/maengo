@@ -104,6 +104,50 @@ export function progress(chapters: Chapter[], cur: number, ms: number, read: Rea
   return { elapsedMs: Math.round(elapsedMs), totalMs, position, count, segments };
 }
 
+/**
+ * 첫 소식을 그 소식 하나짜리 파일로 먼저 들을 때: 어림값 챕터 하나를 실제 대본 시각표(그 파일 기준, 0부터)로 바꿔 끼운다.
+ * 시작 시각은 그대로 두고 끝·줄 시각만 실제 값으로 옮긴다(다른 챕터는 그대로)
+ */
+export function withRealChapter(chapters: Chapter[], index: number, real: Chapter): Chapter[] {
+  const c = chapters[index];
+  if (!c || c.clusterId !== real.clusterId) return chapters;
+  const shift = c.startMs - real.startMs;
+  const fixed: Chapter = {
+    ...c,
+    endMs: c.startMs + (real.endMs - real.startMs),
+    lines: real.lines.map((l) => ({ ...l, startMs: l.startMs + shift, endMs: l.endMs + shift })),
+  };
+  return chapters.map((x, i) => (i === index ? fixed : x));
+}
+
+/** 진행 막대 끝까지 끌어도 바로 끝나지 않게 마지막 항목 끝에서 이만큼 앞에 둔다 */
+const END_GUARD_MS = 500;
+
+/**
+ * 진행 막대의 한 자리(건너뛰지 않는 항목만 이어 센 시각, progress의 elapsedMs와 같은 단위) → 그 챕터와 에피소드 시각.
+ * 진행 막대를 끌어 옮길 때 쓴다. 들을 항목이 없으면 null
+ */
+export function positionAt(
+  chapters: Chapter[],
+  elapsedMs: number,
+  read: ReadonlySet<number>,
+  skipRead: boolean,
+): { index: number; ms: number } | null {
+  let acc = 0;
+  let last = -1;
+  for (let i = 0; i < chapters.length; i++) {
+    const c = chapters[i]!;
+    if (isSkipped(c, read, skipRead)) continue;
+    const d = c.endMs - c.startMs;
+    if (elapsedMs < acc + d) return { index: i, ms: c.startMs + Math.max(0, elapsedMs - acc) };
+    acc += d;
+    last = i;
+  }
+  if (last < 0) return null;
+  const c = chapters[last]!;
+  return { index: last, ms: Math.max(c.startMs, c.endMs - END_GUARD_MS) };
+}
+
 /** 125000 → '2:05' */
 export function formatClock(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));

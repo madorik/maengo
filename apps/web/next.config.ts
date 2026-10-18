@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 // 맹고는 회사 도메인 watalabs.com의 /maengo 아래에서 돈다(packages/core/src/site.ts의 MAENGO_BASE_PATH와 같은 값).
 // watalabs.com은 회사 사이트(apps/company) 프로젝트에 붙어 있고, /maengo/*를 이 프로젝트(maengo.vercel.app/maengo/*)로 넘긴다.
@@ -34,4 +35,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry(오류 모니터링). 소스맵은 SENTRY_AUTH_TOKEN이 있을 때만 올린다(없으면 빌드만 하고 건너뛴다).
+// CLI 배포는 git을 올리지 않아(.vercelignore) 릴리스 이름을 배포 id로 쓴다.
+// 오류는 /maengo/monitoring(이 서버)을 거쳐 보낸다: 광고 차단기가 sentry.io로 가는 요청을 막아도 오류가 남게
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  release: { name: process.env.VERCEL_DEPLOYMENT_ID },
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  widenClientFileUpload: true,
+  tunnelRoute: "/monitoring",
+  telemetry: false,
+  silent: true,
+});

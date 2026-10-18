@@ -35,9 +35,9 @@ export function TermsNotice() {
   return (
     <aside aria-label="약관 변경 안내" className="tile mb-4 flex items-start gap-3 p-4">
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-black">이용약관과 개인정보 처리방침이 바뀌었어요</p>
+        <p className="text-[15px] font-black">이용약관이 바뀌었어요</p>
         <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">
-          {LEGAL_EFFECTIVE_DATE}부터 Premium 결제, 맹고 지갑, 하루 소식 지급 내용이 들어갔어요.
+          {LEGAL_EFFECTIVE_DATE}부터 맹고 추가 구매 환불, 환불·구매 복원 문의 내용이 들어갔어요.
         </p>
         <p className="mt-2 text-[14px] font-extrabold text-sky">
           <Link href="/terms" onClick={seen}>

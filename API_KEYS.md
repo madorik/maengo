@@ -51,6 +51,15 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 6. `apps/web/.env.local`에 `GOOGLE_TTS_API_KEY=<키>`(대화창에 붙이지 말고 파일에 직접). Vercel 운영 환경 변수에는 이쪽에서 파일 값을 옮긴다
 7. 키가 있으면 듣기·미리 듣기 샘플이 Chirp 3 HD로 만들어진다(`apps/web/lib/server/google-tts.ts`). 키를 지우면 Gemini TTS로 돌아간다
 
+### 0-1. 오류 모니터링: Sentry — 10분
+코드는 연결해 두었다(2026-10-18, `@sentry/nextjs` 10.x, `apps/web/instrumentation*.ts`·`sentry.*.config.ts`·`lib/sentry-options.ts`). DSN을 넣기 전까지는 아무것도 보내지 않는다. 앱(iOS·안드로이드)은 운영 웹을 띄우므로 같은 설정으로 앱 화면 오류도 잡힌다(`platform` 태그로 구분).
+1. [sentry.io](https://sentry.io/signup/)에 가입하고(무료 Developer 플랜) 조직을 만든다
+2. Projects → Create Project → 플랫폼 **Next.js**, 이름 `maengo`. 나오는 DSN을 복사한다
+3. Settings → Auth Tokens(Organization Tokens) → Create Token(소스맵 올리기용)
+4. `apps/web/.env.local`에 `NEXT_PUBLIC_SENTRY_DSN`·`SENTRY_ORG`(조직 슬러그)·`SENTRY_PROJECT=maengo`·`SENTRY_AUTH_TOKEN`을 넣는다(대화창에 붙이지 말고 파일에 직접). Vercel 운영 환경 변수에는 이쪽에서 옮긴다
+5. 성능 추적·세션 리플레이는 꺼 두었다(무료 한도). 크론(06시 수집·1분 배송)은 Sentry Crons로 멈추면 알림이 온다
+6. 알림: Sentry → Alerts에서 새 이슈가 생기면 메일로 받게 한다(기본값). claude.ai에서 Sentry 커넥터를 연결하면 Claude가 이슈를 직접 읽는다
+
 ### 1. Gemini 결제 켜기 — 출시 전에
 키는 받았다(위). 플러스 유저에게 상위 모델 요약을 주려면 [AI Studio](https://aistudio.google.com/apikey)에서 결제를 연결한다. 그 전까지는 모두 Flash 요약이다.
 

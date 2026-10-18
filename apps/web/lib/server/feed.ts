@@ -6,7 +6,7 @@ import { libraryMatcher } from '../library-search';
 import { LEGAL_CHANGED_ON } from '../site';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { daysBefore } from '@maengo/core/plans';
-import { isLinkTopicId, whyLead } from '@maengo/core/topics';
+import { isLinkTopicId, rankingWeights, whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import type { FeedbackKind, Tier } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, LibraryReadFilter, ProfileView, TodayData } from '../types';
@@ -57,6 +57,12 @@ async function weightsOf(userId: string): Promise<Record<string, number>> {
   return Object.fromEntries(rows.map((r) => [r.topic_id, r.weight]));
 }
 
+/** 소식을 고를 때의 가중치: 내 관심 링크는 지금 플랜 개수까지만(Free 0개, 칸 번호 순. 파이프라인 audience.ts와 같은 규칙) */
+async function rankWeightsOf(profile: Profile): Promise<Record<string, number>> {
+  const rows = must(await db.from('user_topics').select('topic_id,weight,slot').eq('user_id', profile.id), 'user_topics') as { topic_id: string; weight: number; slot: number | null }[];
+  return rankingWeights(rows, entitlements(profile).linkLimit);
+}
+
 /** 지난 days일(기본 7일) 안에 요약이 끝난 소식 */
 async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
   const since = new Date(Date.now() - days * 24 * HOUR).toISOString();
@@ -102,7 +108,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
 }
 
 async function buildToday(profile: Profile, date: string): Promise<FeedRow[]> {
-  const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(), weightsOf(profile.id), exclusions(profile.id, date)]);
+  const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(), rankWeightsOf(profile), exclusions(profile.id, date)]);
   // 내 관심 링크 글은 하루 소식의 절반까지(D19)
   const ranked = rankFeed(candidates, weights, exclude, { limit: MAX_DAILY, maxLinks: linkCap(entitlements(profile).dailyItems) }).map((r, i) => ({ rank: i + 1, clusterId: r.clusterId, topicId: r.topicId }));
   if (ranked.length) {
@@ -128,6 +134,12 @@ async function readDay(userId: string, date: string): Promise<FeedDay | null> {
   return { date, rows, visible: d.visible, extra: d.extra };
 }
 
+/** 오늘 피드가 이미 있는지(날짜 행과 소식이 둘 다). '오늘 소식 받기'(api/feed/today)는 빈 날에만 만든다 */
+export async function hasTodayFeed(userId: string): Promise<boolean> {
+  const day = await readDay(userId, kstDate());
+  return !!day && day.rows.length > 0;
+}
+
 /** 전에 받은 피드가 있는지. 가입하고 아직 한 번도 받지 않았으면 false */
 const hadFeedBefore = cache(async (userId: string, date: string): Promise<boolean> => {
   const { count, error } = await db.from('feed_days').select('date', { count: 'exact', head: true }).eq('user_id', userId).lt('date', date);
@@ -135,7 +147,13 @@ const hadFeedBefore = cache(async (userId: string, date: string): Promise<boolea
   return (count ?? 0) > 0;
 });
 
-/** 오늘 피드. 보여 주는 개수는 지금 플랜 기본 + 맹고로 더 받은 개수(체험을 시작하면 바로 늘어난다) */
+/**
+ * 오늘 보여 줄 개수: 지금 플랜 기본 + 맹고로 더 받은 개수(체험을 시작하면 바로 늘어난다). 이미 보여 준 개수보다 줄이지는 않는다:
+ * 체험·Premium이 낮에 끝나 플랜이 내려가도 받은 소식이 사라지지 않고(글이 안 열리거나 '하나 더 받기'가 그 소식을 다시 맹고로 받게 하지 않게) 다음 날부터 줄어든다
+ */
+const shownCount = (day: FeedDay, limit: number) => Math.max(day.visible, Math.min(day.rows.length, limit + day.extra));
+
+/** 오늘 피드. 보여 주는 개수는 shownCount */
 const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   const date = kstDate();
   const limit = entitlements(profile).dailyItems;
@@ -143,14 +161,14 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   // 오늘 피드가 하루 맹고(+ 더 받은 것)보다 적으면(AI가 막혔던 때 만든 피드 등) 이미 요약된 소식으로 모자란 만큼 채운다
   if (day && day.rows.length < limit + day.extra) day = await topUp(profile, day, limit + day.extra - day.rows.length);
   if (day) {
-    const visible = Math.min(day.rows.length, limit + day.extra);
+    const visible = shownCount(day, limit);
     if (visible !== day.visible) must(await db.from('feed_days').update({ visible }).eq('user_id', profile.id).eq('date', date), 'feed_days visible');
     return { ...day, visible };
   }
   // 가입하고 처음 온 사람은 저절로 채우지 않는다. '오늘 맹고 받기'를 눌러야 가져오거나 만든다(진행 상황을 보여 주려고)
   if (!(await hadFeedBefore(profile.id, date))) return { date, rows: [], visible: 0, extra: 0 };
   // 하루 소식은 알림 시각에 지급한다(1분마다 도는 배송이 그때 골라 요약해 만든다). 그 전과 알림 뒤 10분은 배송을 기다린다
-  if (beforeNotify(profile.notifyAt, deliveryGraceNow())) return { date, rows: [], visible: 0, extra: 0 };
+  if (beforeNotify(profile.notifyAt, new Date(), DELIVERY_GRACE_MS)) return { date, rows: [], visible: 0, extra: 0 };
   // 알림 시각이 한참 지났는데 오늘 피드가 없다(배송이 못 만든 날). 이미 요약된 소식으로 만든다. 배송은 있는 피드를 건너뛴다
   const rows = await buildToday(profile, date);
   const visible = Math.min(rows.length, limit);
@@ -168,7 +186,7 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
  * AI는 부르지 않는다. 같은 자리에 두 번 들어가면 뒤의 것은 무시된다(순번 충돌).
  */
 async function topUp(profile: Profile, day: FeedDay, need: number): Promise<FeedDay> {
-  const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), weightsOf(profile.id), exclusions(profile.id, day.date)]);
+  const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), rankWeightsOf(profile), exclusions(profile.id, day.date)]);
   for (const r of day.rows) exclude.add(r.clusterId);
   const picked = rankFeed(candidates, weights, exclude, { limit: need });
   if (!picked.length) return day;
@@ -201,7 +219,7 @@ export async function receiveMore(profile: Profile): Promise<MoreResult> {
   const day = await readDay(profile.id, date);
   if (!day || !day.rows.length) return { ok: false, error: 'no_feed' };
   const limit = entitlements(profile).dailyItems;
-  const visible = Math.min(day.rows.length, limit + day.extra);
+  const visible = shownCount(day, limit);
   const charged = visible >= limit;
   // 지갑에서 써야 하는데 모자라면 찾기·요약 전에 멈춘다
   if (charged && (await syncWallet(profile.id)) < 1) return { ok: false, error: 'no_balance' };
@@ -209,7 +227,7 @@ export async function receiveMore(profile: Profile): Promise<MoreResult> {
   let row = day.rows[visible];
   const fresh = !row;
   if (fresh) {
-    const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), weightsOf(profile.id), exclusions(profile.id, date)]);
+    const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), rankWeightsOf(profile), exclusions(profile.id, date)]);
     for (const r of day.rows) exclude.add(r.clusterId);
     const [next] = rankFeed(candidates, weights, exclude, { limit: 1 });
     let pick = next ? { clusterId: next.clusterId, topicId: next.topicId } : null;
@@ -485,13 +503,25 @@ async function readsAndFeedback(userId: string) {
   };
 }
 
-/** 알림 시각에 배송이 소식을 골라 요약하는 동안 화면이 따로 만들지 않고 기다리는 시간 */
+/** 알림 시각에 배송이 소식을 골라 요약하는 동안 화면이 따로 만들지 않고 기다리는 시간(같은 KST 날짜의 알림 시각부터 센다) */
 const DELIVERY_GRACE_MS = 10 * 60_000;
-const deliveryGraceNow = () => new Date(Date.now() - DELIVERY_GRACE_MS);
 
-/** 알림 시각 전(또는 배송을 기다리는 10분)이라 오늘 소식을 아직 만들면 안 되는지(전에 받은 적 있는 사람만. 처음 받는 사람은 바로 만든다) */
-export async function waitingForNotify(profile: Profile): Promise<boolean> {
-  return beforeNotify(profile.notifyAt, deliveryGraceNow()) && (await hadFeedBefore(profile.id, kstDate()));
+/**
+ * '오늘 소식 지금 받기'를 막는 앞쪽 여유. 지금 받기는 최대 5분(maxDuration) 걸리므로 알림 시각에 도는 배송과 같은 피드를 함께 만들지 않게
+ * 알림 6분 전부터는 배송을 기다린다
+ */
+const DELIVERY_LEAD_MS = 6 * 60_000;
+
+/** 알림 시각 전이라 하루 소식이 아직 안 왔는지(배송을 기다리는 구간 전). 이때는 '오늘 소식 지금 받기'로 먼저 받을 수 있다 */
+const beforeDelivery = (profile: Profile, now = new Date()) => beforeNotify(profile.notifyAt, now, -DELIVERY_LEAD_MS);
+
+/**
+ * 배송이 이 사람 오늘 피드를 만들 때인지(알림 6분 전 ~ 알림 10분 뒤). 그동안은 화면에서 따로 만들지 않고 배송을 기다린다.
+ * 전에 받은 적 있는 사람만(처음 받는 사람은 바로 만든다). 그 전(알림 시각 전)에는 지금 받기로 먼저 받을 수 있다(2026-10-18 사용자 결정)
+ */
+export async function waitingForDelivery(profile: Profile): Promise<boolean> {
+  const now = new Date();
+  return !beforeDelivery(profile, now) && beforeNotify(profile.notifyAt, now, DELIVERY_GRACE_MS) && (await hadFeedBefore(profile.id, kstDate()));
 }
 
 /** 오늘 날짜로 배치가 성공한 적이 있는지(없으면 아직 오늘 소식을 고르기 전) */
@@ -510,9 +540,9 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     ? null
     : !(await hadFeedBefore(profile.id, day.date))
       ? 'first'
-      : beforeNotify(profile.notifyAt)
+      : beforeDelivery(profile)
         ? 'scheduled'
-        : beforeNotify(profile.notifyAt, deliveryGraceNow())
+        : beforeNotify(profile.notifyAt, new Date(), DELIVERY_GRACE_MS)
           ? 'arriving'
           : (await batchRanToday(day.date))
         ? 'exhausted'
@@ -679,6 +709,7 @@ export async function reorderPlaylist(profile: Profile, ids: number[]): Promise<
 
 export function toProfileView(p: Profile): ProfileView {
   return {
+    id: p.id,
     displayName: p.displayName,
     provider: p.provider,
     email: p.email,
@@ -692,6 +723,7 @@ export function toProfileView(p: Profile): ProfileView {
     voice: p.voice,
     autoNext: p.autoNext,
     skipRead: p.skipRead,
+    playbackRate: p.playbackRate,
     aiProvider: ai.provider,
   };
 }

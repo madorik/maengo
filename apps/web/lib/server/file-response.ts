@@ -1,5 +1,6 @@
 import 'server-only';
 import { GeminiQuotaError } from '@maengo/core/gemini';
+import * as Sentry from '@sentry/nextjs';
 import { TtsBusyError } from './limits';
 import { NextResponse, type NextRequest } from 'next/server';
 import { BASE_PATH } from '../base-path';
@@ -37,5 +38,6 @@ export function bytesResponse(request: NextRequest, bytes: Uint8Array, contentTy
 export function ttsFailure(e: unknown): NextResponse {
   const busy = e instanceof TtsBusyError || e instanceof GeminiQuotaError;
   console.error('[tts] 실패', busy ? '서비스 한도' : '', String((e as Error)?.message ?? e).slice(0, 300));
+  if (!busy) Sentry.captureException(e, { tags: { where: 'tts' } });
   return NextResponse.json({ error: busy ? 'tts_busy' : 'tts_failed' }, { status: busy ? 503 : 502 });
 }

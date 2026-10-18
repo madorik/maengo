@@ -20,7 +20,7 @@ const KRW_PER_USD = 1400;
 /** Google TTS Chirp 3 HD 매월 무료 글자 수, 넘으면 100만 자당 $30 */
 const TTS_FREE_CHARS = 1_000_000;
 const PLAN_LABEL: Record<string, string> = { plus: "Premium", free: "Free" };
-const TASK_LABEL: Record<string, string> = { deliveries: "소식 지급·알림", ingest: "수집", summarize: "요약", daily: "하루 정리" };
+const TASK_LABEL: Record<string, string> = { deliveries: "소식 지급·알림", ingest: "수집", summarize: "요약", daily: "하루 정리", trial_reminder: "체험 끝 알림" };
 const DELIVERY_LABEL: Record<string, string> = {
   pending: "대기",
   building: "만드는 중",

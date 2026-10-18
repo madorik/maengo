@@ -20,7 +20,15 @@ type Progress =
   | { stage: "blocked" }
   | { stage: "error" };
 
-type State = { kind: "idle" } | { kind: "running"; p: Progress } | { kind: "empty" } | { kind: "blocked" } | { kind: "error" } | { kind: "done"; items: number };
+type State =
+  | { kind: "idle" }
+  | { kind: "running"; p: Progress }
+  | { kind: "empty" }
+  | { kind: "blocked" }
+  | { kind: "error" }
+  /** 오늘 부를 수 있는 횟수를 다 썼다(api/feed/today 429) */
+  | { kind: "limit" }
+  | { kind: "done"; items: number };
 
 /** 단계마다 진행 바가 머무를 구간. 서버 알림이 없는 동안에도 다음 구간 직전까지 조금씩 차오른다 */
 function rangeOf(p: Progress): [number, number] {
@@ -154,6 +162,15 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
     };
     try {
       const res = await fetch(withBase("/api/feed/today"), { method: "POST" });
+      // 그사이 오늘 소식이 생겼거나(다른 기기·배송) 알림 시각 전이면 화면을 새로 그린다. 하루 횟수를 다 썼으면 그렇다고만
+      if (res.status === 409) {
+        const { error } = (await res.json().catch(() => ({}))) as { error?: string };
+        if (error === "already_built" || error === "scheduled") {
+          setState({ kind: "idle" });
+          return router.refresh();
+        }
+      }
+      if (res.status === 429) return setState({ kind: "limit" });
       if (!res.ok || !res.body) throw new Error(String(res.status));
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -189,13 +206,13 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
     return <Making p={state.kind === "done" ? { stage: "done", items: state.items } : state.p} />;
   }
 
-  // 알림 시각 전: 오늘 소식은 그때 지급한다. 알림 시각이 됐으면 배송이 만드는 중(받기 버튼 없음)
-  if (reason === "scheduled" || reason === "arriving") {
+  // 알림 시각이 돼 배송이 만드는 중(받기 버튼 없음)
+  if (reason === "arriving") {
     return (
       <div className="mt-10 flex items-end gap-3">
         <Mascot mood="happy" className="size-24 shrink-0" />
         <Bubble className="mb-6 flex-1">
-          <p className="text-[15px] font-bold leading-relaxed">{reason === "arriving" ? "오늘의 소식을 준비하고 있어요. 곧 도착해요." : `오늘의 소식은 ${notifyLabel}에 와요.`}</p>
+          <p className="text-[15px] font-bold leading-relaxed">오늘의 소식을 준비하고 있어요. 곧 도착해요.</p>
           <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
             지난 소식 보기
           </Link>
@@ -206,9 +223,11 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
 
   return (
     <div className="mt-10 flex items-end gap-3">
-      <Mascot mood={state.kind === "error" || state.kind === "blocked" ? "happy" : "cheer"} className="size-24 shrink-0" />
+      <Mascot mood={state.kind === "error" || state.kind === "blocked" || state.kind === "limit" ? "happy" : "cheer"} className="size-24 shrink-0" />
       <Bubble className="mb-6 flex-1">
-        {state.kind === "empty" ? (
+        {state.kind === "limit" ? (
+          <p className="text-[15px] font-bold leading-relaxed">오늘은 더 받을 수 없어요. 내일 다시 시도해 주세요.</p>
+        ) : state.kind === "empty" ? (
           <>
             <p className="text-[15px] font-bold leading-relaxed">
               방금 새 소식까지 모아 봤지만 최근 사흘 동안 이 관심사 소식이 없었어요. 관심사를 더하면 바로 다시 찾아 드릴게요.
@@ -226,13 +245,20 @@ export function MakeToday({ reason, notifyLabel }: { reason: "first" | "schedule
                 ? "오늘의 소식을 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
                 : reason === "first"
                   ? "첫 소식을 받아 볼까요? 누르면 관심사에 맞는 소식을 찾아 오고, 없으면 바로 만들어 드려요."
+                  : reason === "scheduled"
+                    ? `오늘의 소식은 ${notifyLabel}에 와요.`
                   : reason === "exhausted"
                     ? "관심사에서 고른 소식을 다 봤어요. 새로 들어온 소식이 있는지 찾아볼까요?"
                     : "아직 오늘의 소식이 없어요. 지금 바로 만들어 드릴까요?"}
             </p>
             <button type="button" onClick={start} className="btn mt-3 w-full">
-              {state.kind === "error" || state.kind === "blocked" ? "다시 받기" : "오늘 소식 받기"}
+              {state.kind === "error" || state.kind === "blocked" ? "다시 받기" : reason === "scheduled" ? "오늘 소식 지금 받기" : "오늘 소식 받기"}
             </button>
+            {reason === "scheduled" && (
+              <Link href="/library" className="mt-2 block text-center text-[15px] font-extrabold text-sky">
+                지난 소식 보기
+              </Link>
+            )}
           </>
         )}
       </Bubble>

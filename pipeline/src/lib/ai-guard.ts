@@ -17,7 +17,7 @@ const CACHE_MS = 60_000;
 /** 할당량·크레딧·상한 때문에 AI를 못 부른 오류인지 */
 export const isAiBlocked = (e: unknown): boolean => e instanceof GeminiQuotaError;
 
-/** 오늘(KST) Gemini 추정 지출(usage_log, 실행이 끝날 때 쌓인 값) */
+/** 오늘(KST) Gemini 추정 지출(usage_log, 호출마다 쌓인 값. lib/usage.ts) */
 export async function geminiSpentToday(now = new Date()): Promise<number> {
   const since = `${kstDate(now)}T00:00:00+09:00`;
   const rows = check(await db.from('usage_log').select('est_usd').eq('provider', 'gemini').gte('at', since), 'usage_log today') as { est_usd: number | string }[];

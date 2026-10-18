@@ -79,6 +79,19 @@ export const IconMic = (p: Props) => (
 export const IconCap = (p: Props) => <Line {...p}><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5" /></Line>;
 export const IconChat = (p: Props) => <Line {...p}><path d="M4 5h11v8H8l-4 3z" /><path d="M15 9h5v8l-3-2h-6v-2" /></Line>;
 export const IconList = (p: Props) => <Line {...p}><path d="M9 6h11" /><path d="M9 12h11" /><path d="M9 18h11" /><path d="M4 6h.01" /><path d="M4 12h.01" /><path d="M4 18h.01" /></Line>;
+/** 15초 뒤로·앞으로(듣기). 도는 화살표 안에 15 */
+export const IconBack15 = (p: Props) => (
+  <Line {...p}>
+    <path d="M12 4.5a7.5 7.5 0 1 1-7.5 7.5" /><path d="M14.5 2L12 4.5 14.5 7" />
+    <text x="12" y="15.3" textAnchor="middle" fontSize="7.2" fontWeight="800" fill="currentColor" stroke="none">15</text>
+  </Line>
+);
+export const IconForward15 = (p: Props) => (
+  <Line {...p}>
+    <path d="M12 4.5a7.5 7.5 0 1 0 7.5 7.5" /><path d="M9.5 2L12 4.5 9.5 7" />
+    <text x="12" y="15.3" textAnchor="middle" fontSize="7.2" fontWeight="800" fill="currentColor" stroke="none">15</text>
+  </Line>
+);
 
 // ---- 관심 분야(온보딩 카드). 같은 24 격자·선 굵기 ----
 export const IconSparkles = (p: Props) => (

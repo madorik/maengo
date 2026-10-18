@@ -8,8 +8,19 @@
 - RevenueCat의 app_user_id = Supabase 회원 id.
 - 결제·복원을 마치면 앱이 `POST /api/billing/sync`를 부르고, RevenueCat은 웹훅 `POST /api/billing/revenuecat`을 보낸다. 둘 다 내용을 믿지 않고 RevenueCat REST(`GET /v1/subscribers/{id}`)를 다시 읽어 맞춘다(`apps/web/lib/server/billing.ts`).
   - Premium 권한(`premium`)이 살아 있으면 `profiles.plan = plus`, `premium_until = 만료(유예 포함)`, 끝났으면 Free로 내림
-  - 맹고 묶음(소모성)은 거래마다 한 번 지갑에 넣음(`wallet_credit`, ref `rc:거래ID`)
+  - 맹고 묶음(소모성)은 거래마다 한 번 지갑에 넣음(`wallet_credit`, ref `rc:거래ID`, 스토어 거래 `store_tx`). 같은 거래는 회원이 달라도 한 번만(2026-10-18)
+  - 맹고 묶음 환불(웹훅 `CANCELLATION`, 구글 무효 구매 포함)은 넣었던 맹고를 한 번 회수(`wallet_chargeback`, 지갑에 남은 만큼, 0 밑으로 안 내림)
+  - 옮기기(`TRANSFER`)가 오면 내준 쪽(`transferred_from`)·받은 쪽을 모두 다시 읽는다. RevenueCat에 Premium 권한이 없어진 스토어 구독 회원은 Free로(운영자가 준 Premium은 그대로)
+- 새벽 만료 처리(스케줄러 daily)도 기한이 지난 Premium을 내리기 전에 RevenueCat에서 다시 읽는다(`renewal_check`, 못 읽은 사람은 다음 날)
 - 웹 브라우저에서는 결제가 없다("맹고 앱에서 살 수 있어요").
+
+## 구매 복원(2026-10-18 사용자 결정)
+
+- **구매는 맹고 계정 사이에 저절로 옮기지 않는다.** 다른 계정으로 옮기는 일(같은 Apple ID·Google 계정으로 다른 맹고 계정에 들어간 경우 등)은 문의하기(메일)로 받아 운영자가 직접 처리한다.
+- '구매 복원' 버튼은 둔다(애플 심사 3.1.1: 구독이 있으면 복원 버튼 필수). 같은 맹고 계정으로 다른 기기·재설치 뒤 다시 잇는 용도. 누를 때만 복원하고, 앱을 열거나 로그인할 때 저절로 복원·동기화(`restorePurchases`·`syncPurchases`)를 부르는 곳은 없다(`lib/native/billing.ts`, `components/premium/useStore.ts`, `PlanSync.tsx` 확인).
+- 복원했는데 그 스토어 계정의 구매가 다른 맹고 계정에 붙어 있으면(RevenueCat `RECEIPT_ALREADY_IN_USE`·`RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER`) "다른 맹고 계정에서 산 구매라 이 계정으로 복원할 수 없어요. 문의하기"를 보인다. 문의하기는 제목 `[맹고 구매 복원·환불 문의]`, 본문에 회원 번호 앞 8자리를 채운 메일.
+- ⚠ **RevenueCat 대시보드에서 직접 할 일**: Project settings → General → **Restore behavior**를 **"Keep with original App User ID"**로 바꾼다(기본값 "Transfer to new App User ID"면 복원·앱 실행 때 SDK가 영수증을 올리면서 구매가 다른 회원에게 옮겨 간다). 바꾼 뒤 다른 계정으로 복원하면 위 오류가 나는지 샌드박스로 확인한다.
+- 환불·복원 요청은 약관 6조대로 문의하기로 받는다. 묶음 환불 정책: 구매한 뒤 맹고를 써서 소식을 더 받았으면 환불하지 않는다(구매 버튼 옆 안내, `맹고-문서/환불과-구매-복원.md`).
 
 ## 상품(세 곳에 같은 ID)
 

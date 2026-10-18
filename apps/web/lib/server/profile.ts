@@ -29,6 +29,8 @@ export interface Profile {
   voice: Voice;
   autoNext: boolean;
   skipRead: boolean;
+  /** 재생 속도(1·1.2·1.5·0.8배) */
+  playbackRate: number;
   /** 가입 시각(ms) */
   createdAt: number;
 }
@@ -45,6 +47,7 @@ interface ProfileRow {
   voice: Voice;
   auto_next: boolean;
   skip_read: boolean;
+  playback_rate: number;
   onboarded_at: string | null;
   created_at: string;
 }
@@ -70,7 +73,7 @@ export async function loadProfile(
   who: { provider: Provider; email: string | null; avatarUrl: string | null; demo: boolean },
 ): Promise<Profile | null> {
   const row = must(
-    await db.from('profiles').select('id,display_name,notify_at,push_enabled,plan,premium_until,persona,voice,auto_next,skip_read,onboarded_at,created_at').eq('id', userId).maybeSingle(),
+    await db.from('profiles').select('id,display_name,notify_at,push_enabled,plan,premium_until,persona,voice,auto_next,skip_read,playback_rate,onboarded_at,created_at').eq('id', userId).maybeSingle(),
     'profiles',
   ) as ProfileRow | null;
   if (!row) return null;
@@ -103,6 +106,8 @@ export async function loadProfile(
     voice: row.voice,
     autoNext: row.auto_next,
     skipRead: row.skip_read,
+    // real(float4)이라 1.2가 1.2000000476…으로 올 수 있어 소수 둘째 자리로 맞춘다
+    playbackRate: Math.round(row.playback_rate * 100) / 100,
     createdAt: Date.parse(row.created_at),
   };
 }

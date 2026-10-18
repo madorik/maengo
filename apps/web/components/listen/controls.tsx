@@ -8,23 +8,26 @@ import { IconCheck, IconClose, IconGrip } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SORT_INSTRUCTIONS, sortAnnouncements } from "@/components/ui/sortable-a11y";
-import { formatClock, isSkipped } from "@/lib/player/machine";
+import { formatClock } from "@/lib/player/machine";
 
 export { Switch } from "@/components/ui/Switch";
 
 type Row = { clusterId: number; title: string; rank: number };
 
 /**
- * 재생 목록. 누르면 그 소식부터(지금 듣는 소식은 그대로).
- * 플레이리스트를 들을 때는 손잡이를 끌어 순서를 바꾸고 ×로 뺀다(PlayerProvider.reorderPlaylist·removeFromPlayer: 듣던 자리에서 이어 간다.
- * 저장된 플레이리스트는 그대로). 음성 조각이 다 있을 때만 바꿀 수 있다(새 순서로 이어 붙이기만 하면 된다).
+ * 재생 목록. 누르면 그 소식부터(지금 듣는 소식은 그대로). ×로 뺀다(PlayerProvider.removeFromPlayer: 듣던 자리에서 이어 간다).
+ * 오늘 소식은 그날 동안 빼 두고 맨 아래 '다시 넣기'로 되돌린다. 플레이리스트는 손잡이를 끌어 순서도 바꾼다(저장된 플레이리스트는 그대로).
+ * 듣는 중에는 음성 조각이 다 있을 때만 바꿀 수 있다(새 목록으로 이어 붙이기만 하면 된다).
  * 플레이리스트 화면에서 추가한 소식은 음성을 만드는 동안 끝에 '준비 중'으로 보인다
  */
 export function Queue({ onPick }: { onPick?: () => void }) {
   const p = usePlayer();
   const { data } = useToday();
-  // 플레이리스트면 고른 소식(챕터 표), 아니면 오늘 피드. 순번은 플레이리스트 안의 순서다
-  const rows: Row[] = p.playlist ? p.chapters.map((ch) => ({ clusterId: ch.clusterId, title: ch.title, rank: ch.rank })) : data.items;
+  // 플레이리스트면 고른 소식(챕터 표), 아니면 오늘 피드에서 뺀 소식을 뺀 것
+  const rows: Row[] = p.playlist
+    ? p.chapters.map((ch) => ({ clusterId: ch.clusterId, title: ch.title, rank: ch.rank }))
+    : data.items.filter((i) => !p.removedToday.has(i.clusterId));
+  const removedCount = p.playlist ? 0 : data.items.filter((i) => p.removedToday.has(i.clusterId)).length;
   const sortable = !!p.playlist && p.canEdit;
 
   // 끌어 놓은 순서를 새 챕터 표가 올 때까지 먼저 보여 준다(챕터 표가 바뀌면 그 순서를 따른다)
@@ -45,19 +48,33 @@ export function Queue({ onPick }: { onPick?: () => void }) {
 
   const list = (
     <ol className="mt-3 flex flex-col gap-2">
-      {ids.map((id, i) => {
+      {ids.map((id) => {
         const row = byId.get(id);
         if (!row) return null;
-        const props = { row, position: p.playlist ? i + 1 : row.rank, onPick, onRemove: p.playlist ? () => p.removeFromPlayer(id) : undefined };
+        const props = { row, onPick, onRemove: () => p.removeFromPlayer(id) };
         return sortable ? <SortableItem key={id} {...props} /> : <Item key={id} {...props} />;
       })}
       {p.playlist &&
-        p.pending.map((x, i) => (
-          <PendingItem key={`pending-${x.clusterId}`} title={x.title} position={ids.length + i + 1} indent={sortable} onRemove={() => p.removeFromPlayer(x.clusterId)} />
-        ))}
+        p.pending.map((x) => <PendingItem key={`pending-${x.clusterId}`} title={x.title} indent={sortable} onRemove={() => p.removeFromPlayer(x.clusterId)} />)}
     </ol>
   );
-  if (!sortable) return list;
+  const restore = removedCount > 0 && (
+    <button
+      type="button"
+      onClick={p.restoreToday}
+      disabled={!p.canRemove}
+      className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl text-[14px] font-extrabold text-sky enabled:hover:bg-snow disabled:opacity-40"
+    >
+      뺀 소식 {removedCount}개 다시 넣기
+    </button>
+  );
+  if (!sortable)
+    return (
+      <>
+        {list}
+        {restore}
+      </>
+    );
   return (
     <DndContext
       id="player-queue"
@@ -73,7 +90,7 @@ export function Queue({ onPick }: { onPick?: () => void }) {
   );
 }
 
-type ItemProps = { row: Row; position: number; onPick?: () => void; onRemove?: () => void };
+type ItemProps = { row: Row; onPick?: () => void; onRemove?: () => void };
 
 function SortableItem(props: ItemProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: props.row.clusterId });
@@ -102,7 +119,6 @@ function SortableItem(props: ItemProps) {
 
 function Item({
   row,
-  position,
   onPick,
   onRemove,
   liRef,
@@ -111,11 +127,12 @@ function Item({
   handle,
 }: ItemProps & { liRef?: (el: HTMLLIElement | null) => void; style?: React.CSSProperties; dragging?: boolean; handle?: React.ReactNode }) {
   const p = usePlayer();
-  const { read, consumed } = useToday();
+  const { consumed } = useToday();
   const playing = p.status === "playing";
   const index = p.chapters.findIndex((c) => c.clusterId === row.clusterId);
   const ch = index >= 0 ? p.chapters[index] : undefined;
-  const skipped = !!ch && !p.playlist && isSkipped(ch, read, p.skipRead);
+  // 듣는 동안은 듣기 시작할 때 읽은 소식 기준(플레이어가 실제로 건너뛰는 소식)
+  const skipped = !!ch && p.skips(ch.clusterId);
   const current = index >= 0 && index === p.cur;
   const done = consumed(row.clusterId);
   const note = current ? (playing ? "듣는 중" : "멈춤") : skipped ? "건너뜀" : ch ? formatClock(ch.endMs - ch.startMs) : "";
@@ -129,26 +146,24 @@ function Item({
       <button
         type="button"
         onClick={() => {
-          // 지금 듣는 소식을 누르면 처음으로 돌리지 않는다(멈춰 있었으면 그 자리부터 이어서)
-          if (!current) p.goTo(index);
-          else if (!playing) p.play();
+          // 고르기만 한다: 듣는 중이면 그 소식을 이어서 듣고, 멈췄으면 자리만 옮긴다(소리는 재생 버튼으로). 지금 소식은 그대로
+          if (!current) p.select(index);
           onPick?.();
         }}
         disabled={!p.ready || index < 0}
         aria-current={current ? "step" : undefined}
-        className={`grid min-w-0 flex-1 grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[inherit] py-2.5 text-left ${handle ? "pl-1 pr-3" : "px-3"} ${current ? "" : "enabled:hover:bg-snow"}`}
+        className={`grid min-h-12 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[inherit] py-2.5 text-left ${handle ? "pl-1 pr-3" : "px-3"} ${current ? "" : "enabled:hover:bg-snow"}`}
       >
-        <span
-          className={`flex size-8 items-center justify-center rounded-full font-round text-[15px] font-black ${
-            current ? "bg-sky text-white" : done ? "bg-leaf-bright text-white" : "bg-line text-sub"
-          }`}
-        >
-          {done && !current ? <IconCheck className="size-5 [stroke-width:3]" /> : position}
+        <span className={`flex min-w-0 items-center gap-1.5 text-[15px] font-extrabold ${skipped ? "text-faint line-through" : done && !current ? "text-sub" : ""}`}>
+          {done && !current && <IconCheck className="size-4 shrink-0 text-leaf [stroke-width:3]" />}
+          <span className="truncate">
+            {done && !current && <span className="sr-only">들음, </span>}
+            {row.title}
+          </span>
         </span>
-        <span className={`truncate text-[15px] font-extrabold ${skipped ? "text-faint line-through" : ""}`}>{row.title}</span>
         <span className={`text-[13px] font-bold tabular-nums ${current ? "text-sky-dark" : "text-sub"}`}>{note}</span>
       </button>
-      {onRemove && <RemoveButton title={row.title} onClick={onRemove} disabled={!p.canEdit} />}
+      {onRemove && <RemoveButton title={row.title} onClick={onRemove} disabled={!p.canRemove} />}
     </li>
   );
 }
@@ -168,12 +183,11 @@ function RemoveButton({ title, onClick, disabled = false }: { title: string; onC
 }
 
 /** 플레이어에 추가했지만 음성을 만드는 중이라 아직 못 듣는 소식 */
-function PendingItem({ title, position, indent, onRemove }: { title: string; position: number; indent: boolean; onRemove: () => void }) {
+function PendingItem({ title, indent, onRemove }: { title: string; indent: boolean; onRemove: () => void }) {
   return (
     <li className={`tile flex items-center ${indent ? "pl-1" : ""}`}>
       {indent && <span aria-hidden className="size-10 shrink-0" />}
-      <div className={`grid min-w-0 flex-1 grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 py-2.5 ${indent ? "pl-1 pr-3" : "px-3"}`}>
-        <span className="flex size-8 items-center justify-center rounded-full bg-line font-round text-[15px] font-black text-sub">{position}</span>
+      <div className={`grid min-h-12 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2.5 ${indent ? "pl-1 pr-3" : "px-3"}`}>
         <span className="truncate text-[15px] font-extrabold text-sub">{title}</span>
         <span className="text-[13px] font-bold text-sky-dark">준비 중</span>
       </div>

@@ -1,3 +1,4 @@
+import { krwLabel } from "@maengo/core/plans";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Crown } from "@/components/icons";
@@ -8,20 +9,23 @@ import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { LinkSlots } from "@/components/settings/LinkSlots";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
+import { BillingBanner } from "@/components/premium/BillingBanner";
 import { ManageSubscription, TrialLine } from "@/components/premium/StoreParts";
+import { WalletHistory } from "@/components/settings/WalletHistory";
+import { billingNoticeOf } from "@/lib/billing/notice";
 import { subscriptionView } from "@/lib/server/billing";
 import { PushToggle } from "@/components/settings/PushToggle";
 import { TopicSettings } from "@/components/settings/TopicSettings";
 import { demoRebuildFeed, demoReset } from "@/app/actions";
 import { dailyMaengoUsage, toProfileView } from "@/lib/server/feed";
-import { syncWallet } from "@/lib/server/wallet";
+import { syncWallet, walletHistory } from "@/lib/server/wallet";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { userLinks } from "@/lib/server/links";
 import { entitlements, webPushTokens } from "@/lib/server/profile";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 import { appInfoOf, deviceOf } from "@/lib/app-client";
-import { SUPPORT_EMAIL } from "@/lib/site";
+import { SUPPORT_EMAIL, supportMailHref } from "@/lib/site";
 
 /** 웹 버전: 배포한 커밋(Vercel이 넣는다). 커밋 정보 없이 올린 배포면 배포 id(dpl_…) 앞부분, 로컬은 '개발' */
 const WEB_VERSION = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || process.env.VERCEL_DEPLOYMENT_ID?.replace(/^dpl_/, "").slice(0, 7) || "개발";
@@ -48,32 +52,30 @@ function Section({ id, title, action, children }: { id: string; title: string; a
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const demoTools = demoToolsEnabled();
-  const [topics, links, webTokens, wallet, usage, sub] = await Promise.all([
+  // 지갑 내역은 지갑을 맞춘 뒤(처음이면 가입 선물이 들어간다) 읽는다
+  const walletAndHistory = syncWallet(profile.id).then(async (w) => [w, await walletHistory(profile.id)] as const);
+  const [topics, links, webTokens, [wallet, history], usage, sub] = await Promise.all([
     userTopics(profile),
     userLinks(profile),
     webPushTokens(profile.id),
-    syncWallet(profile.id),
+    walletAndHistory,
     dailyMaengoUsage(profile),
     subscriptionView(profile.id),
   ]);
   const view = toProfileView(profile);
+  const notice = billingNoticeOf(sub);
+  const pastDue = notice?.kind === "past_due" ? notice : null;
   const ua = (await headers()).get("user-agent");
   const app = appInfoOf(ua);
   const version = app ? `앱 ${app.version} · 웹 ${WEB_VERSION}` : `웹 ${WEB_VERSION}`;
   // 문의 메일: 제목과 문제를 찾는 데 쓸 정보를 미리 채운다
-  const mailBody = [
-    "",
-    "",
-    "",
-    "---",
-    "아래 정보는 문제를 찾는 데 써요.",
+  const mailHref = supportMailHref("[맹고 문의]", [
     `앱: ${app ? `${app.version} (${app.platform})` : "웹 브라우저"}`,
     `웹: ${WEB_VERSION}`,
     `기기: ${deviceOf(ua)}`,
     `플랜: ${profile.limits.name}`,
     `회원: ${profile.id.slice(0, 8)}`,
-  ].join("\n");
-  const mailHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("[맹고 문의]")}&body=${encodeURIComponent(mailBody)}`;
+  ]);
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
@@ -98,7 +100,9 @@ export default async function SettingsPage() {
             )}
           </div>
           {/* 무료 체험 중이면 첫 결제일(해지했으면 끝나는 날) */}
-          {view.plan !== "free" && <TrialLine sub={sub} priceKrw={profile.limits.priceKrw} />}
+          {view.plan !== "free" && <TrialLine sub={sub} price={krwLabel(profile.limits.priceKrw)} />}
+          {/* 갱신 결제가 실패했으면 결제 수단 확인(오늘 화면 맨 위와 같은 띠). 체험이 곧 끝나는 건 위 줄과 구독 관리가 이미 보여 준다 */}
+          <BillingBanner notice={pastDue} uid={profile.id} price={krwLabel(profile.limits.priceKrw)} className="mt-3" />
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="tile p-4">
               <p className="text-[13px] font-extrabold text-sub">하루 소식</p>
@@ -126,6 +130,8 @@ export default async function SettingsPage() {
               </p>
             </div>
           </div>
+          {/* 지갑이 들고 난 기록(최근 50개) */}
+          <WalletHistory entries={history} />
         </Section>
 
         <Section id="topics" title="관심사">
@@ -138,7 +144,7 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="links" title="내 관심 링크">
-          {/* 블로그·사이트 주소 칸 3개(Premium). Free는 Premium 배지만 */}
+          {/* 블로그·사이트 주소 칸 3개(Premium). Free는 Premium 배지, 전에 넣어 둔 링크는 배지와 빼기만 */}
           <LinkSlots links={links} limit={entitlements(profile).linkLimit} />
         </Section>
 

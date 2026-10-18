@@ -18,6 +18,18 @@ export function linkSourceId(topicId: string): number | null {
   return isLinkTopicId(topicId) ? Number(topicId.slice(2)) : null;
 }
 
+/**
+ * 소식을 고를 때 쓰는 관심사 가중치: 내 관심 링크는 플랜 개수(linkLimit)까지만, 칸 번호가 앞인 것부터 남긴다.
+ * Premium·체험이 끝나면(Free 0개) 넣어 둔 링크는 설정에 남지만 링크 글은 더 고르지 않는다. 링크가 아닌 관심사는 그대로
+ */
+export function rankingWeights(rows: { topic_id: string; weight: number; slot?: number | null }[], linkLimit: number): Record<string, number> {
+  const links = rows
+    .filter((r) => isLinkTopicId(r.topic_id))
+    .sort((a, b) => (a.slot ?? Infinity) - (b.slot ?? Infinity) || a.topic_id.localeCompare(b.topic_id));
+  const kept = new Set(links.slice(0, Math.max(0, linkLimit)).map((r) => r.topic_id));
+  return Object.fromEntries(rows.filter((r) => !isLinkTopicId(r.topic_id) || kept.has(r.topic_id)).map((r) => [r.topic_id, r.weight]));
+}
+
 /** 못 넣는 까닭. 화면 문구는 LINK_ERROR_MESSAGE */
 export type LinkError = 'invalid' | 'http' | 'youtube' | 'blocked' | 'private' | 'unsafe' | 'unreachable' | 'nofeed' | 'empty';
 

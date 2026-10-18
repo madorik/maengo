@@ -42,8 +42,10 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
   const next = index >= 0 ? data.items[index + 1] : undefined;
 
   const p = usePlayer();
-  const viaPlayer = index >= 0 && !p.playlist && (p.audioReady || p.preparing || p.status !== "idle");
-  const today = useTodayAudio(index, next);
+  // 플레이어 목록에 없는 오늘 글(듣는 동안 새로 받은 소식)은 글 하나 듣기로
+  const inPlayer = index >= 0 && p.chapters.some((c) => c.clusterId === item.clusterId);
+  const viaPlayer = inPlayer && !p.playlist && (p.audioReady || p.preparing || p.status !== "idle");
+  const today = useTodayAudio(index >= 0 ? item.clusterId : -1, next);
   const single = useItemAudio(item.clusterId, profile.audio && !viaPlayer);
   // 무료면 오늘 쪽 막대가 잠금 안내를 보여 준다
   const audio = viaPlayer || !profile.audio ? today : single;

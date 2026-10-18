@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Chapter } from '@maengo/core/types';
-import { chapterAt, lineAt, nextPlayable, progress, startIndex, tick } from '../machine';
+import { chapterAt, lineAt, nextPlayable, positionAt, progress, startIndex, tick, withRealChapter } from '../machine';
 
 // 10초짜리 챕터 5개. clusterId = 101~105
 const chapters: Chapter[] = [0, 1, 2, 3, 4].map((i) => ({
@@ -67,4 +67,37 @@ test('대본 줄 위치: 줄 사이 쉼에서는 직전 줄을 유지', () => {
   assert.equal(lineAt(chapters[0], 100), -1);
   assert.equal(lineAt(chapters[0], 4_200), 0);
   assert.equal(lineAt(chapters[0], 4_600), 1);
+});
+
+test('진행 막대 자리 → 챕터와 시각(건너뛴 챕터는 빼고 센다)', () => {
+  assert.deepEqual(positionAt(chapters, 0, none, false), { index: 0, ms: 0 });
+  assert.deepEqual(positionAt(chapters, 25_000, none, false), { index: 2, ms: 25_000 });
+  // 101을 읽어 건너뛰면 막대의 0초는 102의 처음, 15초는 103의 5초
+  const read = new Set([101]);
+  assert.deepEqual(positionAt(chapters, 0, read, true), { index: 1, ms: 10_000 });
+  assert.deepEqual(positionAt(chapters, 15_000, read, true), { index: 2, ms: 25_000 });
+  // 끝까지 끌면 마지막 항목 끝 조금 앞
+  assert.deepEqual(positionAt(chapters, 99_000, none, false), { index: 4, ms: 49_500 });
+  assert.equal(positionAt([], 1_000, none, false), null);
+});
+
+test('첫 소식 먼저 듣기: 어림값 챕터를 실제 시각표로 바꿔 끼운다', () => {
+  // 소식 하나짜리 파일의 실제 시각표(0부터, 12초)
+  const real: Chapter = {
+    rank: 2,
+    clusterId: 102,
+    title: 't2',
+    startMs: 0,
+    endMs: 12_000,
+    lines: [{ text: 'a', startMs: 300, endMs: 5_000 }, { text: 'b', startMs: 5_500, endMs: 11_800 }],
+  };
+  const fixed = withRealChapter(chapters, 1, real);
+  assert.equal(fixed[1]!.startMs, 10_000);
+  assert.equal(fixed[1]!.endMs, 22_000);
+  assert.deepEqual(fixed[1]!.lines.map((l) => l.startMs), [10_300, 15_500]);
+  assert.equal(fixed[0], chapters[0]);
+  assert.equal(fixed[2], chapters[2]);
+  assert.equal(lineAt(fixed[1], 16_000), 1);
+  // 다른 소식의 시각표면 그대로
+  assert.equal(withRealChapter(chapters, 0, real), chapters);
 });

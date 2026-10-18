@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { IconCheck, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
+import { IconCheck, IconClose, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -15,8 +15,8 @@ import { SignupGift } from "./SignupGift";
 import { TermsNotice } from "./TermsNotice";
 import type { FeedItem } from "@/lib/types";
 
-/** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로 */
-export function TodayList() {
+/** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로. notice는 맨 위 결제 안내 띠(서버가 그린다, today/page.tsx) */
+export function TodayList({ notice }: { notice?: React.ReactNode }) {
   const { data, game } = useToday();
   // 오늘 받은 소식 / 하루 소식(플랜). 지갑의 맹고로 더 받은 건 +N으로 붙인다
   const daily = useProfile().dailyItems;
@@ -25,6 +25,7 @@ export function TodayList() {
   return (
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
+        {notice}
         {data.termsNotice && <TermsNotice />}
         {data.signupGift && <SignupGift gift={data.signupGift} />}
         <section aria-labelledby="today-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
@@ -55,8 +56,8 @@ export function TodayList() {
 
         {game.total > 0 ? (
           <ol className="mt-6 flex flex-col gap-4" aria-label="오늘의 소식">
-            {data.items.map((item, i) => (
-              <ArticleCard key={item.clusterId} item={item} index={i} />
+            {data.items.map((item) => (
+              <ArticleCard key={item.clusterId} item={item} />
             ))}
           </ol>
         ) : (
@@ -70,19 +71,23 @@ export function TodayList() {
   );
 }
 
-function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
+function ArticleCard({ item }: { item: FeedItem }) {
   const { consumed } = useToday();
   const p = usePlayer();
   const profile = useProfile();
   const done = consumed(item.clusterId);
+  // 플레이어 목록에서의 자리. 번호가 아니라 소식으로 찾는다(듣는 동안 새로 받은 소식은 듣기가 끝날 때까지 플레이어 목록에 없다)
+  const at = p.chapters.findIndex((c) => c.clusterId === item.clusterId);
   // 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 플레이어로, 아니면 이 소식 하나만 만들어 듣는다(플레이리스트를 듣는 중이면 하나만)
-  const viaPlayer = !p.playlist && (p.audioReady || p.preparing || p.status !== "idle");
+  const viaPlayer = !p.playlist && at >= 0 && (p.audioReady || p.preparing || p.status !== "idle");
   const single = useItemAudio(item.clusterId, p.enabled && !viaPlayer);
-  const current = viaPlayer ? p.cur === index && p.status !== "done" : single.ctl.state === "playing" || single.ctl.state === "paused";
+  const current = viaPlayer ? p.cur === at && p.status !== "done" : single.ctl.state === "playing" || single.ctl.state === "paused";
   const preparing = viaPlayer ? current && p.preparing : !!single.ctl.preparing;
   const playing = !preparing && (viaPlayer ? current && p.status === "playing" : single.ctl.state === "playing");
   const listen = () => {
-    if (viaPlayer) return playing ? p.pause() : p.playOne(index);
+    // 음성을 기다리는 중에 누르면 그만둔다(다 만들어져도 저절로 시작하지 않게)
+    if (preparing) return viaPlayer ? p.cancel() : single.ctl.cancel?.();
+    if (viaPlayer) return playing ? p.pause() : p.playOne(at);
     return playing ? single.ctl.pause() : single.ctl.play();
   };
 
@@ -134,12 +139,12 @@ function ArticleCard({ item, index }: { item: FeedItem; index: number }) {
           <button
             type="button"
             onClick={listen}
-            disabled={!p.ready || preparing}
-            aria-label={playing ? `${item.title} 그만 듣기` : `${item.title} 듣기`}
+            disabled={!p.ready}
+            aria-label={preparing ? `${item.title} 음성 만들기 취소` : playing ? `${item.title} 그만 듣기` : `${item.title} 듣기`}
             className="btn btn-ghost relative z-10 ml-auto min-h-10 shrink-0 px-3 text-[14px]"
           >
-            {playing ? <IconPause className="size-4 text-sky" /> : <IconSpeaker className="size-5 text-sky" />}
-            {preparing ? "만드는 중" : playing ? "멈춤" : "듣기"}
+            {preparing ? <IconClose className="size-4 text-sub" /> : playing ? <IconPause className="size-4 text-sky" /> : <IconSpeaker className="size-5 text-sky" />}
+            {preparing ? "취소" : playing ? "멈춤" : "듣기"}
           </button>
         )}
       </div>

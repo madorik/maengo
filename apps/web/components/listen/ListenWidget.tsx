@@ -11,12 +11,12 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel } from "@/lib/player/labels";
-import { formatClock, startIndex } from "@/lib/player/machine";
+import { formatClock } from "@/lib/player/machine";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { Queue, Switch } from "./controls";
 import { Script } from "./Script";
+import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 
 /**
  * 오른쪽 아래에 떠 있는 "오늘 소식 전체 듣기". 챗봇 창처럼 누르면 플레이어(듣기 창)가 펼쳐진다.
@@ -27,7 +27,7 @@ import { Script } from "./Script";
 export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }) {
   const p = usePlayer();
   const profile = useProfile();
-  const { game, read } = useToday();
+  const { game } = useToday();
   const [open, setOpen] = useState(false);
   /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
   const [tab, setTab] = useState<"queue" | "script">("queue");
@@ -124,8 +124,8 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
   }
 
   const ch = p.chapters[p.cur];
-  // 재생을 누르면 먼저 나올 소식(읽은 소식 건너뛰기 반영)
-  const first = p.chapters[p.playlist ? 0 : startIndex(p.chapters, read, p.skipRead)];
+  // 재생을 누르면 먼저 나올 소식(듣던 자리 이어 듣기·읽은 소식 건너뛰기 반영)
+  const first = p.chapters[p.firstIndex];
   // 개수·시간은 재생 목록(챕터)에 든 소식으로 센다. 시간은 만든 음성이면 실제 길이, 아니면 대본 길이 어림값. 건너뛸 소식은 뺀다
   const count = p.ready ? p.progress.count : total;
   const minutes = p.ready ? minutesLabel(p.progress.totalMs) : "";
@@ -135,7 +135,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
       : p.preparing
         ? "음성 만드는 중 · 처음 한 번만 1~2분"
         : ch
-      ? `${p.progress.count}개 중 ${p.progress.position}번째 ${playing ? "듣는 중" : "멈춤"}`
+      ? (playing ? "듣는 중" : "멈춤")
       : p.status === "done"
         ? doneText
         : `${source} ${count}개${minutes && `, ${minutes}`}`;
@@ -175,36 +175,52 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
               <p className="line-clamp-2 min-h-[44px] text-[15px] font-extrabold leading-snug">
                 {ch?.title ?? (p.status === "done" ? doneText : first?.title)}
               </p>
-              <ProgressBar value={p.progress.totalMs ? p.progress.elapsedMs / p.progress.totalMs : 0} tone="sky" label={`${heading} 진행`} className="mt-2 h-3" />
-              <p className="mt-1.5 flex justify-between text-[12px] font-bold tabular-nums text-sub">
-                <span>{ch ? `${p.progress.count}개 중 ${p.progress.position}번째` : `${p.progress.count}개`}</span>
-                <span>
-                  {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
-                </span>
+              <SeekBar
+                valueMs={p.progress.elapsedMs}
+                totalMs={p.progress.totalMs}
+                onSeek={p.seekProgress}
+                disabled={!p.canSeek}
+                label="재생 위치"
+                className="mt-0.5 h-3"
+              />
+              <p className="text-right text-[12px] font-bold tabular-nums text-sub">
+                {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
               </p>
               {p.preparing && (
-                <p role="status" className="mt-2 rounded-xl bg-sky-tint px-3 py-2 text-[13px] font-bold leading-relaxed text-sky-dark">
-                  음성을 만드는 중이에요. 처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요.
-                </p>
+                <div className="mt-2 flex items-center gap-2 rounded-xl bg-sky-tint py-2 pl-3 pr-2">
+                  <p role="status" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-sky-dark">
+                    음성을 만드는 중이에요. 처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요.
+                  </p>
+                  <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-10 shrink-0 px-3 text-[14px]">
+                    취소
+                  </button>
+                </div>
               )}
               {p.error && (
-                <p role="alert" className="mt-2 text-[13px] font-bold leading-relaxed text-orange">
-                  {p.error}
-                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <p role="alert" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-orange">
+                    {p.error}
+                  </p>
+                  <button type="button" onClick={p.retry} className="btn btn-ghost min-h-10 shrink-0 px-3 text-[14px]">
+                    다시 시도
+                  </button>
+                </div>
               )}
-              <div className="mt-2 flex items-center justify-center gap-5">
+              <div className="mt-2 flex items-center justify-center gap-2">
                 <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-12 min-h-0 rounded-full p-0">
                   <IconPrev />
                 </button>
+                <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} />
                 <button
                   type="button"
                   aria-label={playing ? "일시정지" : "재생"}
                   onClick={p.toggle}
                   disabled={!p.ready}
-                  className="btn btn-sky size-16 min-h-0 rounded-full p-0"
+                  className="btn btn-sky mx-1 size-16 min-h-0 rounded-full p-0"
                 >
                   {playing ? <IconPause className="size-6" /> : <IconPlay className="size-7" />}
                 </button>
+                <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} />
                 <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-12 min-h-0 rounded-full p-0">
                   <IconNext />
                 </button>

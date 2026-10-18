@@ -13,27 +13,73 @@ import type { LinkView, TopicResult } from "@/lib/types";
  * 칸마다 주소 한 칸. 적고 엔터(키보드 완료)를 치거나 칸을 벗어나면 넣고, 넣어 둔 링크는 ✕로 뺀다. 넣어 둔 칸의 주소를 고쳐 넣으면 그 칸의 링크가 바뀐다.
  * 서버가 RSS를 찾아 글을 가져올 수 있는지 확인한다(확인 중에는 칸을 잠그고 오른쪽에 도는 표시). 되면 오른쪽에 초록 체크와 칸 아래 이름,
  * 안 되면 빨간 테두리와 칸 아래 까닭(2026-10-17 사용자 결정). 넣어 둔 링크가 계속 못 가져와도 빨간 테두리. Free는 Premium 배지.
+ * 플랜 개수를 넘는 링크(Premium·체험이 끝난 뒤 남은 링크, 소식은 더 안 고른다)는 칸 아래에 Premium 배지와 빼기 버튼만 둔다.
  */
 export function LinkSlots({ links, limit }: { links: LinkView[]; limit: number }) {
-  if (limit <= 0) {
-    return (
-      <div className="flex min-h-12 items-center justify-between gap-3">
-        <span className="text-sub">블로그·사이트 주소로 소식 받기</span>
-        <Link href="/premium" className="no-underline" aria-label="블로그·사이트 주소로 소식 받기, Premium에서 쓸 수 있어요">
-          <PremiumBadge />
-        </Link>
-      </div>
-    );
-  }
   const bySlot = new Map(links.map((l) => [l.slot, l]));
+  const slots = Array.from({ length: Math.max(0, limit) }, (_, i) => i + 1);
+  const locked = links.filter((l) => l.slot < 1 || l.slot > limit);
   return (
-    <ul className="flex flex-col gap-3">
-      {Array.from({ length: limit }, (_, i) => i + 1).map((slot) => {
-        const saved = bySlot.get(slot) ?? null;
-        // 링크가 바뀌면(넣기·빼기 뒤) 칸을 새로 그려 입력값을 저장된 주소로 되돌린다
-        return <Slot key={`${slot}:${saved?.id ?? ""}`} slot={slot} saved={saved} />;
-      })}
-    </ul>
+    <>
+      {limit <= 0 && (
+        <div className="flex min-h-12 items-center justify-between gap-3">
+          <span className="text-sub">블로그·사이트 주소로 소식 받기</span>
+          <Link href="/premium" className="no-underline" aria-label="블로그·사이트 주소로 소식 받기, Premium에서 쓸 수 있어요">
+            <PremiumBadge />
+          </Link>
+        </div>
+      )}
+      {slots.length > 0 && (
+        <ul className="flex flex-col gap-3">
+          {slots.map((slot) => {
+            const saved = bySlot.get(slot) ?? null;
+            // 링크가 바뀌면(넣기·빼기 뒤) 칸을 새로 그려 입력값을 저장된 주소로 되돌린다
+            return <Slot key={`${slot}:${saved?.id ?? ""}`} slot={slot} saved={saved} />;
+          })}
+        </ul>
+      )}
+      {locked.length > 0 && (
+        <ul className={`flex flex-col gap-3 ${slots.length ? "mt-3" : "mt-1"}`}>
+          {locked.map((l) => (
+            <LockedLink key={l.id} link={l} />
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/** 플랜 개수를 넘어 쉬고 있는 링크: 이름·주소와 Premium 배지, 빼기(✕). 주소는 고칠 수 없다 */
+function LockedLink({ link }: { link: LinkView }) {
+  const [state, formAction, pending] = useActionState<TopicResult | null, FormData>(async (prev, formData) => {
+    const r = await editLinks(prev, formData);
+    track("link_edit", { action: "remove" });
+    return r;
+  }, null);
+  return (
+    <li>
+      <form action={formAction} className="flex gap-2">
+        <input type="hidden" name="removeLink" value={link.id} />
+        <div className="tile flex min-h-12 min-w-0 flex-1 items-center gap-2 bg-snow px-4">
+          <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-faint">{link.siteUrl}</span>
+          <Link href="/premium" className="no-underline" aria-label={`${link.name}, Premium에서 다시 받을 수 있어요`}>
+            <PremiumBadge />
+          </Link>
+        </div>
+        <button
+          type="submit"
+          disabled={pending}
+          aria-label={`${link.name} 빼기`}
+          className="tile flex size-12 shrink-0 items-center justify-center text-sub hover:bg-snow disabled:opacity-40"
+        >
+          <IconClose className="size-4 [stroke-width:2.6]" />
+        </button>
+      </form>
+      <p className="mt-1 truncate px-1 text-[13px] font-bold text-faint">{link.name}</p>
+      <p aria-live="polite" className="mt-1 px-1 text-[13px] font-bold text-cherry empty:hidden">
+        {!pending && state?.tone === "warn" ? state.message : ""}
+      </p>
+    </li>
   );
 }
 

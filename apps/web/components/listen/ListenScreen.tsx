@@ -10,9 +10,10 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { Bubble } from "@/components/ui/Bubble";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel } from "@/lib/player/labels";
-import { formatClock, startIndex } from "@/lib/player/machine";
+import { formatClock } from "@/lib/player/machine";
 import { Queue, Switch } from "./controls";
 import { PlusLock } from "./PlusLock";
+import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 
 /** 듣기 화면(오늘 피드). 보관함 플레이리스트를 듣는 중이면 오늘로 돌아가는 버튼만 보여 준다(대본 화면은 오늘 피드용) */
 export function ListenScreen() {
@@ -37,12 +38,13 @@ export function ListenScreen() {
 /** 듣기 화면. 망고가 헤드폰을 쓰고, 지금 읽는 문장이 말풍선으로 쌓인다 */
 function TodayListenScreen() {
   const p = usePlayer();
-  const { data, read, game } = useToday();
+  const { data, game } = useToday();
   const [sheet, setSheet] = useState(false);
 
   const playing = p.status === "playing";
   const active = p.cur >= 0;
-  const shown = active ? p.cur : startIndex(p.chapters, read, p.skipRead);
+  // 시작 전에는 재생을 누르면 먼저 나올 소식(듣던 자리 이어 듣기·읽은 소식 건너뛰기 반영)
+  const shown = active ? p.cur : p.firstIndex;
   const ch = p.chapters[shown];
 
   const header = (
@@ -50,7 +52,20 @@ function TodayListenScreen() {
       <Link href="/today" aria-label="듣기 화면 닫고 오늘 목록으로" className="flex size-11 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
         <IconClose className="size-7 [stroke-width:2.6]" />
       </Link>
-      <ProgressBar value={p.progress.totalMs ? p.progress.elapsedMs / p.progress.totalMs : 0} tone="sky" label="오늘 브리핑 진행" className="h-4 flex-1" />
+      {p.enabled ? (
+        <div className="min-w-0 flex-1">
+          <SeekBar
+            valueMs={p.progress.elapsedMs}
+            totalMs={p.progress.totalMs}
+            onSeek={p.seekProgress}
+            disabled={!p.canSeek}
+            label="재생 위치"
+            className="h-4"
+          />
+        </div>
+      ) : (
+        <ProgressBar value={0} tone="sky" label="오늘 브리핑 진행" className="h-4 flex-1" />
+      )}
       {p.enabled && (
         <button
           type="button"
@@ -100,7 +115,7 @@ function TodayListenScreen() {
           <>
             <div className="pt-3">
               <p className="text-[14px] font-black text-sky">
-                {active ? `${p.progress.count}개 중 ${p.progress.position}번째` : `오늘 ${p.progress.count}개`}
+                {`오늘 ${p.progress.count}개`}
                 <span className="ml-2 font-bold tabular-nums text-sub">
                   {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
                 </span>
@@ -120,19 +135,31 @@ function TodayListenScreen() {
       <footer className="border-t-2 border-line">
         <div className="mx-auto max-w-[640px] px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
           {p.error && (
-            <p role="alert" className="pb-3 text-center text-[14px] font-bold text-orange">
-              {p.error}
-            </p>
+            <div className="flex items-center justify-center gap-3 pb-3">
+              <p role="alert" className="min-w-0 text-[14px] font-bold text-orange">
+                {p.error}
+              </p>
+              <button type="button" onClick={p.retry} className="btn btn-ghost min-h-10 shrink-0 px-3 text-[14px]">
+                다시 시도
+              </button>
+            </div>
           )}
           {p.preparing && (
-            <p role="status" className="pb-3 text-center text-[14px] font-bold text-sky-dark">
-              음성을 만드는 중이에요. 처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요.
-            </p>
+            <div className="flex items-center justify-center gap-3 pb-3">
+              <p role="status" className="min-w-0 text-[14px] font-bold text-sky-dark">
+                음성을 만드는 중이에요. 처음 듣는 소식은 1~2분 걸리고, 다 되면 바로 재생돼요.
+              </p>
+              <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-10 shrink-0 px-3 text-[14px]">
+                취소
+              </button>
+            </div>
           )}
-          <div className="flex items-center justify-center gap-6">
-            <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-14 min-h-0 rounded-full p-0">
+          {/* 좁은 폰에서도 한 줄에 들어가게 화면이 좁으면 버튼을 조금 작게 */}
+          <div className="flex items-center justify-center gap-2 sm:gap-5">
+            <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-12 min-h-0 rounded-full p-0 sm:size-14">
               <IconPrev className="size-6" />
             </button>
+            <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} className="size-12 sm:size-14" />
             <button
               type="button"
               aria-label={playing ? "일시정지" : "재생"}
@@ -142,7 +169,8 @@ function TodayListenScreen() {
             >
               {playing ? <IconPause className="size-8" /> : <IconPlay className="size-9" />}
             </button>
-            <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-14 min-h-0 rounded-full p-0">
+            <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} className="size-12 sm:size-14" />
+            <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-12 min-h-0 rounded-full p-0 sm:size-14">
               <IconNext className="size-6" />
             </button>
           </div>

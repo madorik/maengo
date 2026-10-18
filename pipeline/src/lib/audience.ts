@@ -1,5 +1,5 @@
 import { excludesCluster, popularityBoost, type RankCandidate } from '@maengo/core/feed';
-import { TOPICS } from '@maengo/core/topics';
+import { rankingWeights, TOPICS } from '@maengo/core/topics';
 import type { FeedbackKind, Plan, Topic } from '@maengo/core/types';
 import { db, check, fromVector, inChunks, selectAll } from './db';
 import { getPlans } from './plans';
@@ -46,8 +46,16 @@ export async function loadAudience(ctx: Ctx, only?: string | string[]): Promise<
     const plan = effectivePlan(p.plan, p.premium_until, ctx.now);
     byId.set(p.id, { id: p.id, plan, dailyItems: plans.get(plan)!.dailyItems, weights: {}, exclude: new Set(), known: [], notifyAt: String(p.notify_at).slice(0, 5) });
   }
-  const topics = await selectAll<{ user_id: string; topic_id: string; weight: number }>((f, t) => db.from('user_topics').select('user_id,topic_id,weight').in('user_id', ids).range(f, t));
-  for (const r of topics) byId.get(r.user_id)!.weights[r.topic_id] = r.weight;
+  const topics = await selectAll<{ user_id: string; topic_id: string; weight: number; slot: number | null }>((f, t) =>
+    db.from('user_topics').select('user_id,topic_id,weight,slot').in('user_id', ids).range(f, t),
+  );
+  const rowsOf = new Map<string, typeof topics>();
+  for (const r of topics) (rowsOf.get(r.user_id) ?? rowsOf.set(r.user_id, []).get(r.user_id)!).push(r);
+  // 내 관심 링크는 지금 플랜의 개수까지만 고른다(Premium·체험이 끝나면 Free 0개라 링크 글을 더 주지 않는다. 웹 feed.ts와 같은 규칙)
+  for (const [userId, rows] of rowsOf) {
+    const a = byId.get(userId)!;
+    a.weights = rankingWeights(rows, plans.get(a.plan)!.linkLimit);
+  }
   // 이미 받은 소식은 다시 주지 않는다(오늘 피드를 다시 만들 때는 오늘 것만 빼고)
   const feeds = await selectAll<{ user_id: string; cluster_id: number; date: string }>((f, t) => db.from('feeds').select('user_id,cluster_id,date').in('user_id', ids).range(f, t));
   // 오늘 날짜 피드는 다시 만들 수 있으니(force, 웹 임시 피드) 빼지 않는다

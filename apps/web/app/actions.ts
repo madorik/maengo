@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { withBase } from "@/lib/base-path";
+import { isRate } from "@/lib/player/rate";
 import { allowedOrigin, googleAuthUrl, googleDirectEnabled, LOGIN_TTL_SEC, randomToken, signState, STATE_COOKIE } from "@/lib/server/google-login";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
@@ -224,7 +225,7 @@ export async function playlistClear() {
 
 const VOICES: Voice[] = ["f", "m"];
 
-export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice; autoNext?: boolean; skipRead?: boolean }) {
+export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice; autoNext?: boolean; skipRead?: boolean; rate?: number }) {
   const profile = await currentProfile();
   if (!profile) return;
   const patch: Record<string, unknown> = {};
@@ -232,6 +233,7 @@ export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice;
   if (prefs.voice && VOICES.includes(prefs.voice)) patch.voice = prefs.voice;
   if (typeof prefs.autoNext === "boolean") patch.auto_next = prefs.autoNext;
   if (typeof prefs.skipRead === "boolean") patch.skip_read = prefs.skipRead;
+  if (isRate(prefs.rate)) patch.playback_rate = prefs.rate;
   if (Object.keys(patch).length) must(await db.from("profiles").update(patch).eq("id", profile.id), "profiles prefs");
 }
 

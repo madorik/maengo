@@ -45,8 +45,26 @@ export interface PushMessage {
   path: string;
 }
 
-/** 'ok' 보냄, 'dead' 더는 없는 토큰(지운다), 'error' 그 밖의 실패 */
-export type PushResult = 'ok' | 'dead' | 'error';
+/** 'ok' 보냄, 'dead' 더는 없는 토큰(지운다), 'retry' 잠깐의 실패(잠시 뒤 다시), 'error' 그 밖의 실패(다시 해도 같다, 토큰은 둔다) */
+export type PushResult = 'ok' | 'dead' | 'retry' | 'error';
+
+interface FcmErrorBody {
+  error?: { status?: string; message?: string; details?: { errorCode?: string }[] };
+}
+
+/**
+ * FCM 실패 응답을 나눈다(https://firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode).
+ * 토큰을 지우는 건 그 토큰 문제일 때만: UNREGISTERED(404), SENDER_ID_MISMATCH, 토큰이 틀렸다는 INVALID_ARGUMENT.
+ * INVALID_ARGUMENT는 메시지 모양이 틀려도 오므로 오류 문구가 토큰을 가리킬 때만 지운다(전엔 다 지워서 멀쩡한 기기가 빠질 수 있었다).
+ * 429·5xx·인증(401) 실패는 잠깐의 실패로 본다
+ */
+export function classifyFcmError(status: number, body: FcmErrorBody | null): Exclude<PushResult, 'ok'> {
+  const code = body?.error?.details?.find((d) => d.errorCode)?.errorCode ?? body?.error?.status;
+  if (code === 'UNREGISTERED' || code === 'SENDER_ID_MISMATCH' || status === 404) return 'dead';
+  if (code === 'INVALID_ARGUMENT' || status === 400) return /registration token/i.test(body?.error?.message ?? '') ? 'dead' : 'error';
+  if (status === 429 || status === 401 || status >= 500 || code === 'QUOTA_EXCEEDED' || code === 'UNAVAILABLE' || code === 'INTERNAL') return 'retry';
+  return 'error';
+}
 
 export async function sendPush(token: string, msg: PushMessage, siteUrl: string): Promise<PushResult> {
   const sa = serviceAccount();
@@ -66,7 +84,7 @@ export async function sendPush(token: string, msg: PushMessage, siteUrl: string)
     }),
   });
   if (res.ok) return 'ok';
-  const err = (await res.json().catch(() => ({}))) as { error?: { status?: string; details?: { errorCode?: string }[] } };
-  const code = err.error?.details?.find((d) => d.errorCode)?.errorCode ?? err.error?.status;
-  return code === 'UNREGISTERED' || code === 'INVALID_ARGUMENT' || res.status === 404 ? 'dead' : 'error';
+  // 받아 둔 접근 토큰이 거절됐으면 다음엔 새로 받는다
+  if (res.status === 401) cached = null;
+  return classifyFcmError(res.status, (await res.json().catch(() => null)) as FcmErrorBody | null);
 }

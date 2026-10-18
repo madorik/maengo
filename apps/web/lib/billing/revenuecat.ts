@@ -62,8 +62,11 @@ export interface PremiumState {
 export interface BillingState {
   /** null이면 Premium을 산 적이 없다 */
   premium: PremiumState | null;
-  /** 추가 구매한 맹고. ref는 거래마다 하나라 같은 묶음을 두 번 넣지 않는다 */
-  packs: { ref: string; productId: string; amount: number }[];
+  /**
+   * 추가 구매한 맹고. ref(RevenueCat 거래)·storeTx(스토어 거래, storeTxKey)는 거래마다 하나라 같은 묶음을 두 번 넣지 않는다
+   * (구매가 다른 회원에게 옮겨 가도 한 번만, wallet_credit)
+   */
+  packs: { ref: string; storeTx: string; productId: string; amount: number }[];
 }
 
 export function storeOf(store: string | undefined): BillingStore {
@@ -71,6 +74,15 @@ export function storeOf(store: string | undefined): BillingStore {
   if (store === 'play_store') return 'play';
   return 'promotional';
 }
+
+/** RevenueCat 스토어 이름을 소문자로(구독자 응답은 app_store, 웹훅은 APP_STORE) */
+const storeName = (store: string | null | undefined) => (store ?? 'unknown').toLowerCase();
+
+/**
+ * 스토어 거래 키 '스토어:거래ID'(purchases의 store·transaction_id와 같은 값, wallet_ledger.store_tx).
+ * 구독자 응답과 웹훅이 같은 거래를 같은 키로 가리킨다
+ */
+export const storeTxKey = (store: string | null | undefined, transactionId: string) => `${storeName(store)}:${transactionId}`;
 
 const later = (a: string | null | undefined, b: string | null | undefined) => {
   if (!a) return b ?? null;
@@ -103,7 +115,7 @@ export function readSubscriber(sub: RcSubscriber, now: Date): BillingState {
   for (const [productId, list] of Object.entries(sub.non_subscriptions ?? {})) {
     const amount = packAmount(productId);
     if (!amount) continue;
-    for (const p of list) packs.push({ ref: `rc:${p.id}`, productId, amount });
+    for (const p of list) packs.push({ ref: `rc:${p.id}`, storeTx: storeTxKey(p.store, p.store_transaction_id ?? p.id), productId, amount });
   }
   return { premium, packs };
 }
@@ -132,8 +144,6 @@ export interface PaymentRow {
 }
 
 const kindOf = (productId: string): PaymentRow['kind'] => (sameProduct(productId, PREMIUM_PRODUCT) ? 'subscription' : packAmount(productId) ? 'pack' : 'other');
-/** RevenueCat 스토어 이름을 소문자로(구독자 응답은 app_store, 웹훅은 APP_STORE) */
-const storeName = (store: string | null | undefined) => (store ?? 'unknown').toLowerCase();
 const isoOf = (ms: number | null | undefined) => (typeof ms === 'number' ? new Date(ms).toISOString() : null);
 
 /** 구독자 응답에 든 거래들. 구독은 지금 기간의 거래 하나(갱신마다 바뀐다), 맹고 묶음은 산 것 전부 */
@@ -191,7 +201,11 @@ export interface RcEvent {
   app_user_id?: string;
   original_app_user_id?: string;
   aliases?: string[];
+  /** TRANSFER: 구매를 내준 회원·받은 회원 */
+  transferred_from?: string[];
   transferred_to?: string[];
+  /** CANCELLATION: UNSUBSCRIBE | BILLING_ERROR | CUSTOMER_SUPPORT(환불) … */
+  cancel_reason?: string | null;
   product_id?: string;
   store?: string;
   environment?: string;
@@ -208,6 +222,41 @@ export interface RcEvent {
 
 /** 돈이 오간 이벤트(첫 구매·갱신·묶음 구매·상품 변경). 해지·만료·환불은 구독자 응답(refunded_at)과 billing_events로 남는다 */
 const PAID = new Set(['INITIAL_PURCHASE', 'RENEWAL', 'NON_RENEWING_PURCHASE', 'PRODUCT_CHANGE']);
+
+/**
+ * 맹고 묶음 환불: 소모성 상품의 CANCELLATION은 환불(애플 환불·구글 무효 구매 모두 RevenueCat이 이 이벤트로 보낸다).
+ * 회수할 거래(스토어 거래 키)와 넣었던 수량. 묶음이 아니거나 거래 ID가 없으면 null
+ */
+export function packRefund(e: RcEvent): { storeTx: string; transactionId: string; productId: string; amount: number } | null {
+  if (e.type !== 'CANCELLATION' || !e.product_id || !e.transaction_id) return null;
+  const amount = packAmount(e.product_id);
+  if (!amount) return null;
+  return { storeTx: storeTxKey(e.store, e.transaction_id), transactionId: e.transaction_id, productId: e.product_id, amount };
+}
+
+/** 환불 이벤트면 그 거래의 환불 시각을 남길 purchases 한 줄(묶음 CANCELLATION, 구독은 CUSTOMER_SUPPORT 취소). 아니면 null */
+export function refundFromEvent(e: RcEvent, userId: string): PaymentRow | null {
+  if (e.type !== 'CANCELLATION' || !e.transaction_id || !e.product_id) return null;
+  if (kindOf(e.product_id) !== 'pack' && e.cancel_reason !== 'CUSTOMER_SUPPORT') return null;
+  return {
+    user_id: userId,
+    store: storeName(e.store),
+    transaction_id: e.transaction_id,
+    original_transaction_id: e.original_transaction_id ?? null,
+    rc_id: null,
+    product_id: e.product_id,
+    kind: kindOf(e.product_id),
+    period_type: null,
+    purchased_at: isoOf(e.purchased_at_ms),
+    expires_at: null,
+    price: null,
+    currency: e.currency ?? null,
+    price_usd: null,
+    sandbox: e.environment === 'SANDBOX',
+    refunded_at: isoOf(e.event_timestamp_ms) ?? new Date().toISOString(),
+    source: `webhook:${e.type}`,
+  };
+}
 
 export function paymentFromEvent(e: RcEvent, userId: string): PaymentRow | null {
   if (!e.type || !PAID.has(e.type) || !e.transaction_id || !e.product_id) return null;

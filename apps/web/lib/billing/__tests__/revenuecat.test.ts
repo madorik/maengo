@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { paymentFromEvent, paymentsFromSubscriber, readSubscriber, type RcSubscriber } from '../revenuecat';
+import { packRefund, paymentFromEvent, paymentsFromSubscriber, readSubscriber, refundFromEvent, storeTxKey, type RcSubscriber } from '../revenuecat';
 
 const now = new Date('2026-10-13T00:00:00Z');
 
@@ -67,14 +67,15 @@ test('운영자가 준 평생 권한은 기한 없음', () => {
 
 test('맹고 묶음은 거래마다 하나, 모르는 상품은 뺀다', () => {
   const s = readSubscriber(
-    { non_subscriptions: { maengo_pack_100: [{ id: 'a' }, { id: 'b' }], maengo_pack_30: [{ id: 'c' }], something_else: [{ id: 'd' }] } },
+    { non_subscriptions: { maengo_pack_100: [{ id: 'a', store: 'app_store', store_transaction_id: '2000001' }, { id: 'b' }], maengo_pack_30: [{ id: 'c', store: 'play_store', store_transaction_id: 'GPA.9' }], something_else: [{ id: 'd' }] } },
     now,
   );
   assert.equal(s.premium, null);
+  // 스토어 거래 키는 purchases의 store·transaction_id와 같다(스토어 거래 ID가 없으면 RevenueCat 거래 ID)
   assert.deepEqual(s.packs, [
-    { ref: 'rc:a', productId: 'maengo_pack_100', amount: 100 },
-    { ref: 'rc:b', productId: 'maengo_pack_100', amount: 100 },
-    { ref: 'rc:c', productId: 'maengo_pack_30', amount: 30 },
+    { ref: 'rc:a', storeTx: 'app_store:2000001', productId: 'maengo_pack_100', amount: 100 },
+    { ref: 'rc:b', storeTx: 'unknown:b', productId: 'maengo_pack_100', amount: 100 },
+    { ref: 'rc:c', storeTx: 'play_store:GPA.9', productId: 'maengo_pack_30', amount: 30 },
   ]);
 });
 
@@ -108,4 +109,21 @@ test('결제 기록: 웹훅은 돈이 오간 이벤트만, 스토어 이름은 �
   assert.equal(renewal?.expires_at, '2026-12-18T00:00:00.000Z');
   assert.equal(renewal?.source, 'webhook:RENEWAL');
   assert.equal(paymentFromEvent({ type: 'CANCELLATION', transaction_id: 't2', product_id: 'maengo_premium_monthly' }, 'u1'), null);
+});
+
+test('맹고 묶음 환불: 묶음의 CANCELLATION만, 웹훅 스토어 거래로 찾는다', () => {
+  const e = { type: 'CANCELLATION', store: 'APP_STORE', transaction_id: '2000001', product_id: 'maengo_pack_30', cancel_reason: 'CUSTOMER_SUPPORT', event_timestamp_ms: Date.parse('2026-10-19T00:00:00Z') };
+  assert.deepEqual(packRefund(e), { storeTx: 'app_store:2000001', transactionId: '2000001', productId: 'maengo_pack_30', amount: 30 });
+  // 구독자 응답의 같은 거래와 같은 키
+  assert.equal(storeTxKey('app_store', '2000001'), packRefund(e)?.storeTx);
+  assert.equal(packRefund({ ...e, type: 'NON_RENEWING_PURCHASE' }), null);
+  assert.equal(packRefund({ ...e, product_id: 'maengo_premium_monthly' }), null);
+  assert.equal(packRefund({ ...e, transaction_id: null }), null);
+  // 환불 시각을 purchases에 남긴다. 구독은 환불(CUSTOMER_SUPPORT)일 때만, 해지(UNSUBSCRIBE)는 아니다
+  const row = refundFromEvent(e, 'u1');
+  assert.equal(row?.kind, 'pack');
+  assert.equal(row?.store, 'app_store');
+  assert.equal(row?.refunded_at, '2026-10-19T00:00:00.000Z');
+  assert.equal(refundFromEvent({ ...e, product_id: 'maengo_premium_monthly', cancel_reason: 'UNSUBSCRIBE' }, 'u1'), null);
+  assert.equal(refundFromEvent({ ...e, product_id: 'maengo_premium_monthly' }, 'u1')?.kind, 'subscription');
 });

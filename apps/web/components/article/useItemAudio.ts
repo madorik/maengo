@@ -7,16 +7,14 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
 import { lineAt } from "@/lib/player/machine";
-import { withBase } from "@/lib/base-path";
+import { ITEM_PLAY_EVENT, itemAudioUrl, itemInfoUrl, itemQuery } from "@/lib/player/item";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import type { ListenBarCtl } from "./ListenBar";
-
-const RATES = [1, 1.2, 1.5, 0.8];
-const ITEM_PLAY_EVENT = "maengo:item-play";
 
 /**
  * 글 하나만 듣기(지난 글, 그리고 오늘 전체 음성이 아직 없을 때의 오늘 글). 오늘 브리핑 플레이어와 따로, 이 글 하나짜리 파일을 튼다.
  * 파일 주소가 정해져 있어서 탭하는 순간 바로 play()를 걸 수 있다(iOS). 음성이 없으면 그 요청에서 서버가 만든다.
+ * 재생 속도는 플레이어와 같은 값(프로필에 저장)을 쓴다.
  */
 export function useItemAudio(clusterId: number, enabled: boolean): { ctl: ListenBarCtl; activePara: number | undefined } {
   const p = usePlayer();
@@ -30,12 +28,12 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [status, setStatus] = useState<"idle" | "playing" | "paused" | "done">("idle");
   const [posMs, setPosMs] = useState(0);
-  const [rate, setRate] = useState(1);
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** 재생 위치를 옮긴 횟수. 안드로이드 알림의 재생 위치를 맞출 때만 쓴다 */
   const [seeks, setSeeks] = useState(0);
-  const query = `id=${clusterId}&persona=${p.persona}&voice=${p.voice}`;
+  const query = itemQuery(clusterId, p.persona, p.voice);
+  const rate = p.rate;
 
   useEffect(() => {
     if (!enabled) return;
@@ -44,7 +42,8 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     audioRef.current = a;
     const onTime = () => setPosMs(a.currentTime * 1000);
     const onPlay = () => setStatus("playing");
-    const onPause = () => setStatus((s) => (s === "done" ? s : "paused"));
+    // 취소해 처음 상태로 돌린 뒤 늦게 오는 pause는 무시한다
+    const onPause = () => setStatus((s) => (s === "done" || s === "idle" ? s : "paused"));
     const onSeeked = () => setSeeks((n) => n + 1);
     const onEnded = () => {
       setStatus("done");
@@ -62,7 +61,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     const onMeta = () => {
       const q = a.dataset.query;
       if (!q) return;
-      fetch(withBase(`/api/episode/item?${q}`), { cache: "no-store" })
+      fetch(itemInfoUrl(q), { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { chapter: Chapter } | null) => d && setChapter(d.chapter))
         .catch(() => {});
@@ -76,7 +75,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
       void ttsErrorMessage().then(setError);
     };
     a.addEventListener("loadedmetadata", onMeta);
-    // 다른 글 하나짜리 재생이 시작되면 이 글은 멈춘다
+    // 다른 글 하나짜리 재생이나 오늘 브리핑 플레이어(-1)가 시작되면 이 글은 멈춘다
     const onOther = (e: Event) => {
       if ((e as CustomEvent<number>).detail !== clusterId) a.pause();
     };
@@ -103,13 +102,21 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     };
   }, [enabled, clusterId]);
 
+  // 플레이어에서 속도를 바꿨거나 이 막대에서 바꾸면 듣던 소리도 그 속도로
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    a.defaultPlaybackRate = rate;
+    a.playbackRate = rate;
+  }, [rate, enabled]);
+
   // 듣는 중에 말투·목소리를 바꾸면 새 목소리로 처음부터 다시 튼다
   useEffect(() => {
     const a = audioRef.current;
     if (!a?.dataset.query || a.dataset.query === query) return;
     const wasPlaying = !a.paused;
     a.dataset.query = query;
-    a.src = withBase(`/api/episode/item/audio?${query}`);
+    a.src = itemAudioUrl(query);
     setPreparing(true);
     if (wasPlaying) a.play().catch(() => {});
   }, [query]);
@@ -119,17 +126,42 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
     if (!a) return;
     p.pause(); // 오늘 브리핑이 돌고 있었다면 멈춘다
     window.dispatchEvent(new CustomEvent(ITEM_PLAY_EVENT, { detail: clusterId }));
+    setError(null);
     if (a.dataset.query !== query) {
       // 처음 듣는 말투면 이 요청에서 음성을 만든다(수십 초). 대본 시각표는 파일이 열린 뒤에 받는다
       a.dataset.query = query;
-      a.src = withBase(`/api/episode/item/audio?${query}`);
+      a.src = itemAudioUrl(query);
       setPreparing(true);
-      setError(null);
     }
     if (status === "done") a.currentTime = 0;
     if (status === "idle" || status === "done") track("listen_start", { mode: "item" });
+    a.defaultPlaybackRate = rate;
     a.playbackRate = rate;
     a.play().catch(() => {});
+  };
+
+  /** 음성을 기다리는 중에 그만둔다. 파일을 떼어 내서 다 만들어져도 저절로 시작하지 않는다 */
+  const cancel = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    a.pause();
+    if (a.getAttribute("src")) {
+      a.removeAttribute("src");
+      a.load();
+    }
+    delete a.dataset.query;
+    setPreparing(false);
+    setStatus("idle");
+    setPosMs(0);
+  };
+
+  /** 이 글 안의 한 시각(ms)으로 옮긴다. 재생·멈춤은 그대로 */
+  const seek = (ms: number) => {
+    const a = audioRef.current;
+    if (!a?.getAttribute("src") || a.readyState < 1) return;
+    const end = Number.isFinite(a.duration) ? Math.max(0, a.duration * 1000 - 250) : ms;
+    a.currentTime = Math.min(Math.max(0, ms), end) / 1000;
+    setPosMs(a.currentTime * 1000);
   };
 
   const active = status === "playing" || status === "paused";
@@ -179,11 +211,11 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
       play,
       pause: () => audioRef.current?.pause(),
       rate,
-      cycleRate: () => {
-        const r = RATES[(RATES.indexOf(rate) + 1) % RATES.length]!;
-        setRate(r);
-        if (audioRef.current) audioRef.current.playbackRate = r;
-      },
+      cycleRate: p.cycleRate,
+      seek,
+      skip: (deltaMs) => seek(posMs + deltaMs),
+      cancel,
+      retry: play,
     },
   };
 }

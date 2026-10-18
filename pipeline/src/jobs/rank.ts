@@ -27,28 +27,51 @@ export async function rank(ctx: Ctx) {
 
   let built = 0;
   let empty = 0;
+  let failed = 0;
   for (const a of audience) {
     if (done.has(a.id) && !ctx.force) continue;
-    const exclude = await withSimilarExcluded(a, candidates);
-    const ranked = rankFeed(candidates, a.weights, exclude, { limit: MAX_DAILY, maxLinks: linkCap(a.dailyItems) });
-    if (ctx.force || provisional.has(a.id)) {
-      check(await db.from('feeds').delete().eq('user_id', a.id).eq('date', ctx.date), 'feeds delete');
-      check(await db.from('feed_days').delete().eq('user_id', a.id).eq('date', ctx.date), 'feed_days delete');
+    try {
+      const exclude = new Set(await withSimilarExcluded(a, candidates));
+      // 다시 만들 때(웹 임시 피드, --force): 이미 보여 준 소식(맹고로 더 받은 것 포함)은 그 자리에 두고 나머지만 새로 고른다.
+      // 더 받은 개수(extra)도 지키고 보여 줄 개수는 줄이지 않는다(instant.ts와 같다. 전엔 지우고 다시 넣어 산 소식이 사라졌다)
+      const rebuild = ctx.force || provisional.has(a.id);
+      const prev = rebuild ? await previousDay(a.id, ctx.date) : null;
+      const kept = prev ? prev.rows.slice(0, prev.visible) : [];
+      for (const k of kept) exclude.add(k.cluster_id);
+      const ranked = rankFeed(candidates, a.weights, exclude, { limit: Math.max(0, MAX_DAILY - kept.length), maxLinks: linkCap(a.dailyItems) });
+      const rows = [...kept, ...ranked.map((r) => ({ cluster_id: r.clusterId, topic_id: r.topicId }))];
+      if (!rows.length) {
+        empty++;
+        ctx.log(`  ${a.id.slice(0, 8)}: 맞는 소식이 없어 오늘 피드가 비어요`);
+        continue;
+      }
+      if (prev) {
+        check(await db.from('feeds').delete().eq('user_id', a.id).eq('date', ctx.date), 'feeds delete');
+        check(await db.from('feed_days').delete().eq('user_id', a.id).eq('date', ctx.date), 'feed_days delete');
+      }
+      check(
+        await db.from('feeds').insert(rows.map((r, i) => ({ user_id: a.id, date: ctx.date, rank: i + 1, cluster_id: r.cluster_id, topic_id: r.topic_id }))),
+        'feeds insert',
+      );
+      const extra = prev?.extra ?? 0;
+      const visible = Math.min(rows.length, Math.max(prev?.visible ?? 0, a.dailyItems + extra));
+      check(await db.from('feed_days').insert({ user_id: a.id, date: ctx.date, visible, extra }), 'feed_days insert');
+      built++;
+    } catch (e) {
+      // 한 사람이 실패해도(웹이 동시에 만들어 순번이 겹침 등) 나머지는 계속 만든다
+      failed++;
+      ctx.log(`  ${a.id.slice(0, 8)}: 피드 만들기 실패 ${String((e as Error).message ?? e).slice(0, 160)}`);
     }
-    if (!ranked.length) {
-      empty++;
-      ctx.log(`  ${a.id.slice(0, 8)}: 맞는 소식이 없어 오늘 피드가 비어요`);
-      continue;
-    }
-    check(
-      await db.from('feeds').insert(ranked.map((r, i) => ({ user_id: a.id, date: ctx.date, rank: i + 1, cluster_id: r.clusterId, topic_id: r.topicId }))),
-      'feeds insert',
-    );
-    const visible = Math.min(ranked.length, a.dailyItems);
-    check(await db.from('feed_days').insert({ user_id: a.id, date: ctx.date, visible }), 'feed_days insert');
-    built++;
   }
 
-  ctx.stats.rank = { users: audience.length, built, empty, candidates: candidates.length };
-  ctx.log(`rank: 유저 ${audience.length}명 중 ${built}명 피드 생성(빈 피드 ${empty}) · 후보 ${candidates.length}개`);
+  ctx.stats.rank = { users: audience.length, built, empty, failed, candidates: candidates.length };
+  ctx.log(`rank: 유저 ${audience.length}명 중 ${built}명 피드 생성(빈 피드 ${empty}, 실패 ${failed}) · 후보 ${candidates.length}개`);
+}
+
+/** 지금 있는 오늘 피드(다시 만들 때 지킬 것): 보여 준 개수, 더 받은 개수, 순번 차례의 소식 */
+async function previousDay(userId: string, date: string): Promise<{ visible: number; extra: number; rows: { cluster_id: number; topic_id: string }[] } | null> {
+  const day = check(await db.from('feed_days').select('visible,extra').eq('user_id', userId).eq('date', date).maybeSingle(), 'feed_days prev') as { visible: number; extra: number } | null;
+  if (!day) return null;
+  const rows = check(await db.from('feeds').select('cluster_id,topic_id').eq('user_id', userId).eq('date', date).order('rank'), 'feeds prev') as { cluster_id: number; topic_id: string }[];
+  return { visible: day.visible, extra: day.extra, rows };
 }

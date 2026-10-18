@@ -24,6 +24,7 @@
     "@maengo/core": "workspace:*",
     "@maengo/pipeline": "workspace:*",
     "@revenuecat/purchases-capacitor": "13.6.1",
+    "@sentry/nextjs": "10.76.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "aws4fetch": "^1.0.20",

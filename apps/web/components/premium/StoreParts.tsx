@@ -1,10 +1,13 @@
 "use client";
 
+import { discountPct, krwLabel } from "@maengo/core/plans";
 import type { Plan } from "@maengo/core/types";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { track } from "@/lib/analytics";
+import { appInfoOf } from "@/lib/app-client";
+import { BILLING_MAIL_SUBJECT, supportMailHref } from "@/lib/site";
 import { useInApp, useStore } from "./useStore";
 import { AppOnlyNotice } from "./AppOnlyNotice";
 import { announcePurchase } from "./PurchaseDone";
@@ -37,18 +40,47 @@ export interface SubscriptionInfo {
   status: "trial" | "active" | "past_due" | "canceled";
   periodEnd: string;
   cancelAtPeriodEnd: boolean;
+  /** 구독한 스토어(웹에서 스토어의 구독 관리 주소를 고른다) */
+  store?: string;
 }
+
 
 const dayLabel = (iso: string) => new Date(iso).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" });
 
-/** 체험 중이면 '무료 체험 중' + 첫 결제일(해지했으면 끝나는 날). 설정 > 플랜과 /premium이 같이 쓴다 */
-export function TrialLine({ sub, priceKrw, className = "" }: { sub: SubscriptionInfo | null; priceKrw: number; className?: string }) {
+/** 체험 중이면 '무료 체험 중' + 첫 결제일(해지했으면 끝나는 날). 설정 > 플랜과 /premium이 같이 쓴다. price는 표기 그대로(₩3,800·3,800원) */
+export function TrialLine({ sub, price, className = "" }: { sub: SubscriptionInfo | null; price: string; className?: string }) {
   if (sub?.status !== "trial") return null;
   return (
     <p className={`text-[14px] font-bold text-sub ${className}`}>
-      무료 체험 중 ·{" "}
-      {sub.cancelAtPeriodEnd ? `${dayLabel(sub.periodEnd)}에 끝나요` : `${dayLabel(sub.periodEnd)}부터 월 ${priceKrw.toLocaleString("ko-KR")}원 결제`}
+      무료 체험 중 · {sub.cancelAtPeriodEnd ? `${dayLabel(sub.periodEnd)}에 끝나요` : `${dayLabel(sub.periodEnd)}부터 월 ${price} 결제`}
     </p>
+  );
+}
+
+/**
+ * /premium 머리의 월 가격. 앱에서는 결제 버튼과 같은 스토어 가격(그 나라 통화), 웹(스토어 없음)이나 스토어를 불러오기 전에는 DB 가격.
+ * 정가 취소선·할인율은 원화일 때만(정가는 DB plans 표의 원화 값이라 다른 통화와는 견줄 수 없다)
+ */
+export function PremiumPrice({ uid, priceKrw, listPriceKrw }: { uid: string; priceKrw: number; listPriceKrw: number | null }) {
+  const s = useStore(uid);
+  const product = s.inApp ? s.store?.premium?.pkg.product : undefined;
+  const price = product?.priceString ?? krwLabel(priceKrw);
+  const listed = product ? (product.currencyCode === "KRW" ? { priceKrw: product.price, listPriceKrw } : null) : { priceKrw, listPriceKrw };
+  const pct = listed ? discountPct(listed) : 0;
+  return (
+    <>
+      {pct > 0 && (
+        <p className="relative mt-6 flex items-center gap-2">
+          {/* 스토어 가격(₩3,800)과 같은 꼴로 */}
+          <del className="font-round text-[17px] font-bold text-white/50">{product ? `₩${listPriceKrw!.toLocaleString("ko-KR")}` : krwLabel(listPriceKrw!)}</del>
+          <span className="rounded-lg bg-orange px-2 py-0.5 font-round text-[13px] font-black text-white">{pct}% 할인</span>
+        </p>
+      )}
+      <p className={`relative flex items-baseline gap-1.5 ${pct > 0 ? "mt-1.5" : "mt-6"}`}>
+        <span className="font-round text-[34px] font-black leading-none tracking-[-0.02em] text-mango">{price}</span>
+        <span className="text-[15px] font-bold text-white/60">/ 월</span>
+      </p>
+    </>
   );
 }
 
@@ -69,7 +101,7 @@ export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string
     return (
       <div className="text-center">
         <p className="text-[16px] font-black">{sub?.status === "trial" ? "Premium 무료 체험 중이에요" : "Premium을 쓰고 있어요"}</p>
-        <TrialLine sub={sub} priceKrw={priceKrw} className="mt-1" />
+        <TrialLine sub={sub} price={s.store?.premium?.price ?? krwLabel(priceKrw)} className="mt-1" />
       </div>
     );
   }
@@ -145,8 +177,9 @@ export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string
 /**
  * 맹고 채우기: 수량을 고르고 결제하면 서버가 그만큼 지갑에 넣는다(맹고 추가 구매를 할 수 있는 플랜만, plans 표).
  * 스토어 결제에는 수량 지정이 없어 수량마다 상품이 하나씩 있다(core/plans.ts의 MAENGO_PACKS).
+ * /premium과 오늘 화면의 '맹고 추가 구매하기' 시트(MoreToday)가 쓴다. onBought는 결제를 마친 뒤(시트를 닫는다)
  */
-export function MaengoShop({ uid, canBuy, wallet }: { uid: string; canBuy: boolean; wallet: number }) {
+export function MaengoShop({ uid, canBuy, wallet, onBought }: { uid: string; canBuy: boolean; wallet: number; onBought?: () => void }) {
   const s = useStore(uid);
   const [pick, setPick] = useState<string | null>(null);
   const [added, setAdded] = useState<number | null>(null);
@@ -212,7 +245,10 @@ export function MaengoShop({ uid, canBuy, wallet }: { uid: string; canBuy: boole
       "결제하지 못했어요. 다시 시도해 주세요.",
     );
     if (ok && synced) setAdded(chosen.maengo);
-    if (ok) announcePurchase({ kind: "maengo", amount: chosen.maengo!, late: !synced });
+    if (ok) {
+      onBought?.();
+      announcePurchase({ kind: "maengo", amount: chosen.maengo!, late: !synced });
+    }
   };
 
   return (
@@ -246,6 +282,13 @@ export function MaengoShop({ uid, canBuy, wallet }: { uid: string; canBuy: boole
               {s.busy === chosen.productId ? "결제 중" : `${chosen.maengo}맹고 구매 · ${chosen.price}`}
             </button>
           )}
+          {/* 청약철회 제한 사전 고지(전자상거래법 17조 6항, 약관 6조) */}
+          <p className="mt-2 text-center text-[12px] leading-relaxed text-faint">
+            구매한 뒤 맹고를 써서 소식을 더 받으면 환불할 수 없어요.{" "}
+            <Link href="/terms" className="underline">
+              이용약관
+            </Link>
+          </p>
           <ErrorText text={s.error} />
         </>
       )}
@@ -260,15 +303,97 @@ export function RestorePurchases({ uid }: { uid: string }) {
   return <RestoreButton uid={uid} />;
 }
 
+/**
+ * 같은 맹고 계정의 구매만 복원한다(2026-10-18 사용자 결정: 구매는 계정 사이에 저절로 옮기지 않는다).
+ * 스토어 계정의 구매가 다른 맹고 계정에 붙어 있으면 복원 대신 문의하기(회원 번호를 채운 메일)로 받는다
+ */
 function RestoreButton({ uid }: { uid: string }) {
   const s = useStore(uid);
+  const [inUse, setInUse] = useState(false);
+  const restore = () => {
+    setInUse(false);
+    void s.run(
+      "restore",
+      async (b) => {
+        try {
+          await b.restore(uid);
+        } catch (e) {
+          if (b.isReceiptInUse(e)) setInUse(true);
+          throw e;
+        }
+      },
+      "구매를 복원하지 못했어요.",
+    );
+  };
+  const mail = () => {
+    const app = appInfoOf(navigator.userAgent);
+    return supportMailHref(BILLING_MAIL_SUBJECT, [`회원: ${uid.slice(0, 8)}`, `앱: ${app ? `${app.version} (${app.platform})` : "웹 브라우저"}`, "내용: 다른 계정에서 산 구매 복원"]);
+  };
   return (
     <div className="mt-10 text-center">
-      <button type="button" onClick={() => s.run("restore", (b) => b.restore(uid), "구매를 복원하지 못했어요.")} disabled={s.busy !== null} className="min-h-10 text-[13px] font-bold text-sub underline">
+      <button type="button" onClick={restore} disabled={s.busy !== null} className="min-h-10 text-[13px] font-bold text-sub underline">
         {s.busy === "restore" ? "복원 중" : "구매 복원"}
       </button>
-      <ErrorText text={s.error} />
+      {inUse ? (
+        <p role="alert" className="mt-2 text-[14px] font-bold text-orange">
+          다른 맹고 계정에서 산 구매라 이 계정으로 복원할 수 없어요.
+          <a href={mail()} className="ml-2 underline">
+            문의하기
+          </a>
+        </p>
+      ) : (
+        <ErrorText text={s.error} />
+      )}
     </div>
+  );
+}
+
+/** 웹에서 여는 스토어의 구독 관리 페이지(앱은 RevenueCat이 알려 주는 주소, lib/native/billing.ts openManage) */
+const STORE_MANAGE_URL: Record<string, string> = {
+  app_store: "https://apps.apple.com/account/subscriptions",
+  play: "https://play.google.com/store/account/subscriptions",
+};
+
+/**
+ * 글자 링크로 스토어의 구독 관리(해지·결제 수단)를 연다. 결제 안내 띠(체험 끝남·결제 실패, BillingBanner)가 쓴다.
+ * 앱은 스토어 구독 관리 화면, 웹은 구독한 스토어의 구독 관리 페이지(스토어를 모르면 그리지 않는다)
+ */
+export function ManageLink({ uid, store, label, className = "" }: { uid: string; store?: string; label: string; className?: string }) {
+  const inApp = useInApp();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  if (inApp === null) return null;
+  if (!inApp) {
+    const url = store ? STORE_MANAGE_URL[store] : undefined;
+    if (!url) return null;
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className={className}>
+        {label}
+      </a>
+    );
+  }
+  const open = async () => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await (await import("@/lib/native/billing")).openManage(uid);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <button type="button" onClick={open} disabled={busy} className={className}>
+        {label}
+      </button>
+      {failed && (
+        <span role="alert" className="ml-2 text-[13px] font-bold text-orange">
+          구독 관리를 열지 못했어요.
+        </span>
+      )}
+    </>
   );
 }
 

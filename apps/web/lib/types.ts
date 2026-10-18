@@ -60,6 +60,8 @@ export interface TodayData {
 }
 
 export interface ProfileView {
+  /** 회원 id(인앱 결제 RevenueCat app_user_id. 오늘 화면의 맹고 추가 구매 시트가 쓴다) */
+  id: string;
   displayName: string | null;
   provider: 'apple' | 'google';
   email: string | null;
@@ -75,6 +77,8 @@ export interface ProfileView {
   voice: Voice;
   autoNext: boolean;
   skipRead: boolean;
+  /** 재생 속도. 플레이어·글 하나 듣기의 처음 속도 */
+  playbackRate: number;
   aiProvider: 'dummy' | 'gemini';
 }
 

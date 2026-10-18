@@ -20,6 +20,19 @@ export function storedToken(): string | null {
   }
 }
 
+/**
+ * 로그아웃할 때: 이 브라우저의 웹 푸시 토큰을 서버에서 지우고 잊는다(다음 사람이 이 브라우저로 로그인해도 앞사람 알림이 오지 않게).
+ * 앱은 lib/native/push.ts unregisterApp. 실패해도 로그아웃은 계속한다
+ */
+export async function unregisterThisBrowser(): Promise<void> {
+  const token = storedToken();
+  if (!token) return;
+  await fetch(withBase("/api/devices"), { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) }).catch(() => {});
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {}
+}
+
 /** 이 브라우저가 지금 알림을 받을 수 있게 등록돼 있는지(권한 + 서버에 같은 토큰) */
 export function registeredHere(serverTokens: string[]): boolean {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return false;

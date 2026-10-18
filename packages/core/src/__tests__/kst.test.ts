@@ -61,6 +61,21 @@ test('알림 시각 전인지는 KST로 본다', () => {
   assert.equal(beforeNotify('21:30', new Date('2026-10-14T12:30:00Z')), false);
 });
 
+test('배송을 기다리는 10분도 같은 KST 날짜의 알림 시각으로 본다(자정 직후)', () => {
+  const grace = 10 * 60_000;
+  // 2026-10-14 00:05 KST: 아침 8시 알림은 아직 전(예전엔 '어제 23:55'로 봐서 알림 뒤가 됐다)
+  assert.equal(beforeNotify('08:00', new Date('2026-10-13T15:05:00Z'), grace), true);
+  // 08:05는 배송을 기다리는 중, 08:10부터는 알림 뒤
+  assert.equal(beforeNotify('08:00', new Date('2026-10-13T23:05:00Z'), grace), true);
+  assert.equal(beforeNotify('08:00', new Date('2026-10-13T23:10:00Z'), grace), false);
+  // 밤 11시 55분 알림: 23:58은 기다리는 중, 다음 날 00:03은 그날 알림 전
+  assert.equal(beforeNotify('23:55', new Date('2026-10-14T14:58:00Z'), grace), true);
+  assert.equal(beforeNotify('23:55', new Date('2026-10-14T15:03:00Z'), grace), true);
+  // 자정 알림: 00:05는 기다리는 중, 00:10부터 알림 뒤
+  assert.equal(beforeNotify('00:00', new Date('2026-10-13T15:05:00Z'), grace), true);
+  assert.equal(beforeNotify('00:00', new Date('2026-10-13T15:10:00Z'), grace), false);
+});
+
 test('날짜 더하기는 월말·연말을 넘는다', () => {
   assert.equal(addDays('2026-10-31', 1), '2026-11-01');
   assert.equal(addDays('2027-01-01', -1), '2026-12-31');

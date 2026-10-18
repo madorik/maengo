@@ -147,28 +147,28 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
     let sampleRate: number;
     let timed: SegmentLine[];
     let source: string;
-    const legacy = await legacyPcm(key);
-    if (legacy) {
-      ({ pcm, sampleRate } = legacy);
-      timed = legacy.lines;
-      source = '예전 캐시에서 옮김';
-    } else {
-      // 서비스 한도(Gemini 무료 등급 하루 요청 수)가 찼으면 부르지 않는다
-      const busy = await ttsBlockedUntil();
-      if (busy) throw new TtsBusyError(busy);
-      // 다른 서버가 같은 음성을 만들고 있으면 기다렸다가 그것을 쓴다(같은 음성을 두 번 만들지 않게)
-      if (!(await acquireLock(key))) {
-        const done = await waitForSegment(key);
-        if (done) return done;
-        throw new Error('다른 요청이 이 음성을 만들다 실패했어요');
-      }
-      try {
+    // 잠금을 얻었으면 MP3 변환·업로드·행 저장까지 어디서 실패해도 풀어 준다(안 풀면 다른 요청이 3분 동안 기다린다)
+    let locked = false;
+    try {
+      const legacy = await legacyPcm(key);
+      if (legacy) {
+        ({ pcm, sampleRate } = legacy);
+        timed = legacy.lines;
+        source = '예전 캐시에서 옮김';
+      } else {
+        // 서비스 한도(Gemini 무료 등급 하루 요청 수)가 찼으면 부르지 않는다
+        const busy = await ttsBlockedUntil();
+        if (busy) throw new TtsBusyError(busy);
+        // 다른 서버가 같은 음성을 만들고 있으면 기다렸다가 그것을 쓴다(같은 음성을 두 번 만들지 않게)
+        if (!(await acquireLock(key))) {
+          const done = await waitForSegment(key);
+          if (done) return done;
+          throw new Error('다른 요청이 이 음성을 만들다 실패했어요');
+        }
+        locked = true;
         // 잠금을 얻기 직전에 다른 서버가 다 만들었을 수 있다
         const again = (await findSegments([key])).get(key);
-        if (again) {
-          await releaseLock(key);
-          return again;
-        }
+        if (again) return again;
         let speech;
         try {
           speech = await withTtsSlot(() => tts.speak({ model: ttsModel(), persona, voice: vk, lines }));
@@ -187,25 +187,23 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
         timed = lines.map((l, i) => ({ ...l, ...speech.lineTimesMs[i]! }));
         source = 'TTS';
         await recordUse(who.userId, 'voice');
-      } catch (e) {
-        await releaseLock(key);
-        throw e;
       }
+      const mp3 = encodeMp3(pcm, sampleRate);
+      const r2Key = `audio/seg/${key}.mp3`;
+      await audioStore.put(r2Key, mp3, 'audio/mpeg');
+      const row: SegmentRow = { key, r2_key: r2Key, duration_ms: mp3DurationMs(mp3.length), lines: timed };
+      must(
+        await db.from('audio_segments').upsert(
+          { ...row, cluster_id: item.clusterId, persona, voice: vk, model: ttsModel(), bytes: mp3.length },
+          { onConflict: 'key' },
+        ),
+        'audio_segments upsert',
+      );
+      console.log(`[tts] #${item.clusterId} ${persona}/${vk} ${(row.duration_ms / 1000).toFixed(1)}초 · ${Math.round(mp3.length / 1024)}KB · ${source} · ${((Date.now() - t0) / 1000).toFixed(1)}초 걸림`);
+      return row;
+    } finally {
+      if (locked) await releaseLock(key).catch((e) => console.error('[tts] 잠금 풀기 실패', String((e as Error)?.message ?? e).slice(0, 200)));
     }
-    const mp3 = encodeMp3(pcm, sampleRate);
-    const r2Key = `audio/seg/${key}.mp3`;
-    await audioStore.put(r2Key, mp3, 'audio/mpeg');
-    const row: SegmentRow = { key, r2_key: r2Key, duration_ms: mp3DurationMs(mp3.length), lines: timed };
-    must(
-      await db.from('audio_segments').upsert(
-        { ...row, cluster_id: item.clusterId, persona, voice: vk, model: ttsModel(), bytes: mp3.length },
-        { onConflict: 'key' },
-      ),
-      'audio_segments upsert',
-    );
-    await releaseLock(key);
-    console.log(`[tts] #${item.clusterId} ${persona}/${vk} ${(row.duration_ms / 1000).toFixed(1)}초 · ${Math.round(mp3.length / 1024)}KB · ${source} · ${((Date.now() - t0) / 1000).toFixed(1)}초 걸림`);
-    return row;
   })().finally(() => inflight.delete(key));
   inflight.set(key, job);
   return job;

@@ -1,7 +1,7 @@
 import 'server-only';
-import { paymentFromEvent, paymentsFromSubscriber, readSubscriber, type PaymentRow, type RcEvent, type RcSubscriber } from '../billing/revenuecat';
+import { packRefund, paymentFromEvent, paymentsFromSubscriber, readSubscriber, refundFromEvent, type BillingStore, type PaymentRow, type RcEvent, type RcSubscriber } from '../billing/revenuecat';
 import { db, must } from './db';
-import { creditMaengo } from './wallet';
+import { chargebackMaengo, creditMaengo } from './wallet';
 
 // 인앱 결제(RevenueCat). app_user_id = Supabase 회원 id. 앱이 결제를 마치거나 RevenueCat 웹훅이 오면
 // RevenueCat에서 그 사람 상태를 다시 읽어 플랜(profiles)·구독(subscriptions)·추가 구매한 맹고(지갑)를 맞춘다. apps/mobile/BILLING.md
@@ -54,8 +54,24 @@ export async function recordBillingEvent(e: RcEvent & Record<string, unknown>, u
   let { error } = await db.from('billing_events').upsert(row, { onConflict: 'id', ignoreDuplicates: true });
   if (error?.code === '23503') ({ error } = await db.from('billing_events').upsert({ ...row, user_id: null }, { onConflict: 'id', ignoreDuplicates: true }));
   if (error) console.error('[billing] 웹훅 원본 기록 실패', e.type, error.message);
-  const pay = userId ? paymentFromEvent(e, userId) : null;
+  // 돈이 오간 거래, 또는 환불된 거래(환불 시각)
+  const pay = userId ? (paymentFromEvent(e, userId) ?? refundFromEvent(e, userId)) : null;
   if (pay) await recordPayments([pay]);
+}
+
+/**
+ * 맹고 묶음 환불(웹훅 CANCELLATION, 구글 무효 구매 포함): 그 거래로 넣은 맹고를 받은 회원에게서 한 번 뺀다(잔액까지만).
+ * 웹훅은 스토어 거래 ID만 줘서 그것으로 찾고, 예전 지갑 기록(스토어 거래가 비어 있음)을 위해 purchases에서 RevenueCat 거래 ID(ref)도 찾아 넘긴다.
+ * 묶음 환불이 아니면 아무것도 안 한다. 실패하면 예외(웹훅이 500으로 답해 RevenueCat이 다시 보낸다. 같은 거래는 한 번만 뺀다)
+ */
+export async function clawbackRefund(e: RcEvent, userId: string | null): Promise<number | null> {
+  const refund = packRefund(e);
+  if (!refund || !userId) return null;
+  const { data } = await db.from('purchases').select('rc_id').eq('transaction_id', refund.transactionId).not('rc_id', 'is', null).limit(1).maybeSingle();
+  const rcId = (data as { rc_id: string } | null)?.rc_id ?? null;
+  const taken = await chargebackMaengo(userId, refund.storeTx, rcId ? `rc:${rcId}` : null);
+  if (taken !== null) console.log(`[billing] 맹고 묶음 환불 회수 ${refund.productId} ${taken}/${refund.amount}맹고`);
+  return taken;
 }
 
 /**
@@ -69,6 +85,7 @@ export async function syncBilling(userId: string, reason: string): Promise<Billi
   await recordPayments(paymentsFromSubscriber(sub, userId));
   let plan: BillingSyncResult['plan'] = 'unchanged';
 
+  if (!state.premium && (await dropMovedSubscription(userId, reason))) plan = 'free';
   if (state.premium) {
     const p = state.premium;
     if (p.active) {
@@ -95,8 +112,21 @@ export async function syncBilling(userId: string, reason: string): Promise<Billi
   }
 
   let credited = 0;
-  for (const pack of state.packs) if (await creditMaengo(userId, pack.amount, pack.ref)) credited += pack.amount;
+  for (const pack of state.packs) if (await creditMaengo(userId, pack.amount, pack.ref, pack.storeTx)) credited += pack.amount;
   return { plan, credited };
+}
+
+/**
+ * RevenueCat에 Premium 권한이 아예 없는데(구매가 다른 회원에게 옮겨 갔거나 RevenueCat에서 지움) 우리 쪽은 스토어 구독으로 Premium인 사람을 Free로 내린다.
+ * 스토어 구독(app_store·play) 기록이 있는 사람만: 운영자가 DB에서 준 Premium(구독 기록 없음)이나 RevenueCat 운영자 권한(promotional)은 건드리지 않는다
+ */
+async function dropMovedSubscription(userId: string, reason: string): Promise<boolean> {
+  const sub = must(await db.from('subscriptions').select('store,status').eq('user_id', userId).maybeSingle(), 'subscriptions') as { store: string; status: string } | null;
+  if (!sub || (sub.store !== 'app_store' && sub.store !== 'play') || sub.status === 'canceled') return false;
+  must(await db.rpc('set_plan', { p_user: userId, p_plan: 'free', p_until: null, p_reason: reason, p_only_if: 'plus' }), 'set_plan free');
+  must(await db.from('subscriptions').update({ status: 'canceled', cancel_at_period_end: false }).eq('user_id', userId), 'subscriptions moved');
+  console.log(`[billing] Premium 권한이 없어져 Free로 내림(${reason})`);
+  return true;
 }
 
 // ---- 무료 체험(첫 구독만 7일, 앱 안 동의 팝업) ----
@@ -110,10 +140,12 @@ export async function hadSubscription(userId: string): Promise<boolean> {
   return (sub.count ?? 0) > 0 || (paid.count ?? 0) > 0;
 }
 
-/** 지금 구독 상태(화면 표시용). 구독한 적이 없으면 null */
-export async function subscriptionView(userId: string): Promise<{ status: 'trial' | 'active' | 'past_due' | 'canceled'; periodEnd: string; cancelAtPeriodEnd: boolean } | null> {
-  const row = must(await db.from('subscriptions').select('status,current_period_end,cancel_at_period_end').eq('user_id', userId).maybeSingle(), 'subscriptions') as
-    | { status: 'trial' | 'active' | 'past_due' | 'canceled'; current_period_end: string; cancel_at_period_end: boolean }
+/** 지금 구독 상태(화면 표시용). 구독한 적이 없으면 null. store는 웹에서 스토어의 구독 관리 주소를 고르는 데 쓴다 */
+export async function subscriptionView(
+  userId: string,
+): Promise<{ status: 'trial' | 'active' | 'past_due' | 'canceled'; periodEnd: string; cancelAtPeriodEnd: boolean; store: BillingStore | 'portone' } | null> {
+  const row = must(await db.from('subscriptions').select('status,current_period_end,cancel_at_period_end,store').eq('user_id', userId).maybeSingle(), 'subscriptions') as
+    | { status: 'trial' | 'active' | 'past_due' | 'canceled'; current_period_end: string; cancel_at_period_end: boolean; store: BillingStore | 'portone' }
     | null;
-  return row ? { status: row.status, periodEnd: row.current_period_end, cancelAtPeriodEnd: row.cancel_at_period_end } : null;
+  return row ? { status: row.status, periodEnd: row.current_period_end, cancelAtPeriodEnd: row.cancel_at_period_end, store: row.store } : null;
 }

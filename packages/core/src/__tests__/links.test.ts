@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   blockedHost, feedLinksInHtml, feedUrlKey, guessLang, isHttpInput, isIpHost, isLinkTopicId, isUnsafeLinkUrl, isPrivateHost, linkSourceId, linkTopicId, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls,
+  rankingWeights,
 } from '../topics/links';
 
 test('링크 토픽 id', () => {
@@ -11,6 +12,20 @@ test('링크 토픽 id', () => {
   assert.ok(!isLinkTopicId('stock'));
   assert.equal(linkSourceId('s-7'), 7);
   assert.equal(linkSourceId('dev'), null);
+});
+
+test('소식 고르기 가중치: 내 관심 링크는 플랜 개수까지, 칸 번호 순(Free는 0개)', () => {
+  const rows = [
+    { topic_id: 'ai', weight: 1.2 },
+    { topic_id: 's-9', weight: 1, slot: 2 },
+    { topic_id: 's-3', weight: 1, slot: 1 },
+    { topic_id: 's-5', weight: 1, slot: null },
+    { topic_id: 'c-0123456789abcdef', weight: 1 },
+  ];
+  assert.deepEqual(rankingWeights(rows, 0), { ai: 1.2, 'c-0123456789abcdef': 1 });
+  assert.deepEqual(Object.keys(rankingWeights(rows, 1)).sort(), ['ai', 'c-0123456789abcdef', 's-3']);
+  assert.deepEqual(Object.keys(rankingWeights(rows, 2)).sort(), ['ai', 'c-0123456789abcdef', 's-3', 's-9']);
+  assert.equal(Object.keys(rankingWeights(rows, 3)).length, 5);
 });
 
 test('주소 정리: 프로토콜을 붙이고, https가 아니거나 주소가 아니면 null', () => {

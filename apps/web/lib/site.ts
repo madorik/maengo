@@ -27,9 +27,21 @@ export const OPERATOR_NAME = "정민균";
 /** 문의·개인정보 요청 메일(문의 전용으로 새로 만든 주소). 비어 있으면 운영에서 약관·개인정보 처리방침 페이지를 숨긴다(404) */
 export const SUPPORT_EMAIL = "watalabs.help@gmail.com";
 /** 이용약관·개인정보 처리방침 시행일. 내용을 바꾸면 날짜도 바꾸고 변경 공지를 한다 */
-export const LEGAL_EFFECTIVE_DATE = "2026년 10월 14일";
+export const LEGAL_EFFECTIVE_DATE = "2026년 10월 18일";
 /** 약관이 바뀐 날(KST). 이 날 전에 가입한 회원에게 앱 안에서 한 번 알린다(결정 D4). 약관을 또 바꾸면 이 값과 위 날짜를 같이 바꾼다 */
-export const LEGAL_CHANGED_ON = "2026-10-14";
+export const LEGAL_CHANGED_ON = "2026-10-18";
+
+/**
+ * 문의 메일 링크(mailto): 제목과, 본문 아래에 문제를 찾는 데 쓸 정보(회원 번호 앞 8자리 등)를 미리 채운다.
+ * 설정 > 문의하기와 구매 복원이 막혔을 때(다른 계정의 구매) 쓴다
+ */
+export function supportMailHref(subject: string, info: string[]): string {
+  const body = ["", "", "", "---", "아래 정보는 문제를 찾는 데 써요.", ...info].join("\n");
+  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/** 구매 복원·환불 문의 메일 제목(약관 6조: 환불·복원 요청은 문의하기로) */
+export const BILLING_MAIL_SUBJECT = "[맹고 구매 복원·환불 문의]";
 
 /**
  * 문의 메일. 빈 메일로 문서를 공개하지 않도록 운영에서는 비어 있으면 null(문서 페이지가 404로 숨는다).

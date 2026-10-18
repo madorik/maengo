@@ -64,6 +64,17 @@ export class GeminiBlockedError extends GeminiQuotaError {
   }
 }
 
+/**
+ * 돈을 내고 받은 응답을 쓸 수 없다: 빈 응답(안전 필터·출력 토큰 한도 등) 또는 JSON이 깨진 응답.
+ * 같은 입력으로 다시 불러도 대개 같아서, 부르는 쪽이 묶음마다 실패를 세어 몇 번 뒤엔 건너뛴다(pipeline summarize)
+ */
+export class GeminiOutputError extends Error {
+  constructor(readonly model: string, message: string) {
+    super(message);
+    this.name = 'GeminiOutputError';
+  }
+}
+
 export interface GeminiOptions {
   apiKey: string;
   /** 503(혼잡)이 계속되면 이 모델로 한 번 더 시도한다 */
@@ -72,6 +83,20 @@ export interface GeminiOptions {
   onUsage?: (e: UsageEvent) => void;
   log?: (msg: string) => void;
   maxAttempts?: number;
+  /** 이 시각(ms)을 넘겨 기다려야 하면 다시 시도하지 않고 바로 실패한다(서버 함수 시간 제한 안에서 끝내려고, 1분 배송) */
+  retryUntil?: number;
+}
+
+/**
+ * 다시 시도하기 전에 기다릴 시간(ms). 다시 하지 않으면 null: 다시 해도 소용없는 오류, 횟수를 다 씀, 기다리면 retryUntil을 넘김.
+ * 429는 서버가 알려 준 만큼(최대 65초), 5xx는 지수 백오프(2초부터 최대 30초)
+ */
+export function retryWaitMs(status: number, retryMs: number | null, attempt: number, maxAttempts: number, now: number, retryUntil?: number): number | null {
+  const retryable = status === 429 || status === 500 || status === 503 || status === 504;
+  if (!retryable || attempt >= maxAttempts) return null;
+  const wait = status === 429 ? Math.min(retryMs ?? 15_000, 65_000) : Math.min(2000 * 2 ** (attempt - 1), 30_000);
+  if (retryUntil !== undefined && now + wait > retryUntil) return null;
+  return wait;
 }
 
 /**
@@ -194,9 +219,8 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
         if (status === 429 && daily) throw new GeminiQuotaError(model, text.slice(0, 300), retryMs);
         // 402: 선불 크레딧이 바닥났다. 다시 불러도 소용없다
         if (status === 402) throw new GeminiBlockedError(model, text.slice(0, 300), 'credits');
-        const retryable = status === 429 || status === 500 || status === 503 || status === 504;
-        if (!retryable || attempt >= maxAttempts) throw e;
-        const wait = status === 429 ? Math.min(retryMs ?? 15_000, 65_000) : Math.min(2000 * 2 ** (attempt - 1), 30_000);
+        const wait = retryWaitMs(status, retryMs, attempt, maxAttempts, Date.now(), opts.retryUntil);
+        if (wait === null) throw e;
         log(`gemini ${model} ${status} → ${Math.round(wait / 1000)}초 뒤 다시 (${attempt}/${maxAttempts})`);
         await sleep(wait + Math.floor(Math.random() * 500));
       }
@@ -235,14 +259,22 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
         thinkingTokens: u?.thoughtsTokenCount ?? 0,
       });
       const text = res.text;
-      if (!text) throw new Error(`빈 응답(${res.candidates?.[0]?.finishReason ?? res.promptFeedback?.blockReason ?? 'unknown'})`);
-      return { data: JSON.parse(text) as T, model: res.modelVersion ?? model };
+      const finish = res.candidates?.[0]?.finishReason ?? res.promptFeedback?.blockReason ?? 'unknown';
+      if (!text) throw new GeminiOutputError(model, `빈 응답(${finish})`);
+      let data: T;
+      try {
+        data = JSON.parse(text) as T;
+      } catch {
+        throw new GeminiOutputError(model, `JSON이 아닌 응답(${finish}): ${text.slice(0, 80)}`);
+      }
+      return { data, model: res.modelVersion ?? model };
     };
     try {
       return await run(args.model);
     } catch (e) {
       const { status } = parseError(e);
-      if (opts.fallbackModel && opts.fallbackModel !== args.model && (status === 503 || status === 500)) {
+      const late = opts.retryUntil !== undefined && Date.now() > opts.retryUntil;
+      if (opts.fallbackModel && opts.fallbackModel !== args.model && (status === 503 || status === 500) && !late) {
         log(`gemini ${args.model} 혼잡 → ${opts.fallbackModel}로 대신`);
         return run(opts.fallbackModel);
       }

@@ -67,6 +67,9 @@ export function discountPct(p: Pick<PlanLimits, 'priceKrw' | 'listPriceKrw'>): n
   return Math.floor(((p.listPriceKrw - p.priceKrw) / p.listPriceKrw) * 100);
 }
 
+/** 원 가격 표기 '3,800원'. 앱 결제 화면은 스토어가 준 가격(₩3,800 등 그 나라 통화)을 쓰고, 스토어가 없는 웹·서버 화면이 이것을 쓴다 */
+export const krwLabel = (krw: number) => `${krw.toLocaleString('ko-KR')}원`;
+
 /** 가입하면 한 번 지갑에 넣어 주는 맹고(플랜과 상관없음). 2026-10-17 100 → 10(가입 이벤트 팝업으로 알린다) */
 export const SIGNUP_BONUS = 10;
 
