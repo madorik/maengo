@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { IconCheck, IconClose, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
+import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -11,6 +12,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { useItemAudio } from "@/components/article/useItemAudio";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
+import { useArrivalHighlight, useMoreArrival, type Arrival } from "./arrival";
 import { MakeToday } from "./MakeToday";
 import { MoreToday } from "./MoreToday";
 import { SignupGift } from "./SignupGift";
@@ -19,10 +21,8 @@ import type { FeedItem } from "@/lib/types";
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로. notice는 맨 위 결제 안내 띠(서버가 그린다, today/page.tsx) */
 export function TodayList({ notice }: { notice?: React.ReactNode }) {
   const { data, game } = useToday();
-  // 오늘 받은 소식 / 하루 소식(플랜). 지갑의 맹고로 더 받은 건 +N으로 붙인다
-  const daily = useProfile().dailyItems;
-  const received = Math.min(game.total, daily);
-  const more = game.total - received;
+  // '하나 더 받기'로 막 붙은 소식(스크롤하고 잠깐 짚는다)
+  const { arrival, expect, settle } = useMoreArrival(data.items.map((i) => i.clusterId));
   return (
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
@@ -44,13 +44,11 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
               관심사 {data.topicNames.join(", ")}에서 골랐어요
             </p>
           )}
+          {/* 오늘 소식 중 읽었거나 들은 소식 */}
           {game.total > 0 && (
             <div className="mt-4 flex items-center gap-3">
-              <ProgressBar value={received / daily} tone="leaf" label="오늘 받은 소식" className="h-4 flex-1" track="bg-white/60" />
-              <span className="font-round text-[17px] font-black">
-                {received}/{daily}
-                {more > 0 && ` +${more}`}
-              </span>
+              <ProgressBar value={game.done / game.total} tone="leaf" label="오늘 본 소식" className="h-4 flex-1" track="bg-white/60" />
+              <span className="font-round text-[17px] font-black tabular-nums">{`${game.done}/${game.total}`}</span>
             </div>
           )}
         </section>
@@ -58,25 +56,48 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
         {game.total > 0 ? (
           <ol className="mt-6 flex flex-col gap-4" aria-label="오늘의 소식">
             {data.items.map((item) => (
-              <ArticleCard key={item.clusterId} item={item} />
+              <ArticleCard key={item.clusterId} item={item} arrival={arrival?.id === item.clusterId ? arrival : null} />
             ))}
           </ol>
         ) : (
           <MakeToday reason={data.emptyReason} notifyLabel={data.notifyLabel} />
         )}
 
-        {game.total > 0 && <MoreToday cost={data.moreCost} kept={data.wallet} />}
+        {game.allDone && <AllDone notifyLabel={data.notifyLabel} />}
 
+        {game.total > 0 && <MoreToday cost={data.moreCost} kept={data.wallet} onExpect={expect} onSettle={settle} />}
+
+        {/* 화면 읽기 도구에만: 터치로 '하나 더 받기'를 눌렀을 때(키보드면 새 소식 제목으로 초점이 간다) */}
+        <p role="status" className="sr-only">
+          {arrival && !arrival.focus ? `새 소식 ${arrival.count}개` : ""}
+        </p>
       </div>
     </div>
   );
 }
 
-function ArticleCard({ item }: { item: FeedItem }) {
+/** 오늘 소식을 다 읽거나 들었을 때 목록 끝('하나 더 받기' 위)에 붙는 작은 축하 카드 */
+function AllDone({ notifyLabel }: { notifyLabel: string }) {
+  return (
+    <div className="tile mt-4 flex items-center gap-3 border-leaf-bright/40 bg-leaf-tint p-4">
+      <Mascot mood="cheer" className="pop size-14 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-[17px] font-black leading-snug tracking-[-0.02em] text-leaf-dark">오늘 소식 다 봤어요</p>
+        <p className="mt-0.5 text-[14px] font-semibold text-ink/70">내일 {notifyLabel}에 새 소식이 와요</p>
+      </div>
+    </div>
+  );
+}
+
+function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | null }) {
   const { consumed } = useToday();
   const p = usePlayer();
   const profile = useProfile();
   const done = consumed(item.clusterId);
+  // '하나 더 받기'로 막 붙은 소식이면 이 카드로 스크롤하고 잠깐 짚는다
+  const cardRef = useRef<HTMLLIElement>(null);
+  const titleRef = useRef<HTMLAnchorElement>(null);
+  useArrivalHighlight(arrival, cardRef, titleRef);
   // 플레이어 목록에서의 자리. 번호가 아니라 소식으로 찾는다(듣는 동안 새로 받은 소식은 듣기가 끝날 때까지 플레이어 목록에 없다)
   const at = p.chapters.findIndex((c) => c.clusterId === item.clusterId);
   // 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 플레이어로, 아니면 이 소식 하나만 만들어 듣는다(플레이리스트를 듣는 중이면 하나만).
@@ -106,7 +127,7 @@ function ArticleCard({ item }: { item: FeedItem }) {
   };
 
   return (
-    <li className={`tile relative p-4 transition-colors hover:bg-snow sm:p-5 ${current ? "border-sky" : ""}`}>
+    <li ref={cardRef} className={`tile relative p-4 transition-colors hover:bg-snow sm:p-5 ${current ? "border-sky" : ""}`}>
       <div className="flex items-center gap-2 text-[13px] font-extrabold">
         <CategoryChip category={item.category} />
         <SourceChip item={item} />
@@ -128,7 +149,7 @@ function ArticleCard({ item }: { item: FeedItem }) {
       </div>
       <h2 className="mt-2.5 text-[18px] font-black leading-snug tracking-[-0.02em]">
         {/* 카드 전체를 덮는 링크. 듣기 버튼만 그 위에 올라온다 */}
-        <Link href={`/article/${item.clusterId}`} className={`no-underline after:absolute after:inset-0 after:rounded-2xl ${done ? "text-sub" : ""}`}>
+        <Link ref={titleRef} href={`/article/${item.clusterId}`} className={`no-underline after:absolute after:inset-0 after:rounded-2xl ${done ? "text-sub" : ""}`}>
           {item.title}
         </Link>
       </h2>

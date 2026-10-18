@@ -8,6 +8,7 @@ import { ListenWidget } from "@/components/listen/ListenWidget";
 import { PlayerProvider } from "@/components/providers/PlayerProvider";
 import { ProfileProvider } from "@/components/providers/ProfileProvider";
 import { TodayProvider } from "@/components/providers/TodayProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 import { getTodayData, toProfileView } from "@/lib/server/feed";
 import { requireOnboarded } from "@/lib/server/session";
 import { recordVisit } from "@/lib/server/visits";
@@ -28,10 +29,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <ProfileProvider profile={view}>
       {/* key를 주지 않는다: 피드가 바뀌어도 플레이어를 새로 만들지 않게(TodayProvider가 안에서 합친다) */}
       <TodayProvider initial={today}>
-        <PlayerProvider profile={view}>
-          {children}
-          <ListenWidget initialCollapsed={listenCollapsed} />
-        </PlayerProvider>
+        {/* 되돌리기 알림(빼기·비우기 뒤)은 화면 하나에 하나만 뜬다 */}
+        <ToastProvider>
+          <PlayerProvider profile={view}>
+            {children}
+            <ListenWidget initialCollapsed={listenCollapsed} />
+          </PlayerProvider>
+        </ToastProvider>
         <AppPushSync enabled={profile.pushEnabled} />
         {/* 분석용 사용자 ID는 회원 id의 해시만 보낸다(이메일·이름은 보내지 않는다) */}
         <AnalyticsSession uid={createHash("sha256").update(`maengo:${profile.id}`).digest("hex").slice(0, 24)} plan={profile.plan} />

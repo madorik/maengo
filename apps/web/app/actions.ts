@@ -225,6 +225,19 @@ export async function playlistClear() {
   revalidatePath("/playlist");
 }
 
+/**
+ * 되돌리기(빼기·비우기 바로 뒤의 알림): back을 다시 담고 order(뺄 때 보이던 순서)대로 맞춘다.
+ * 이미 담긴 건 다시 담지 않아 겹치지 않고, order에 없는 것(그사이 다른 곳에서 담은 것)은 뒤에 둔다
+ */
+export async function playlistRestore(back: number[], order: number[]) {
+  const profile = await requireProfile();
+  if (!entitlements(profile).audio) return;
+  const valid = (ids: unknown) => (Array.isArray(ids) ? ids.filter((n): n is number => Number.isInteger(n) && n > 0) : []);
+  await addToPlaylist(profile, valid(back));
+  await reorderPlaylist(profile, valid(order));
+  revalidatePath("/playlist");
+}
+
 const VOICES: Voice[] = ["f", "m"];
 
 export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice; autoNext?: boolean; skipRead?: boolean; rate?: number }) {

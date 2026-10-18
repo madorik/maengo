@@ -273,8 +273,8 @@
   .drawer[data-closing]::backdrop {
     animation: fade-out 200ms ease-in forwards;
   }
-  /* 서랍이 열린 동안 뒤 화면이 같이 스크롤되지 않게 */
-  html:has(.drawer[open]) {
+  /* 서랍·시트(components/ui/Sheet.tsx)가 열린 동안 뒤 화면이 같이 스크롤되지 않게. 스크롤 자리는 그대로 남는다 */
+  html:has(.drawer[open], .sheet[open]) {
     overflow: hidden;
   }
   /* 진행 중인 막대 위로 흐르는 줄무늬 */

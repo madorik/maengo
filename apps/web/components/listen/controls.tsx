@@ -8,6 +8,7 @@ import { IconCheck, IconClose, IconGrip } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SORT_INSTRUCTIONS, sortAnnouncements } from "@/components/ui/sortable-a11y";
+import { useToast } from "@/components/ui/Toast";
 import { formatClock } from "@/lib/player/machine";
 
 export { Switch } from "@/components/ui/Switch";
@@ -16,13 +17,15 @@ type Row = { clusterId: number; title: string; rank: number };
 
 /**
  * 재생 목록. 누르면 그 소식부터(지금 듣는 소식은 그대로). ×로 뺀다(PlayerProvider.removeFromPlayer: 듣던 자리에서 이어 간다).
- * 오늘 소식은 그날 동안 빼 두고 맨 아래 '다시 넣기'로 되돌린다. 플레이리스트는 손잡이를 끌어 순서도 바꾼다(저장된 플레이리스트는 그대로).
+ * 빼면 되돌리기 알림이 뜨고, 누르면 뺀 자리로 돌아온다(그사이 음성을 만들기 시작했으면 되돌리지 못했다고 알린다. 준비 중인 소식은 알림 없음).
+ * 오늘 소식은 그날 동안 빼 두고 맨 아래 '다시 넣기'로도 되돌린다. 플레이리스트는 손잡이를 끌어 순서도 바꾼다(저장된 플레이리스트는 그대로).
  * 듣는 중에는 음성 조각이 다 있을 때만 바꿀 수 있다(새 목록으로 이어 붙이기만 하면 된다).
  * 플레이리스트 화면에서 추가한 소식은 음성을 만드는 동안 끝에 '준비 중'으로 보인다
  */
 export function Queue({ onPick }: { onPick?: () => void }) {
   const p = usePlayer();
   const { data } = useToday();
+  const toast = useToast();
   // 플레이리스트면 고른 소식(챕터 표), 아니면 오늘 피드에서 뺀 소식을 뺀 것
   const rows: Row[] = p.playlist
     ? p.chapters.map((ch) => ({ clusterId: ch.clusterId, title: ch.title, rank: ch.rank }))
@@ -45,17 +48,27 @@ export function Queue({ onPick }: { onPick?: () => void }) {
     setLocal({ key, ids: next });
     p.reorderPlaylist(next);
   };
+  const remove = (id: number) => {
+    const undo = p.removeFromPlayer(id);
+    if (!undo) return;
+    toast.showUndo({
+      label: "뺐어요",
+      onUndo: () => {
+        if (!undo()) toast.showError("되돌리지 못했어요");
+      },
+    });
+  };
 
   const list = (
     <ol className="mt-3 flex flex-col gap-2">
       {ids.map((id) => {
         const row = byId.get(id);
         if (!row) return null;
-        const props = { row, onPick, onRemove: () => p.removeFromPlayer(id) };
+        const props = { row, onPick, onRemove: () => remove(id) };
         return sortable ? <SortableItem key={id} {...props} /> : <Item key={id} {...props} />;
       })}
       {p.playlist &&
-        p.pending.map((x) => <PendingItem key={`pending-${x.clusterId}`} title={x.title} indent={sortable} onRemove={() => p.removeFromPlayer(x.clusterId)} />)}
+        p.pending.map((x) => <PendingItem key={`pending-${x.clusterId}`} title={x.title} indent={sortable} onRemove={() => remove(x.clusterId)} />)}
     </ol>
   );
   const restore = removedCount > 0 && (

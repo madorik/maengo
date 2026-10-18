@@ -23,12 +23,26 @@ const ERRORS = {
 /**
  * 오늘 목록 아래 '하나 더 받기'. 하루 맹고(플랜의 하루 소식 수)를 넘으면 지갑에서 1맹고를 쓴다(잔액은 오늘 화면에 보이지 않는다).
  * 골라 둔 소식이 있으면 그것부터, 없으면 서버가 요약된 소식에서 하나 더 고른다. 붙으면 액션이 오늘 화면을 새로 그린다.
- * 지갑이 비면 '맹고 추가 구매하기': 앱은 이 자리에서 묶음 결제 시트(MaengoShop)를 열고, 웹은 결제 화면(/premium, 웹에는 결제가 없다)으로
+ * 지갑이 비면 '맹고 추가 구매하기': 앱은 이 자리에서 묶음 결제 시트(MaengoShop)를 열고, 웹은 결제 화면(/premium, 웹에는 결제가 없다)으로.
+ * onExpect·onSettle: 누르기 직전·끝났을 때 오늘 목록에 알린다(새로 붙은 소식으로 스크롤하고 짚는다, arrival.ts)
  */
-export function MoreToday({ cost, kept }: { cost: number; kept: number }) {
+export function MoreToday({
+  cost,
+  kept,
+  onExpect,
+  onSettle,
+}: {
+  cost: number;
+  kept: number;
+  /** keyboard = 키보드·화면 읽기 도구로 눌렀는지(새 소식으로 초점을 옮긴다) */
+  onExpect?: (keyboard: boolean) => void;
+  onSettle?: (ok: boolean) => void;
+}) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<keyof typeof ERRORS | null>(null);
   const [shop, setShop] = useState(false);
+  /** 시트를 한 번 열었는지. 처음 열 때 그려 스토어 상품을 불러오고, 그 뒤에는 남겨 두어 닫을 때 내려가는 움직임이 끝까지 보이게 한다 */
+  const [shopMounted, setShopMounted] = useState(false);
   // 1.5초 넘게 걸리면 지금 새로 요약하는 중이다(최근 한 달 묶음에서 만들기, 10~20초)
   const [slow, setSlow] = useState(false);
   useEffect(() => {
@@ -44,15 +58,19 @@ export function MoreToday({ cost, kept }: { cost: number; kept: number }) {
   const buyHref = profile.canBuyMaengo ? "/premium#maengo" : "/premium";
   const buyLabel = "맹고 추가 구매하기";
 
-  const more = () => {
+  const more = (e: React.MouseEvent<HTMLButtonElement>) => {
     setSlow(false);
+    // 키보드(Enter·Space)로 누른 클릭은 detail이 0이다
+    onExpect?.(e.detail === 0);
     start(async () => {
       setError(null);
       try {
         const res = await receiveMoreAction();
+        onSettle?.(res.ok);
         if (!res.ok) return setError(res.error);
         track("more_receive", { charged: res.charged });
       } catch {
+        onSettle?.(false);
         setError("failed");
       }
     });
@@ -60,6 +78,7 @@ export function MoreToday({ cost, kept }: { cost: number; kept: number }) {
 
   const openShop = () => {
     setError(null);
+    setShopMounted(true);
     setShop(true);
   };
 
@@ -102,9 +121,9 @@ export function MoreToday({ cost, kept }: { cost: number; kept: number }) {
             ))}
         </p>
       )}
-      {/* 시트를 열 때만 스토어 상품을 불러온다. 결제를 마치면 닫고 축하 팝업, 지갑은 결제 뒤 화면을 새로 그리며 늘어난다 */}
-      {shop && (
-        <Sheet title="맹고 추가 구매" open onClose={() => setShop(false)}>
+      {/* 처음 열 때 스토어 상품을 불러온다. 결제를 마치면 내려 닫고 축하 팝업, 지갑은 결제 뒤 화면을 새로 그리며 늘어난다 */}
+      {shopMounted && (
+        <Sheet title="맹고 추가 구매" open={shop} onClose={() => setShop(false)}>
           <MaengoShop uid={profile.id} canBuy wallet={kept} onBought={() => setShop(false)} />
         </Sheet>
       )}

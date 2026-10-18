@@ -597,7 +597,20 @@ export const LIBRARY_PAGE_SIZE = 10;
 /** 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리·읽음으로 거르고 페이지로 나눈다. 들은 것도 읽음으로 친다 */
 export async function getLibrary(
   profile: Profile,
-  { page, category, read, query = null }: { page: number; category: CategoryId | null; read: LibraryReadFilter | null; query?: string | null },
+  {
+    page,
+    category,
+    read,
+    query = null,
+    overlap = 0,
+  }: {
+    page: number;
+    category: CategoryId | null;
+    read: LibraryReadFilter | null;
+    query?: string | null;
+    /** 이 쪽 앞의 소식을 이만큼 겹쳐 준다(앱 이어 붙이기: 받는 사이 목록이 줄어도 건너뛰는 소식이 없게, 겹친 건 화면이 거른다) */
+    overlap?: number;
+  },
 ): Promise<LibraryData> {
   const now = new Date();
   const days = await allDays(profile);
@@ -632,7 +645,7 @@ export async function getLibrary(
   const readCount = inCategory.filter(consumed).length;
   const pageCount = Math.max(1, Math.ceil(filtered.length / LIBRARY_PAGE_SIZE));
   const current = Math.min(Math.max(1, page), pageCount);
-  const slice = filtered.slice((current - 1) * LIBRARY_PAGE_SIZE, current * LIBRARY_PAGE_SIZE);
+  const slice = filtered.slice(Math.max(0, (current - 1) * LIBRARY_PAGE_SIZE - overlap), current * LIBRARY_PAGE_SIZE);
 
   const groups: LibraryData['groups'] = [];
   for (const e of slice) {
@@ -692,9 +705,16 @@ export async function addToPlaylist(profile: Profile, ids: number[], max = Infin
   const have = new Set(rows.map((r) => r.cluster_id));
   let pos = rows.reduce((m, r) => Math.max(m, r.position), 0);
   const fresh: number[] = [];
-  for (const id of [...new Set(ids)]) {
+  const wanted = [...new Set(ids)].filter((id) => !have.has(id));
+  // 여럿이면(비우기 되돌리기 등) 받은 피드를 한 번만 읽어 본다(소식마다 따로 찾으면 그만큼 DB를 오간다)
+  let received: Set<number> | null = null;
+  if (wanted.length > 3) {
+    received = new Set<number>();
+    for (const day of await allDays(profile)) for (const row of visibleRows(day)) received.add(row.clusterId);
+  }
+  for (const id of wanted) {
     if (have.size + fresh.length >= max) break;
-    if (have.has(id) || !(await isInUserFeed(profile, id))) continue;
+    if (!(received ? received.has(id) : await isInUserFeed(profile, id))) continue;
     fresh.push(id);
   }
   if (fresh.length) {

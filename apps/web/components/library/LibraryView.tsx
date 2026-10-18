@@ -1,14 +1,17 @@
 import Form from "next/form";
 import Link from "next/link";
-import { IconBack, IconClose, IconDoc, IconPlay, IconSearch } from "@/components/icons";
+import { IconBack, IconClose, IconSearch } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
-import { CategoryChip } from "@/components/ui/CategoryChip";
-import type { LibraryData, LibraryEntry, LibraryReadFilter } from "@/lib/types";
-import { LibraryHeader, PickBar, PickTarget, PlaylistPicker } from "./Playlist";
-import { ReadBadge } from "./ReadBadge";
+import { libraryFilterKey } from "@/lib/library-pages";
+import type { LibraryData, LibraryReadFilter } from "@/lib/types";
+import { InfiniteLibrary } from "./InfiniteLibrary";
+import { DayGroups } from "./LibraryCards";
+import { LibraryHeader, PickBar, PlaylistPicker } from "./Playlist";
 
 // 보관함: 지금까지 받은 피드 전체. 서버에서 그린다(검색·페이지·카테고리·읽음은 주소의 ?q=&page=&category=&read=).
+// 웹 브라우저는 쪽 넘기기(‹ 5 / 27 ›), 앱(iOS·안드로이드)은 끝에 가까워지면 다음 쪽을 이어 붙인다(InfiniteLibrary).
+// 앱인지는 서버가 User-Agent로 정해서(page.tsx) 서버 HTML과 첫 그림이 같고, 쪽 넘기기가 잠깐 보였다 사라지지 않는다.
 // '골라 듣기'로 고른 소식을 이어 듣는다(Playlist.tsx, Premium).
 
 function href(page: number, category: string | null, read: LibraryReadFilter | null, query: string | null): string {
@@ -21,7 +24,7 @@ function href(page: number, category: string | null, read: LibraryReadFilter | n
   return s ? `/library?${s}` : "/library";
 }
 
-export function LibraryView({ lib }: { lib: LibraryData }) {
+export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면 이어 붙이기, 웹이면 쪽 넘기기 */ infinite: boolean }) {
   return (
     <div className="mx-auto max-w-[680px] px-4 py-6 lg:py-10">
       <PlaylistPicker>
@@ -55,22 +58,22 @@ export function LibraryView({ lib }: { lib: LibraryData }) {
               </p>
             </Bubble>
           </div>
+        ) : infinite ? (
+          <InfiniteLibrary
+            key={libraryFilterKey({ category: lib.category, read: lib.readFilter, query: lib.query })}
+            groups={lib.groups}
+            page={lib.page}
+            pageCount={lib.pageCount}
+            filteredTotal={lib.filteredTotal}
+            category={lib.category}
+            read={lib.readFilter}
+            query={lib.query}
+          />
         ) : (
-          lib.groups.map((g) => (
-            <section key={g.date} aria-labelledby={`day-${g.date}`} className="mt-7">
-              <h2 id={`day-${g.date}`} className="px-1 text-[15px] font-black text-sub">
-                {g.label}
-              </h2>
-              <ol className="mt-3 flex flex-col gap-3">
-                {g.entries.map((e) => (
-                  <LibraryCard key={e.clusterId} entry={e} />
-                ))}
-              </ol>
-            </section>
-          ))
+          <DayGroups groups={lib.groups} />
         )}
 
-        {lib.pageCount > 1 && <Pagination lib={lib} />}
+        {!infinite && lib.pageCount > 1 && <Pagination lib={lib} />}
         <PickBar />
       </PlaylistPicker>
     </div>
@@ -124,35 +127,6 @@ function FilterLink({ href: to, active, label, count }: { href: string; active: 
       {label}
       <span className={`font-round text-[13px] ${active ? "" : "text-faint"}`}>{count}</span>
     </Link>
-  );
-}
-
-function LibraryCard({ entry: e }: { entry: LibraryEntry }) {
-  const video = e.kind === "video";
-  return (
-    <li className="group tile relative p-4 transition-colors hover:bg-snow">
-      <div className="flex items-center gap-2 text-[13px] font-extrabold">
-        <CategoryChip category={e.category} />
-        <span className="inline-flex items-center gap-1 text-sub">
-          {video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
-          {e.sourceLabel}
-        </span>
-        <span className="ml-auto shrink-0 group-has-[[data-pick]]:invisible">
-          <ReadBadge clusterId={e.clusterId} read={e.read || e.listened} />
-        </span>
-      </div>
-      <h3 className="mt-2 text-[17px] font-black leading-snug tracking-[-0.02em]">
-        <Link href={`/article/${e.clusterId}`} className="no-underline after:absolute after:inset-0 after:rounded-2xl">
-          {e.title}
-        </Link>
-      </h3>
-      <p className="mt-1.5 line-clamp-2 text-[14px] font-medium leading-relaxed text-sub">{e.short}</p>
-      <p className="mt-2 truncate text-[13px]">
-        <span className="font-extrabold">{e.author}</span>
-        <span className="ml-2 font-semibold text-faint">{e.publishedLabel}</span>
-      </p>
-      <PickTarget id={e.clusterId} title={e.title} />
-    </li>
   );
 }
 

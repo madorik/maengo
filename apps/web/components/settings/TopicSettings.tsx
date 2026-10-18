@@ -6,13 +6,16 @@ import { track } from "@/lib/analytics";
 import Link from "next/link";
 import { IconCheck, IconChevronDown, IconClose } from "@/components/icons";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
+import { useToast } from "@/components/ui/Toast";
 import { topicTone } from "@/components/TopicGroupIcon";
 import type { TopicGroupView, TopicResult, UserTopic } from "@/lib/types";
 
 type Section = { id: string; name: string; picked: boolean };
 type Op = { drop: string[]; add: string[] };
-type Send = { fields: Record<string, string>; op?: Op };
-type Chip = { id: string; name: string; tone: string; remove: () => void };
+/** restore: 되돌리기 알림에서 다시 넣기(기타 입력 칸에 적던 말은 그대로 둔다) */
+type Send = { fields: Record<string, string>; op?: Op; restore?: boolean };
+/** remove는 실제로 뺐으면 true, undo는 되돌리기 알림에서 다시 넣기 */
+type Chip = { id: string; name: string; tone: string; remove: () => boolean; undo: () => void };
 
 /**
  * 설정 > 관심사(2026-10-11 개편). 고른 관심사만 분야 색 라벨로 보여 주고, 고르기는 분야별 드롭다운으로 한다.
@@ -21,6 +24,7 @@ type Chip = { id: string; name: string; tone: string; remove: () => void };
  *   분야는 트리 선택처럼 움직인다: 전체를 켜면 상세가 모두 켜진 것으로 보이고(라벨은 분야 하나), 그 상태에서 상세 하나를 끄면 나머지 상세만 남고,
  *   상세를 다 켜면 전체로 합친다. 서버도 같은 규칙으로 저장한다(setGroupPicks).
  * - 누르는 즉시 라벨·체크가 바뀐다(useOptimistic). 서버가 막으면(한도 등) 되돌아가고 까닭을 보여 준다.
+ * - 라벨 ✕로 빼면 되돌리기 알림이 뜬다. 누르면 그때 고른 상태에 그 관심사를 다시 넣는다(한도에 걸리면 위와 같이 까닭을 보여 준다).
  */
 export function TopicSettings({ groups, news, custom, customAllowed }: { groups: TopicGroupView[]; news: Section[]; custom: UserTopic[]; customAllowed: boolean }) {
   const panelId = useId();
@@ -44,55 +48,111 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
     return next;
   });
 
-  const [state, dispatch] = useActionState<TopicResult | null, Send>(async (prev, { fields, op }) => {
+  const [state, dispatch] = useActionState<TopicResult | null, Send>(async (prev, { fields, op, restore }) => {
     if (op) apply(op);
     const formData = new FormData();
     for (const [k, v] of Object.entries(fields)) formData.set(k, v);
     const r = await editTopics(prev, formData);
-    if ("text" in fields && r?.tone !== "warn") setText("");
+    if ("text" in fields && !restore && r?.tone !== "warn") setText("");
     return r;
   }, null);
-  const send = (fields: Record<string, string>, op?: Op) => {
+  const send = (fields: Record<string, string>, op?: Op, restore = false) => {
     // 분석: 무엇을 했는지만(직접 적은 말은 남기지 않는다)
     if ("group" in fields) track("topic_edit", { action: "group", group: fields.group, picks: fields.pick ? fields.pick.split(",").filter(Boolean).length : 0 });
     else if ("add" in fields) track("topic_edit", { action: "add", topic: fields.add });
     else if ("remove" in fields) track("topic_edit", { action: "remove", topic: fields.remove.startsWith("c-") ? "custom" : fields.remove });
     else if ("text" in fields) track("topic_edit", { action: "text" });
-    startTransition(() => dispatch({ fields, op }));
+    startTransition(() => dispatch({ fields, op, restore }));
   };
 
-  /** 분야 하나에서 고른 것을 통째로 정한다. 상세를 다 고르면 전체로 */
+  /** 분야 하나에서 고른 것을 통째로 정한다. 상세를 다 고르면 전체로. 보냈으면 true */
   const setGroup = (g: TopicGroupView, next: "all" | string[]) => {
     const children = g.details.map((d) => d.id);
     const desired = next === "all" || next.length === children.length ? [g.id] : next;
     const drop = [g.id, ...children].filter((id) => picked.has(id) && !desired.includes(id));
     const add = desired.filter((id) => !picked.has(id));
-    if (picked.size - drop.length + add.length < 1) return;
+    if (picked.size - drop.length + add.length < 1) return false;
     send({ group: g.id, pick: desired.includes(g.id) ? "all" : desired.join(",") }, { drop, add });
+    return true;
   };
   const clickWhole = (g: TopicGroupView) => setGroup(g, picked.has(g.id) ? [] : "all");
   const clickDetail = (g: TopicGroupView, id: string) => {
     const ids = g.details.map((d) => d.id);
     if (picked.has(g.id)) return setGroup(g, ids.filter((x) => x !== id));
     const some = ids.filter((x) => picked.has(x));
-    setGroup(g, some.includes(id) ? some.filter((x) => x !== id) : [...some, id]);
+    return setGroup(g, some.includes(id) ? some.filter((x) => x !== id) : [...some, id]);
   };
-  /** 뉴스 분야·기타 하나 켜고 끄기 */
+  /** 뉴스 분야·기타 하나 켜고 끄기. 보냈으면 true */
   const toggleOne = (id: string) => {
     if (picked.has(id)) {
-      if (picked.size <= 1) return;
+      if (picked.size <= 1) return false;
       send({ remove: id }, { drop: [id], add: [] });
     } else send({ add: id }, { drop: [], add: [id] });
+    return true;
   };
+
+  // 되돌리기는 몇 초 뒤에 눌린다: 그때 고른 상태로 판단하게 마지막 값을 들고 있는다(그사이 다른 것을 바꿨어도 그 관심사만 다시 넣는다)
+  const latest = useRef({ picked, setGroup, send });
+  useEffect(() => {
+    latest.current = { picked, setGroup, send };
+  });
+  const toast = useToast();
 
   const chips: Chip[] = [
     ...groups.flatMap((g): Chip[] =>
       picked.has(g.id)
-        ? [{ id: g.id, name: g.name, tone: g.id, remove: () => setGroup(g, []) }]
-        : g.details.filter((d) => picked.has(d.id)).map((d) => ({ id: d.id, name: d.name, tone: g.id, remove: () => clickDetail(g, d.id) })),
+        ? [
+            {
+              id: g.id,
+              name: g.name,
+              tone: g.id,
+              remove: () => setGroup(g, []),
+              undo: () => {
+                const l = latest.current;
+                if (!l.picked.has(g.id)) l.setGroup(g, "all");
+              },
+            },
+          ]
+        : g.details
+            .filter((d) => picked.has(d.id))
+            .map((d) => ({
+              id: d.id,
+              name: d.name,
+              tone: g.id,
+              remove: () => clickDetail(g, d.id),
+              // 그때 그 분야에서 고른 상세에 더한다(분야 전체를 골랐거나 이미 있으면 그대로)
+              undo: () => {
+                const l = latest.current;
+                if (l.picked.has(g.id) || l.picked.has(d.id)) return;
+                l.setGroup(g, [...g.details.map((x) => x.id).filter((x) => l.picked.has(x)), d.id]);
+              },
+            })),
     ),
-    ...news.filter((n) => picked.has(n.id)).map((n) => ({ id: n.id, name: n.name, tone: n.id, remove: () => toggleOne(n.id) })),
-    ...custom.filter((c) => picked.has(c.id)).map((c) => ({ id: c.id, name: c.name, tone: "etc", remove: () => toggleOne(c.id) })),
+    ...news
+      .filter((n) => picked.has(n.id))
+      .map((n) => ({
+        id: n.id,
+        name: n.name,
+        tone: n.id,
+        remove: () => toggleOne(n.id),
+        undo: () => {
+          const l = latest.current;
+          if (!l.picked.has(n.id)) l.send({ add: n.id }, { drop: [], add: [n.id] });
+        },
+      })),
+    // 기타는 적은 말로 다시 넣는다(같은 말이면 같은 관심사가 된다. 기타를 못 넣는 플랜이면 까닭을 보여 준다)
+    ...custom
+      .filter((c) => picked.has(c.id))
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        tone: "etc",
+        remove: () => toggleOne(c.id),
+        undo: () => {
+          const l = latest.current;
+          if (!l.picked.has(c.id)) l.send({ text: c.name }, { drop: [], add: [c.id] }, true);
+        },
+      })),
   ];
   const only = chips.length <= 1;
 
@@ -136,7 +196,9 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
               {/* 누르는 곳은 44px(위아래는 음수 여백으로 라벨 높이를 그대로 둔다), 보이는 ✕는 28px. 누르면 바로 저장된다 */}
               <button
                 type="button"
-                onClick={c.remove}
+                onClick={() => {
+                  if (c.remove()) toast.showUndo({ label: "뺐어요", onUndo: c.undo });
+                }}
                 disabled={only}
                 aria-label={`${c.name} 빼기`}
                 title={only ? "관심사가 하나는 있어야 해요" : undefined}

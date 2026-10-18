@@ -8,7 +8,7 @@ import {
 } from "@/lib/player/machine";
 import { ITEM_PLAY_EVENT, itemAudioUrl, itemInfoUrl, itemQuery } from "@/lib/player/item";
 import { initialRate, nextRate } from "@/lib/player/rate";
-import { keptIds, parseRemoved, planTodaySwap, saveRemoved, useRemovedRaw } from "@/lib/player/removed";
+import { keptIds, parseRemoved, planTodaySwap, sameIds, saveRemoved, useRemovedRaw } from "@/lib/player/removed";
 import { clearResume, parseResume, resumeTarget, saveResume, useResumeRaw } from "@/lib/player/resume";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import { track } from "@/lib/analytics";
@@ -16,6 +16,8 @@ import { withBase } from "@/lib/base-path";
 import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
 import { PLAYLIST_MAX, playlistAudioUrl, playlistQuery } from "@/lib/playlist";
 import type { EpisodeData, ProfileView } from "@/lib/types";
+import { reinsert } from "@/lib/undo";
+import { useToast } from "@/components/ui/Toast";
 import { useToday } from "./TodayProvider";
 
 // "오늘 소식 이어 듣기"(PLAN.md 8.3). <audio> 하나에 에피소드 파일 하나만 튼다.
@@ -111,9 +113,11 @@ export interface PlayerApi {
   reorderPlaylist: (ids: number[]) => void;
   /**
    * 플레이어 목록에서 뺀다(저장된 플레이리스트는 그대로). 듣던 소식이면 그 자리에 온 소식으로 넘어간다.
-   * 오늘 소식이면 그날 동안 이 기기에서 빼 두고(뺀 소식은 음성을 만들지 않는다), restoreToday로 되돌린다
+   * 오늘 소식이면 그날 동안 이 기기에서 빼 두고(뺀 소식은 음성을 만들지 않는다), restoreToday로 되돌린다.
+   * 뺐으면 그 하나를 되돌리는 함수를 돌려준다(되돌리기 알림): 누를 때의 상태로 뺀 자리에 다시 넣고, 지금 넣을 수 없으면 false.
+   * 안 뺐거나 되돌릴 수 없는 빼기(음성을 만드는 중인 소식, 플레이리스트의 마지막 하나)면 null
    */
-  removeFromPlayer: (id: number) => void;
+  removeFromPlayer: (id: number) => (() => boolean) | null;
   /** 오늘 플레이어 목록에서 뺀 소식 */
   removedToday: ReadonlySet<number>;
   /** 오늘 목록에서 뺀 소식을 모두 다시 넣는다 */
@@ -136,6 +140,10 @@ const LOAD_ERROR = "소식을 불러오지 못했어요";
 /** 다 만든 음성 파일을 못 열었을 때 */
 const FILE_ERROR = "음성을 불러오지 못했어요";
 const PLAY_ERROR = "재생하지 못했어요";
+const UNDO_ERROR = "되돌리지 못했어요";
+/** 음성을 이어 붙이는 동안 눌린 되돌리기를 기다려 주는 시간 */
+const UNDO_WAIT_MS = 20_000;
+type UndoArgs = { id: number; before: readonly number[] | null; voice: Voice; persona: Persona };
 const ADD_ERROR = "플레이어에 추가하지 못했어요";
 /** 듣던 자리는 이만큼 움직일 때마다 저장한다(멈출 때는 바로) */
 const SAVE_EVERY_MS = 3000;
@@ -146,6 +154,7 @@ const NO_READ: ReadonlySet<number> = new Set();
 
 export function PlayerProvider({ profile, children }: { profile: ProfileView; children: React.ReactNode }) {
   const { data, read, listened, markListened } = useToday();
+  const toast = useToast();
   const audioRef = useRef<HTMLAudioElement>(null);
   /** 메타데이터가 오기 전에 요청된 이동(항목 번호). loadedmetadata에서 그때의 챕터 표로 적용한다 */
   const pendingRef = useRef<{ index: number; play: boolean; offsetMs?: number } | null>(null);
@@ -862,15 +871,69 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     if (addingRef.current.some((x) => x.clusterId === id)) {
       addingRef.current = addingRef.current.filter((x) => x.clusterId !== id);
       setPending(addingRef.current);
-      return;
+      return null;
     }
     const list = playlistRef.current;
     if (!list) {
-      if (!removed.has(id)) setRemovedToday(new Set([...removed, id]));
-      return;
+      if (removed.has(id) || !canRemove) return null;
+      setRemovedToday(new Set([...removed, id]));
+      return undoOf({ id, before: null, voice, persona });
     }
-    if (!canEdit || !list.includes(id)) return;
+    if (!canEdit || !list.includes(id)) return null;
     swap(list.filter((x) => x !== id));
+    // 마지막 하나를 빼면 플레이리스트가 닫혀서 되돌리지 않는다
+    return list.length > 1 ? undoOf({ id, before: list, voice, persona }) : null;
+  };
+
+  /**
+   * 되돌리기 알림의 '되돌리기'. 몇 초 뒤에 눌리므로 그때의 최신 상태(ref)로 판단한다.
+   * 오늘 소식은 뺀 표시만 지운다(화면 순서 자리로 돌아오고, 듣는 중이면 restoreToday와 같은 규칙으로 갈아 끼운다).
+   * 플레이리스트는 뺄 때 목록(before)의 자리로 다시 끼운다. 이미 들어 있으면 그대로(겹치지 않게).
+   * 뺀 직후라 음성을 다시 이어 붙이는 중이면(몇 초) 'wait': 맡아 두었다가 다 되는 대로 넣는다(deferredUndoRef).
+   * 그사이 오늘 ↔ 플레이리스트로 바뀌었거나, 목소리가 바뀌었거나(뺀 소식의 음성 조각이 없을 수 있다), 목록이 다 찼으면 'fail'
+   */
+  const undoRef = useRef<(u: UndoArgs) => "done" | "wait" | "fail">(() => "fail");
+  useEffect(() => {
+    undoRef.current = ({ id, before, voice: v, persona: p }) => {
+      const list = playlistRef.current;
+      if ((before === null) !== (list === null)) return "fail";
+      if (!list || !before) {
+        if (!removed.has(id)) return "done";
+        if (!canRemove) return "wait";
+        setRemovedToday(new Set([...removed].filter((x) => x !== id)));
+        return "done";
+      }
+      if (list.includes(id) || addingRef.current.some((x) => x.clusterId === id)) return "done";
+      // 뺀 뒤 목록이 그대로일 때만 되돌린다(그사이 다른 플레이리스트를 틀었거나 목록을 바꿨으면 엉뚱한 목록에 넣지 않게)
+      if (!sameIds(list, before.filter((x) => x !== id))) return "fail";
+      if (v !== voice || p !== persona || list.length >= PLAYLIST_MAX) return "fail";
+      if (!canEdit) return "wait";
+      const next = reinsert(list, id, before);
+      if (!next) return "fail";
+      swap(next);
+      return "done";
+    };
+  });
+  /** 맡아 둔 되돌리기(음성을 이어 붙이는 동안 눌린 것). 이만큼 안에 못 넣으면 그만두고 알린다 */
+  const deferredUndoRef = useRef<{ u: UndoArgs; until: number } | null>(null);
+  /** 기한이 지났는지 보려고 한 번 더 그리게 하는 값(멈춘 채 아무것도 안 바뀌어도 기한에 알리게) */
+  const [undoTick, setUndoTick] = useState(0);
+  // 바꿀 수 있게 되면(음성이 다 돼 preparing이 풀리면) 맡아 둔 되돌리기를 넣어 본다. 기한이 지나면 그만두고 알림으로 알린다
+  useEffect(() => {
+    const d = deferredUndoRef.current;
+    if (!d) return;
+    const r = Date.now() > d.until ? "fail" : undoRef.current(d.u);
+    if (r === "wait") return;
+    deferredUndoRef.current = null;
+    if (r === "fail") toast.showError(UNDO_ERROR);
+  }, [canRemove, canEdit, undoTick, toast]);
+  const undoOf = (u: UndoArgs) => () => {
+    const r = undoRef.current(u);
+    if (r === "wait") {
+      deferredUndoRef.current = { u, until: Date.now() + UNDO_WAIT_MS };
+      setTimeout(() => setUndoTick((t) => t + 1), UNDO_WAIT_MS + 100);
+    }
+    return r !== "fail";
   };
 
   const addToPlayer = (items: { clusterId: number; title: string }[]) => {
