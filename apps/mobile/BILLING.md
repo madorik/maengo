@@ -70,6 +70,10 @@ REVENUECAT_WEBHOOK_AUTH=…
 - 맹고 추가 구매(Free·Premium) → 수량 고르고 결제 → 지갑 +수량, 같은 거래가 웹훅·sync로 두 번 와도 한 번만
 - 앱 지우고 다시 깔아 구매 복원 → Premium 그대로
 
+## 이력(2026-10-18)
+
+결제(`purchases`)·웹훅 원본(`billing_events`)·플랜 변경(`plan_changes`)·맹고 지갑(`wallet_ledger`)을 DB에 남긴다. 무엇이 언제 쌓이는지와 문의 대응 SQL은 `맹고-문서/결제-이력-기록.md`. 플랜은 앱 코드가 직접 고치지 않고 `set_plan(회원, 플랜, 만료, 이유)`로 바꾼다(트리거가 이유와 함께 남긴다).
+
 ## Test Store로 먼저 시험(로컬, 2026-10-18)
 
 애플·구글 계약 없이 RevenueCat 안의 가짜 스토어로 결제 흐름(구독 → Premium, 묶음 → 지갑, 복원)을 본다. 실제 결제창·가격·무료 체험 자격·웹훅은 못 본다(RevenueCat이 로컬 서버에 닿지 않음. 앱이 결제 직후 `/api/billing/sync`를 부르니 상태는 맞춰진다).

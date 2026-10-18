@@ -8,7 +8,7 @@ export async function POST() {
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!billingConfigured()) return NextResponse.json({ error: "not_configured" }, { status: 503 });
   try {
-    return NextResponse.json(await syncBilling(profile.id));
+    return NextResponse.json(await syncBilling(profile.id, "app_sync"));
   } catch (e) {
     console.error("[billing] sync 실패", String((e as Error).message ?? e).slice(0, 300));
     return NextResponse.json({ error: "sync_failed" }, { status: 502 });

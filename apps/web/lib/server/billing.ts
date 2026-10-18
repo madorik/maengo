@@ -1,5 +1,5 @@
 import 'server-only';
-import { readSubscriber, type RcSubscriber } from '../billing/revenuecat';
+import { paymentFromEvent, paymentsFromSubscriber, readSubscriber, type PaymentRow, type RcEvent, type RcSubscriber } from '../billing/revenuecat';
 import { db, must } from './db';
 import { creditMaengo } from './wallet';
 
@@ -27,19 +27,55 @@ export interface BillingSyncResult {
   credited: number;
 }
 
-export async function syncBilling(userId: string): Promise<BillingSyncResult> {
+/** 결제 기록(purchases)에 넣는다. 기록이 실패해도 플랜·지갑 맞추기는 계속한다 */
+export async function recordPayments(rows: PaymentRow[]): Promise<void> {
+  if (!rows.length) return;
+  const { error } = await db.rpc('record_purchases', { p: rows });
+  if (error) console.error('[billing] 결제 기록 실패', error.message);
+}
+
+/**
+ * RevenueCat 웹훅 원본(billing_events)과, 돈이 오간 이벤트면 그 거래(purchases)를 남긴다. 같은 이벤트가 다시 와도 한 줄.
+ * userId가 우리 회원이 아니면(지운 회원 등) 회원 연결 없이 원본만 남긴다. 실패해도 웹훅 처리는 계속한다
+ */
+export async function recordBillingEvent(e: RcEvent & Record<string, unknown>, userId: string | null): Promise<void> {
+  const row = {
+    id: e.id ?? `${e.type ?? 'UNKNOWN'}:${e.event_timestamp_ms ?? Date.now()}:${e.transaction_id ?? ''}`,
+    user_id: userId,
+    app_user_id: e.app_user_id ?? null,
+    type: e.type ?? 'UNKNOWN',
+    product_id: e.product_id ?? null,
+    store: e.store ? e.store.toLowerCase() : null,
+    environment: e.environment ?? null,
+    transaction_id: e.transaction_id ?? null,
+    event_at: typeof e.event_timestamp_ms === 'number' ? new Date(e.event_timestamp_ms).toISOString() : null,
+    payload: e,
+  };
+  let { error } = await db.from('billing_events').upsert(row, { onConflict: 'id', ignoreDuplicates: true });
+  if (error?.code === '23503') ({ error } = await db.from('billing_events').upsert({ ...row, user_id: null }, { onConflict: 'id', ignoreDuplicates: true }));
+  if (error) console.error('[billing] 웹훅 원본 기록 실패', e.type, error.message);
+  const pay = userId ? paymentFromEvent(e, userId) : null;
+  if (pay) await recordPayments([pay]);
+}
+
+/**
+ * reason은 플랜이 바뀌면 plan_changes에 남는 이유: app_sync(앱이 결제·복원 직후), webhook:이벤트, renewal_check(만료 직전 재확인)
+ */
+export async function syncBilling(userId: string, reason: string): Promise<BillingSyncResult> {
   const exists = must(await db.from('profiles').select('id').eq('id', userId).maybeSingle(), 'profiles') as { id: string } | null;
   if (!exists) return { plan: 'unchanged', credited: 0 };
-  const state = readSubscriber(await fetchSubscriber(userId), new Date());
+  const sub = await fetchSubscriber(userId);
+  const state = readSubscriber(sub, new Date());
+  await recordPayments(paymentsFromSubscriber(sub, userId));
   let plan: BillingSyncResult['plan'] = 'unchanged';
 
   if (state.premium) {
     const p = state.premium;
     if (p.active) {
-      must(await db.from('profiles').update({ plan: 'plus', premium_until: p.until }).eq('id', userId), 'profiles plus');
+      must(await db.rpc('set_plan', { p_user: userId, p_plan: 'plus', p_until: p.until, p_reason: reason }), 'set_plan plus');
       plan = 'plus';
     } else {
-      must(await db.from('profiles').update({ plan: 'free', premium_until: null }).eq('id', userId).eq('plan', 'plus'), 'profiles free');
+      must(await db.rpc('set_plan', { p_user: userId, p_plan: 'free', p_until: null, p_reason: reason, p_only_if: 'plus' }), 'set_plan free');
       plan = 'free';
     }
     must(

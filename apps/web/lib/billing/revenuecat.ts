@@ -1,4 +1,4 @@
-import { packAmount, PREMIUM_ENTITLEMENT } from '@maengo/core/plans';
+import { packAmount, PREMIUM_ENTITLEMENT, PREMIUM_PRODUCT } from '@maengo/core/plans';
 
 // RevenueCat REST v1 GET /subscribers/{app_user_id}의 subscriber를 우리 상태로 읽는다(순수 함수, 서버·테스트 공용).
 // 웹훅 내용은 믿지 않고 신호로만 쓰고, 늘 이 응답으로 맞춘다(순서가 뒤바뀌거나 두 번 와도 결과가 같다).
@@ -14,6 +14,8 @@ export interface RcEntitlement {
 
 export interface RcSubscription {
   expires_date: string | null;
+  purchase_date?: string;
+  price?: { amount: number; currency: string } | null;
   grace_period_expires_date?: string | null;
   store: string;
   store_transaction_id?: string | null;
@@ -99,4 +101,121 @@ export function readSubscriber(sub: RcSubscriber, now: Date): BillingState {
     for (const p of list) packs.push({ ref: `rc:${p.id}`, productId, amount });
   }
   return { premium, packs };
+}
+
+// ---- 결제 기록(purchases 표, record_purchases) ----
+
+/** purchases 한 줄(record_purchases에 넘기는 모양) */
+export interface PaymentRow {
+  user_id: string;
+  store: string;
+  transaction_id: string;
+  original_transaction_id: string | null;
+  rc_id: string | null;
+  product_id: string;
+  kind: 'subscription' | 'pack' | 'other';
+  purchased_at: string | null;
+  expires_at: string | null;
+  price: number | null;
+  currency: string | null;
+  price_usd: number | null;
+  sandbox: boolean;
+  refunded_at: string | null;
+  source: string;
+}
+
+const kindOf = (productId: string): PaymentRow['kind'] => (sameProduct(productId, PREMIUM_PRODUCT) ? 'subscription' : packAmount(productId) ? 'pack' : 'other');
+/** RevenueCat 스토어 이름을 소문자로(구독자 응답은 app_store, 웹훅은 APP_STORE) */
+const storeName = (store: string | null | undefined) => (store ?? 'unknown').toLowerCase();
+const isoOf = (ms: number | null | undefined) => (typeof ms === 'number' ? new Date(ms).toISOString() : null);
+
+/** 구독자 응답에 든 거래들. 구독은 지금 기간의 거래 하나(갱신마다 바뀐다), 맹고 묶음은 산 것 전부 */
+export function paymentsFromSubscriber(sub: RcSubscriber, userId: string): PaymentRow[] {
+  const rows: PaymentRow[] = [];
+  for (const [productId, s] of Object.entries(sub.subscriptions ?? {})) {
+    rows.push({
+      user_id: userId,
+      store: storeName(s.store),
+      transaction_id: s.store_transaction_id ?? `${productId}@${s.purchase_date ?? s.original_purchase_date ?? ''}`,
+      original_transaction_id: null,
+      rc_id: null,
+      product_id: productId,
+      kind: kindOf(productId),
+      purchased_at: s.purchase_date ?? null,
+      expires_at: s.expires_date,
+      price: s.price?.amount ?? null,
+      currency: s.price?.currency ?? null,
+      price_usd: null,
+      sandbox: !!s.is_sandbox,
+      refunded_at: s.refunded_at ?? null,
+      source: 'sync',
+    });
+  }
+  for (const [productId, list] of Object.entries(sub.non_subscriptions ?? {})) {
+    for (const p of list) {
+      rows.push({
+        user_id: userId,
+        store: storeName(p.store),
+        transaction_id: p.store_transaction_id ?? p.id,
+        original_transaction_id: null,
+        rc_id: p.id,
+        product_id: productId,
+        kind: kindOf(productId),
+        purchased_at: p.purchase_date ?? null,
+        expires_at: null,
+        price: null,
+        currency: null,
+        price_usd: null,
+        sandbox: !!p.is_sandbox,
+        refunded_at: null,
+        source: 'sync',
+      });
+    }
+  }
+  return rows;
+}
+
+/** RevenueCat 웹훅 이벤트(필요한 칸만) */
+export interface RcEvent {
+  id?: string;
+  type?: string;
+  app_user_id?: string;
+  original_app_user_id?: string;
+  aliases?: string[];
+  transferred_to?: string[];
+  product_id?: string;
+  store?: string;
+  environment?: string;
+  transaction_id?: string | null;
+  original_transaction_id?: string | null;
+  purchased_at_ms?: number | null;
+  expiration_at_ms?: number | null;
+  event_timestamp_ms?: number | null;
+  price?: number | null;
+  price_in_purchased_currency?: number | null;
+  currency?: string | null;
+}
+
+/** 돈이 오간 이벤트(첫 구매·갱신·묶음 구매·상품 변경). 해지·만료·환불은 구독자 응답(refunded_at)과 billing_events로 남는다 */
+const PAID = new Set(['INITIAL_PURCHASE', 'RENEWAL', 'NON_RENEWING_PURCHASE', 'PRODUCT_CHANGE']);
+
+export function paymentFromEvent(e: RcEvent, userId: string): PaymentRow | null {
+  if (!e.type || !PAID.has(e.type) || !e.transaction_id || !e.product_id) return null;
+  return {
+    user_id: userId,
+    store: storeName(e.store),
+    transaction_id: e.transaction_id,
+    original_transaction_id: e.original_transaction_id ?? null,
+    rc_id: null,
+    product_id: e.product_id,
+    kind: kindOf(e.product_id),
+    purchased_at: isoOf(e.purchased_at_ms),
+    expires_at: isoOf(e.expiration_at_ms),
+    price: e.price_in_purchased_currency ?? null,
+    currency: e.currency ?? null,
+    price_usd: e.price ?? null,
+    sandbox: e.environment === 'SANDBOX',
+    refunded_at: null,
+    source: `webhook:${e.type}`,
+  };
 }

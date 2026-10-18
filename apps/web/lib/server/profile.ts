@@ -55,7 +55,7 @@ async function renewedUntil(userId: string): Promise<number | null> {
   const { billingConfigured, syncBilling } = await import('./billing');
   if (!billingConfigured()) return null;
   try {
-    if ((await syncBilling(userId)).plan !== 'plus') return null;
+    if ((await syncBilling(userId, 'renewal_check')).plan !== 'plus') return null;
     const row = must(await db.from('profiles').select('premium_until').eq('id', userId).single(), 'profiles') as { premium_until: string | null };
     const until = row.premium_until ? Date.parse(row.premium_until) : null;
     return until !== null && until > Date.now() ? until : null;
@@ -84,7 +84,7 @@ export async function loadProfile(
     else {
       plan = 'free';
       premiumUntil = null;
-      const { error } = await db.from('profiles').update({ plan: 'free', premium_until: null }).eq('id', row.id).eq('plan', 'plus');
+      const { error } = await db.rpc('set_plan', { p_user: row.id, p_plan: 'free', p_until: null, p_reason: 'expiry', p_only_if: 'plus' });
       if (error) console.error('Premium 만료 처리 실패', error.message);
     }
   }
