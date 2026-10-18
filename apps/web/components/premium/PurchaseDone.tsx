@@ -40,8 +40,8 @@ function copy(d: PurchaseDoneDetail): { title: [string, string]; body: string } 
       : { title: ["맹고 Premium을", "시작했어요~!"], body: "음성 듣기, 관심사 추가, 내 관심 링크를 바로 쓸 수 있어요." };
   }
   return d.late
-    ? { title: ["결제가 끝났어요", `${d.amount}맹고가 곧 들어와요`], body: "맹고가 지갑에 들어오는 데 조금 걸릴 수 있어요." }
-    : { title: [`${d.amount}맹고를`, "지갑에 넣었어요~!"], body: "1맹고로 오늘 소식을 하나 더 받을 수 있어요." };
+    ? { title: ["결제가 끝났어요", `맹고 ${d.amount}개가 곧 들어와요`], body: "맹고가 지갑에 들어오는 데 조금 걸릴 수 있어요." }
+    : { title: [`맹고 ${d.amount}개를`, "지갑에 넣었어요~"], body: "1맹고로 오늘 소식을 하나 더 받을 수 있어요." };
 }
 
 export function PurchaseDoneHost() {
