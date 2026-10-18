@@ -78,7 +78,8 @@ export async function Landing() {
             <a href="#features" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
               무엇을 해 주나요
             </a>
-            <a href="#pricing" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
+            {/* 요금은 휴대폰에서도 보인다(기능은 넓은 화면에서만) */}
+            <a href="#pricing" className="inline-flex min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow">
               요금
             </a>
             <AuthLink signedOut={{ href: "/login", label: "로그인" }} signedIn={{ href: "/today", label: "오늘의 소식" }} className="btn btn-ghost ml-1 min-h-11 px-4 text-[14px]" />

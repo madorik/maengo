@@ -89,7 +89,8 @@ REVENUECAT_WEBHOOK_AUTH=…
    REVENUECAT_PROJECT_ID=proj…
    ```
 4. **나**: `pnpm revenuecat:setup`(상품 5개·권한 `premium`·오퍼링 `default` Current. 테스트 상품은 API로 가격을 못 넣어 RevenueCat 기본값으로 보인다) → 로컬 서버 다시 띄우기(`NEXT_PUBLIC_`은 서버를 켤 때 들어감) → 디버그 앱(`CAP_SERVER_URL=http://localhost:3100/maengo`)에서 아래 5. 확인
-5. 실제 스토어를 붙일 때도 같은 스크립트를 `pnpm revenuecat:setup app_store`·`play_store`로 돌릴 수 있다(스토어에 상품을 먼저 만든 뒤)
+5. 무료 체험 흐름(동의 팝업)을 Test Store로 보려면 `.env.local`에 `NEXT_PUBLIC_TEST_TRIAL_DAYS=7`. Test Store 상품엔 체험을 붙일 수 없어서 test_ 키일 때만 체험이 있는 것처럼 보인다(결제는 체험 없이 되고 상태도 trial이 아님). 데모 계정을 '처음 구독' 상태로 되돌리려면 그 회원의 `subscriptions`·`purchases`(kind subscription)·`trial_consents`를 지우고 `set_plan(…, 'free', null, 'demo_reset')`, RevenueCat은 `DELETE /v1/subscribers/{id}`
+6. 실제 스토어를 붙일 때도 같은 스크립트를 `pnpm revenuecat:setup app_store`·`play_store`로 돌릴 수 있다(스토어에 상품을 먼저 만든 뒤)
 
 ### 시험 결과(2026-10-18, 데모 계정)
 - 안드로이드 에뮬레이터·iOS 시뮬레이터 모두 Test Store 결제 창(정상·실패·취소)이 뜨고 원화 가격(₩3,800, 묶음 ₩1,100~₩7,900)으로 보임

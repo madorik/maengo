@@ -56,6 +56,15 @@ async function trialEligible(productId: string): Promise<boolean> {
   return res?.[productId]?.status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE;
 }
 
+/**
+ * 로컬 시험용 체험 일수: RevenueCat Test Store 상품에는 무료 체험을 붙일 수 없어서, test_ 키에 NEXT_PUBLIC_TEST_TRIAL_DAYS(.env.local)가 있으면
+ * 체험이 있는 상품처럼 보이게 한다(동의 팝업 흐름 확인용. 실제 결제는 체험 없이 된다). 운영 빌드는 test_ 키를 쓰지 않아 켜지지 않는다
+ */
+function testTrialDays(): number | null {
+  const n = Number(process.env.NEXT_PUBLIC_TEST_TRIAL_DAYS);
+  return apiKey()?.startsWith("test_") && Number.isInteger(n) && n > 0 ? n : null;
+}
+
 /** 지금 오퍼링에서 Premium과 맹고 묶음을 꺼낸다(가격은 스토어가 그 나라 통화로 준다) */
 export async function loadStore(userId: string): Promise<{ premium: StoreItem | null; packs: StoreItem[] }> {
   await ready(userId);
@@ -69,6 +78,7 @@ export async function loadStore(userId: string): Promise<{ premium: StoreItem | 
   if (premium) {
     const days = trialOf(premium.pkg);
     if (days && (await trialEligible(premium.pkg.product.identifier))) premium.trialDays = days;
+    else premium.trialDays = testTrialDays();
   }
   return {
     premium,
