@@ -28,9 +28,7 @@ export function trialNotice(trialDays: number, price: string, chargeLabel: strin
 }
 
 /** 동의 체크박스 문구(동의 기록에도 그대로 남긴다) */
-export function trialAgreeText(price: string): string {
-  return `위 내용을 확인했고, 무료 체험이 끝나면 월 ${price}이 자동으로 결제되는 데 동의해요.`;
-}
+export const TRIAL_AGREE_TEXT = "위 내용을 확인했습니다.";
 
 /**
  * 체크박스에 체크하면 부른 쪽이 그 자리에서 동의를 남기고(onCheck), 남겨야 체크된 상태가 된다.

@@ -9,7 +9,7 @@ import { withBase } from "@/lib/base-path";
 import { useInApp, useStore } from "./useStore";
 import { AppOnlyNotice } from "./AppOnlyNotice";
 import { announcePurchase } from "./PurchaseDone";
-import { TrialConsent, trialAgreeText, trialChargeDay, trialNotice } from "./TrialConsent";
+import { TRIAL_AGREE_TEXT, TrialConsent, trialChargeDay, trialNotice } from "./TrialConsent";
 
 // /premium 페이지의 앱 안 결제 조각. 웹 브라우저에서는 앱에서 살 수 있다는 것만 알린다(웹 결제는 없다).
 
@@ -101,7 +101,7 @@ export function PremiumBuy({ uid, plan, firstSub, sub, priceKrw }: { uid: string
     const day = trialChargeDay(trialDays);
     setConsentError(null);
     setChecked(false);
-    setConsent({ lines: trialNotice(trialDays, premium.price, day.label), agreeText: trialAgreeText(premium.price), chargeOn: day.iso, chargeLabel: day.label });
+    setConsent({ lines: trialNotice(trialDays, premium.price, day.label), agreeText: TRIAL_AGREE_TEXT, chargeOn: day.iso, chargeLabel: day.label });
   };
 
   // 체크하면 그 자리에서 동의를 남긴다(남겨야 체크된다). 체크를 풀면 결제만 막는다
