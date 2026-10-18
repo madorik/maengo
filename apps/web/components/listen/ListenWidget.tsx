@@ -13,7 +13,7 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel } from "@/lib/player/labels";
-import { formatClock } from "@/lib/player/machine";
+import { formatClock, startIndex } from "@/lib/player/machine";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { Queue, Switch } from "./controls";
 import { Script } from "./Script";
@@ -27,7 +27,7 @@ import { Script } from "./Script";
 export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }) {
   const p = usePlayer();
   const profile = useProfile();
-  const { game } = useToday();
+  const { game, read } = useToday();
   const [open, setOpen] = useState(false);
   /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
   const [tab, setTab] = useState<"queue" | "script">("queue");
@@ -124,7 +124,12 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
   }
 
   const ch = p.chapters[p.cur];
-  const minutes = minutesLabel(p.personaTotalMs(p.persona));
+  // 재생을 누르면 먼저 나올 소식(읽은 소식 건너뛰기 반영)
+  const first = p.chapters[p.playlist ? 0 : startIndex(p.chapters, read, p.skipRead)];
+  // 개수·시간은 재생 목록(챕터)에 든 소식으로 센다. 시간은 만든 음성이면 실제 길이, 아니면 대본 길이 어림값. 건너뛸 소식은 뺀다
+  const count = p.ready ? p.progress.count : total;
+  const minutes = p.ready ? minutesLabel(p.progress.totalMs) : "";
+  const voiceName = p.voice === "f" ? "여성" : "남성";
   const sub = p.error
       ? "음성을 만들지 못했어요"
       : p.preparing
@@ -133,7 +138,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
       ? `${p.progress.count}개 중 ${p.progress.position}번째 ${playing ? "듣는 중" : "멈춤"}`
       : p.status === "done"
         ? doneText
-        : `${source} ${total}개, ${minutes}`;
+        : `${source} ${count}개${minutes && `, ${minutes}`}`;
   const close = () => {
     setOpen(false);
     launcherRef.current?.focus();
@@ -157,7 +162,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
                 플레이어
               </h2>
               <p className="truncate text-[12px] font-bold text-sub">
-                {`${source} ${total}개, ${p.voice === "f" ? "여성" : "남성"} 목소리로 ${minutes}`}
+                {`${source} ${count}개${minutes && `, ${voiceName} 목소리로 ${minutes}`}`}
               </p>
             </div>
             <button type="button" aria-label="플레이어 접기" onClick={close} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
@@ -168,7 +173,7 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
             <>
             <div className="px-4 pb-4 pt-3">
               <p className="line-clamp-2 min-h-[44px] text-[15px] font-extrabold leading-snug">
-                {ch?.title ?? (p.status === "done" ? `${doneText}. 다시 들으려면 재생을 누르세요.` : `한 번 누르면 ${total}개를 순서대로 끝까지 읽어 드려요.`)}
+                {ch?.title ?? (p.status === "done" ? doneText : first?.title)}
               </p>
               <ProgressBar value={p.progress.totalMs ? p.progress.elapsedMs / p.progress.totalMs : 0} tone="sky" label={`${heading} 진행`} className="mt-2 h-3" />
               <p className="mt-1.5 flex justify-between text-[12px] font-bold tabular-nums text-sub">

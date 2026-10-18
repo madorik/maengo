@@ -4,7 +4,7 @@ import { episodeFileUrl, getEpisode } from "@/lib/server/episode";
 import { currentProfile } from "@/lib/server/session";
 import { entitlements } from "@/lib/server/profile";
 import { redirectToFile, ttsFailure } from "@/lib/server/file-response";
-import { parseEpisodeParams } from "../params";
+import { parseEpisodeParams, parseTodayIds } from "../params";
 
 // 처음 듣는 소식은 이 요청에서 음성을 만든다(소식당 30~40초, 전체 듣기는 몇 분까지)
 export const maxDuration = 300;
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
   if (date !== kstDate()) return new NextResponse(null, { status: 404 });
 
   try {
-    const url = await episodeFileUrl(await getEpisode(profile, date, params.persona, params.voice, { generate: true }));
+    const ids = parseTodayIds(request.nextUrl.searchParams.get("ids"));
+    const url = await episodeFileUrl(await getEpisode(profile, date, params.persona, params.voice, { generate: true, ids }));
     if (!url) return new NextResponse(null, { status: 404 });
     return redirectToFile(request, url);
   } catch (e) {

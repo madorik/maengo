@@ -87,8 +87,6 @@ export interface EpisodeData {
   ready: boolean;
   durationMs: number;
   chapters: Chapter[];
-  /** 말투별 항목 길이(ms). 고르기 전에 "약 N분"을 보여 주는 데 쓴다 */
-  estimates: Record<Persona, number[]>;
 }
 
 export interface LibraryEntry {

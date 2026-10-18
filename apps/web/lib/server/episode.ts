@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { templateScript } from '@maengo/core/ai';
 import { GeminiQuotaError } from '@maengo/core/gemini';
-import { estimateTimeline, layoutChapters, PERSONAS, voiceKey } from '@maengo/core/audio';
+import { estimateTimeline, layoutChapters, voiceKey } from '@maengo/core/audio';
 import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
 import type { FeedItem } from '../types';
 import { tts, ttsModel, ttsVoiceId } from './ai';
@@ -256,26 +256,29 @@ async function ensureObject(ep: Episode): Promise<string> {
 
 const requester = (p: Profile): Requester => ({ userId: p.id });
 
-/** 오늘 에피소드. generate가 false면 이미 만든 음성만 본다(페이지를 열 때) */
-export async function getEpisode(profile: Profile, date: string, persona: Persona, voice: Voice, { generate }: { generate: boolean }): Promise<Episode> {
-  return assemble(await feedItems(profile, date), persona, voice, generate ? requester(profile) : null);
+/**
+ * 오늘 에피소드. generate가 false면 이미 만든 음성만 본다(페이지를 열 때).
+ * ids를 주면 그중 오늘 피드에 있는 소식만 넣는다: 화면이 받아 둔 목록과 플레이어 목록·길이가 어긋나지 않게(화면을 연 뒤 피드가 늘어도)
+ */
+export async function getEpisode(
+  profile: Profile,
+  date: string,
+  persona: Persona,
+  voice: Voice,
+  { generate, ids = null }: { generate: boolean; ids?: number[] | null },
+): Promise<Episode> {
+  let items = await feedItems(profile, date);
+  if (ids) {
+    const want = new Set(ids);
+    items = items.filter((i) => want.has(i.clusterId));
+  }
+  return assemble(items, persona, voice, generate ? requester(profile) : null);
 }
 
 /** 음성 파일 주소(없는 소식은 만든 뒤). R2면 서명 URL */
 export async function episodeFileUrl(ep: Episode): Promise<string | null> {
   if (!ep.objectKey) return null;
   return audioStore.url(await ensureObject(ep));
-}
-
-/** 아직 만들지 않은 말투의 길이 어림값. 대본 글자 수로 계산한다. */
-export async function estimateDurations(profile: Profile, date: string): Promise<Record<Persona, number[]>> {
-  return estimateItems(await feedItems(profile, date));
-}
-
-export function estimateItems(items: FeedItem[]): Record<Persona, number[]> {
-  const out = {} as Record<Persona, number[]>;
-  for (const p of PERSONAS) out[p.id] = items.map((item) => estimateTimeline(scriptOf(item, p.id), p.id).durationMs);
-  return out;
 }
 
 /** 소식 하나짜리 에피소드. 목록 카드·상세의 "듣기"가 쓴다 */

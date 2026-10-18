@@ -4,7 +4,7 @@ import type { Chapter, Persona, Voice } from "@maengo/core/types";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { savePlayerPrefs } from "@/app/actions";
 import {
-  isSkipped, lineAt, nextPlayable, prevPlayable, progress as progressOf, startIndex, tick, type Progress,
+  lineAt, nextPlayable, prevPlayable, progress as progressOf, startIndex, tick, type Progress,
 } from "@/lib/player/machine";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
 import { track } from "@/lib/analytics";
@@ -46,8 +46,6 @@ export interface PlayerApi {
   rate: number;
   canPrev: boolean;
   canNext: boolean;
-  /** 말투별 전체 길이 어림값. 읽은 항목 건너뛰기를 반영한다 */
-  personaTotalMs: (p: Persona) => number | null;
   toggle: () => void;
   play: () => void;
   pause: () => void;
@@ -137,9 +135,13 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const chapters = episode?.chapters ?? [];
   const contentKey = data.items.map((i) => `${i.clusterId}:${i.why}`).join("|");
 
+  /** 화면에 보이는 오늘 소식. 오늘 에피소드도 이 소식들로만 만든다(화면 목록·재생 목록·길이가 같은 소식을 가리키게) */
+  const todayIdsRef = useRef<number[]>([]);
+
   const fetchEpisode = useCallback(async (p: Persona, v: Voice): Promise<EpisodeData> => {
     const ids = playlistRef.current;
-    const res = await fetch(withBase(ids ? `/api/episode/playlist?${playlistQuery(ids, v)}` : `/api/episode/today?persona=${p}&voice=${v}`), { cache: "no-store" });
+    const today = `/api/episode/today?persona=${p}&voice=${v}&ids=${todayIdsRef.current.join(",")}`;
+    const res = await fetch(withBase(ids ? `/api/episode/playlist?${playlistQuery(ids, v)}` : today), { cache: "no-store" });
     if (!res.ok) throw new Error(String(res.status));
     return res.json();
   }, []);
@@ -190,6 +192,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const prefsRef = useRef({ persona, voice });
   useEffect(() => {
     prefsRef.current = { persona, voice };
+    todayIdsRef.current = data.items.map((i) => i.clusterId);
   });
 
   // 처음 들어왔을 때, 그리고 피드 내용(why 문구 등)이 바뀌었을 때 에피소드를 새로 받는다.
@@ -570,11 +573,6 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     rate,
     canPrev: cur >= 0,
     canNext: nextIndex !== null,
-    personaTotalMs: (p) => {
-      const est = episode?.estimates[p];
-      if (!est) return null;
-      return est.reduce((sum, ms, i) => (chapters[i] && isSkipped(chapters[i]!, readSet, skip) ? sum : sum + ms), 0);
-    },
     toggle: () => (status === "playing" ? pause() : play()),
     play,
     pause,

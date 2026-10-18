@@ -1,6 +1,6 @@
 import { kstDate } from "@maengo/core/kst";
 import { NextResponse, type NextRequest } from "next/server";
-import { estimateItems, getPlaylistEpisode } from "@/lib/server/episode";
+import { getPlaylistEpisode } from "@/lib/server/episode";
 import { currentProfile } from "@/lib/server/session";
 import { entitlements } from "@/lib/server/profile";
 import { parsePlaylistIds, playlistAudioUrl } from "@/lib/playlist";
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const ids = parsePlaylistIds(request.nextUrl.searchParams.get("ids"));
   if (!params || !ids) return NextResponse.json({ error: "bad_request" }, { status: 400 });
 
-  const { items, episode } = await getPlaylistEpisode(profile, ids, params.persona, params.voice, { generate: false });
+  const { episode } = await getPlaylistEpisode(profile, ids, params.persona, params.voice, { generate: false });
   const body: EpisodeData = {
     date: kstDate(),
     persona: params.persona,
@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
     ready: episode.objectKey !== null,
     durationMs: episode.durationMs,
     chapters: episode.chapters,
-    estimates: estimateItems(items),
   };
   return NextResponse.json(body, { headers: { "cache-control": "no-store" } });
 }

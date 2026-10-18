@@ -111,7 +111,7 @@ function TodayListenScreen() {
               lines={active ? (ch?.lines ?? []) : []}
               current={active ? p.lineIndex : -1}
               playing={playing}
-              intro={`재생을 누르면 오늘 ${data.items.length}개를 끝까지 들려 드려요. ${minutesLabel(p.personaTotalMs(p.persona))}이에요.`}
+              intro={`오늘 소식 ${p.ready ? p.progress.count : data.items.length}개${p.ready ? `, ${minutesLabel(p.progress.totalMs)}` : ""}`}
             />
           </>
         )}
@@ -156,7 +156,7 @@ function TodayListenScreen() {
       </footer>
 
       <Sheet title="재생 목록" open={sheet} onClose={() => setSheet(false)}>
-        <Switch label="다음 소식 자동 재생" note={p.autoNext ? "한 번 누르면 끝까지 이어서 들어요" : "소식 하나가 끝나면 멈춰요"} checked={p.autoNext} onChange={p.setAutoNext} />
+        <Switch label="다음 소식 자동 재생" checked={p.autoNext} onChange={p.setAutoNext} />
         <Switch label="읽은 소식은 건너뛰기" checked={p.skipRead} onChange={p.setSkipRead} />
         <Queue onPick={() => setSheet(false)} />
       </Sheet>
