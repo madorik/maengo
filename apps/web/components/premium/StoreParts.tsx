@@ -102,7 +102,8 @@ export function MaengoShop({ uid, canBuy, wallet }: { uid: string; canBuy: boole
 
   const walletLine = (
     <p className="text-[14px] font-bold text-sub">
-      지갑 <span className="font-round text-[20px] font-black tabular-nums text-ink">{wallet.toLocaleString("ko-KR")}</span>
+      {/* 지갑 맹고 n개(설정 지갑 칸과 같은 모양) */}
+      지갑 <span className="ml-1">맹고</span> <span className="font-round text-[20px] font-black tabular-nums text-ink">{wallet.toLocaleString("ko-KR")}</span>개
       {added !== null && <span className="pop ml-2 font-round text-[15px] font-black text-leaf">+{added}</span>}
     </p>
   );
