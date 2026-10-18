@@ -31,22 +31,13 @@ function ErrorText({ text }: { text: string | null }) {
   );
 }
 
-/** Premium 시작(구독) 또는 쓰고 있으면 구독 관리 */
+/** Premium 시작(구독). 쓰고 있으면 그렇다고만(구독 관리는 설정 > 플랜) */
 export function PremiumBuy({ uid, plan }: { uid: string; plan: Plan }) {
   const s = useStore(uid);
   if (s.inApp === null) return <div aria-hidden="true" className="h-14" />;
   if (!s.inApp) return <AppOnlyNotice />;
-  if (plan !== "free") {
-    return (
-      <div className="text-center">
-        <p className="text-[16px] font-black">Premium을 쓰고 있어요</p>
-        <button type="button" onClick={() => s.run("manage", (b) => b.openManage(uid), "구독 관리를 열지 못했어요.")} disabled={s.busy !== null} className="btn btn-ghost mt-3">
-          구독 관리
-        </button>
-        <ErrorText text={s.error} />
-      </div>
-    );
-  }
+  // 구독 관리는 설정 > 플랜에만 둔다(ManageSubscription)
+  if (plan !== "free") return <p className="text-center text-[16px] font-black">Premium을 쓰고 있어요</p>;
   if (s.loadFailed) return <LoadFailed retry={s.retry} />;
   if (!s.store) return <div aria-hidden="true" className="h-14 animate-pulse rounded-2xl bg-snow" />;
   const premium = s.store.premium;

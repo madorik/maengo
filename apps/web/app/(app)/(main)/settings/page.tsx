@@ -104,7 +104,7 @@ export default async function SettingsPage() {
                 {/* 맹고 추가 구매를 할 수 있는 플랜만(plans 표) */}
                 {view.canBuyMaengo && (
                   <Link href="/premium#maengo" className="shrink-0 text-[13px] font-extrabold text-mango-deep no-underline hover:underline">
-                    맹고 추가 구매
+                    추가 구매
                   </Link>
                 )}
               </div>
