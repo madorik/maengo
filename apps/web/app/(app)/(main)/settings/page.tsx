@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Crown } from "@/components/icons";
 import Link from "next/link";
+import { PlanSync } from "@/components/app/PlanSync";
 import { DarkModeSwitch } from "@/components/settings/DarkModeSwitch";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { LinkSlots } from "@/components/settings/LinkSlots";
@@ -72,6 +73,7 @@ export default async function SettingsPage() {
 
       <div className="mt-6">
         <Section id="plan" title="플랜">
+          <PlanSync plan={profile.plan} />
           {/* 내 플랜 이름, 오른쪽 끝에 Free면 Premium 알아보기(결제는 /premium), Premium이면 구독 관리(앱에서만) */}
           <div className="flex min-h-12 items-center justify-between gap-3">
             <p className="inline-flex items-center gap-1.5 text-[22px] font-black tracking-[-0.02em]">

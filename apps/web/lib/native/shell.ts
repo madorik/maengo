@@ -42,6 +42,18 @@ export function startNativeShell(): () => void {
     else void App.minimizeApp();
   });
 
+  // 개발 빌드: Capacitor가 실패한 플러그인 호출(결제 취소·실패 등)을 console.error로 찍어 Next 개발 오류 창이 뜬다.
+  // 부른 쪽이 이미 처리하는 실패라 경고로만 남긴다(운영 앱은 Capacitor 로그가 꺼져 있고 오류 창도 없다)
+  if (process.env.NODE_ENV !== "production") {
+    type NativeResult = { success?: boolean; pluginId?: string; methodName?: string; error?: unknown };
+    const cap = (window as unknown as { Capacitor?: { logFromNative?: (r: NativeResult) => void } }).Capacitor;
+    if (cap?.logFromNative) {
+      cap.logFromNative = (r) => {
+        if (r.success === false) console.warn(`[${r.pluginId}.${r.methodName}]`, r.error);
+      };
+    }
+  }
+
   // 앱 알림: 알림을 누르면 그 화면으로, 알림을 켠 기기면 토큰을 다시 등록(lib/native/push.ts)
   const stopPush = startAppPush((path) => {
     const to = withBase(path);

@@ -5,6 +5,7 @@ import { Mascot } from "@/components/Mascot";
 import { MaengoShop, PremiumBuy, RestorePurchases } from "@/components/premium/StoreParts";
 import { BackButton } from "@/components/ui/BackButton";
 import { getPlans } from "@/lib/server/plans";
+import { PlanSync } from "@/components/app/PlanSync";
 import { requireProfile } from "@/lib/server/session";
 import { syncWallet } from "@/lib/server/wallet";
 
@@ -101,6 +102,7 @@ export default async function PremiumPage() {
 
         <div id="premium-buy" className="mt-6 scroll-mt-20">
           <PremiumBuy uid={profile.id} plan={profile.plan} />
+          <PlanSync plan={profile.plan} />
         </div>
 
         <section id="maengo" aria-labelledby="maengo-title" className="mt-12 scroll-mt-20">
