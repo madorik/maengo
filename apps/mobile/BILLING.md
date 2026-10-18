@@ -101,6 +101,30 @@ REVENUECAT_WEBHOOK_AUTH=…
 - 알게 된 것: 새 프로젝트에는 예시(상품 monthly·yearly·lifetime, 권한 `maengo_pro`, 오퍼링 `default`의 `$rc_monthly`에 monthly)가 있다. 스크립트가 `$rc_monthly`에서 예시를 떼고 우리 상품을 붙인다. 예시 자체는 앱이 무시하니 그대로 둠. Test Store 상품은 가격이 없으면 SDK가 "Could not find ProductDetails"로 못 찾고, 가격은 만들기 API에 칸이 없어 `test_store_prices`로 넣는다. 고객 지우기(`DELETE /v1/subscribers`)를 해도 Test Store 구독은 다시 붙는다
 - 못 본 것: 실제 애플·구글 결제창, 7일 무료 체험(Test Store 상품엔 체험 없음), 웹훅, 해지 → 만료
 
+## 결제 시나리오(2026-10-18 Test Store로 모두 통과, 안드로이드 에뮬레이터 + iOS 시뮬레이터 일부)
+
+실제 스토어 샌드박스로 넘어가면 같은 순서로 다시 확인한다. Test Store 결과에서 다른 점은 ⚠︎로 적었다.
+
+| # | 시나리오 | 기대 결과 | Test Store 결과 |
+|---|---|---|---|
+| S1 | 처음 구독(체험) | 버튼 '7일 무료로 시작' → 안내 맨 위 '최초 1회만' → 체크 전 시작 막힘 → 체크하면 `trial_consents` 한 줄 → 결제 → '7일 무료 체험을 시작했어요(10월 25일 결제)' 팝업 → Premium, `plan_changes` free→plus `app_sync`, `purchases` 한 줄 | 통과 ⚠︎ Test Store엔 체험이 없어 `NEXT_PUBLIC_TEST_TRIAL_DAYS`로 흉내, 상태는 trial이 아닌 active |
+| S2 | 결제 뒤 화면 | 결제 화면 'Premium을 쓰고 있어요', 계정 메뉴·설정 Premium | 통과 |
+| S3 | 구독한 적 있는 회원이 체험 동의를 다시 보냄 | `/api/billing/trial-consent` 409 | 통과 |
+| S4 | 해지 뒤 다시 구독 | 'Premium 시작 · 월 ₩3,800', 동의 팝업 없이 바로 결제, 동의 기록 안 늘어남 | 통과 ⚠︎ 안드로이드 실제 Play에서는 체험 없는 기본 요금제로 결제되는지 확인 |
+| S5 | 맹고 묶음 결제 실패 | '결제하지 못했어요' 문구, 지갑·동기화 그대로 | 통과 |
+| S6 | 맹고 묶음 결제 창 취소 | 문구·팝업 없음, 지갑 그대로 | 통과 |
+| S7 | 맹고 10개 구매 | '맹고 10개를 지갑에 넣었어요~' 팝업, 지갑 +10, `purchases.rc_id` = `wallet_ledger.ref`의 rc: 뒤 | 통과 |
+| S8 | 같은 거래 다시 동기화 | 추가 지급 0 | 통과 |
+| S9 | 구매 복원 | 오류 없음, 서버 동기화 | 통과 |
+| S10 | 기한은 지났지만 스토어에서 갱신됨 | Premium 유지(`renewal_check`) | 통과 |
+| S11 | 스토어에서도 끝남 | Free(`expiry`), 계정 메뉴도 Free | 통과 |
+| S12 | 체험 중 표시 | 설정·결제 화면 '무료 체험 중 · 10월 25일부터 월 3,800원 결제', 체험 중 해지면 '10월 25일에 끝나요' | 통과(상태를 DB에서 trial로 두고 확인) ⚠︎ 실제 trial 상태는 샌드박스에서 |
+| S13 | 웹 브라우저 | 결제 화면은 '결제는 맹고 앱에서만' 안내, 주 메뉴에 '요금', 소개 페이지 요금 영역엔 안내 없음 | 통과 |
+| S14 | 결제를 켰는데 웹훅 비밀값이 없음 | 401 + 관리자 빨간 줄(결제를 켜기 전엔 알리지 않음) | 통과 |
+| (앞서) | 가짜 웹훅 RENEWAL 두 번 | `billing_events`·`purchases` 한 줄씩 | 통과(10-18 오전) |
+
+샌드박스에서만 볼 수 있는 것: 실제 7일 체험(`period_type` trial → `subscriptions.status` trial), 체험 끝 자동 결제(`is_trial_conversion`) → active, 체험 중 해지 → 끝나는 날 Free, 실제 결제창·원화 가격, 웹훅 전체.
+
 ## 베타 종료(2026-10-14, 코드 반영)
 - `BETA` 상수와 Beta 배지를 없앴다. Premium 하루 10개, 설정에 결제가 늘 보인다(앱에서만)
 - 마이그레이션 `20261014100000_end_beta.sql`: 가입하면 Free, 베타 Premium(`premium_until` 없음)은 Free로
