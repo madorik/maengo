@@ -4,21 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>와타랩스</title>
-  <meta name="description" content="와타랩스는 쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요. 관심 분야의 소식을 AI로 요약해서 음성 지원해 주는 맹고를 만들어요." />
+  <meta name="description" content="와타랩스는 일상에서 귀찮고 불편한 일을 찾아 AI로 편하게 만드는 앱을 만드는 1인 회사예요. 관심 분야의 소식을 AI로 요약해서 음성 지원해 주는 맹고를 만들어요." />
   <link rel="canonical" href="https://watalabs.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="ko_KR" />
   <meta property="og:site_name" content="와타랩스" />
   <meta property="og:title" content="와타랩스" />
-  <meta property="og:description" content="쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요." />
+  <meta property="og:description" content="일상의 귀찮고 불편한 일을 AI로 편하게 만드는 앱을 만들어요." />
   <meta property="og:url" content="https://watalabs.com/" />
   <meta property="og:image" content="https://watalabs.com/og.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="와타랩스 - 쓸모 있는 작은 앱을 혼자 만들어요" />
+  <meta property="og:image:alt" content="와타랩스 - 일상의 불편을 AI로 편하게 만드는 앱" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="와타랩스" />
-  <meta name="twitter:description" content="쓸모 있는 작은 앱을 혼자 만드는 1인 회사예요." />
+  <meta name="twitter:description" content="일상의 귀찮고 불편한 일을 AI로 편하게 만드는 앱을 만들어요." />
   <meta name="twitter:image" content="https://watalabs.com/og.png" />
   <meta name="theme-color" content="#FFC23D" />
   <!-- 검색엔진용 운영사·사이트 정보. 맹고 페이지(apps/web lib/site.ts organizationJsonLd)가 같은 @id로 운영사를 가리킨다 -->
@@ -34,7 +34,7 @@
         "url": "https://watalabs.com/",
         "logo": "https://watalabs.com/apple-touch-icon.png",
         "email": "watalabs.help@gmail.com",
-        "description": "쓸모 있는 작은 앱을 혼자 만드는 1인 회사. 관심 분야의 소식을 AI로 요약해서 음성 지원해 주는 맹고를 만든다."
+        "description": "일상에서 귀찮고 불편한 일을 찾아 AI로 편하게 만드는 앱을 만드는 1인 회사. 관심 분야의 소식을 AI로 요약해서 음성 지원해 주는 맹고를 만든다."
       },
       {
         "@type": "WebSite",
@@ -140,17 +140,10 @@
     section { padding: 64px 0; border-top: 2px solid var(--line); }
     h2 { margin: 0 0 24px; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.3; }
 
-    .shelf {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 28px;
-      align-items: start;
-      padding: 32px;
-      border-radius: 28px;
-      background: var(--mango-tint);
-    }
-    .shelf svg { width: 112px; height: 112px; border-radius: 26px; display: block; }
-    .shelf h3 { margin: 0; font-size: 30px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.2; }
+    /* 맹고: 소개 글 아래에 앱 화면 캡처를 가로로 늘어놓는다(소개 영상은 맹고 페이지에 있다) */
+    .shelf .head { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+    .shelf svg { width: 72px; height: 72px; border-radius: 18px; display: block; flex: none; }
+    .shelf h3 { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.2; }
     .shelf .lede { margin: 6px 0 0; font-size: 18px; font-weight: 600; }
     .shelf ul { margin: 18px 0 0; padding: 0; list-style: none; color: var(--sub); }
     .shelf li { padding-left: 22px; position: relative; }
@@ -158,11 +151,9 @@
     .shelf li::before { content: ""; position: absolute; left: 4px; top: 0.66em; width: 8px; height: 8px; border-radius: 50%; background: var(--leaf); }
     .shelf .platforms { margin: 18px 0 0; max-width: 60ch; }
     /* 앱 화면: 폰 테두리만 두르고 가로로 늘어놓는다(좁으면 옆으로 넘긴다) */
-    .shots { grid-column: 1 / -1; display: flex; gap: 16px; margin-top: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+    .shots { display: flex; gap: 16px; margin-top: 32px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
     .shots::-webkit-scrollbar { display: none; }
-    .shots img, .shots video { flex: 0 0 auto; width: 210px; height: auto; border: 7px solid var(--bezel); border-radius: 30px; background: var(--bezel); scroll-snap-align: start; }
-    /* 소개 영상(소리 없음): 맨 앞에 조금 크게. 영상 안에 폰 프레임이 있어 테두리는 두르지 않는다. 자동 재생·반복, 움직임을 줄인 설정이면 아래 스크립트가 멈추고 재생 버튼을 준다 */
-    .shots video { width: 250px; border: 0; border-radius: 24px; background: var(--mango); box-shadow: 0 10px 28px var(--shade); }
+    .shots img { flex: 0 0 auto; width: 210px; height: auto; border: 7px solid var(--bezel); border-radius: 30px; background: var(--bezel); scroll-snap-align: start; }
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
       min-height: 52px; margin-top: 24px; padding: 0 26px;
@@ -188,10 +179,10 @@
       .awning { --stripe: 44px; height: calc(64px + env(safe-area-inset-top)); }
       .sign { padding: 40px 0 56px; }
       section { padding: 48px 0; }
-      .shelf { grid-template-columns: 1fr; padding: 24px; gap: 18px; }
-      .shelf svg { width: 84px; height: 84px; border-radius: 20px; }
+      .shelf svg { width: 60px; height: 60px; border-radius: 16px; }
+      .shelf h3 { font-size: 30px; }
+      .shots { margin-top: 24px; }
       .shots img { width: 180px; border-width: 6px; border-radius: 26px; }
-      .shots video { width: 210px; border-radius: 20px; }
       .btn { width: 100%; }
     }
   </style>
@@ -201,7 +192,7 @@
 
   <header class="sign wrap">
     <h1>와타랩스</h1>
-    <p>쓸모 있는 작은 앱을 혼자 만들어요.</p>
+    <p>일상에서 귀찮고 불편한 일을 찾아,<br />AI로 편하게 만드는 앱을 만들어요.</p>
   </header>
 
   <main>
@@ -209,6 +200,8 @@
       <div class="wrap">
         <h2 id="apps-title">지금 있는 앱</h2>
         <article class="shelf">
+          <div class="intro">
+          <div class="head">
           <svg viewBox="0 0 200 200" role="img" aria-label="맹고 아이콘">
             <rect width="200" height="200" fill="#FFC23D"/>
             <path d="M200 105 L200 200 L80 200 C140 196 190 160 200 105 Z" fill="#FF9F2E"/>
@@ -226,8 +219,8 @@
             <ellipse cx="150" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
             <path d="M86 142 Q100 156 114 142" fill="none" stroke="#191C32" stroke-width="6" stroke-linecap="round"/>
           </svg>
-          <div>
             <h3>맹고</h3>
+          </div>
             <p class="lede">관심 분야의 소식을 AI로 요약해서 음성 지원해줘요.</p>
             <ul>
               <li>AI, 주식, 코인, 반도체처럼 관심 있는 분야만 골라요.</li>
@@ -238,20 +231,12 @@
             <a class="btn" href="/maengo">맹고 열기</a>
           </div>
           <div class="shots">
-            <video src="/shots/maengo-promo.mp4" width="720" height="1280" poster="/shots/maengo-promo-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="맹고 소개 영상. 아침 알림을 열고 전체 듣기를 누르면 소식을 이어서 읽어 주고, 화면을 꺼도 계속 들려요. 관심사와 자주 보는 블로그 주소를 고를 수 있어요"></video>
             <img src="/shots/maengo-today.webp" width="480" height="1041" loading="lazy" alt="오늘의 소식 화면. 고른 분야에서 골라 온 오늘 소식과 요약이 보여요" />
+            <img src="/shots/maengo-player.webp" width="480" height="1041" loading="lazy" alt="플레이어 화면. 오늘 소식을 이어서 읽어 주고, 대본에서 지금 읽는 문장을 보여줘요" />
             <img src="/shots/maengo-article.webp" width="480" height="1041" loading="lazy" alt="소식 화면. 핵심 요약과 원문 보기, 이 글 듣기 버튼이 있어요" />
             <img src="/shots/maengo-playlist.webp" width="480" height="1041" loading="lazy" alt="플레이리스트 화면. 들을 소식을 모아 두고 전체 듣기를 눌러요" />
           </div>
         </article>
-      </div>
-    </section>
-
-    <section class="about" aria-labelledby="about-title">
-      <div class="wrap">
-        <h2 id="about-title">와타랩스는</h2>
-        <p>개발자 한 명이 기획부터 디자인, 개발, 운영까지 직접 하는 1인 회사예요.</p>
-        <p>매일 직접 쓰고 싶은 앱을 작게 만들고, 쓰는 분들의 이야기를 들으며 오래 고쳐 나가요.</p>
       </div>
     </section>
 
@@ -272,14 +257,5 @@
       </nav>
     </div>
   </footer>
-  <script>
-    // 소개 영상(소리 없음). 움직임을 줄인 설정이면 자동 재생하지 않고 재생 버튼을 보여 준다.
-    // 자동 재생이 막힌 환경(저전력 모드 등)에서도 재생 버튼을 보여 준다.
-    document.querySelectorAll(".shots video").forEach((v) => {
-      if (matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.pause(); v.controls = true; return; }
-      const p = v.play();
-      if (p && p.catch) p.catch(() => { v.controls = true; });
-    });
-  </script>
 </body>
 </html>

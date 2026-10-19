@@ -8,7 +8,7 @@
 - 새 서비스를 붙일 때도 같은 방식: 그 앱에 basePath를 주고 여기 `vercel.json`에 rewrite를 더한다.
 - `robots.txt`는 도메인 전체 규칙이라 맹고의 막는 경로도 여기에 같이 둔다.
 - 배포: 이 폴더에서 `npx vercel deploy --prod`
-- `shots/`: 맹고 화면 3장(webp)과 소개 영상 `maengo-promo.mp4`(소리 없음, 720×1280, 자동 재생·반복)·포스터 `maengo-promo-poster.jpg`. 영상 원본과 생성기는 `apps/mobile/scripts/promo/`(소리 있는 원본은 `~/Desktop/maengo-store/promo/`).
+- `shots/`: 맹고 화면 캡처 4장(webp, 480×1041). 소개 영상은 맹고 소개 페이지(`apps/web/public/promo/`, `components/landing/PromoVideo.tsx`)에 있고, 생성기는 `apps/mobile/scripts/promo/`.
 - 검색·AI 노출(2026-10-18):
   - `index.html`의 JSON-LD `Organization`(@id `https://watalabs.com/#organization`)을 맹고 페이지가 운영사로 가리킨다(`apps/web/lib/site.ts`의 `organizationJsonLd`). 이름·메일을 바꾸면 둘 다 바꾼다.
   - `og.png`: 링크 공유 카드(1200×630).
