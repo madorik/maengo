@@ -3,25 +3,34 @@
 <head>
 <meta charset="utf-8">
 <title>맹고 홍보 영상 스테이지</title>
-<link rel="stylesheet" href="../../../web/node_modules/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<script>{ const q = new URLSearchParams(location.search); const t = q.get("theme"); if (t) document.documentElement.dataset.theme = t; const l = q.get("layout"); if (l) document.documentElement.dataset.layout = l; }</script>
+<link rel="stylesheet" href="file:///Users/mgjeong/private-workspace/maengo/apps/web/node_modules/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <style>
   :root { --mango:#FFC23D; --ink:#1F2340; --sub:#6B7089; --paper:#fff; --sky:#1A8FE0; --leaf:#34B36A; --orange:#FF8A1F; }
-  html, body { margin:0; padding:0; width:1080px; height:1920px; overflow:hidden; background:var(--mango); }
-  body { font-family:"Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
-  #stage { position:relative; width:1080px; height:1920px; overflow:hidden; background:var(--mango); }
+  /* 테마(?theme=light|dark): 사이트 배경에 묻히게 넣을 때. 기본은 망고색 원본 */
+  :root { --bg:var(--mango); --txt:var(--ink); --pill-bg:var(--ink); --pill-fg:var(--mango); --url-bg:#fff; --url-fg:var(--ink); --store:#7A4A2A; --bezel:var(--ink); }
+  :root[data-theme="light"] { --bg:#FFFFFF; --txt:#1F2340; --pill-bg:#1F2340; --pill-fg:#FFC23D; --url-bg:#FFF4D6; --url-fg:#1F2340; --store:#5E6380; --bezel:#1F2340; }
+  :root[data-theme="dark"] { --bg:#151722; --txt:#ECEEF5; --pill-bg:#FFC23D; --pill-fg:#1F2340; --url-bg:#2A2E40; --url-fg:#ECEEF5; --store:#A6ABC0; --bezel:#2A2E40; }
+  /* 배치(?layout=top): 웹 페이지에 글 옆에 둘 때. 자막·폰·도입·마무리를 위로 붙여 영상 위쪽이 비지 않게 한다 */
+  :root[data-layout="top"] #cap { top:0; justify-content:flex-start; }
+  :root[data-layout="top"] #phone { top:300px; }
+  :root[data-layout="top"] #hook, :root[data-layout="top"] #outro { justify-content:flex-start; padding-top:0; box-sizing:border-box; }
+  html, body { margin:0; padding:0; width:1080px; height:1920px; overflow:hidden; background:var(--bg); }
+  body { font-family:"Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color:var(--txt); -webkit-font-smoothing:antialiased; }
+  #stage { position:relative; width:1080px; height:1920px; overflow:hidden; background:var(--bg); }
   .abs { position:absolute; }
 
   /* 도입·마무리 */
   #hook { left:0; top:0; width:1080px; height:1920px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; }
   #hook .icon { width:220px; height:220px; filter:drop-shadow(0 18px 40px rgb(31 35 64 / .22)); }
   #hook .line { font-size:92px; font-weight:900; line-height:1.2; letter-spacing:-0.02em; white-space:nowrap; }
-  .k { display:inline-block; background:var(--ink); color:var(--mango); border-radius:28px; padding:0 .22em; margin:0 .04em; line-height:1.15; transform-origin:50% 60%; }
+  .k { display:inline-block; background:var(--pill-bg); color:var(--pill-fg); border-radius:28px; padding:0 .22em; margin:0 .04em; line-height:1.15; transform-origin:50% 60%; }
   #outro { left:0; top:0; width:1080px; height:1920px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; }
   #outro .icon { width:300px; height:300px; filter:drop-shadow(0 22px 48px rgb(31 35 64 / .25)); }
-  #outro .name { font-size:120px; font-weight:900; letter-spacing:-0.03em; color:var(--ink); margin-top:8px; }
-  #outro .tag { font-size:52px; font-weight:700; color:var(--ink); }
-  #outro .url { font-size:48px; font-weight:800; color:var(--ink); background:#fff; border-radius:999px; padding:14px 40px; margin-top:28px; }
-  #outro .store { font-size:34px; font-weight:600; color:#7A4A2A; margin-top:6px; }
+  #outro .name { font-size:120px; font-weight:900; letter-spacing:-0.03em; color:var(--txt); margin-top:8px; }
+  #outro .tag { font-size:52px; font-weight:700; color:var(--txt); }
+  #outro .url { font-size:48px; font-weight:800; color:var(--url-fg); background:var(--url-bg); border-radius:999px; padding:14px 40px; margin-top:28px; }
+  #outro .store { font-size:34px; font-weight:600; color:var(--store); margin-top:6px; }
 
   /* 자막 */
   #cap { left:60px; top:130px; width:960px; height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
@@ -29,7 +38,7 @@
   #cap .em { display:inline-block; margin-right:.2em; }
 
   /* 폰. transform-origin은 오늘 화면 '전체 듣기' 버튼 가운데(폰 안 좌표) */
-  #phone { left:190px; top:400px; width:700px; height:1471px; border-radius:88px; background:var(--ink); box-shadow:0 40px 90px rgb(31 35 64 / .28); transform-origin:527px 221px; }
+  #phone { left:190px; top:400px; width:700px; height:1471px; border-radius:88px; background:var(--bezel); box-shadow:0 40px 90px rgb(31 35 64 / .28); transform-origin:527px 221px; }
   #screen { left:20px; top:20px; width:660px; height:1431px; border-radius:68px; overflow:hidden; background:#fff; }
   #screen img.shot { position:absolute; left:0; top:0; width:660px; height:1431px; opacity:0; }
   #off { left:0; top:0; width:660px; height:1431px; background:#0B0D1A; opacity:0; }
@@ -53,7 +62,7 @@
   /* 탭 효과 */
   .ripple { position:absolute; width:160px; height:160px; margin:-80px 0 0 -80px; border-radius:50%; background:rgb(26 143 224 / .35); border:6px solid rgb(26 143 224 / .6); opacity:0; pointer-events:none; }
   .ripple.ink { background:rgb(31 35 64 / .25); border-color:rgb(31 35 64 / .5); }
-  .tapk { position:absolute; font-size:58px; font-weight:900; color:var(--mango); background:var(--ink); border-radius:26px; padding:6px 22px; opacity:0; transform-origin:50% 100%; white-space:nowrap; box-shadow:0 14px 30px rgb(31 35 64 / .3); }
+  .tapk { position:absolute; font-size:58px; font-weight:900; color:var(--pill-fg); background:var(--pill-bg); border-radius:26px; padding:6px 22px; opacity:0; transform-origin:50% 100%; white-space:nowrap; box-shadow:0 14px 30px rgb(31 35 64 / .3); }
   #hl { position:absolute; border:6px solid var(--sky); border-radius:36px; opacity:0; box-shadow:0 0 0 10px rgb(26 143 224 / .18); }
   #cover { position:absolute; background:#fff; opacity:0; }
   #caret { position:absolute; width:4px; height:40px; background:var(--ink); opacity:0; }
@@ -168,6 +177,7 @@ window.CUES = [
 ];
 
 const hook = q("#hook"), cap = q("#cap"), phone = q("#phone"), outro = q("#outro");
+ZOOM.from.y = phone.offsetTop + 221; // 폰 위치가 배치에 따라 달라도 버튼 좌표는 맞게
 const shots = Object.fromEntries([...document.querySelectorAll("img.shot")].map((el) => [el.dataset.k, el]));
 const noti = q("#noti"), off = q("#off"), waves = [...document.querySelectorAll("#waves i")];
 const r1 = q("#r1"), k1 = q("#k1"), hl = q("#hl"), cover = q("#cover"), caret = q("#caret"), dot = q("#dot");

@@ -9,7 +9,12 @@ import path from "node:path";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fps = +(process.argv[2] || 30);
 const out = process.argv[3] || path.join(here, "maengo-promo.mp4");
-const frames = path.join(here, "frames");
+// --theme=light|dark: stage.html의 배경·글자색 테마(사이트에 묻히게 넣을 때). 없으면 망고색 원본
+const theme = (process.argv.find((a) => a.startsWith("--theme=")) || "").slice(8);
+// --layout=top: 웹 페이지용 위쪽 붙임 배치
+const layout = (process.argv.find((a) => a.startsWith("--layout=")) || "").slice(9);
+const query = [theme && `theme=${theme}`, layout && `layout=${layout}`].filter(Boolean).join("&");
+const frames = path.join(here, "frames" + (theme ? "-" + theme : "")); // 테마마다 따로(동시에 돌릴 수 있게)
 const W = 1080, H = 1920;
 
 // --reuse-frames: 화면은 그대로고 소리만 바꿀 때, 전에 찍은 frames/를 다시 쓴다(stage.html의 DURATION·CUES만 읽는다)
@@ -19,7 +24,7 @@ if (!reuse) { rmSync(frames, { recursive: true, force: true }); mkdirSync(frames
 const browser = await chromium.launch({ channel: "chrome" });
 const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
 const page = await ctx.newPage();
-await page.goto("file://" + path.join(here, "stage.html"), { waitUntil: "load" });
+await page.goto("file://" + path.join(here, "stage.html") + (query ? `?${query}` : ""), { waitUntil: "load" });
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(500);
 
