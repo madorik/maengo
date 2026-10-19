@@ -1,8 +1,7 @@
-import type { CategoryId } from "@maengo/core/categories";
 import { discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
 import Image from "next/image";
 import Link from "next/link";
-import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe, IconPlay, IconSpeaker } from "@/components/icons";
+import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot } from "@/components/Mascot";
 import { JsonLd } from "@/components/public/PublicPage";
@@ -14,6 +13,7 @@ import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/li
 import { SITE_DEFINITION, SITE_DESCRIPTION, SITE_NAME, SITE_NAME_EN, SUPPORT_EMAIL, appUrl, organizationId, organizationJsonLd } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AuthLink } from "./AuthLink";
+import { PromoVideo } from "./PromoVideo";
 import playlistScriptShot from "./playlist-script.webp";
 import playlistShot from "./playlist.webp";
 
@@ -46,29 +46,6 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
   ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
-];
-
-type Sample = { category: CategoryId; source: string; video?: boolean; title: string; short: string; author: string; date: string; coverage?: string };
-
-const SAMPLES: Sample[] = [
-  {
-    category: "ai",
-    source: "유튜브",
-    video: true,
-    title: "에이전트 평가, 정답셋 없이 시작하는 법",
-    short: "실서비스 로그에서 실패한 대화를 모아 평가셋의 씨앗으로 삼는 흐름을 보여 줍니다.",
-    author: "AI 엔지니어링 라이브",
-    date: "오늘 오전 6시",
-  },
-  {
-    category: "tech",
-    source: "공식 문서",
-    title: "안 쓰이는 PostgreSQL 인덱스, 통계 뷰로 찾기",
-    short: "스캔 횟수가 0인 인덱스를 골라내고, 지우기 전에 확인할 것들을 정리했어요.",
-    author: "PostgreSQL 문서",
-    date: "어제 오후 6시",
-    coverage: "Hacker News 외 1곳에서도 다뤘어요",
-  },
 ];
 
 /** 출처 예시(소개용). 테크는 공식 문서·기업 테크 블로그, 뉴스는 네이버 헤드라인에서 고른다 */
@@ -109,8 +86,8 @@ export async function Landing() {
       </header>
 
       <main>
-        {/* 첫 화면: 말은 오른쪽, 실제 화면은 왼쪽(모바일은 말이 먼저) */}
-        <section aria-labelledby="hero-title" className="mx-auto grid max-w-[1100px] items-center gap-12 px-5 pb-16 pt-10 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-20">
+        {/* 첫 화면: 말은 오른쪽, 소개 영상(소리 없음)은 왼쪽(모바일은 말이 먼저). 영상 배경이 페이지 색과 같아 상자 없이 놓인다 */}
+        <section aria-labelledby="hero-title" className="mx-auto grid max-w-[1100px] items-start gap-12 px-5 pb-16 pt-10 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-20">
           <div className="md:order-2">
             <h1 id="hero-title" className="text-[36px] font-black leading-[1.2] tracking-[-0.045em] md:text-[54px]">
               쏟아지는 소식,
@@ -126,21 +103,8 @@ export async function Landing() {
             </div>
           </div>
 
-          <div aria-hidden="true" className="mx-auto w-full max-w-[460px] md:order-1">
-            <div className="flex items-end gap-2">
-              <Mascot mood="cheer" className="pop size-28 shrink-0 md:size-32" />
-              <Bubble className="rise mb-8 flex-1">
-                <p className="text-[15px] font-extrabold">오늘 놓치면 안 되는 소식, 골라 뒀어요!</p>
-              </Bubble>
-            </div>
-            <div className="mt-2 flex flex-col gap-3">
-              {SAMPLES.map((s, i) => (
-                <SampleCard key={s.title} sample={s} className={i === 0 ? "-rotate-1" : "ml-5 rotate-1"} />
-              ))}
-            </div>
-            <div className="mt-5 flex justify-end">
-              <ListenPill />
-            </div>
+          <div className="mx-auto w-full max-w-[420px] md:order-1">
+            <PromoVideo />
           </div>
         </section>
 
@@ -399,50 +363,6 @@ function Feature({ title, body, flip = false, children }: { title: string; body:
       <div aria-hidden="true" className={`mx-auto w-full max-w-[460px] ${flip ? "md:order-1" : ""}`}>
         {children}
       </div>
-    </div>
-  );
-}
-
-function SampleCard({ sample: s, className = "" }: { sample: Sample; className?: string }) {
-  return (
-    <div className={`tile bg-paper p-4 shadow-[0_8px_20px_rgb(31_35_64/0.06)] ${className}`}>
-      <div className="flex items-center gap-2 text-[13px] font-extrabold">
-        <CategoryChip category={s.category} />
-        <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${s.video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
-          {s.video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
-          {s.source}
-        </span>
-        {s.coverage && <span className="hidden truncate font-bold text-sub sm:inline">{s.coverage}</span>}
-      </div>
-      <p className="mt-2 text-[17px] font-black leading-snug tracking-[-0.02em]">{s.title}</p>
-      <p className="mt-1.5 text-[14px] font-medium leading-relaxed text-sub">{s.short}</p>
-      <div className="mt-3 flex items-center gap-3">
-        <p className="min-w-0 truncate text-[13px]">
-          <span className="font-extrabold">{s.author}</span>
-          <span className="ml-2 font-semibold text-faint">{s.date}</span>
-        </p>
-        <span className="tile ml-auto inline-flex min-h-9 shrink-0 items-center gap-1.5 px-3 text-[13px] font-extrabold">
-          <IconSpeaker className="size-4 text-sky" />
-          듣기
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function ListenPill() {
-  return (
-    <div className="tile flex items-center gap-2 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)]">
-      <span className="flex size-11 items-center justify-center rounded-full bg-mango-tint">
-        <Mascot mood="listen" className="size-9" />
-      </span>
-      <span className="pr-1">
-        <span className="block text-[14px] font-black">오늘 소식 전체 듣기</span>
-        <span className="block text-[12px] font-bold text-sky">10개, 약 11분</span>
-      </span>
-      <span className="flex size-11 items-center justify-center rounded-full bg-sky text-white shadow-[0_3px_0_#1270B3]">
-        <IconPlay className="size-5" />
-      </span>
     </div>
   );
 }
