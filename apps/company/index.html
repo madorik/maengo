@@ -161,8 +161,8 @@
     .shots { grid-column: 1 / -1; display: flex; gap: 16px; margin-top: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
     .shots::-webkit-scrollbar { display: none; }
     .shots img, .shots video { flex: 0 0 auto; width: 210px; height: auto; border: 7px solid var(--bezel); border-radius: 30px; background: var(--bezel); scroll-snap-align: start; }
-    /* 소개 영상(소리 없음): 맨 앞에 조금 크게. 자동 재생·반복, 움직임을 줄인 설정이면 아래 스크립트가 멈추고 재생 버튼을 준다 */
-    .shots video { width: 236px; }
+    /* 소개 영상(소리 없음): 맨 앞에 조금 크게. 영상 안에 폰 프레임이 있어 테두리는 두르지 않는다. 자동 재생·반복, 움직임을 줄인 설정이면 아래 스크립트가 멈추고 재생 버튼을 준다 */
+    .shots video { width: 250px; border: 0; border-radius: 24px; background: var(--mango); box-shadow: 0 10px 28px var(--shade); }
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
       min-height: 52px; margin-top: 24px; padding: 0 26px;
@@ -190,8 +190,8 @@
       section { padding: 48px 0; }
       .shelf { grid-template-columns: 1fr; padding: 24px; gap: 18px; }
       .shelf svg { width: 84px; height: 84px; border-radius: 20px; }
-      .shots img, .shots video { width: 180px; border-width: 6px; border-radius: 26px; }
-      .shots video { width: 200px; }
+      .shots img { width: 180px; border-width: 6px; border-radius: 26px; }
+      .shots video { width: 210px; border-radius: 20px; }
       .btn { width: 100%; }
     }
   </style>
