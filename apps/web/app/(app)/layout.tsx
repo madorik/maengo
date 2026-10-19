@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { after } from "next/server";
 import { AnalyticsSession } from "@/components/AnalyticsSession";
 import { AppPushSync } from "@/components/app/AppPushSync";
@@ -9,6 +9,7 @@ import { PlayerProvider } from "@/components/providers/PlayerProvider";
 import { ProfileProvider } from "@/components/providers/ProfileProvider";
 import { TodayProvider } from "@/components/providers/TodayProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import { isAppUserAgent } from "@/lib/app-client";
 import { getTodayData, toProfileView } from "@/lib/server/feed";
 import { requireOnboarded } from "@/lib/server/session";
 import { recordVisit } from "@/lib/server/visits";
@@ -25,6 +26,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const view = toProfileView(profile);
   const today = await getTodayData(profile);
   const listenCollapsed = (await cookies()).get(LISTEN_COLLAPSED_COOKIE)?.value === "1";
+  // 앱(User-Agent에 MaengoApp/)은 플레이어를 열면 화면을 꽉 채운다(2026-10-19 사용자 결정). 서버에서 정해야 첫 그림이 서버 HTML과 같다
+  const inApp = isAppUserAgent((await headers()).get("user-agent"));
   return (
     <ProfileProvider profile={view}>
       {/* key를 주지 않는다: 피드가 바뀌어도 플레이어를 새로 만들지 않게(TodayProvider가 안에서 합친다) */}
@@ -33,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ToastProvider>
           <PlayerProvider profile={view}>
             {children}
-            <ListenWidget initialCollapsed={listenCollapsed} />
+            <ListenWidget initialCollapsed={listenCollapsed} inApp={inApp} />
           </PlayerProvider>
         </ToastProvider>
         <AppPushSync enabled={profile.pushEnabled} />

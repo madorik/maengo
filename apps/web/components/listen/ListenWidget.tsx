@@ -11,6 +11,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
+import { Sheet } from "@/components/ui/Sheet";
 import { minutesLabel } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
@@ -24,8 +25,9 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
  * 플레이리스트를 듣는 동안은 "플레이리스트"로 바뀌고, 맨 아래 버튼으로 오늘 소식 듣기로 돌아온다.
  * ✕로 작은 망고 버튼으로 접고, 그 버튼을 누르면 다시 편다. 접어 둔 상태는 쿠키에 두어 다음에 열어도 그대로다.
  * 글 화면은 아래 '이 글 듣기' 막대가 있어서, 플레이어가 돌고 있지 않으면 작은 망고 버튼으로만 둔다(누르면 그 글에서는 편다).
+ * 앱(inApp)에서는 창 대신 화면을 꽉 채우는 시트(components/ui/Sheet.tsx full)로 연다(2026-10-19 사용자 결정): 끌어 내리기·안드로이드 뒤로 가기로 닫힌다.
  */
-export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }) {
+export function ListenWidget({ initialCollapsed, inApp = false }: { initialCollapsed: boolean; /** 앱(Capacitor)인지. 서버가 User-Agent로 정한다 */ inApp?: boolean }) {
   const p = usePlayer();
   const profile = useProfile();
   const { game } = useToday();
@@ -159,6 +161,178 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
   const canPlay = p.ready || !!p.error;
   const playAction = p.ready ? p.toggle : p.retry;
 
+  // 앱의 꽉 찬 시트에서는 버튼을 조금 키운다(듣기 화면과 같은 크기)
+  const big = inApp;
+  const summary = `${source} ${count}개${minutes && `, ${voiceName} 목소리로 ${minutes}`}`;
+
+  const controls = (
+    <div className={big ? "px-5 pb-5 pt-2" : "px-4 pb-4 pt-3"}>
+      <p className={`line-clamp-2 font-extrabold leading-snug ${big ? "min-h-[56px] text-[20px]" : "min-h-[44px] text-[15px]"}`}>
+        {ch?.title ?? (p.status === "done" ? doneText : first?.title)}
+      </p>
+      <SeekBar
+        valueMs={p.progress.elapsedMs}
+        totalMs={p.progress.totalMs}
+        onSeek={p.seekProgress}
+        disabled={!p.canSeek}
+        label="재생 위치"
+        className={big ? "mt-2 h-4" : "mt-0.5 h-3"}
+      />
+      <p className="text-right text-[12px] font-bold tabular-nums text-sub">
+        {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
+      </p>
+      {p.preparing && (
+        <div className="mt-2 flex items-center gap-2 rounded-xl bg-sky-tint py-2 pl-3 pr-2">
+          <p role="status" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-sky-dark">
+            음성 만드는 중
+          </p>
+          <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
+            취소
+          </button>
+        </div>
+      )}
+      {p.error && (
+        <div className="mt-2 flex items-center gap-2">
+          <p role="alert" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-cherry">
+            {p.error}
+          </p>
+          <button type="button" onClick={p.retry} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
+            다시 시도
+          </button>
+        </div>
+      )}
+      {/* 좁은 폰(360px 아래)에서도 한 줄에 동그랗게 들어가게 버튼과 간격을 조금 줄인다 */}
+      <div className={`flex items-center justify-center gap-1 min-[360px]:gap-2 ${big ? "mt-4" : "mt-2"}`}>
+        <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12">
+          <IconPrev />
+        </button>
+        <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12" />
+        <button
+          type="button"
+          aria-label={playing ? "일시정지" : p.ready ? "재생" : "다시 시도"}
+          onClick={playAction}
+          disabled={!canPlay}
+          className={`btn btn-sky mx-1 min-h-0 shrink-0 rounded-full p-0 ${big ? "size-16 min-[360px]:size-20" : "size-14 min-[360px]:size-16"}`}
+        >
+          {playing ? <IconPause className={big ? "size-8" : "size-6"} /> : <IconPlay className={big ? "size-9" : "size-7"} />}
+        </button>
+        <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12" />
+        <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12">
+          <IconNext />
+        </button>
+      </div>
+    </div>
+  );
+
+  const tabs = (
+    <div role="tablist" aria-label="플레이어 보기" className="flex gap-5 border-y-2 border-line px-5">
+      {(
+        [
+          ["queue", "재생 목록"],
+          ["script", "대본"],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          id={`listen-tab-${id}`}
+          aria-selected={tab === id}
+          aria-controls="listen-tab-panel"
+          onClick={() => {
+            setTab(id);
+            if (id === "script") track("script_tab_open", { mode: p.playlist ? "playlist" : "today" });
+          }}
+          className={`-mb-0.5 border-b-[3px] py-2.5 text-[14px] font-extrabold ${tab === id ? "border-sky text-ink" : "border-transparent text-faint hover:text-sub"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  // 재생 목록·대본은 안에서 스크롤한다. data-no-sheet-drag: 앱의 꽉 찬 시트에서 목록을 내려도 시트가 내려오지 않게
+  const tabPanel = (
+    <div id="listen-tab-panel" role="tabpanel" aria-labelledby={`listen-tab-${tab}`} className="flex min-h-0 flex-1 flex-col">
+      {tab === "script" ? (
+        <Script />
+      ) : (
+        <div data-no-sheet-drag className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+          <div className="px-1">
+            <Switch label="다음 소식 자동 재생" checked={p.autoNext} onChange={p.setAutoNext} />
+          </div>
+          <Queue />
+        </div>
+      )}
+    </div>
+  );
+
+  const footer = (
+    <footer className={`border-t-2 border-line px-4 text-center ${big ? "pb-[max(12px,env(safe-area-inset-bottom))] pt-3" : "py-3"}`}>
+      {p.playlist ? (
+        <button type="button" onClick={p.exitPlaylist} className="text-[14px] font-extrabold text-sky hover:underline">
+          오늘 소식 듣기로 돌아가기
+        </button>
+      ) : (
+        <Link href="/listen" className="text-[14px] font-extrabold text-sky no-underline hover:underline">
+          대본 보며 듣기
+        </Link>
+      )}
+    </footer>
+  );
+
+  const launcher = (
+    <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)]">
+      <button
+        ref={launcherRef}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup={inApp ? "dialog" : undefined}
+        aria-controls={open && !inApp ? "listen-widget" : undefined}
+        aria-label={`플레이어 창 ${open ? "닫기" : "열기"}`}
+        onClick={() => setOpen(!open)}
+        className="flex min-w-0 items-center gap-2.5 rounded-full py-0.5 pl-0.5 pr-2 text-left hover:bg-snow"
+      >
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-mango-tint">
+          <Mascot mood="listen" className={`size-10 ${playing ? "bob" : ""}`} />
+        </span>
+        <span className="min-w-0 max-w-[170px]">
+          <span className="block truncate text-[15px] font-black">{ch ? ch.title : heading}</span>
+          <span className={`block truncate text-[12px] font-bold ${p.error ? "text-cherry" : "text-sky"}`}>{sub}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={playAction}
+        disabled={!canPlay}
+        aria-label={playing ? "일시정지" : p.ready ? `${heading} 재생` : "다시 시도"}
+        className="btn btn-sky size-12 min-h-0 shrink-0 rounded-full p-0"
+      >
+        {playing ? <IconPause className="size-5" /> : <IconPlay className="size-6" />}
+      </button>
+      {foldButton}
+    </div>
+  );
+
+  // 앱: 화면을 꽉 채우는 시트. 끌어 내리기·✕·안드로이드 뒤로 가기로 닫히고, 다 내려간 뒤 onClose가 open을 끈다
+  if (inApp) {
+    return (
+      <>
+        <Sheet title={heading} full open={open} onClose={close}>
+          <div className="flex items-center gap-3 px-5 pb-1">
+            <Mascot mood="listen" className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
+            <p className="min-w-0 truncate text-[13px] font-bold text-sub">{summary}</p>
+          </div>
+          {controls}
+          {tabs}
+          {tabPanel}
+          {footer}
+        </Sheet>
+        <div className={`pointer-events-none fixed right-3 z-40 flex flex-col items-end gap-3 lg:right-6 ${dock}`}>{launcher}</div>
+      </>
+    );
+  }
+
   return (
     <div className={`pointer-events-none fixed right-3 z-40 flex flex-col items-end gap-3 lg:right-6 ${dock}`}>
       {open && (
@@ -174,154 +348,21 @@ export function ListenWidget({ initialCollapsed }: { initialCollapsed: boolean }
             <Mascot mood="listen" className={`size-10 shrink-0 ${playing ? "bob" : ""}`} />
             <div className="min-w-0 flex-1">
               <h2 id="listen-widget-title" className="text-[16px] font-black">
-                플레이어
+                {heading}
               </h2>
-              <p className="truncate text-[12px] font-bold text-sub">
-                {`${source} ${count}개${minutes && `, ${voiceName} 목소리로 ${minutes}`}`}
-              </p>
+              <p className="truncate text-[12px] font-bold text-sub">{summary}</p>
             </div>
             <button type="button" aria-label="플레이어 창 닫기" onClick={close} className="flex size-11 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
               <IconChevronDown className="size-6" />
             </button>
           </header>
-
-            <>
-            <div className="px-4 pb-4 pt-3">
-              <p className="line-clamp-2 min-h-[44px] text-[15px] font-extrabold leading-snug">
-                {ch?.title ?? (p.status === "done" ? doneText : first?.title)}
-              </p>
-              <SeekBar
-                valueMs={p.progress.elapsedMs}
-                totalMs={p.progress.totalMs}
-                onSeek={p.seekProgress}
-                disabled={!p.canSeek}
-                label="재생 위치"
-                className="mt-0.5 h-3"
-              />
-              <p className="text-right text-[12px] font-bold tabular-nums text-sub">
-                {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
-              </p>
-              {p.preparing && (
-                <div className="mt-2 flex items-center gap-2 rounded-xl bg-sky-tint py-2 pl-3 pr-2">
-                  <p role="status" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-sky-dark">
-                    음성 만드는 중
-                  </p>
-                  <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
-                    취소
-                  </button>
-                </div>
-              )}
-              {p.error && (
-                <div className="mt-2 flex items-center gap-2">
-                  <p role="alert" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-cherry">
-                    {p.error}
-                  </p>
-                  <button type="button" onClick={p.retry} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
-                    다시 시도
-                  </button>
-                </div>
-              )}
-              {/* 좁은 폰(360px 아래)에서도 한 줄에 동그랗게 들어가게 버튼과 간격을 조금 줄인다 */}
-              <div className="mt-2 flex items-center justify-center gap-1 min-[360px]:gap-2">
-                <button type="button" aria-label="이전 소식" onClick={p.prev} disabled={!p.canPrev} className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12">
-                  <IconPrev />
-                </button>
-                <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12" />
-                <button
-                  type="button"
-                  aria-label={playing ? "일시정지" : p.ready ? "재생" : "다시 시도"}
-                  onClick={playAction}
-                  disabled={!canPlay}
-                  className="btn btn-sky mx-1 size-14 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-16"
-                >
-                  {playing ? <IconPause className="size-6" /> : <IconPlay className="size-7" />}
-                </button>
-                <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12" />
-                <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12">
-                  <IconNext />
-                </button>
-              </div>
-            </div>
-            <div role="tablist" aria-label="플레이어 보기" className="flex gap-5 border-y-2 border-line px-5">
-              {(
-                [
-                  ["queue", "재생 목록"],
-                  ["script", "대본"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={`listen-tab-${id}`}
-                  aria-selected={tab === id}
-                  aria-controls="listen-tab-panel"
-                  onClick={() => {
-                    setTab(id);
-                    if (id === "script") track("script_tab_open", { mode: p.playlist ? "playlist" : "today" });
-                  }}
-                  className={`-mb-0.5 border-b-[3px] py-2.5 text-[14px] font-extrabold ${tab === id ? "border-sky text-ink" : "border-transparent text-faint hover:text-sub"}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div id="listen-tab-panel" role="tabpanel" aria-labelledby={`listen-tab-${tab}`} className="flex min-h-0 flex-1 flex-col">
-              {tab === "script" ? (
-                <Script />
-              ) : (
-                <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-                  <div className="px-1">
-                    <Switch label="다음 소식 자동 재생" checked={p.autoNext} onChange={p.setAutoNext} />
-                  </div>
-                  <Queue />
-                </div>
-              )}
-            </div>
-            <footer className="border-t-2 border-line px-4 py-3 text-center">
-              {p.playlist ? (
-                <button type="button" onClick={p.exitPlaylist} className="text-[14px] font-extrabold text-sky hover:underline">
-                  오늘 소식 듣기로 돌아가기
-                </button>
-              ) : (
-                <Link href="/listen" className="text-[14px] font-extrabold text-sky no-underline hover:underline">
-                  대본 보며 듣기
-                </Link>
-              )}
-            </footer>
-          </>
+          {controls}
+          {tabs}
+          {tabPanel}
+          {footer}
         </div>
       )}
-
-      <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)]">
-        <button
-          ref={launcherRef}
-          type="button"
-          aria-expanded={open}
-          aria-controls={open ? "listen-widget" : undefined}
-          aria-label={`플레이어 창 ${open ? "닫기" : "열기"}`}
-          onClick={() => setOpen(!open)}
-          className="flex min-w-0 items-center gap-2.5 rounded-full py-0.5 pl-0.5 pr-2 text-left hover:bg-snow"
-        >
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-mango-tint">
-            <Mascot mood="listen" className={`size-10 ${playing ? "bob" : ""}`} />
-          </span>
-          <span className="min-w-0 max-w-[170px]">
-            <span className="block truncate text-[15px] font-black">{ch ? ch.title : heading}</span>
-            <span className={`block truncate text-[12px] font-bold ${p.error ? "text-cherry" : "text-sky"}`}>{sub}</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={playAction}
-          disabled={!canPlay}
-          aria-label={playing ? "일시정지" : p.ready ? `${heading} 재생` : "다시 시도"}
-          className="btn btn-sky size-12 min-h-0 shrink-0 rounded-full p-0"
-        >
-          {playing ? <IconPause className="size-5" /> : <IconPlay className="size-6" />}
-        </button>
-        {foldButton}
-      </div>
+      {launcher}
     </div>
   );
 }

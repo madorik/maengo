@@ -16,8 +16,23 @@ const NO_DRAG = "input, textarea, select, [contenteditable='true'], [aria-rolede
  * - 손잡이·제목 줄을, 또는 내용이 맨 위일 때 내용을 아래로 끌면 손가락을 따라 내려오고, 충분히 끌었거나 아래로 던지면 닫히고 아니면 튕겨 돌아간다(lib/sheet-drag.ts). 터치만.
  * - ✕·바깥 누르기·Esc·끌어 내리기로 닫으면 다 내려간 뒤에 onClose를 부른다(열 때만 그리는 곳도 끝까지 보인다). 부모가 open을 false로 바꾸면 내려간 뒤에 닫는다.
  * - 열린 동안 뒤 화면은 스크롤되지 않는다(globals.css의 html:has(.sheet[open]), 서랍 메뉴와 같은 방식이라 스크롤 자리도 그대로). 닫으면 연 버튼으로 포커스를 돌려준다.
+ * - full이면 화면을 꽉 채운다(앱의 플레이어). 손잡이·제목 줄로 끌어 내려 닫는 건 같고, 안쪽은 스크롤하지 않으니 스크롤하는 부분은
+ *   data-no-sheet-drag를 달아 거기서 끌어도 시트가 내려오지 않게 한다.
  */
-export function Sheet({ title, open, onClose, children }: { title: string; open: boolean; onClose: () => void; children: React.ReactNode }) {
+export function Sheet({
+  title,
+  open,
+  onClose,
+  full = false,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onClose: () => void;
+  /** 화면을 꽉 채운다(위 안전 영역까지). 기본은 아래에서 85%까지 올라오는 시트 */
+  full?: boolean;
+  children: React.ReactNode;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
@@ -316,7 +331,9 @@ export function Sheet({ title, open, onClose, children }: { title: string; open:
       {/* 위로 끌어 올리면(고무줄) 아래 빈틈이 보이지 않게 바탕색을 아래로 조금 더 깐다(after) */}
       <div
         ref={panelRef}
-        className="absolute inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] max-w-[640px] flex-col rounded-t-3xl bg-paper after:absolute after:inset-x-0 after:top-full after:h-16 after:bg-paper"
+        className={`absolute inset-x-0 bottom-0 mx-auto flex max-w-[640px] flex-col bg-paper after:absolute after:inset-x-0 after:top-full after:h-16 after:bg-paper ${
+          full ? "h-dvh pt-[env(safe-area-inset-top)]" : "max-h-[85dvh] rounded-t-3xl"
+        }`}
       >
         {/* 손잡이·제목 줄. 여기는 늘 끌 수 있다 */}
         <div className="touch-none px-5 pt-2">
@@ -329,9 +346,16 @@ export function Sheet({ title, open, onClose, children }: { title: string; open:
             </button>
           </div>
         </div>
-        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(24px,env(safe-area-inset-bottom))]">
-          <div className="mt-2">{children}</div>
-        </div>
+        {full ? (
+          // 꽉 찬 시트는 안쪽이 자리를 나눠 쓰고(재생 목록·대본가 따로 스크롤) 아래 여백도 안쪽이 챙긴다
+          <div ref={bodyRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {children}
+          </div>
+        ) : (
+          <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+            <div className="mt-2">{children}</div>
+          </div>
+        )}
       </div>
     </dialog>
   );

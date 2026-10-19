@@ -40,7 +40,8 @@ export function Script() {
   };
 
   return (
-    <div ref={boxRef} onWheel={touch} onTouchMove={touch} className="relative min-h-0 flex-1 overflow-y-auto px-5 pb-24 pt-4">
+    // data-no-sheet-drag: 앱의 꽉 찬 플레이어 시트 안에서 대본을 내려도 시트가 내려오지 않게(components/ui/Sheet.tsx)
+    <div ref={boxRef} onWheel={touch} onTouchMove={touch} data-no-sheet-drag className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-24 pt-4">
       {ch.lines.map((line, i) => {
         const now = i === active;
         const newPara = i > 0 && line.para !== undefined && line.para !== ch.lines[i - 1]!.para;
