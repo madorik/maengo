@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>맹고 홍보 영상 스테이지</title>
+<link rel="stylesheet" href="../../../web/node_modules/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+  :root { --mango:#FFC23D; --ink:#1F2340; --sub:#6B7089; --paper:#fff; --sky:#1A8FE0; --leaf:#34B36A; --orange:#FF8A1F; }
+  html, body { margin:0; padding:0; width:1080px; height:1920px; overflow:hidden; background:var(--mango); }
+  body { font-family:"Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  #stage { position:relative; width:1080px; height:1920px; overflow:hidden; background:var(--mango); }
+  .abs { position:absolute; }
+
+  /* 도입·마무리 */
+  #hook { left:0; top:0; width:1080px; height:1920px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; }
+  #hook .icon { width:220px; height:220px; filter:drop-shadow(0 18px 40px rgb(31 35 64 / .22)); }
+  #hook .line { font-size:92px; font-weight:900; line-height:1.2; letter-spacing:-0.02em; white-space:nowrap; }
+  .k { display:inline-block; background:var(--ink); color:var(--mango); border-radius:28px; padding:0 .22em; margin:0 .04em; line-height:1.15; transform-origin:50% 60%; }
+  #outro { left:0; top:0; width:1080px; height:1920px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; }
+  #outro .icon { width:300px; height:300px; filter:drop-shadow(0 22px 48px rgb(31 35 64 / .25)); }
+  #outro .name { font-size:120px; font-weight:900; letter-spacing:-0.03em; color:var(--ink); margin-top:8px; }
+  #outro .tag { font-size:52px; font-weight:700; color:var(--ink); }
+  #outro .url { font-size:48px; font-weight:800; color:var(--ink); background:#fff; border-radius:999px; padding:14px 40px; margin-top:28px; }
+  #outro .store { font-size:34px; font-weight:600; color:#7A4A2A; margin-top:6px; }
+
+  /* 자막 */
+  #cap { left:60px; top:130px; width:960px; height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+  #cap .line { font-size:68px; font-weight:900; line-height:1.25; letter-spacing:-0.02em; white-space:nowrap; }
+  #cap .em { display:inline-block; margin-right:.2em; }
+
+  /* 폰. transform-origin은 오늘 화면 '전체 듣기' 버튼 가운데(폰 안 좌표) */
+  #phone { left:190px; top:400px; width:700px; height:1471px; border-radius:88px; background:var(--ink); box-shadow:0 40px 90px rgb(31 35 64 / .28); transform-origin:527px 221px; }
+  #screen { left:20px; top:20px; width:660px; height:1431px; border-radius:68px; overflow:hidden; background:#fff; }
+  #screen img.shot { position:absolute; left:0; top:0; width:660px; height:1431px; opacity:0; }
+  #off { left:0; top:0; width:660px; height:1431px; background:#0B0D1A; opacity:0; }
+  #off .lock { position:absolute; left:0; right:0; top:120px; text-align:center; color:#fff; font-size:34px; font-weight:600; opacity:.85; }
+  #off .time { position:absolute; left:0; right:0; top:170px; text-align:center; color:#fff; font-size:150px; font-weight:300; letter-spacing:-0.02em; }
+  #off .card { position:absolute; left:40px; right:40px; top:1080px; height:200px; border-radius:40px; background:rgb(255 255 255 / .14); display:flex; align-items:center; gap:24px; padding:0 34px; box-sizing:border-box; color:#fff; }
+  #off .card img { width:92px; height:92px; border-radius:24px; }
+  #off .card .t { font-size:30px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:330px; }
+  #off .card .s { font-size:24px; opacity:.8; margin-top:6px; }
+  #waves { position:absolute; left:0; right:0; top:560px; display:flex; justify-content:center; align-items:flex-end; gap:16px; height:260px; }
+  #waves i { display:block; width:26px; border-radius:14px; background:var(--mango); height:60px; }
+
+  /* 알림 배너 */
+  #noti { left:18px; top:22px; width:624px; border-radius:36px; background:rgb(255 255 255 / .96); box-shadow:0 18px 48px rgb(31 35 64 / .28); display:flex; align-items:center; gap:22px; padding:24px 28px; box-sizing:border-box; }
+  #noti img { width:84px; height:84px; border-radius:22px; flex:none; }
+  #noti .b { min-width:0; }
+  #noti .h { display:flex; justify-content:space-between; font-size:24px; color:var(--sub); font-weight:600; }
+  #noti .t { font-size:30px; font-weight:800; color:var(--ink); margin-top:4px; }
+  #noti .s { font-size:26px; color:var(--ink); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* 탭 효과 */
+  .ripple { position:absolute; width:160px; height:160px; margin:-80px 0 0 -80px; border-radius:50%; background:rgb(26 143 224 / .35); border:6px solid rgb(26 143 224 / .6); opacity:0; pointer-events:none; }
+  .ripple.ink { background:rgb(31 35 64 / .25); border-color:rgb(31 35 64 / .5); }
+  .tapk { position:absolute; font-size:58px; font-weight:900; color:var(--mango); background:var(--ink); border-radius:26px; padding:6px 22px; opacity:0; transform-origin:50% 100%; white-space:nowrap; box-shadow:0 14px 30px rgb(31 35 64 / .3); }
+  #hl { position:absolute; border:6px solid var(--sky); border-radius:36px; opacity:0; box-shadow:0 0 0 10px rgb(26 143 224 / .18); }
+  #cover { position:absolute; background:#fff; opacity:0; }
+  #caret { position:absolute; width:4px; height:40px; background:var(--ink); opacity:0; }
+  #dot { position:absolute; width:46px; height:46px; margin:-23px 0 0 -23px; border-radius:50%; background:rgb(31 35 64 / .55); opacity:0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hook" class="abs">
+    <img class="icon" src="assets/icon.svg" alt="">
+    <div class="line l1">관심 분야 소식,</div>
+    <div class="line l2"><span class="k">딸깍</span> 한 번이면 끝.</div>
+  </div>
+
+  <div id="cap" class="abs"></div>
+
+  <div id="phone" class="abs">
+    <div id="screen" class="abs">
+      <img class="shot" data-k="today" src="raw/today.png" alt="">
+      <img class="shot" data-k="listening" src="raw/today-listening-2.png" alt="">
+      <img class="shot" data-k="script" src="raw/today-script.png" alt="">
+      <img class="shot" data-k="settingsTyped" src="raw/settings-link-typed.png" alt="">
+      <div id="cover"></div>
+      <div id="caret"></div>
+      <div id="hl"></div>
+      <div id="off" class="abs">
+        <div class="lock">10월 19일 월요일</div>
+        <div class="time">8:12</div>
+        <div id="waves"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="card"><img src="assets/icon.svg" alt=""><div><div class="t">LLM 시대의 수학과 과학, 황금기일까</div><div class="s">맹고 · 10개 중 1번째 듣는 중</div></div></div>
+      </div>
+      <div id="noti" class="abs">
+        <img src="assets/icon.svg" alt="">
+        <div class="b">
+          <div class="h"><span>맹고</span><span>지금</span></div>
+          <div class="t">오늘의 소식이 도착했어요</div>
+          <div class="s">관심사로 고른 소식 10개가 준비됐어요</div>
+        </div>
+      </div>
+      <div id="dot"></div>
+      <div class="ripple" id="r1"></div>
+      <div class="tapk" id="k1">딸깍</div>
+    </div>
+  </div>
+
+  <div id="outro" class="abs">
+    <img class="icon" src="assets/icon.svg" alt="">
+    <div class="name">맹고</div>
+    <div class="tag">관심 분야 소식, AI 요약으로 들어요</div>
+    <div class="url">watalabs.com/maengo</div>
+    <div class="store">App Store · Google Play</div>
+  </div>
+</div>
+
+<script>
+// ---- 시간표(초) ----
+// 0~3 도입 → 3~11 오늘: 알림 → '전체 듣기'로 줌인 → 딸깍 → 플레이어 열리며 줌아웃
+// → 11~15.4 잠금 화면(출근길·운전 중·화면 꺼도) → 15.4~20.2 설정(관심사·관심 링크) → 20.5~ 마무리
+const DURATION = 24.5;
+window.DURATION = DURATION;
+const S = 660 / 393; // CSS px → 화면 px
+
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const P = (t, s, d) => clamp((t - s) / d);
+const outCubic = (p) => 1 - Math.pow(1 - p, 3);
+const inCubic = (p) => p * p * p;
+const inOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+const outBack = (p) => { const c = 1.70158; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+const q = (s) => document.querySelector(s);
+const setT = (el, s) => { el.style.transform = s; };
+
+// 폰 화면 순서. from = 바뀌기 시작, fade = 바뀌는 데 걸리는 시간
+const SCREENS = [
+  { k: "today", from: 0, fade: 0.01 },
+  { k: "listening", from: 6.5, fade: 0.35 },           // 전체 듣기 → 일시정지, 1/10
+  { k: "script", from: 7.6, fade: 0.35, slide: true },  // 플레이어 창(대본)
+  { k: "settingsTyped", from: 15.4, fade: 0.4 },
+];
+
+// '전체 듣기' 줌: 버튼(폰 안 527,221 = 캔버스 717,621)을 캔버스 (540,860)으로 끌어오며 2.2배
+const ZOOM = { z: 2.2, from: { x: 717, y: 621 }, to: { x: 540, y: 860 }, inAt: 5.4, inDur: 0.8, outAt: 7.3, outDur: 1.0 };
+const OFF = { at: 11.0, until: 15.4 };       // 잠금 화면
+const EXIT = 20.2;                           // 폰 퇴장 시작
+
+// 자막. .k('딸깍')는 at + 0.15에 튀어나온다
+const CAPS = [
+  { at: 3.4, until: 5.35, html: '<div class="line">아침에 알림이 오면</div><div class="line">앱 열고,</div>' },
+  { at: 5.4, until: 8.3, html: '<div class="line">전체 듣기 <span class="k">딸깍</span>.</div>' },
+  { at: 8.4, until: 10.9, html: '<div class="line">오늘 소식 10개를</div><div class="line">이어서 읽어줘요</div>' },
+  { at: 11.2, until: 12.55, html: '<div class="line"><span class="em">🚇</span>출근길에 <span class="k">딸깍</span>,</div>' },
+  { at: 12.6, until: 13.85, html: '<div class="line"><span class="em">🚗</span>운전 중에 <span class="k">딸깍</span>.</div>' },
+  { at: 13.9, until: 15.3, html: '<div class="line">화면 꺼도, 두 손 놓고.</div>' },
+  { at: 15.6, until: 17.25, html: '<div class="line">관심사는 골라서 받고,</div>' },
+  { at: 17.3, until: 18.8, html: '<div class="line">자주 보는 블로그는</div><div class="line">주소만 넣으면</div>' },
+  { at: 18.85, until: 20.15, html: '<div class="line">그 블로그 글만</div><div class="line">골라서 들려줘요.</div>' },
+];
+
+// 탭(화면 px). label이면 '딸깍' 글자가 같이 튄다. lx/ly = 글자 위치(버튼 기준)
+const TAPS = [
+  { at: 5.0, x: 330, y: 95, label: false, ink: true },                     // 알림 배너
+  { at: 6.4, x: 302.2 * S, y: 120 * S, label: true, lx: -200, ly: -150 }, // 오늘 전체 듣기(줌인 상태)
+  { at: 17.5, x: 200 * S, y: 425 * S, label: false },                     // 관심 링크 칸
+];
+
+// 효과음·목소리·배경음악(render.mjs가 읽는다). dur = 그만큼만 쓰고 끝을 살짝 줄임, tempo = 빠르기, duck = 그 구간만 level로
+window.CUES = [
+  { file: "bgm.wav", at: 0, volume: 0.32, duck: { from: 6.4, to: 15.6, level: 0.12 } },  // 잔잔한 배경음악(bgm.mjs로 합성), 내레이션 동안 낮춤
+  { file: "click.wav", at: 1.1 }, { file: "click.wav", at: 5.0 }, { file: "click.wav", at: 6.4 },
+  { file: "click.wav", at: 11.35 }, { file: "click.wav", at: 12.75 }, { file: "click.wav", at: 20.8 },
+  { file: "line1.mp3", at: 6.5, volume: 1 },                 // "맹고 아나운서예요. 오늘의 관심 소식을 AI로 요약해서 들려드릴게요." (4.7초)
+  { file: "line2.mp3", at: 11.2, volume: 1, tempo: 1.12 },   // "첫 번째 소식. LLM 시대의 수학과 과학, 황금기일까 암흑기일까?" → 잠금 화면 끝(15.4)에 맞춤
+];
+
+const hook = q("#hook"), cap = q("#cap"), phone = q("#phone"), outro = q("#outro");
+const shots = Object.fromEntries([...document.querySelectorAll("img.shot")].map((el) => [el.dataset.k, el]));
+const noti = q("#noti"), off = q("#off"), waves = [...document.querySelectorAll("#waves i")];
+const r1 = q("#r1"), k1 = q("#k1"), hl = q("#hl"), cover = q("#cover"), caret = q("#caret"), dot = q("#dot");
+let capKey = null;
+
+function popK(root, p) {
+  const s = p < 1 ? 0.5 + 0.5 * outBack(p) : 1;
+  root.querySelectorAll(".k").forEach((el) => { el.style.transform = `scale(${s})`; el.style.opacity = p > 0 ? 1 : 0; });
+}
+
+function seek(t) {
+  // ---- 도입 ----
+  const hookOn = t < 3.2;
+  hook.style.opacity = hookOn ? (t < 2.8 ? 1 : 1 - P(t, 2.8, 0.4)) : 0;
+  if (hookOn) {
+    const icon = hook.querySelector(".icon");
+    const pi = outBack(P(t, 0.15, 0.5)); setT(icon, `scale(${0.4 + 0.6 * pi})`); icon.style.opacity = P(t, 0.15, 0.2);
+    const l1 = outCubic(P(t, 0.45, 0.4)); hook.querySelector(".l1").style.opacity = l1; setT(hook.querySelector(".l1"), `translateY(${(1 - l1) * 40}px)`);
+    const l2 = outCubic(P(t, 0.95, 0.4)); hook.querySelector(".l2").style.opacity = l2; setT(hook.querySelector(".l2"), `translateY(${(1 - l2) * 40}px)`);
+    popK(hook, P(t, 1.1, 0.35));
+  }
+
+  // ---- 폰 등장·줌·퇴장 ----
+  const phoneIn = outCubic(P(t, 3.0, 0.7));
+  const phoneOut = inCubic(P(t, EXIT, 0.5));
+  const phoneOn = t >= 3.0 && t < EXIT + 0.6;
+  phone.style.opacity = phoneOn ? 1 - phoneOut : 0;
+  const zp = t < ZOOM.outAt ? inOut(P(t, ZOOM.inAt, ZOOM.inDur)) : 1 - inOut(P(t, ZOOM.outAt, ZOOM.outDur));
+  const z = 1 + (ZOOM.z - 1) * zp;
+  const tx = (ZOOM.to.x - ZOOM.from.x) * zp, ty = (ZOOM.to.y - ZOOM.from.y) * zp;
+  setT(phone, `translate(${tx}px, ${ty + (1 - phoneIn) * 1300 + phoneOut * 1500}px) scale(${z})`);
+
+  // ---- 폰 화면 ----
+  let cur = 0;
+  for (let i = 0; i < SCREENS.length; i++) if (t >= SCREENS[i].from) cur = i;
+  Object.values(shots).forEach((el) => { el.style.opacity = 0; el.style.transform = ""; });
+  const c = SCREENS[cur];
+  const p = cur === 0 ? 1 : outCubic(P(t, c.from, c.fade));
+  if (cur > 0) shots[SCREENS[cur - 1].k].style.opacity = 1;
+  shots[c.k].style.opacity = p;
+  if (c.slide) setT(shots[c.k], `translateY(${(1 - p) * 80}px)`); // 플레이어 창은 아래서 올라오는 느낌
+
+  // ---- 알림 배너: 3.8에 내려오고 5.0 탭 뒤 올라간다 ----
+  const nIn = outBack(P(t, 3.8, 0.55)), nOut = inCubic(P(t, 5.05, 0.35));
+  const nOn = t >= 3.8 && t < 5.45;
+  noti.style.opacity = nOn ? 1 - nOut : 0;
+  setT(noti, `translateY(${(1 - nIn) * -220 - nOut * 240}px) scale(${t >= 5.0 && t < 5.12 ? 0.97 : 1})`);
+
+  // ---- 잠금 화면 + 소리 막대 ----
+  const offP = t < OFF.until ? P(t, OFF.at, 0.35) : 1 - P(t, OFF.until, 0.35);
+  const offOn = t >= OFF.at && t < OFF.until + 0.4;
+  off.style.opacity = offOn ? offP : 0;
+  if (offOn) waves.forEach((b, i) => { b.style.height = `${90 + 110 * Math.abs(Math.sin(t * 7.3 + i * 1.1)) * (0.5 + 0.5 * Math.sin(t * 2.1 + i))}px`; });
+
+  // ---- 설정: 관심사 칩 테두리, 링크 칸 타이핑 ----
+  const HL = { at: 15.8, until: 17.2 }, TYPE = { tap: 17.3, at: 17.8, dur: 1.1 };
+  const hlOn = t >= HL.at && t < HL.until;
+  hl.style.opacity = hlOn ? outCubic(P(t, HL.at, 0.3)) * (t > HL.until - 0.3 ? 1 - P(t, HL.until - 0.3, 0.3) : 1) : 0;
+  hl.style.left = "30px"; hl.style.top = "92px"; hl.style.width = "530px"; hl.style.height = "166px";
+  setT(hl, `scale(${1 + 0.012 * Math.sin((t - HL.at) * 6)})`);
+  const typed = t < TYPE.tap ? 0 : P(t, TYPE.at, TYPE.dur);
+  const textW = 208, x0 = 64;
+  const xCur = x0 + textW * outCubic(typed);
+  cover.style.left = `${xCur}px`; cover.style.top = "686px"; cover.style.width = `${Math.max(0, 590 - xCur)}px`; cover.style.height = "60px";
+  cover.style.opacity = t >= OFF.until && typed < 1 ? 1 : 0;
+  caret.style.left = `${xCur + 4}px`; caret.style.top = "696px";
+  caret.style.opacity = t >= TYPE.tap && t < EXIT && Math.floor(t * 2.4) % 2 === 0 ? 1 : 0;
+
+  // ---- 탭 효과 ----
+  r1.style.opacity = 0; k1.style.opacity = 0; dot.style.opacity = 0;
+  for (const tp of TAPS) {
+    const d = t - tp.at;
+    if (d < -0.25 || d > 1.0) continue;
+    if (d < 0.12) { dot.style.opacity = 0.9 * P(d, -0.25, 0.15); dot.style.left = `${tp.x}px`; dot.style.top = `${tp.y}px`; setT(dot, `scale(${d < 0 ? 1.15 : 0.85})`); }
+    if (d >= 0) {
+      const rp = P(d, 0, 0.55);
+      r1.className = "ripple" + (tp.ink ? " ink" : "");
+      r1.style.left = `${tp.x}px`; r1.style.top = `${tp.y}px`;
+      r1.style.opacity = (1 - rp) * 0.9; setT(r1, `scale(${0.25 + 1.4 * outCubic(rp)})`);
+      if (tp.label) {
+        const kp = P(d, 0, 0.32), kf = d > 0.65 ? 1 - P(d, 0.65, 0.3) : 1;
+        k1.style.opacity = kf; k1.style.left = `${tp.x + (tp.lx ?? -70)}px`; k1.style.top = `${tp.y + (tp.ly ?? -150)}px`;
+        setT(k1, `scale(${0.4 + 0.6 * outBack(kp)}) rotate(-6deg) translateY(${-(1 - kp) * 20}px)`);
+      }
+    }
+  }
+
+  // ---- 자막 ----
+  const cc = CAPS.find((x) => t >= x.at && t < x.until + 0.25);
+  if (!cc) { cap.style.opacity = 0; capKey = null; }
+  else {
+    if (capKey !== cc.at) { cap.innerHTML = cc.html; capKey = cc.at; }
+    const ip = outCubic(P(t, cc.at, 0.35)), op = t > cc.until ? P(t, cc.until, 0.25) : 0;
+    cap.style.opacity = ip * (1 - op);
+    setT(cap, `translateY(${(1 - ip) * 30 - op * 20}px)`);
+    popK(cap, P(t, cc.at + 0.15, 0.35));
+  }
+
+  // ---- 마무리 ----
+  const O = EXIT + 0.3;
+  const oOn = t >= O;
+  outro.style.opacity = oOn ? 1 : 0;
+  if (oOn) {
+    const ic = outBack(P(t, O + 0.25, 0.5)); const icon = outro.querySelector(".icon"); icon.style.opacity = P(t, O + 0.25, 0.15); setT(icon, `scale(${0.3 + 0.7 * ic})`);
+    [[".name", O + 0.6], [".tag", O + 1.0], [".url", O + 1.4], [".store", O + 1.7]].forEach(([sel, at]) => {
+      const el = outro.querySelector(sel); const pp = outCubic(P(t, at, 0.4)); el.style.opacity = pp; setT(el, `translateY(${(1 - pp) * 36}px)`);
+    });
+  }
+}
+window.seek = seek;
+seek(0);
+</script>
+</body>
+</html>
