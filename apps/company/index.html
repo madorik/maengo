@@ -160,7 +160,9 @@
     /* 앱 화면: 폰 테두리만 두르고 가로로 늘어놓는다(좁으면 옆으로 넘긴다) */
     .shots { grid-column: 1 / -1; display: flex; gap: 16px; margin-top: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
     .shots::-webkit-scrollbar { display: none; }
-    .shots img { flex: 0 0 auto; width: 210px; height: auto; border: 7px solid var(--bezel); border-radius: 30px; background: var(--bezel); scroll-snap-align: start; }
+    .shots img, .shots video { flex: 0 0 auto; width: 210px; height: auto; border: 7px solid var(--bezel); border-radius: 30px; background: var(--bezel); scroll-snap-align: start; }
+    /* 소개 영상(소리 없음): 맨 앞에 조금 크게. 자동 재생·반복, 움직임을 줄인 설정이면 아래 스크립트가 멈추고 재생 버튼을 준다 */
+    .shots video { width: 236px; }
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
       min-height: 52px; margin-top: 24px; padding: 0 26px;
@@ -188,7 +190,8 @@
       section { padding: 48px 0; }
       .shelf { grid-template-columns: 1fr; padding: 24px; gap: 18px; }
       .shelf svg { width: 84px; height: 84px; border-radius: 20px; }
-      .shots img { width: 180px; border-width: 6px; border-radius: 26px; }
+      .shots img, .shots video { width: 180px; border-width: 6px; border-radius: 26px; }
+      .shots video { width: 200px; }
       .btn { width: 100%; }
     }
   </style>
@@ -235,6 +238,7 @@
             <a class="btn" href="/maengo">맹고 열기</a>
           </div>
           <div class="shots">
+            <video src="/shots/maengo-promo.mp4" width="720" height="1280" poster="/shots/maengo-promo-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="맹고 소개 영상. 아침 알림을 열고 전체 듣기를 누르면 소식을 이어서 읽어 주고, 화면을 꺼도 계속 들려요. 관심사와 자주 보는 블로그 주소를 고를 수 있어요"></video>
             <img src="/shots/maengo-today.webp" width="480" height="1041" loading="lazy" alt="오늘의 소식 화면. 고른 분야에서 골라 온 오늘 소식과 요약이 보여요" />
             <img src="/shots/maengo-article.webp" width="480" height="1041" loading="lazy" alt="소식 화면. 핵심 요약과 원문 보기, 이 글 듣기 버튼이 있어요" />
             <img src="/shots/maengo-playlist.webp" width="480" height="1041" loading="lazy" alt="플레이리스트 화면. 들을 소식을 모아 두고 전체 듣기를 눌러요" />
@@ -268,5 +272,14 @@
       </nav>
     </div>
   </footer>
+  <script>
+    // 소개 영상(소리 없음). 움직임을 줄인 설정이면 자동 재생하지 않고 재생 버튼을 보여 준다.
+    // 자동 재생이 막힌 환경(저전력 모드 등)에서도 재생 버튼을 보여 준다.
+    document.querySelectorAll(".shots video").forEach((v) => {
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.pause(); v.controls = true; return; }
+      const p = v.play();
+      if (p && p.catch) p.catch(() => { v.controls = true; });
+    });
+  </script>
 </body>
 </html>
