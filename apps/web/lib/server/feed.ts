@@ -1,12 +1,9 @@
 import 'server-only';
 import { cache } from 'react';
-import { CATEGORIES, type CategoryId } from '@maengo/core/categories';
+import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
-import {
-  assembleClusterInfo, cardOfEmbedded, partsOfEmbedded, repMissing, TIERS,
-  type ClusterCard, type ClusterInfo, type EmbeddedCard, type EmbeddedCluster, type ItemRow, type RepRow, type SummaryRow, type WhyRow,
-} from '../cluster-info';
-import { libraryMatcher } from '../library-search';
+import { assembleClusterInfo, partsOfEmbedded, TIERS, type ClusterInfo, type EmbeddedCluster, type ItemRow, type RepRow, type SummaryRow, type WhyRow } from '../cluster-info';
+import { libraryTerms } from '../library-search';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { daysBefore } from '@maengo/core/plans';
 import { isLinkTopicId, rankingWeights, whyLead } from '@maengo/core/topics';
@@ -136,8 +133,6 @@ const FEED_COLS = 'rank,cluster_id,topic_id';
  * clusters↔items는 외래 키가 둘(items.cluster_id, clusters.rep_item_id)이라 어느 쪽인지 적어 준다
  */
 const FEED_WITH_INFO = `${FEED_COLS},clusters!inner(rep_item_id,summaries(cluster_id,tier,title,short,body,category,author,published_at,scenes),cluster_why(cluster_id,topic_id,tier,why),items!items_cluster_id_fkey(id,cluster_id,canonical_url,kind,author,sources(name)))`;
-/** 보관함 카드용: 요약(전문·장면 없이)과 대표 글만 같이 받는다(묶인 글을 다 받으면 크기가 두 배) */
-const FEED_WITH_CARD = `date,${FEED_COLS},clusters!inner(summaries(cluster_id,title,short,category,author,published_at),rep:items!clusters_rep_item_id_fkey(canonical_url,kind,author,sources(name)))`;
 
 interface FeedRowRaw {
   rank: number;
@@ -348,48 +343,27 @@ function archiveFrom(profile: Profile, today: string): string | null {
   return days === null ? null : daysBefore(today, days - 1);
 }
 
-interface PastFeedRowRaw {
-  date: string;
-  rank: number;
-  cluster_id: number;
-  topic_id: string;
-  clusters?: EmbeddedCard | null;
-}
-
-/**
- * 오늘을 뺀 지난 피드(최신순). 플랜이 보여 주는 기간만. withCards면 보관함 카드에 쓸 소식 내용을 같이 받는다(한 번에 오간다).
- * today는 오늘 날짜(todayFeed와 같은 kstDate())라서 오늘 피드와 나란히 읽을 수 있다.
- * uncarded: 요약은 있는데 대표 글이 없어 카드를 못 만든 묶음(지금은 없다). 부르는 쪽이 전체 소식 내용으로 채운다
- */
-async function pastDays(profile: Profile, today: string, { withCards = false } = {}): Promise<{ days: FeedDay[]; cards: Map<number, ClusterCard>; uncarded: number[] }> {
+/** 오늘을 뺀 지난 피드(최신순). 플랜이 보여 주는 기간만. today는 오늘 날짜(todayFeed와 같은 kstDate())라서 오늘 피드와 나란히 읽을 수 있다 */
+async function pastDays(profile: Profile, today: string): Promise<FeedDay[]> {
   const from = archiveFrom(profile, today);
   let dayQuery = db.from('feed_days').select('date,visible,extra').eq('user_id', profile.id).neq('date', today);
-  let feedQuery = db.from('feeds').select(withCards ? FEED_WITH_CARD : `date,${FEED_COLS}`).eq('user_id', profile.id).neq('date', today);
-  if (withCards) feedQuery = feedQuery.in('clusters.summaries.tier', TIERS);
+  let feedQuery = db.from('feeds').select(`date,${FEED_COLS}`).eq('user_id', profile.id).neq('date', today);
   if (from) {
     dayQuery = dayQuery.gte('date', from);
     feedQuery = feedQuery.gte('date', from);
   }
   const [days, feeds] = await Promise.all([dayQuery.order('date', { ascending: false }), feedQuery.order('rank')]);
   const rowsByDate = new Map<string, FeedRow[]>();
-  const cards = new Map<number, ClusterCard>();
-  const uncarded = new Set<number>();
-  for (const r of must(feeds, 'feeds') as unknown as PastFeedRowRaw[]) {
+  for (const r of must(feeds, 'feeds') as { date: string; rank: number; cluster_id: number; topic_id: string }[]) {
     (rowsByDate.get(r.date) ?? rowsByDate.set(r.date, []).get(r.date)!).push({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id });
-    if (withCards && !cards.has(r.cluster_id)) {
-      const card = cardOfEmbedded(r.clusters);
-      if (card) cards.set(r.cluster_id, card);
-      else if (repMissing(r.clusters)) uncarded.add(r.cluster_id);
-    }
   }
-  const list = (must(days, 'feed_days') as { date: string; visible: number; extra: number }[]).map((d) => ({ date: d.date, visible: d.visible, extra: d.extra, rows: rowsByDate.get(d.date) ?? [] }));
-  return { days: list, cards, uncarded: [...uncarded] };
+  return (must(days, 'feed_days') as { date: string; visible: number; extra: number }[]).map((d) => ({ date: d.date, visible: d.visible, extra: d.extra, rows: rowsByDate.get(d.date) ?? [] }));
 }
 
-/** 받은 피드 전체(최신순). 오늘 것은 지금 플랜 기준, 지난 날은 플랜이 보여 주는 기간만. 오늘과 지난 피드를 나란히 읽는다 */
+/** 받은 피드 전체(최신순). 오늘 것은 지금 플랜 기준, 지난 날은 플랜이 보여 주는 기간만. 오늘과 지난 피드를 나란히 읽는다(플레이리스트용. 보관함 화면은 getLibrary) */
 async function allDays(profile: Profile): Promise<FeedDay[]> {
   const [today, past] = await Promise.all([todayFeed(profile), pastDays(profile, kstDate())]);
-  return [today, ...past.days];
+  return [today, ...past];
 }
 
 /** 받은 피드 어디에서든 이 소식을 찾는다(보여 준 것만, 플랜이 보여 주는 기간만). 오늘 것이면 같이 읽어 둔 소식 내용(info)도 준다 */
@@ -596,7 +570,39 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
 
 export const LIBRARY_PAGE_SIZE = 10;
 
-/** 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리·읽음으로 거르고 페이지로 나눈다. 들은 것도 읽음으로 친다 */
+/** library_page(DB 함수)가 돌려주는 값 */
+interface LibraryPageRow {
+  total: number;
+  matched_total: number;
+  category_counts: Record<string, number>;
+  in_category: number;
+  consumed: number;
+  filtered_total: number;
+  page: number;
+  page_count: number;
+  pick_ids: number[];
+  entries: {
+    date: string;
+    rank: number;
+    cluster_id: number;
+    title: string;
+    short: string;
+    category: string;
+    author: string | null;
+    published_at: string | null;
+    kind: 'article' | 'video';
+    url: string;
+    source: string;
+    read: boolean;
+    listened: boolean;
+  }[];
+}
+
+/**
+ * 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리·읽음·검색어로 거르고 쪽으로 나눈다. 들은 것도 읽음으로 친다.
+ * 거르기·개수 세기·쪽 나누기는 DB(library_page, 20261019120000_library_page.sql)가 하고 요청한 쪽만 받는다
+ * (2026-10-19 사용자 결정: 전체를 읽어 메모리에서 거르지 않는다)
+ */
 export async function getLibrary(
   profile: Profile,
   {
@@ -615,64 +621,55 @@ export async function getLibrary(
   },
 ): Promise<LibraryData> {
   const now = new Date();
-  // 오늘 피드·지난 피드(카드 내용까지)·읽음을 나란히 읽는다(전엔 차례로 세 번 오갔다, 2026-10-19)
-  const [today, past, { reads }] = await Promise.all([todayFeed(profile), pastDays(profile, kstDate(), { withCards: true }), readsAndFeedback(profile.id)]);
-  const rows = [today, ...past.days].flatMap((d) => visibleRows(d).map((row) => ({ row, date: d.date })));
-  // 소식 내용: 지난 것은 카드로 같이 받았고, 오늘 것은 오늘 피드에 같이 읽어 둔 것(info).
-  // 오늘 피드를 방금 만들어 info가 없거나 대표 글이 없어 카드를 못 만든 묶음(uncarded)만 따로 읽는다
-  const cards = new Map<number, ClusterCard>(past.cards);
-  const fetchIds = [...(today.info ? [] : visibleRows(today).map((r) => r.clusterId)), ...past.uncarded];
-  for (const [id, c] of [...(today.info ?? []), ...(await clusterInfo(fetchIds))]) cards.set(id, c);
-  const readMap = new Map(reads.map((r) => [r.cluster_id, r]));
-  const all: LibraryEntry[] = rows.flatMap(({ row, date }) => {
-    const c = cards.get(row.clusterId);
-    if (!c) return [];
-    return [{
-      clusterId: row.clusterId,
-      feedDate: date,
-      title: c.title,
-      short: c.short,
-      kind: c.kind,
-      category: c.category,
-      sourceLabel: c.sourceLabel,
-      author: c.author ?? c.sourceLabel,
-      publishedLabel: c.publishedAt ? publishedLabel(c.publishedAt, now) : '',
-      read: !!readMap.get(row.clusterId)?.read_at,
-      listened: !!readMap.get(row.clusterId)?.listened_at,
-    }];
-  });
-
-  // 검색어가 있으면 거르기 줄의 개수도 찾은 소식 안에서 센다
-  const matched = query ? all.filter(libraryMatcher(query)) : all;
-  const counts = new Map<CategoryId, number>();
-  for (const e of matched) counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
-  const consumed = (e: LibraryEntry) => e.read || e.listened;
-  const inCategory = category ? matched.filter((e) => e.category === category) : matched;
-  const filtered = read === 'unread' ? inCategory.filter((e) => !consumed(e)) : inCategory;
-  const readCount = inCategory.filter(consumed).length;
-  const pageCount = Math.max(1, Math.ceil(filtered.length / LIBRARY_PAGE_SIZE));
-  const current = Math.min(Math.max(1, page), pageCount);
-  const slice = filtered.slice(Math.max(0, (current - 1) * LIBRARY_PAGE_SIZE - overlap), current * LIBRARY_PAGE_SIZE);
+  // 오늘 피드를 먼저 읽는다: 오늘 보여 줄 개수(feed_days.visible)를 거기서 맞춘다(플랜이 바뀌었거나 모자란 걸 채운 뒤)
+  const today = await todayFeed(profile);
+  const r = must(
+    await db.rpc('library_page', {
+      p_user: profile.id,
+      p_today: today.date,
+      p_from: archiveFrom(profile, today.date),
+      p_category: category,
+      p_unread: read === 'unread',
+      p_terms: libraryTerms(query),
+      p_page: page,
+      p_size: LIBRARY_PAGE_SIZE,
+      p_overlap: overlap,
+    }),
+    'library_page',
+  ) as unknown as LibraryPageRow;
 
   const groups: LibraryData['groups'] = [];
-  for (const e of slice) {
+  for (const e of r.entries) {
+    const entry: LibraryEntry = {
+      clusterId: e.cluster_id,
+      feedDate: e.date,
+      title: e.title,
+      short: e.short,
+      kind: e.kind,
+      category: isCategory(e.category) ? e.category : 'etc',
+      sourceLabel: e.source,
+      author: e.author ?? e.source,
+      publishedLabel: e.published_at ? publishedLabel(e.published_at, now) : '',
+      read: e.read,
+      listened: e.listened,
+    };
     const last = groups.at(-1);
-    if (last?.date === e.feedDate) last.entries.push(e);
-    else groups.push({ date: e.feedDate, label: kstDayLabel(e.feedDate, now), entries: [e] });
+    if (last?.date === e.date) last.entries.push(entry);
+    else groups.push({ date: e.date, label: kstDayLabel(e.date, now), entries: [entry] });
   }
 
   return {
-    total: all.length,
-    filteredTotal: filtered.length,
-    page: current,
-    pageCount,
+    total: r.total,
+    filteredTotal: r.filtered_total,
+    page: r.page,
+    pageCount: r.page_count,
     category,
     readFilter: read,
     query,
-    matchedTotal: matched.length,
-    readCounts: { all: inCategory.length, unread: inCategory.length - readCount },
-    pickIds: filtered.map((e) => e.clusterId),
-    categories: CATEGORIES.filter((c) => counts.has(c.id)).map((c) => ({ id: c.id, label: c.label, count: counts.get(c.id)! })),
+    matchedTotal: r.matched_total,
+    readCounts: { all: r.in_category, unread: r.in_category - r.consumed },
+    pickIds: r.pick_ids,
+    categories: CATEGORIES.filter((c) => r.category_counts[c.id]).map((c) => ({ id: c.id, label: c.label, count: r.category_counts[c.id]! })),
     groups,
   };
 }

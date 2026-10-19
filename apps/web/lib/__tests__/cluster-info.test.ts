@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { assembleClusterInfo, cardOfEmbedded, partsOfEmbedded, repMissing, type ItemRow, type SummaryRow } from '../cluster-info';
+import { assembleClusterInfo, partsOfEmbedded, type ItemRow, type SummaryRow } from '../cluster-info';
 
 const summary = (cluster_id: number, over: Partial<SummaryRow> = {}): SummaryRow => ({
   cluster_id,
@@ -79,21 +79,4 @@ test('같이 받은 묶음은 네 표로 펴고, 같은 묶음은 한 번만', (
   assert.equal(parts.whys.length, 1);
   assert.equal(parts.items.length, 1);
   assert.equal(assembleClusterInfo([1, 2], parts).size, 1);
-});
-
-test('보관함 카드: 요약·대표 글이 있어야 하고, 글쓴이는 요약 → 대표 글 순', () => {
-  const s = { title: '제목', short: '요약', category: 'tech', author: null, published_at: null };
-  const card = cardOfEmbedded({ summaries: [s], rep: item(12, 1, 'B') })!;
-  assert.equal(card.sourceLabel, 'B');
-  assert.equal(card.url, 'https://example.com/12');
-  assert.equal(card.author, '글쓴이 12');
-  assert.equal(card.category, 'tech');
-  assert.equal(cardOfEmbedded({ summaries: [], rep: item(12, 1, 'B') }), null);
-  assert.equal(cardOfEmbedded({ summaries: [s], rep: null }), null);
-  assert.equal(cardOfEmbedded(null), null);
-  // 요약은 있는데 대표 글만 없는 묶음은 따로 읽어 채운다
-  assert.equal(repMissing({ summaries: [s], rep: null }), true);
-  assert.equal(repMissing({ summaries: [], rep: null }), false);
-  assert.equal(repMissing({ summaries: [s], rep: item(12, 1, 'B') }), false);
-  assert.equal(repMissing(null), false);
 });

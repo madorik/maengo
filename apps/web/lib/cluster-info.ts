@@ -7,8 +7,8 @@ import type { Tier } from '@maengo/core/types';
 /** 모든 플랜이 기본(basic) 요약을 본다(Pro 요약은 만들지 않는다, 2026-10-14). 앞에 있을수록 먼저 고른다 */
 export const TIERS: Tier[] = ['basic'];
 
-/** 목록 카드에 필요한 만큼(보관함) */
-export interface ClusterCard {
+/** 소식 내용(오늘·상세·듣기). 보관함 목록은 DB 함수 library_page가 따로 만든다 */
+export interface ClusterInfo {
   title: string;
   short: string;
   category: CategoryId;
@@ -17,10 +17,6 @@ export interface ClusterCard {
   kind: 'article' | 'video';
   url: string;
   sourceLabel: string;
-}
-
-/** 소식 전체(오늘·상세·듣기) */
-export interface ClusterInfo extends ClusterCard {
   body: string[];
   scenes?: { t: string; label: string }[];
   /** '○○에서도 다뤘어요'(대표 글 말고 다른 출처가 있을 때) */
@@ -140,30 +136,4 @@ export function partsOfEmbedded(rows: { cluster_id: number; clusters?: EmbeddedC
     parts.items.push(...r.clusters.items);
   }
   return parts;
-}
-
-/** 보관함 카드용으로 같이 받은 묶음: 요약(전문·장면 없이)과 대표 글만(묶인 글을 다 받으면 크기가 두 배라) */
-export interface EmbeddedCard {
-  summaries: Pick<SummaryRow, 'title' | 'short' | 'category' | 'author' | 'published_at'>[];
-  rep: Pick<ItemRow, 'canonical_url' | 'kind' | 'author' | 'sources'> | null;
-}
-
-/** 요약은 있는데 대표 글이 없는 묶음인지(대표 글이 지워진 경우. 지금은 없다). 이때는 전체 소식 내용을 따로 읽어 다른 글로 대신한다 */
-export const repMissing = (c: EmbeddedCard | null | undefined): boolean => !!c && c.summaries.length > 0 && !c.rep;
-
-/** 카드 하나. 요약이나 대표 글이 없으면 null */
-export function cardOfEmbedded(c: EmbeddedCard | null | undefined): ClusterCard | null {
-  const s = c?.summaries[0];
-  const rep = c?.rep;
-  if (!s || !rep) return null;
-  return {
-    title: s.title,
-    short: s.short,
-    category: isCategory(s.category) ? s.category : 'etc',
-    author: s.author ?? rep.author,
-    publishedAt: s.published_at,
-    kind: rep.kind,
-    url: rep.canonical_url,
-    sourceLabel: rep.sources?.name ?? '',
-  };
 }
