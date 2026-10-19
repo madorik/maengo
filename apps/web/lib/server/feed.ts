@@ -1,13 +1,17 @@
 import 'server-only';
 import { cache } from 'react';
-import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
+import { CATEGORIES, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
+import {
+  assembleClusterInfo, cardOfEmbedded, partsOfEmbedded, repMissing, TIERS,
+  type ClusterCard, type ClusterInfo, type EmbeddedCard, type EmbeddedCluster, type ItemRow, type RepRow, type SummaryRow, type WhyRow,
+} from '../cluster-info';
 import { libraryMatcher } from '../library-search';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { daysBefore } from '@maengo/core/plans';
 import { isLinkTopicId, rankingWeights, whyLead } from '@maengo/core/topics';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
-import type { FeedbackKind, Tier } from '@maengo/core/types';
+import type { FeedbackKind } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, LibraryReadFilter, ProfileView, TodayData } from '../types';
 import { ai } from './ai';
 import { db, must } from './db';
@@ -35,6 +39,8 @@ interface FeedDay {
   visible: number;
   /** 맹고를 써서 더 받은 개수 */
   extra: number;
+  /** 피드 줄과 같이 읽어 둔 소식 내용(readDay withInfo). 없으면 itemsFor가 따로 읽는다 */
+  info?: Map<number, ClusterInfo>;
 }
 
 // ---- 오늘 피드 만들기(파이프라인 rank 단계와 같은 규칙. 알아요와 비슷한 소식 빼기는 배치에서만 한다) ----
@@ -123,15 +129,37 @@ async function buildToday(profile: Profile, date: string): Promise<FeedRow[]> {
   return ranked;
 }
 
-async function readDay(userId: string, date: string): Promise<FeedDay | null> {
+/** 피드 줄 그대로(feeds 표) */
+const FEED_COLS = 'rank,cluster_id,topic_id';
+/**
+ * 피드 줄에 소식 내용(요약·why·묶인 글)을 같이 받는다(PostgREST embed). 전엔 피드를 읽고 나서 소식 내용을 또 읽어 DB를 두 번 오갔다(2026-10-19).
+ * clusters↔items는 외래 키가 둘(items.cluster_id, clusters.rep_item_id)이라 어느 쪽인지 적어 준다
+ */
+const FEED_WITH_INFO = `${FEED_COLS},clusters!inner(rep_item_id,summaries(cluster_id,tier,title,short,body,category,author,published_at,scenes),cluster_why(cluster_id,topic_id,tier,why),items!items_cluster_id_fkey(id,cluster_id,canonical_url,kind,author,sources(name)))`;
+/** 보관함 카드용: 요약(전문·장면 없이)과 대표 글만 같이 받는다(묶인 글을 다 받으면 크기가 두 배) */
+const FEED_WITH_CARD = `date,${FEED_COLS},clusters!inner(summaries(cluster_id,title,short,category,author,published_at),rep:items!clusters_rep_item_id_fkey(canonical_url,kind,author,sources(name)))`;
+
+interface FeedRowRaw {
+  rank: number;
+  cluster_id: number;
+  topic_id: string;
+  clusters?: EmbeddedCluster | null;
+}
+
+/** 그날 피드. withInfo면 소식 내용까지 한 번에 읽어 info에 둔다 */
+async function readDay(userId: string, date: string, { withInfo = false } = {}): Promise<FeedDay | null> {
+  let feedQuery = db.from('feeds').select(withInfo ? FEED_WITH_INFO : FEED_COLS).eq('user_id', userId).eq('date', date);
+  if (withInfo) feedQuery = feedQuery.in('clusters.summaries.tier', TIERS).in('clusters.cluster_why.tier', TIERS);
   const [day, feeds] = await Promise.all([
     db.from('feed_days').select('visible,extra').eq('user_id', userId).eq('date', date).maybeSingle(),
-    db.from('feeds').select('rank,cluster_id,topic_id').eq('user_id', userId).eq('date', date).order('rank'),
+    feedQuery.order('rank'),
   ]);
   const d = must(day, 'feed_days') as { visible: number; extra: number } | null;
   if (!d) return null;
-  const rows = (must(feeds, 'feeds') as { rank: number; cluster_id: number; topic_id: string }[]).map((r) => ({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id }));
-  return { date, rows, visible: d.visible, extra: d.extra };
+  const raw = must(feeds, 'feeds') as unknown as FeedRowRaw[];
+  const rows = raw.map((r) => ({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id }));
+  const info = withInfo ? assembleClusterInfo(rows.map((r) => r.clusterId), partsOfEmbedded(raw)) : undefined;
+  return { date, rows, visible: d.visible, extra: d.extra, info };
 }
 
 /** 전에 받은 피드가 있는지. 가입하고 아직 한 번도 받지 않았으면 false */
@@ -151,7 +179,7 @@ const shownCount = (day: FeedDay, limit: number) => Math.max(day.visible, Math.m
 const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
   const date = kstDate();
   const limit = entitlements(profile).dailyItems;
-  let day = await readDay(profile.id, date);
+  let day = await readDay(profile.id, date, { withInfo: true });
   // 오늘 피드가 하루 맹고(+ 더 받은 것)보다 적으면(AI가 막혔던 때 만든 피드 등) 이미 요약된 소식으로 모자란 만큼 채운다
   if (day && day.rows.length < limit + day.extra) day = await topUp(profile, day, limit + day.extra - day.rows.length);
   if (day) {
@@ -193,7 +221,7 @@ async function topUp(profile: Profile, day: FeedDay, need: number): Promise<Feed
     console.error('feeds top-up', error.message);
     return day;
   }
-  return (await readDay(profile.id, day.date)) ?? day;
+  return (await readDay(profile.id, day.date, { withInfo: true })) ?? day;
 }
 
 export type MoreResult = { ok: true; charged: boolean } | { ok: false; error: 'no_feed' | 'no_more' | 'no_balance' | 'busy' | 'blocked' };
@@ -277,7 +305,8 @@ const visibleRows = (day: FeedDay | null) => (day ? day.rows.slice(0, day.visibl
 export async function todayForRebuild(profile: Profile): Promise<{ date: string; hasItems: boolean; extra: number }> {
   const day = await todayFeed(profile);
   const rows = visibleRows(day);
-  const hasItems = rows.length > 0 && (await clusterInfo(rows.map((r) => r.clusterId))).size > 0;
+  const info = rows.length ? (day.info ?? (await clusterInfo(rows.map((r) => r.clusterId)))) : new Map<number, ClusterInfo>();
+  const hasItems = rows.some((r) => info.has(r.clusterId));
   return { date: day.date, hasItems, extra: day.extra };
 }
 
@@ -319,40 +348,74 @@ function archiveFrom(profile: Profile, today: string): string | null {
   return days === null ? null : daysBefore(today, days - 1);
 }
 
-/** 받은 피드 전체(최신순). 오늘 것은 지금 플랜 기준, 지난 날은 플랜이 보여 주는 기간만 */
-async function allDays(profile: Profile): Promise<FeedDay[]> {
-  const today = await todayFeed(profile);
-  const from = archiveFrom(profile, today.date);
-  let dayQuery = db.from('feed_days').select('date,visible,extra').eq('user_id', profile.id).neq('date', today.date);
-  let feedQuery = db.from('feeds').select('date,rank,cluster_id,topic_id').eq('user_id', profile.id).neq('date', today.date);
+interface PastFeedRowRaw {
+  date: string;
+  rank: number;
+  cluster_id: number;
+  topic_id: string;
+  clusters?: EmbeddedCard | null;
+}
+
+/**
+ * 오늘을 뺀 지난 피드(최신순). 플랜이 보여 주는 기간만. withCards면 보관함 카드에 쓸 소식 내용을 같이 받는다(한 번에 오간다).
+ * today는 오늘 날짜(todayFeed와 같은 kstDate())라서 오늘 피드와 나란히 읽을 수 있다.
+ * uncarded: 요약은 있는데 대표 글이 없어 카드를 못 만든 묶음(지금은 없다). 부르는 쪽이 전체 소식 내용으로 채운다
+ */
+async function pastDays(profile: Profile, today: string, { withCards = false } = {}): Promise<{ days: FeedDay[]; cards: Map<number, ClusterCard>; uncarded: number[] }> {
+  const from = archiveFrom(profile, today);
+  let dayQuery = db.from('feed_days').select('date,visible,extra').eq('user_id', profile.id).neq('date', today);
+  let feedQuery = db.from('feeds').select(withCards ? FEED_WITH_CARD : `date,${FEED_COLS}`).eq('user_id', profile.id).neq('date', today);
+  if (withCards) feedQuery = feedQuery.in('clusters.summaries.tier', TIERS);
   if (from) {
     dayQuery = dayQuery.gte('date', from);
     feedQuery = feedQuery.gte('date', from);
   }
   const [days, feeds] = await Promise.all([dayQuery.order('date', { ascending: false }), feedQuery.order('rank')]);
   const rowsByDate = new Map<string, FeedRow[]>();
-  for (const r of must(feeds, 'feeds') as { date: string; rank: number; cluster_id: number; topic_id: string }[]) {
+  const cards = new Map<number, ClusterCard>();
+  const uncarded = new Set<number>();
+  for (const r of must(feeds, 'feeds') as unknown as PastFeedRowRaw[]) {
     (rowsByDate.get(r.date) ?? rowsByDate.set(r.date, []).get(r.date)!).push({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id });
+    if (withCards && !cards.has(r.cluster_id)) {
+      const card = cardOfEmbedded(r.clusters);
+      if (card) cards.set(r.cluster_id, card);
+      else if (repMissing(r.clusters)) uncarded.add(r.cluster_id);
+    }
   }
-  const past = (must(days, 'feed_days') as { date: string; visible: number; extra: number }[]).map((d) => ({ date: d.date, visible: d.visible, extra: d.extra, rows: rowsByDate.get(d.date) ?? [] }));
-  return [today, ...past];
+  const list = (must(days, 'feed_days') as { date: string; visible: number; extra: number }[]).map((d) => ({ date: d.date, visible: d.visible, extra: d.extra, rows: rowsByDate.get(d.date) ?? [] }));
+  return { days: list, cards, uncarded: [...uncarded] };
 }
 
-/** 받은 피드 어디에서든 이 소식을 찾는다(보여 준 것만, 플랜이 보여 주는 기간만) */
-async function findRow(profile: Profile, clusterId: number): Promise<{ row: FeedRow; date: string } | null> {
+/** 받은 피드 전체(최신순). 오늘 것은 지금 플랜 기준, 지난 날은 플랜이 보여 주는 기간만. 오늘과 지난 피드를 나란히 읽는다 */
+async function allDays(profile: Profile): Promise<FeedDay[]> {
+  const [today, past] = await Promise.all([todayFeed(profile), pastDays(profile, kstDate())]);
+  return [today, ...past.days];
+}
+
+/** 받은 피드 어디에서든 이 소식을 찾는다(보여 준 것만, 플랜이 보여 주는 기간만). 오늘 것이면 같이 읽어 둔 소식 내용(info)도 준다 */
+async function findRow(profile: Profile, clusterId: number): Promise<{ row: FeedRow; date: string; info?: Map<number, ClusterInfo> } | null> {
   const today = await todayFeed(profile);
   const hitToday = visibleRows(today).find((r) => r.clusterId === clusterId);
-  if (hitToday) return { row: hitToday, date: today.date };
+  if (hitToday) return { row: hitToday, date: today.date, info: today.info };
   const from = archiveFrom(profile, today.date);
   let query = db.from('feeds').select('date,rank,topic_id').eq('user_id', profile.id).eq('cluster_id', clusterId).neq('date', today.date);
   if (from) query = query.gte('date', from);
   const rows = must(await query.order('date', { ascending: false }), 'feeds') as { date: string; rank: number; topic_id: string }[];
-  // 보관함처럼 '그날 앞에서부터 visible개'로 본다(순번은 중복 합치기·채우기로 비는 칸이 있어 순번 숫자로 비교하면 안 된다)
+  if (!rows.length) return null;
+  // 보관함처럼 '그날 앞에서부터 visible개'로 본다(순번은 중복 합치기·채우기로 비는 칸이 있어 순번 숫자로 비교하면 안 된다).
+  // 들어 있는 날들의 visible과 줄을 한 번에 읽는다(전엔 날마다 두 번씩 오갔다)
+  const dates = rows.map((r) => r.date);
+  const [days, shown] = await Promise.all([
+    db.from('feed_days').select('date,visible').eq('user_id', profile.id).in('date', dates),
+    db.from('feeds').select('date,cluster_id').eq('user_id', profile.id).in('date', dates).order('rank'),
+  ]);
+  const visibleOf = new Map((must(days, 'feed_days') as { date: string; visible: number }[]).map((d) => [d.date, d.visible]));
+  const shownByDate = new Map<string, number[]>();
+  for (const r of must(shown, 'feeds day') as { date: string; cluster_id: number }[]) (shownByDate.get(r.date) ?? shownByDate.set(r.date, []).get(r.date)!).push(r.cluster_id);
   for (const r of rows) {
-    const day = must(await db.from('feed_days').select('visible').eq('user_id', profile.id).eq('date', r.date).maybeSingle(), 'feed_days') as { visible: number } | null;
-    if (!day) continue;
-    const shown = must(await db.from('feeds').select('cluster_id').eq('user_id', profile.id).eq('date', r.date).order('rank').limit(day.visible), 'feeds day') as { cluster_id: number }[];
-    if (shown.some((x) => x.cluster_id === clusterId)) return { row: { rank: r.rank, clusterId, topicId: r.topic_id }, date: r.date };
+    const visible = visibleOf.get(r.date);
+    if (visible === undefined) continue;
+    if ((shownByDate.get(r.date) ?? []).slice(0, visible).includes(clusterId)) return { row: { rank: r.rank, clusterId, topicId: r.topic_id }, date: r.date };
   }
   return null;
 }
@@ -363,83 +426,21 @@ export async function isInUserFeed(profile: Profile, clusterId: number): Promise
 
 // ---- 소식 내용 ----
 
-interface ClusterInfo {
-  title: string;
-  short: string;
-  body: string[];
-  category: CategoryId;
-  author: string | null;
-  publishedAt: string | null;
-  scenes?: { t: string; label: string }[];
-  kind: 'article' | 'video';
-  url: string;
-  sourceLabel: string;
-  coverage?: string;
-  why: Map<string, string>;
-}
-
-interface SummaryRow {
-  cluster_id: number;
-  tier: Tier;
-  title: string;
-  short: string;
-  body: string[];
-  category: string;
-  author: string | null;
-  published_at: string | null;
-  scenes: { t: string; label: string }[] | null;
-}
-
-/** 소식 여러 개를 한 번에 읽는다. 모든 플랜이 기본(basic) 요약을 본다(Pro 요약은 만들지 않는다, 2026-10-14) */
+/** 소식 여러 개를 한 번에 읽는다(네 표를 나란히). 피드 줄과 같이 받은 것(readDay withInfo)이 없을 때만 쓴다. 조립은 lib/cluster-info.ts */
 async function clusterInfo(ids: number[]): Promise<Map<number, ClusterInfo>> {
-  const out = new Map<number, ClusterInfo>();
-  if (!ids.length) return out;
-  const tiers: Tier[] = ['basic'];
+  if (!ids.length) return new Map();
   const [summaries, whys, clusters, items] = await Promise.all([
-    db.from('summaries').select('cluster_id,tier,title,short,body,category,author,published_at,scenes').in('cluster_id', ids).in('tier', tiers),
-    db.from('cluster_why').select('cluster_id,topic_id,tier,why').in('cluster_id', ids).in('tier', tiers),
+    db.from('summaries').select('cluster_id,tier,title,short,body,category,author,published_at,scenes').in('cluster_id', ids).in('tier', TIERS),
+    db.from('cluster_why').select('cluster_id,topic_id,tier,why').in('cluster_id', ids).in('tier', TIERS),
     db.from('clusters').select('id,rep_item_id').in('id', ids),
     db.from('items').select('id,cluster_id,canonical_url,kind,author,sources(name)').in('cluster_id', ids),
   ]);
-  const rank = (t: Tier) => tiers.indexOf(t);
-  const best = new Map<number, SummaryRow>();
-  for (const s of must(summaries, 'summaries') as SummaryRow[]) {
-    const cur = best.get(s.cluster_id);
-    if (!cur || rank(s.tier) < rank(cur.tier)) best.set(s.cluster_id, s);
-  }
-  const why = new Map<number, Map<string, { tier: Tier; text: string }>>();
-  for (const w of must(whys, 'cluster_why') as { cluster_id: number; topic_id: string; tier: Tier; why: string }[]) {
-    const m = why.get(w.cluster_id) ?? why.set(w.cluster_id, new Map()).get(w.cluster_id)!;
-    const cur = m.get(w.topic_id);
-    if (!cur || rank(w.tier) < rank(cur.tier)) m.set(w.topic_id, { tier: w.tier, text: w.why });
-  }
-  const repOf = new Map((must(clusters, 'clusters') as { id: number; rep_item_id: number | null }[]).map((c) => [c.id, c.rep_item_id]));
-  const members = new Map<number, { id: number; canonical_url: string; kind: 'article' | 'video'; author: string | null; sources: { name: string } | null }[]>();
-  for (const it of must(items, 'items') as unknown as { id: number; cluster_id: number; canonical_url: string; kind: 'article' | 'video'; author: string | null; sources: { name: string } | null }[]) {
-    (members.get(it.cluster_id) ?? members.set(it.cluster_id, []).get(it.cluster_id)!).push(it);
-  }
-  for (const id of ids) {
-    const s = best.get(id);
-    const list = members.get(id) ?? [];
-    const rep = list.find((m) => m.id === repOf.get(id)) ?? list[0];
-    if (!s || !rep) continue;
-    const others = [...new Set(list.filter((m) => m !== rep).map((m) => m.sources?.name).filter((n): n is string => !!n && n !== rep.sources?.name))];
-    out.set(id, {
-      title: s.title,
-      short: s.short,
-      body: s.body,
-      category: isCategory(s.category) ? s.category : 'etc',
-      author: s.author ?? rep.author,
-      publishedAt: s.published_at,
-      scenes: s.scenes ?? undefined,
-      kind: rep.kind,
-      url: rep.canonical_url,
-      sourceLabel: rep.sources?.name ?? '',
-      coverage: others.length === 0 ? undefined : others.length === 1 ? `${others[0]}에서도 다뤘어요` : `${others[0]} 외 ${others.length - 1}곳에서도 다뤘어요`,
-      why: new Map([...(why.get(id) ?? new Map())].map(([t, v]) => [t, v.text])),
-    });
-  }
-  return out;
+  return assembleClusterInfo(ids, {
+    summaries: must(summaries, 'summaries') as SummaryRow[],
+    whys: must(whys, 'cluster_why') as WhyRow[],
+    reps: must(clusters, 'clusters') as RepRow[],
+    items: must(items, 'items') as unknown as ItemRow[],
+  });
 }
 
 function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date, names: Map<string, string>): FeedItem {
@@ -468,9 +469,10 @@ function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date, names: Ma
   };
 }
 
-async function itemsFor(profile: Profile, rows: FeedRow[], date: string): Promise<FeedItem[]> {
+/** rows의 소식을 FeedItem으로. known은 피드 줄과 같이 읽어 둔 소식 내용(readDay withInfo). 있으면 DB를 다시 오가지 않는다 */
+async function itemsFor(profile: Profile, rows: FeedRow[], date: string, known?: Map<number, ClusterInfo>): Promise<FeedItem[]> {
   // 직접 입력한 관심사(사전에 없는 토픽)의 이름은 DB에서 찾는다
-  const [info, names] = await Promise.all([clusterInfo(rows.map((r) => r.clusterId)), topicNames(rows.map((r) => r.topicId))]);
+  const [info, names] = await Promise.all([known ?? clusterInfo(rows.map((r) => r.clusterId)), topicNames(rows.map((r) => r.topicId))]);
   const now = new Date();
   return rows.flatMap((r) => {
     const c = info.get(r.clusterId);
@@ -496,15 +498,15 @@ export async function playlistItems(profile: Profile, ids: number[]): Promise<Fe
 }
 
 export async function feedItems(profile: Profile, date = kstDate()): Promise<FeedItem[]> {
-  const day = date === kstDate() ? await todayFeed(profile) : await readDay(profile.id, date);
-  return itemsFor(profile, visibleRows(day), date);
+  const day = date === kstDate() ? await todayFeed(profile) : await readDay(profile.id, date, { withInfo: true });
+  return itemsFor(profile, visibleRows(day), date, day?.info);
 }
 
 /** 상세 화면용. 오늘 것이 아니어도 받은 적 있는 소식이면 연다 */
 export const findFeedItem = cache(async (profile: Profile, clusterId: number): Promise<{ item: FeedItem; isToday: boolean } | null> => {
   const found = await findRow(profile, clusterId);
   if (!found) return null;
-  const [item] = await itemsFor(profile, [found.row], found.date);
+  const [item] = await itemsFor(profile, [found.row], found.date, found.info);
   return item ? { item, isToday: found.date === kstDate() } : null;
 });
 
@@ -556,7 +558,7 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
   const day = await todayFeed(profile);
   // 가입 선물은 지갑을 처음 만들 때 들어가므로 지갑을 읽은 뒤에 본다
   const walletAndGift = syncWallet(profile.id).then(async (w) => [w, await recentSignupGift(profile.id, profile.createdAt)] as const);
-  const [items, { reads, feedback }, [wallet, signupGift]] = await Promise.all([itemsFor(profile, visibleRows(day), day.date), readsAndFeedback(profile.id), walletAndGift]);
+  const [items, { reads, feedback }, [wallet, signupGift]] = await Promise.all([itemsFor(profile, visibleRows(day), day.date, day.info), readsAndFeedback(profile.id), walletAndGift]);
   const dailyLimit = entitlements(profile).dailyItems;
   // 비었는데 '오늘 소식 받기'가 돌고 있으면(다른 탭·기기, 만드는 중에 화면을 옮겼다 돌아옴) 받기 버튼 대신 만드는 중으로
   const emptyReason = items.length
@@ -613,12 +615,17 @@ export async function getLibrary(
   },
 ): Promise<LibraryData> {
   const now = new Date();
-  const days = await allDays(profile);
-  const rows = days.flatMap((d) => visibleRows(d).map((row) => ({ row, date: d.date })));
-  const [info, { reads }] = await Promise.all([clusterInfo([...new Set(rows.map((r) => r.row.clusterId))]), readsAndFeedback(profile.id)]);
+  // 오늘 피드·지난 피드(카드 내용까지)·읽음을 나란히 읽는다(전엔 차례로 세 번 오갔다, 2026-10-19)
+  const [today, past, { reads }] = await Promise.all([todayFeed(profile), pastDays(profile, kstDate(), { withCards: true }), readsAndFeedback(profile.id)]);
+  const rows = [today, ...past.days].flatMap((d) => visibleRows(d).map((row) => ({ row, date: d.date })));
+  // 소식 내용: 지난 것은 카드로 같이 받았고, 오늘 것은 오늘 피드에 같이 읽어 둔 것(info).
+  // 오늘 피드를 방금 만들어 info가 없거나 대표 글이 없어 카드를 못 만든 묶음(uncarded)만 따로 읽는다
+  const cards = new Map<number, ClusterCard>(past.cards);
+  const fetchIds = [...(today.info ? [] : visibleRows(today).map((r) => r.clusterId)), ...past.uncarded];
+  for (const [id, c] of [...(today.info ?? []), ...(await clusterInfo(fetchIds))]) cards.set(id, c);
   const readMap = new Map(reads.map((r) => [r.cluster_id, r]));
   const all: LibraryEntry[] = rows.flatMap(({ row, date }) => {
-    const c = info.get(row.clusterId);
+    const c = cards.get(row.clusterId);
     if (!c) return [];
     return [{
       clusterId: row.clusterId,

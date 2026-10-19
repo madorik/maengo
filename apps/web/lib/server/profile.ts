@@ -4,7 +4,7 @@ import type { PlanLimits } from '@maengo/core/plans';
 import type { Persona, Plan, Voice } from '@maengo/core/types';
 import type { Provider } from '../session-token';
 import { db, must } from './db';
-import { planLimits } from './plans';
+import { getPlans } from './plans';
 
 export interface Profile {
   id: string;
@@ -72,10 +72,12 @@ export async function loadProfile(
   userId: string,
   who: { provider: Provider; email: string | null; avatarUrl: string | null; demo: boolean },
 ): Promise<Profile | null> {
-  const row = must(
-    await db.from('profiles').select('id,display_name,notify_at,push_enabled,plan,premium_until,persona,voice,auto_next,skip_read,playback_rate,onboarded_at,created_at').eq('id', userId).maybeSingle(),
-    'profiles',
-  ) as ProfileRow | null;
+  // 플랜 값(plans 표, 1분 캐시)은 프로필과 나란히 읽는다(캐시가 비었을 때 차례로 두 번 오가지 않게)
+  const [profileRes, plans] = await Promise.all([
+    db.from('profiles').select('id,display_name,notify_at,push_enabled,plan,premium_until,persona,voice,auto_next,skip_read,playback_rate,onboarded_at,created_at').eq('id', userId).maybeSingle(),
+    getPlans(),
+  ]);
+  const row = must(profileRes, 'profiles') as ProfileRow | null;
   if (!row) return null;
   let premiumUntil = row.premium_until ? Date.parse(row.premium_until) : null;
   let plan: Plan = row.plan;
@@ -99,7 +101,7 @@ export async function loadProfile(
     notifyAt: row.notify_at.slice(0, 5),
     pushEnabled: row.push_enabled,
     plan,
-    limits: await planLimits(plan),
+    limits: plans.get(plan)!,
     premiumUntil,
     // 말투는 아나운서 하나로 고정(DB 값은 쓰지 않는다)
     persona: PERSONA,

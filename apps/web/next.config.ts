@@ -12,7 +12,13 @@ const nextConfig: NextConfig = {
   // 유튜브 썸네일
   images: { remotePatterns: [{ protocol: "https", hostname: "i.ytimg.com", pathname: "/vi/**" }] },
   // 서버 액션: 브라우저는 watalabs.com에서 보내고, 이 서버가 보는 호스트는 maengo.vercel.app이라 허용해 둔다
-  experimental: { serverActions: { allowedOrigins: ["watalabs.com", "www.watalabs.com"] } },
+  experimental: {
+    serverActions: { allowedOrigins: ["watalabs.com", "www.watalabs.com"] },
+    // 로그인한 화면(오늘·보관함·설정)은 사람마다 달라 서버에서 그린다. 기본값(0초)이면 탭을 오갈 때마다 서버에 다시 받아 그동안 스켈레톤이 뜬다.
+    // 30초 안에 돌아온 탭은 받아 둔 것을 그대로 보인다(2026-10-19). 읽음 표시는 TodayProvider가 클라이언트에서 겹쳐 보여 늦지 않고,
+    // 소식 받기·플레이리스트·설정 저장은 revalidatePath·router.refresh로 바로 새로 받는다
+    staleTimes: { dynamic: 30 },
+  },
   // 아이콘·manifest는 기본값(max-age=0)이면 화면을 옮길 때마다 서버에 다시 확인한다.
   // 아이콘 주소에는 내용 해시가 붙어(?icon.<hash>.svg) 바뀌면 주소도 바뀌므로 오래 둔다. manifest는 하루.
   // app/apple-icon.png는 app/icon.svg를 모서리 없이 180px로 그린 것(icon.svg를 바꾸면 같이 다시 만든다).
