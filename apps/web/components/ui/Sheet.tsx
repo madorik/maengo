@@ -135,6 +135,17 @@ export function Sheet({
       if (to?.isConnected && (!now || now === document.body || d.contains(now))) to.focus({ preventScroll: true });
     };
 
+    /**
+     * 닫힌 패널을 제자리(transform 없음)로 되돌린다. 내려간 자리의 transform이 남은 채 다음에 showModal()을 부르면 브라우저가 안의 ✕에 포커스를 주며
+     * 그 버튼이 보이게 dialog를 스크롤해 버려(overflow가 있는 상자라) 시트가 위로 밀린 채 열렸다(2026-10-19 앱에서 재현: 끌어 닫고 탭을 옮긴 뒤 다시 열면 상태 표시줄을 가림)
+     */
+    const park = () => {
+      y = 0;
+      o = 1;
+      paint();
+      d.scrollTop = 0;
+    };
+
     /** 다 내려간 뒤 닫는다 */
     const close = () => {
       stop();
@@ -142,6 +153,7 @@ export function Sheet({
       phase = "closed";
       forced = false;
       if (d.open) d.close();
+      park();
       returnFocus();
       if (notify) onCloseRef.current();
     };
@@ -149,6 +161,8 @@ export function Sheet({
     const show = () => {
       if (!d.open) {
         opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        // 열기 전에 패널을 제자리에 둔다(park 참고). 열고 나서 아래 자리(y = h)로 옮긴 뒤 올라오는 건 같은 틱이라 깜빡이지 않는다
+        park();
         d.showModal();
         phase = "closed";
       }
@@ -287,6 +301,7 @@ export function Sheet({
       touch = null;
       phase = "closed";
       forced = false;
+      park();
       returnFocus();
       if (notify) onCloseRef.current();
     };
@@ -324,7 +339,7 @@ export function Sheet({
     <dialog
       ref={dialogRef}
       aria-label={title}
-      className="sheet fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-transparent p-0 text-ink backdrop:bg-transparent"
+      className="sheet fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-clip bg-transparent p-0 text-ink backdrop:bg-transparent"
     >
       {/* 바탕: 시트가 올라온 만큼 어두워지고, 누르면 닫힌다 */}
       <div ref={scrimRef} aria-hidden onClick={() => ctl.current?.dismiss()} className="absolute inset-0 touch-none bg-[rgb(31_35_64/0.55)] opacity-0" />
