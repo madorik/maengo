@@ -7,6 +7,7 @@ export type AnalyticsEvent =
   | "login_start"
   | "onboarding_complete"
   | "today_build"
+  | "today_fill"
   | "item_open"
   | "source_open"
   | "listen_start"

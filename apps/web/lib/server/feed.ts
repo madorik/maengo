@@ -337,6 +337,15 @@ export async function dailyMaengoUsage(profile: Profile): Promise<{ given: numbe
   return { given: Math.min(day.visible, daily), daily };
 }
 
+/**
+ * '남은 소식 더 받기'(api/feed/today/fill)가 보는 오늘 상태: 오늘 피드가 있는지, 보여 주는 개수, 오늘 받을 수 있는 수(하루 소식 + 맹고로 더 받은 수).
+ * todayFeed가 이미 요약된 소식으로 먼저 채운 뒤의 값이라, 여기서 모자란 만큼은 AI로 새로 만들어야 한다
+ */
+export async function todayFillStatus(profile: Profile): Promise<{ hasFeed: boolean; visible: number; want: number }> {
+  const day = await todayFeed(profile);
+  return { hasFeed: day.rows.length > 0, visible: day.visible, want: entitlements(profile).dailyItems + day.extra };
+}
+
 /** 보관함에서 볼 수 있는 가장 오래된 날(plans 표 archive_days, Free는 최근 90일). null이면 전부 */
 function archiveFrom(profile: Profile, today: string): string | null {
   const days = entitlements(profile).archiveDays;

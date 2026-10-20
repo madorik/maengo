@@ -14,6 +14,7 @@ import { useItemAudio } from "@/components/article/useItemAudio";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
 import { useArrivalHighlight, useMoreArrival, type Arrival } from "./arrival";
 import { MakeToday } from "./MakeToday";
+import { FillToday } from "./FillToday";
 import { MoreToday } from "./MoreToday";
 import { SignupGift } from "./SignupGift";
 import type { FeedItem } from "@/lib/types";
@@ -23,6 +24,10 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
   const { data, game } = useToday();
   // '하나 더 받기'로 막 붙은 소식(스크롤하고 잠깐 짚는다)
   const { arrival, expect, settle } = useMoreArrival(data.items.map((i) => i.clusterId));
+  // 플랜의 하루 소식 중 오늘 받은 수. 지갑으로 더 받은 건 세지 않는다(설정 > 플랜의 하루 소식과 같은 셈)
+  const received = Math.min(data.items.length, data.dailyLimit);
+  // 하루 소식에서 아직 못 받은 수. 있으면 '남은 소식 N개 받기'(맹고 없이), 다 받았으면 목록 아래 '하나 더 받기'(1맹고)
+  const remaining = data.dailyLimit - received;
   return (
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
@@ -44,13 +49,14 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
               관심사 {data.topicNames.join(", ")}에서 골랐어요
             </p>
           )}
-          {/* 오늘 소식 중 읽었거나 들은 소식 */}
+          {/* 오늘 받은 소식 / 플랜의 하루 소식(2026-10-20 사용자 결정, 읽음 기준에서 바꿈) */}
           {game.total > 0 && (
             <div className="mt-4 flex items-center gap-3">
-              <ProgressBar value={game.done / game.total} tone="leaf" label="오늘 본 소식" className="h-4 flex-1" track="bg-white/60" />
-              <span className="font-round text-[17px] font-black tabular-nums">{`${game.done}/${game.total}`}</span>
+              <ProgressBar value={received / data.dailyLimit} tone="leaf" label="오늘 받은 소식" className="h-4 flex-1" track="bg-white/60" />
+              <span className="font-round text-[17px] font-black tabular-nums">{`${received}/${data.dailyLimit}`}</span>
             </div>
           )}
+          {game.total > 0 && remaining > 0 && <FillToday remaining={remaining} onExpect={expect} onSettle={settle} />}
         </section>
 
         {game.total > 0 ? (
@@ -65,7 +71,7 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
 
         {game.allDone && <AllDone notifyLabel={data.notifyLabel} />}
 
-        {game.total > 0 && <MoreToday cost={data.moreCost} kept={data.wallet} onExpect={expect} onSettle={settle} />}
+        {game.total > 0 && remaining === 0 && <MoreToday cost={data.moreCost} kept={data.wallet} onExpect={expect} onSettle={settle} />}
 
         {/* 화면 읽기 도구에만: 터치로 '하나 더 받기'를 눌렀을 때(키보드면 새 소식 제목으로 초점이 간다) */}
         <p role="status" className="sr-only">

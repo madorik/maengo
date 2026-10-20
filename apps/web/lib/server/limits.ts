@@ -4,9 +4,9 @@ import { db, must } from './db';
 
 // 음성 사용 기록과 서비스 전체 TTS 한도. Premium 듣기는 사람별 횟수 제한이 없다.
 // 새 음성을 만들면 usage_log(user_id, kind='voice')에 기록만 한다(비용 추적용)
-// '오늘 소식 받기'(즉석 피드, kind='instant')는 한 사람이 하루에 부를 수 있는 횟수를 이 기록으로 센다(app/api/feed/today)
+// '오늘 소식 받기'(즉석 피드, kind='instant')와 '남은 소식 더 받기'(kind='fill')는 한 사람이 하루에 부를 수 있는 횟수를 이 기록으로 센다(app/api/feed/today, …/fill)
 
-export type UsageKindForLimit = 'voice' | 'instant';
+export type UsageKindForLimit = 'voice' | 'instant' | 'fill';
 
 export async function recordUse(userId: string, kind: UsageKindForLimit) {
   const { error } = await db.from('usage_log').insert({ provider: 'maengo', kind, user_id: userId, units: 1, est_usd: 0 });

@@ -1,5 +1,5 @@
 import { createGeminiAi } from '@maengo/core/gemini';
-import { linkCap, rankFeed } from '@maengo/core/feed';
+import { linkCap, rankFeed, type RankedItem } from '@maengo/core/feed';
 import { kstDate } from '@maengo/core/kst';
 import { groupOf } from '@maengo/core/topics';
 import { db, check } from './lib/db';
@@ -7,7 +7,7 @@ import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
 import { tryLock, unlock, waitUnlock } from './lib/lock';
 import { env } from './lib/env';
 import { mapLimit } from './lib/limit';
-import { loadAudience, loadCandidates, withSimilarExcluded, type Audience } from './lib/audience';
+import { loadAudience, loadCandidates, summarizable, withSimilarExcluded, type Audience } from './lib/audience';
 import { flushUsage, recordUsage } from './lib/usage';
 import { interestFilter } from './lib/interest';
 import { HOUR, type Ctx } from './lib/ctx';
@@ -55,7 +55,8 @@ export async function buildTodayFeedNow(
     onProgress({ stage: 'empty' });
     return 0;
   }
-  let candidates = await loadCandidates(ctx, { centroids: a.known.length > 0 });
+  // 요약 안 된 영상은 여기서 요약하지 않으니(videos: 0) 후보에서 뺀다
+  let candidates = (await loadCandidates(ctx, { centroids: a.known.length > 0 })).filter(summarizable);
   let exclude = await withSimilarExcluded(a, candidates);
   const want = a.dailyItems;
   const maxLinks = linkCap(want);
@@ -72,7 +73,7 @@ export async function buildTodayFeedNow(
       aiBlocked = true;
       ctx.log(`최근 글 처리 중 AI가 막힘, 있는 소식으로 계속: ${String((e as Error).message ?? e).slice(0, 160)}`);
     }
-    candidates = await loadCandidates(ctx, { centroids: a.known.length > 0 });
+    candidates = (await loadCandidates(ctx, { centroids: a.known.length > 0 })).filter(summarizable);
     exclude = await withSimilarExcluded(a, candidates);
     picked = rankFeed(candidates, weights, exclude, { limit: want, maxLinks });
   }
@@ -143,7 +144,7 @@ export async function makeOneMore(userId: string, alsoExclude: number[]): Promis
   };
   const [a] = await loadAudience(ctx, userId);
   if (!a) return 'none';
-  const candidates = await loadCandidates(ctx, { centroids: a.known.length > 0, sinceHours: MORE_WINDOW_HOURS });
+  const candidates = (await loadCandidates(ctx, { centroids: a.known.length > 0, sinceHours: MORE_WINDOW_HOURS })).filter(summarizable);
   const exclude = await withSimilarExcluded(a, candidates);
   for (const id of alsoExclude) exclude.add(id);
   let picked = rankFeed(candidates, a.weights, exclude, { limit: 3 });
@@ -166,6 +167,106 @@ export async function makeOneMore(userId: string, alsoExclude: number[]): Promis
   } finally {
     await flushUsage();
   }
+}
+
+/** 남은 소식을 채울 때 '소식 아님'으로 빠지는 것에 대비해 더 골라 두는 수 */
+const FILL_SPARE = 3;
+/** 남은 소식을 채울 때 동시에 요약하는 수 */
+const FILL_CONCURRENCY = 3;
+
+/**
+ * '남은 소식 더 받기'(웹, api/feed/today/fill): 오늘 보여 주는 소식이 오늘 받을 수 있는 수(want = 하루 소식 + 맹고로 더 받은 수)보다 적을 때
+ * 모자란 만큼 지금 채운다. 배송이 적게 준 날(후보가 모자랐던 날 등)에 쓴다. 오늘 받은 소식은 그대로 두고 뒤에 붙인다(지우지 않는다).
+ * 오늘 골라 두고 안 보여 준 소식이 있으면 그것부터 보여 주고, 모자라면 최근 한 달 안의 묶음에서 골라(요약 안 된 영상은 뺀다)
+ * 요약이 없는 것은 지금 요약한다. AI가 막혀 있으면 이미 요약된 것만. 돌려주는 값 = 새로 보여 주게 된 소식 수
+ */
+export async function fillTodayFeedNow(userId: string, want: number, onProgress: (p: InstantProgress) => void): Promise<number> {
+  const log = (m: string) => console.log(`[fill] ${m}`);
+  const ctx: Ctx = {
+    date: kstDate(),
+    now: new Date(),
+    ai: guardAi(createGeminiAi({ apiKey: env.geminiKey, fallbackModel: env.geminiFallback, onUsage: recordUsage, log })),
+    log,
+    stats: {},
+    force: false,
+    windowHours: MORE_WINDOW_HOURS,
+  };
+  onProgress({ stage: 'finding' });
+  const day = check(await db.from('feed_days').select('visible,extra').eq('user_id', userId).eq('date', ctx.date).maybeSingle(), 'feed_days') as { visible: number; extra: number } | null;
+  const rows = check(await db.from('feeds').select('rank,cluster_id').eq('user_id', userId).eq('date', ctx.date).order('rank'), 'feeds') as { rank: number; cluster_id: number }[];
+  if (!day || !rows.length || day.visible >= want) {
+    onProgress({ stage: 'empty' });
+    return 0;
+  }
+  let added = 0;
+  let aiBlocked = false;
+  const need = want - rows.length;
+  if (need > 0) {
+    const [a] = await loadAudience(ctx, userId);
+    if (!a) {
+      onProgress({ stage: 'empty' });
+      return 0;
+    }
+    const candidates = (await loadCandidates(ctx, { centroids: a.known.length > 0, sinceHours: MORE_WINDOW_HOURS })).filter(summarizable);
+    const exclude = await withSimilarExcluded(a, candidates);
+    for (const r of rows) exclude.add(r.cluster_id);
+    const opts = { limit: need + FILL_SPARE, maxLinks: linkCap(a.dailyItems) };
+    let picked = rankFeed(candidates, a.weights, exclude, opts);
+    if (picked.length < need) {
+      const wide = rankFeed(candidates, widenToGroups(a.weights), exclude, opts);
+      if (wide.length > picked.length) picked = wide;
+    }
+    const byId = new Map(candidates.map((c) => [c.id, c]));
+    aiBlocked = (await aiBlockedReason()) !== null;
+    const got: RankedItem[] = picked.filter((r) => byId.get(r.clusterId)!.summarized).slice(0, need);
+    const toMake = aiBlocked ? [] : picked.filter((r) => !byId.get(r.clusterId)!.summarized);
+    onProgress({ stage: 'found', ready: got.length, toMake: Math.min(toMake.length, need - got.length) });
+    if (got.length < need && toMake.length) {
+      const total = Math.min(toMake.length, need - got.length);
+      let done = 0;
+      onProgress({ stage: 'summarizing', done, total });
+      // 위에서부터 요약해 모자란 만큼 모은다. '소식 아님'으로 빠지면 다음 것으로 채운다
+      for (let i = 0; i < toMake.length && got.length < need && !aiBlocked; ) {
+        const batch = toMake.slice(i, i + (need - got.length));
+        i += batch.length;
+        const ok = await mapLimit(batch, FILL_CONCURRENCY, async (r) => {
+          try {
+            if (aiBlocked) return false;
+            return (await summarizeCluster(ctx, r.clusterId, 'basic', { videos: 0 })) === 'ok';
+          } catch (e) {
+            if (isAiBlocked(e)) aiBlocked = true;
+            log(`요약 실패 #${r.clusterId}: ${String((e as Error).message ?? e).slice(0, 160)}`);
+            return false;
+          } finally {
+            done = Math.min(total, done + 1);
+            onProgress({ stage: 'summarizing', done, total });
+          }
+        });
+        batch.forEach((r, k) => ok[k] && got.push(r));
+      }
+      await flushUsage();
+    }
+    if (got.length) {
+      onProgress({ stage: 'saving' });
+      let rank = rows.at(-1)!.rank;
+      check(
+        await db.from('feeds').insert(got.map((r) => ({ user_id: userId, date: ctx.date, rank: ++rank, cluster_id: r.clusterId, topic_id: r.topicId }))),
+        'feeds insert',
+      );
+      added = got.length;
+      // byId의 summarized는 고를 때 값이라(요약해도 바꾸지 않는다) 지금 새로 요약한 수가 된다
+      log(`오늘 소식 ${added}개를 더 붙임(지금 요약 ${got.filter((r) => !byId.get(r.clusterId)!.summarized).length}개)`);
+    }
+  }
+  const visible = Math.min(rows.length + added, want);
+  const shown = visible - day.visible;
+  if (shown <= 0) {
+    onProgress({ stage: aiBlocked ? 'blocked' : 'empty' });
+    return 0;
+  }
+  check(await db.from('feed_days').update({ visible }).eq('user_id', userId).eq('date', ctx.date), 'feed_days visible');
+  onProgress({ stage: 'done', items: shown });
+  return shown;
 }
 
 const FRESH_LOCK = 'pipeline:fresh';
