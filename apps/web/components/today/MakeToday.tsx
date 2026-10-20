@@ -8,6 +8,7 @@ import { Mascot } from "@/components/Mascot";
 import { Bubble } from "@/components/ui/Bubble";
 import { withBase } from "@/lib/base-path";
 import type { TodayData } from "@/lib/types";
+import { useCreep, useTick } from "./making";
 
 type Progress =
   | { stage: "finding" }
@@ -87,24 +88,14 @@ function stageLabel(p: Progress): string {
 /** 만드는 동안 보이는 카드: 차오르는 줄무늬 진행 바와 몇 초마다 바뀌는 말 */
 function Making({ p }: { p: Progress }) {
   const [lo, hi] = rangeOf(p);
-  const pace = paceOf(p);
-  const [shown, setShown] = useState(lo);
-  const [tick, setTick] = useState(0);
+  // 다음 구간 직전까지 천천히 다가간다(구간이 바뀌면 그 바닥부터). 말은 2.6초마다 바뀐다
+  const shown = useCreep(lo, hi, paceOf(p));
+  const tick = useTick(2600);
   const done = p.stage === "done";
-
-  // 다음 구간 직전까지 천천히 다가간다(구간이 바뀌면 그 바닥부터)
-  useEffect(() => {
-    const id = setInterval(() => setShown((v) => Math.max(lo, v + (hi - Math.max(lo, v)) * pace)), 150);
-    return () => clearInterval(id);
-  }, [lo, hi, pace]);
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 2600);
-    return () => clearInterval(id);
-  }, []);
 
   const cheers = cheersOf(p);
   const line = cheers[tick % cheers.length]!;
-  const pct = Math.round((done ? 1 : Math.max(lo, shown)) * 100);
+  const pct = Math.round((done ? 1 : shown) * 100);
   return (
     <div className="tile mt-6 p-5">
       <p role="status" className="sr-only">
