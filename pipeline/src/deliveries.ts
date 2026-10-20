@@ -4,7 +4,7 @@ import { kstDate } from '@maengo/core/kst';
 import { widenToGroups } from './instant';
 import { summarizeCluster } from './jobs/summarize';
 import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
-import { loadAudience, loadCandidates, loadTopicCandidates, withSimilarExcluded, type Audience, type Candidate } from './lib/audience';
+import { loadAudience, loadCandidates, loadTopicCandidates, summarizable, withSimilarExcluded, type Audience, type Candidate } from './lib/audience';
 import { HOUR, type Ctx } from './lib/ctx';
 import { check, db } from './lib/db';
 import { env } from './lib/env';
@@ -213,9 +213,10 @@ export async function buildFeedsFor(
       const want = a.dailyItems;
       const widened = widenToGroups(a.weights);
       const mayMake = !inactive.has(a.id);
-      // AI가 막혔거나 오래 안 온 사람이면 이미 요약된 것만 고른다. 고른 관심사로 모자라면 같은 분야 전체로 넓혀 본다
+      // AI가 막혔거나 오래 안 온 사람이면 이미 요약된 것만 고른다. 요약 안 된 영상은 여기서 요약하지 않으니(videos: 0) 뺀다(summarizable).
+      // 고른 관심사로 모자라면 같은 분야 전체로 넓혀 본다
       const pick = (): RankedItem[] => {
-        const pool = [...seen.values()].filter((c) => c.summarized || (mayMake && !aiBlocked));
+        const pool = [...seen.values()].filter((c) => summarizable(c) && (c.summarized || (mayMake && !aiBlocked)));
         // 내 관심 링크 글은 하루 소식의 절반까지(D19). 여분(SPARE)에도 같은 상한을 둔다
         const opts = { limit: want + SPARE, maxLinks: linkCap(want) };
         const narrow = rankFeed(pool, a.weights, exclude, opts);

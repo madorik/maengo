@@ -78,6 +78,12 @@ export interface Candidate extends RankCandidate {
   centroid: number[] | null;
 }
 
+/**
+ * 영상 요약 예산이 없는 곳(배송·지금 받기·하나 더 받기는 videos: 0)에서 고를 수 있는 후보: 요약된 소식, 아니면 글.
+ * 요약 안 된 영상은 summarizeCluster가 미뤄서('deferred') 골라 봐야 그 자리가 빈다(2026-10-20 Premium이 3개만 받은 원인)
+ */
+export const summarizable = (c: Candidate): boolean => c.summarized || !c.isVideo;
+
 /** 묶음의 대표 글. 출처 가중치와 인기(조회수·점수)를 랭킹에 넘긴다 */
 interface RepItem {
   id: number;

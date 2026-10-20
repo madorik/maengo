@@ -64,26 +64,29 @@ export function rankFeed(
   }
   scored.sort((a, b) => b.score - a.score || a.clusterId - b.clusterId);
 
-  // 다양성 제약을 지키며 고르고, 그래도 모자라면 제약을 풀어 채운다(콜드 스타트).
+  // 다양성 제약을 지키며 고르고, 모자라면 제약을 차례로 풀어 채운다: 토픽당 개수를 먼저, 영상·링크 상한은 맨 나중에(콜드 스타트).
+  // 전에는 한 번에 다 풀었다: 관심사가 하나뿐이면 토픽당 2개 다음이 바로 '제약 없음'이라 인기 높은 유튜브 영상이 자리를 다 차지했고,
+  // 배송은 영상을 요약하지 않아(예산 0) Premium이 하루 3개만 받았다(2026-10-20)
   const picked: typeof scored = [];
+  const taken = new Set<number>();
   const perTopic = new Map<string, number>();
   let videos = 0;
   let links = 0;
-  for (const s of scored) {
-    if (picked.length === limit) break;
-    if ((perTopic.get(s.topicId) ?? 0) >= maxPerTopic) continue;
-    if (s.isVideo && videos >= maxVideos) continue;
-    const link = isLinkTopicId(s.topicId);
-    if (link && links >= maxLinks) continue;
-    picked.push(s);
-    perTopic.set(s.topicId, (perTopic.get(s.topicId) ?? 0) + 1);
-    if (s.isVideo) videos++;
-    if (link) links++;
-  }
-  for (const s of scored) {
-    if (picked.length === limit) break;
-    if (!picked.includes(s)) picked.push(s);
-  }
+  const underCaps = (s: (typeof scored)[number]) => !(s.isVideo && videos >= maxVideos) && !(isLinkTopicId(s.topicId) && links >= maxLinks);
+  const fill = (ok: (s: (typeof scored)[number]) => boolean) => {
+    for (const s of scored) {
+      if (picked.length === limit) break;
+      if (taken.has(s.clusterId) || !ok(s)) continue;
+      picked.push(s);
+      taken.add(s.clusterId);
+      perTopic.set(s.topicId, (perTopic.get(s.topicId) ?? 0) + 1);
+      if (s.isVideo) videos++;
+      if (isLinkTopicId(s.topicId)) links++;
+    }
+  };
+  fill((s) => (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s));
+  fill(underCaps);
+  fill(() => true);
   return picked
     .sort((a, b) => b.score - a.score)
     .map(({ clusterId, topicId, score }) => ({ clusterId, topicId, score }));

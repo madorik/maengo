@@ -30,6 +30,19 @@ test('영상은 최대 2개까지만 고른다', () => {
   assert.equal(firstFour.filter((x) => candidates.find((k) => k.id === x.clusterId)!.isVideo).length, 2);
 });
 
+test('관심사가 하나뿐이어도 영상 상한은 토픽당 개수를 푼 뒤 맨 나중에 푼다', () => {
+  // 인기 높은 영상 10개 + 글 8개가 모두 한 토픽. 토픽당 2개를 풀어 채울 때도 영상은 2개까지만(배송은 영상을 요약하지 않는다)
+  const videos = Array.from({ length: 10 }, (_, i) => c(i + 1, 'ai', { isVideo: true, popularity: 5 }));
+  const articles = Array.from({ length: 8 }, (_, i) => c(i + 11, 'ai'));
+  const out = rankFeed([...videos, ...articles], { ai: 1 }, new Set(), { limit: 8 });
+  assert.equal(out.length, 8);
+  assert.equal(out.filter((x) => x.clusterId <= 10).length, 2);
+  // 글이 모자라면 그제야 영상으로 채운다
+  const few = rankFeed([...videos, ...articles.slice(0, 3)], { ai: 1 }, new Set(), { limit: 8 });
+  assert.equal(few.length, 8);
+  assert.equal(few.filter((x) => x.clusterId <= 10).length, 5);
+});
+
 test('내 관심 링크 글은 상한(maxLinks)까지만 고르고, 한 링크는 토픽당 2개 규칙을 따른다', () => {
   // 링크 글은 관련도 1이라 점수가 높다. 상한 2면 2개까지, 남은 자리는 관심사 소식으로
   const link = (id: number, topicId: string) => c(id, topicId, { topics: [{ topicId, relevance: 1 }] });
