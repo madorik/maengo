@@ -67,15 +67,24 @@ export async function registerApp(): Promise<RegisterResult> {
 }
 
 /**
- * 다른 기기(웹 등)에서 알림을 켜 둔 계정으로 앱에 들어왔는데 이 앱 기기는 등록 전이면, 한 번 등록한다(권한을 한 번 묻는다).
- * 설정 > 알림 스위치는 계정 기준이라 이미 켜져 보여서, 이게 없으면 앱 기기는 영영 등록되지 않았다(2026-10-15)
+ * 다른 기기(웹 등)에서 알림을 켜 둔 계정으로 앱에 들어왔는데 이 앱 기기는 등록 전이면 등록한다.
+ * 설정 > 알림 스위치는 계정 기준이라 이미 켜져 보여서, 이게 없으면 앱 기기는 영영 등록되지 않았다(2026-10-15).
+ * 권한을 이미 받았으면 묻지 않고 앱을 열 때마다 등록을 다시 해 본다(전에 등록이 실패했거나 서버가 토큰을 지운 뒤에도 되살아나게, 2026-10-20).
+ * 권한을 아직 안 받았으면 한 번만 묻는다(거절하면 설정 > 알림의 '이 기기에서도 받기'로 직접 켠다)
  */
 export async function registerAppOnce(): Promise<void> {
   if (!available() || stored()) return;
   try {
+    const perm = await FirebaseMessaging.checkPermissions();
+    if (perm.receive === "granted") {
+      await ensureChannel();
+      await save((await FirebaseMessaging.getToken()).token);
+      return;
+    }
     if (localStorage.getItem(ASKED_KEY)) return;
     localStorage.setItem(ASKED_KEY, "1");
-  } catch {
+  } catch (e) {
+    console.error("[push] 앱 등록 확인 실패", e);
     return;
   }
   await registerApp();
