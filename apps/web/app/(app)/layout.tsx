@@ -9,7 +9,7 @@ import { PlayerProvider } from "@/components/providers/PlayerProvider";
 import { ProfileProvider } from "@/components/providers/ProfileProvider";
 import { TodayProvider } from "@/components/providers/TodayProvider";
 import { ToastProvider } from "@/components/ui/Toast";
-import { isAppUserAgent } from "@/lib/app-client";
+import { appInfoOf, isAppUserAgent } from "@/lib/app-client";
 import { getTodayData, toProfileView } from "@/lib/server/feed";
 import { requireOnboarded } from "@/lib/server/session";
 import { recordVisit } from "@/lib/server/visits";
@@ -21,13 +21,15 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 // 로그인한 화면 전체를 감싼다. 플레이어(<audio>)와 오른쪽 아래 플레이어 위젯이 여기 있어서 어느 화면으로 옮겨도 재생과 플레이어가 이어진다.
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireOnboarded();
-  // DAU·MAU용 접속 기록. 화면을 늦추지 않게 응답을 보낸 뒤에 쓴다
-  if (!profile.demo) after(() => recordVisit(profile.id));
+  const ua = (await headers()).get("user-agent");
+  // DAU·MAU용 접속 기록(웹·iOS·Android). 화면을 늦추지 않게 응답을 보낸 뒤에 쓴다. after 안에서는 headers()를 못 읽어 먼저 읽는다
+  const platform = appInfoOf(ua)?.platform ?? "web";
+  if (!profile.demo) after(() => recordVisit(profile.id, platform));
   const view = toProfileView(profile);
   const today = await getTodayData(profile);
   const listenCollapsed = (await cookies()).get(LISTEN_COLLAPSED_COOKIE)?.value === "1";
   // 앱(User-Agent에 MaengoApp/)은 플레이어를 열면 화면을 꽉 채운다(2026-10-19 사용자 결정). 서버에서 정해야 첫 그림이 서버 HTML과 같다
-  const inApp = isAppUserAgent((await headers()).get("user-agent"));
+  const inApp = isAppUserAgent(ua);
   return (
     <ProfileProvider profile={view}>
       {/* key를 주지 않는다: 피드가 바뀌어도 플레이어를 새로 만들지 않게(TodayProvider가 안에서 합친다) */}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { adminPresets, parseAdminRange, spanDays } from '../admin-range';
+import { adminHref, adminPresets, parseAdminRange, parseAdminTab, spanDays } from '../admin-range';
 
 const today = '2026-10-11';
 
@@ -37,4 +37,18 @@ test('빠른 기간', () => {
   assert.deepEqual(p['오늘'], { label: '오늘', from: today, to: today });
   assert.equal(spanDays(p['7일']), 7);
   assert.equal(p['이번 달'].from, '2026-10-01');
+});
+
+test('탭은 모르는 값이면 가입·활동', () => {
+  assert.equal(parseAdminTab({}), 'growth');
+  assert.equal(parseAdminTab({ tab: 'revenue' }), 'revenue');
+  assert.equal(parseAdminTab({ tab: 'ops' }), 'ops');
+  assert.equal(parseAdminTab({ tab: 'x' }), 'growth');
+  assert.equal(parseAdminTab({ tab: ['ops'] }), 'growth');
+});
+
+test('탭 주소는 기간을 담고, 가입·활동 탭은 tab을 뺀다', () => {
+  const range = { from: '2026-10-01', to: '2026-10-11' };
+  assert.equal(adminHref('growth', range), '/admin?from=2026-10-01&to=2026-10-11');
+  assert.equal(adminHref('ops', range), '/admin?tab=ops&from=2026-10-01&to=2026-10-11');
 });

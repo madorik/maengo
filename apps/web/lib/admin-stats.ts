@@ -1,7 +1,8 @@
-// 관리자 통계(/admin)가 DB 함수 admin_stats(supabase/migrations/20261020100000_admin_stats_funnel.sql)에서 받는 숫자와 화면 계산.
+// 관리자 통계(/admin)가 탭마다 DB 함수(supabase/migrations/20261022100000_admin_tabs.sql)에서 받는 숫자와 화면 계산.
 // DB를 읽지 않는 계산만(테스트: __tests__/admin-stats.test.ts).
 
-export interface AdminStats {
+/** 가입·활동 탭(admin_stats_growth) */
+export interface GrowthStats {
   today: string;
   users: {
     total: number;
@@ -18,7 +19,6 @@ export interface AdminStats {
     /** 지금 온보딩을 안 한 사람 */
     pending: number;
     pushOn: number;
-    plans: Record<string, number>;
   };
   activity: {
     active: number;
@@ -29,15 +29,22 @@ export interface AdminStats {
     reads: number;
     listens: number;
     fed: number;
-    feedback: Record<string, number>;
-    feedbackAll: Record<string, number>;
+    /** 기간에 보낸 알림 */
+    pushSent: number;
   };
-  /** active = 그날 DAU, mau = 그날까지 30일 */
-  daily: { date: string; signups: number; onboarded: number; active: number; mau: number; reads: number; listens: number }[];
+  /** active = 그날 DAU, mau = 그날까지 30일, web·ios·android = 그날 그 플랫폼으로 앱을 연 사람 */
+  daily: ({ date: string; signups: number; onboarded: number; active: number; mau: number; reads: number; listens: number } & Record<Platform, number>)[];
   /** 기간 가입자. 앞 단계를 지난 사람만 다음 단계로 센다. paid(결제)는 단계와 상관없이 */
   funnel: { signups: number; onboarded: number; fed: number; engaged: number; returned: number; paid: number };
   /** 가입 주(월요일)마다, 최근 주가 먼저. dN = 가입 N일 뒤 활동한 사람, dNBase = 그날이 다 지난 사람 */
   retention: RetentionRow[];
+  features: { readers: number; listeners: number; playlist: number; links: number };
+}
+
+export type Platform = 'web' | 'ios' | 'android';
+
+/** 매출·콘텐츠 탭(admin_stats_revenue) */
+export interface RevenueStats {
   revenue: {
     /** 원화 결제 합(환불 뺌) */
     krw: number;
@@ -59,25 +66,31 @@ export interface AdminStats {
     /** 지금 Premium 중 스토어 구독 상태별(trial·active·past_due) */
     subs: Record<string, number>;
     cancelAtEnd: number;
+    /** 기간 가입자와 그중 결제한 사람 */
+    cohortSignups: number;
+    cohortPaid: number;
   };
   wallet: { used: number; users: number; bought: number; gifted: number; clawback: number; balance: number };
-  features: { readers: number; listeners: number; playlist: number; links: number };
+  feedback: Record<string, number>;
+  feedbackAll: Record<string, number>;
   content: { items: number; summaries: number; summariesTotal: number; topics: { id: string; name: string; custom: boolean; users: number }[] };
-  cost: { geminiUsd: number; geminiMonthUsd: number; ttsMonthChars: number; ttsMonthUsd: number; voices: number };
-  ops: {
-    tasks: {
-      name: string;
-      enabled: boolean;
-      everyMinutes: number;
-      nextRunAt: string;
-      runningSince: string | null;
-      lastFinishedAt: string | null;
-      lastStatus: string | null;
-      lastError: string | null;
-    }[];
-    deliveries: Record<string, number>;
-    devices: Record<string, number>;
-  };
+  cost: { geminiUsd: number; geminiMonthUsd: number; ttsMonthChars: number; voices: number };
+}
+
+/** 운영 탭(admin_stats_ops) */
+export interface OpsStats {
+  tasks: {
+    name: string;
+    enabled: boolean;
+    everyMinutes: number;
+    nextRunAt: string;
+    runningSince: string | null;
+    lastFinishedAt: string | null;
+    lastStatus: string | null;
+    lastError: string | null;
+  }[];
+  deliveries: Record<string, number>;
+  devices: Record<string, number>;
 }
 
 export interface RetentionRow {
@@ -105,7 +118,7 @@ export interface FunnelStep {
   ofPrev: number | null;
 }
 
-export function funnelSteps(f: AdminStats['funnel']): FunnelStep[] {
+export function funnelSteps(f: GrowthStats['funnel']): FunnelStep[] {
   const steps: [string, number][] = [
     ['가입', f.signups],
     ['온보딩', f.onboarded],
@@ -123,7 +136,7 @@ export function retentionTotal(rows: RetentionRow[]): Omit<RetentionRow, 'week'>
 }
 
 /** 매출(원): 원화 결제 + 그 밖 통화의 달러 × 환율 */
-export function revenueKrw(r: Pick<AdminStats['revenue'], 'krw' | 'usd'>, krwPerUsd: number): number {
+export function revenueKrw(r: Pick<RevenueStats['revenue'], 'krw' | 'usd'>, krwPerUsd: number): number {
   return Math.round(r.krw + r.usd * krwPerUsd);
 }
 

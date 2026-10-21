@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { type AdminRange, adminPresets } from "@/lib/admin-range";
+import { ADMIN_TABS, type AdminRange, type AdminTab, adminHref, adminPresets } from "@/lib/admin-range";
 import { type FunnelStep, type RetentionRow, ratio, retentionTotal } from "@/lib/admin-stats";
 import { withBase } from "@/lib/base-path";
 
@@ -71,8 +71,29 @@ export function Chips({ data, labels }: { data: Record<string, number>; labels: 
   );
 }
 
-/** 빠른 기간 + 날짜 두 칸. 폼은 GET이라 주소(?from=&to=)만 바뀐다 */
-export function RangeBar({ range, today }: { range: AdminRange; today: string }) {
+/** 탭(가입·활동 / 매출·콘텐츠 / 운영). 탭마다 그 탭의 숫자만 DB에서 센다. 기간은 그대로 넘긴다 */
+export function Tabs({ tab, range }: { tab: AdminTab; range: AdminRange }) {
+  return (
+    <nav aria-label="관리자 탭" className="-mb-[2px] flex gap-1 overflow-x-auto">
+      {ADMIN_TABS.map((t) => {
+        const on = t.id === tab;
+        return (
+          <Link
+            key={t.id}
+            href={adminHref(t.id, range)}
+            aria-current={on ? "page" : undefined}
+            className={`flex min-h-11 shrink-0 items-center border-b-[3px] px-3 text-[15px] font-extrabold ${on ? "border-ink text-ink" : "border-transparent text-sub hover:text-ink"}`}
+          >
+            {t.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** 빠른 기간 + 날짜 두 칸. 폼은 GET이라 주소(?tab=&from=&to=)만 바뀐다. 보던 탭은 그대로 */
+export function RangeBar({ tab, range, today }: { tab: AdminTab; range: AdminRange; today: string }) {
   return (
     <section className="flex flex-wrap items-center gap-2" aria-label="기간">
       <nav className="flex flex-wrap gap-1.5" aria-label="빠른 기간">
@@ -81,7 +102,7 @@ export function RangeBar({ range, today }: { range: AdminRange; today: string })
           return (
             <Link
               key={p.label}
-              href={`/admin?from=${p.from}&to=${p.to}`}
+              href={adminHref(tab, p)}
               aria-current={on ? "true" : undefined}
               className={`flex min-h-11 items-center rounded-xl border-2 px-3 text-[14px] font-extrabold ${on ? "border-ink bg-ink text-paper" : "border-line bg-paper text-sub hover:text-ink"}`}
             >
@@ -93,6 +114,7 @@ export function RangeBar({ range, today }: { range: AdminRange; today: string })
       {/* 빠른 기간을 눌러도 칸이 새 값으로 바뀌게 기간이 바뀌면 다시 그린다 */}
       {/* 좁은 화면에선 날짜 두 칸이 한 줄을 다 쓰고 보기 버튼은 아래 줄로, 아주 좁으면(360px 미만) 날짜도 한 줄에 하나 */}
       <form key={`${range.from}~${range.to}`} action={withBase("/admin")} className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1.5 max-[359px]:grid-cols-1 sm:ml-auto sm:flex sm:w-auto">
+        {tab !== "growth" && <input type="hidden" name="tab" value={tab} />}
         <label htmlFor="range-from" className="sr-only">
           시작일
         </label>
@@ -126,6 +148,7 @@ export function Trend({
   value,
   unit = "",
   tone = "sky",
+  scaleMax,
   data,
   range,
   today,
@@ -136,6 +159,8 @@ export function Trend({
   /** 값 뒤에 붙일 단위(예: %) */
   unit?: string;
   tone?: keyof typeof TONES;
+  /** 나란히 놓인 그래프끼리 같은 눈금으로 비교하게 세로 최댓값을 맞춘다 */
+  scaleMax?: number;
   data: { date: string; v: number }[];
   range: AdminRange;
   today: string;
@@ -144,7 +169,8 @@ export function Trend({
   const H = 100;
   const PAD = 8;
   const t = TONES[tone];
-  const max = Math.max(1, ...data.map((d) => d.v));
+  const peak = Math.max(0, ...data.map((d) => d.v));
+  const max = Math.max(1, scaleMax ?? 0, peak);
   const step = data.length > 1 ? W / (data.length - 1) : W;
   const x = (i: number) => (data.length > 1 ? i * step : W / 2);
   const y = (v: number) => PAD + (1 - v / max) * (H - PAD * 2);
@@ -190,7 +216,7 @@ export function Trend({
       <div className="mt-1 flex justify-between text-[11px] font-bold text-faint">
         <span>{md(range.from)}</span>
         <span>
-          최고 {num(max)}
+          최고 {num(peak)}
           {unit}
         </span>
         <span>{range.to === today ? "오늘" : md(range.to)}</span>

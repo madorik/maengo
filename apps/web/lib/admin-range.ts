@@ -35,6 +35,24 @@ export function parseAdminRange(sp: { from?: string | string[]; to?: string | st
   return { from, to };
 }
 
+/** 관리자 탭(?tab=). 처음 여는 탭은 가입·활동이라 주소에 넣지 않는다 */
+export const ADMIN_TABS = [
+  { id: 'growth', label: '가입·활동' },
+  { id: 'revenue', label: '매출·콘텐츠' },
+  { id: 'ops', label: '운영' },
+] as const;
+
+export type AdminTab = (typeof ADMIN_TABS)[number]['id'];
+
+export function parseAdminTab(sp: { tab?: string | string[] }): AdminTab {
+  return ADMIN_TABS.find((t) => t.id === sp.tab)?.id ?? 'growth';
+}
+
+/** 탭·기간을 담은 /admin 주소. 가입·활동 탭은 tab을 빼고 */
+export function adminHref(tab: AdminTab, { from, to }: AdminRange): string {
+  return `/admin?${tab === 'growth' ? '' : `tab=${tab}&`}from=${from}&to=${to}`;
+}
+
 export function adminPresets(today: string): AdminPreset[] {
   return [
     { label: '오늘', from: today, to: today },
