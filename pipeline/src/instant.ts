@@ -1,7 +1,6 @@
 import { createGeminiAi } from '@maengo/core/gemini';
 import { linkCap, rankFeed, type RankedItem } from '@maengo/core/feed';
 import { kstDate } from '@maengo/core/kst';
-import { groupOf } from '@maengo/core/topics';
 import { db, check } from './lib/db';
 import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
 import { tryLock, unlock, waitUnlock } from './lib/lock';
@@ -21,7 +20,7 @@ import { tag } from './jobs/tag';
 // 이미 모아 둔 소식(수집·임베딩·태그는 배치가 해 둠) 중 관심사에 맞는 것을 고르고, 요약이 없는 것만 그 자리에서 요약한다.
 // 처음 가입해 오늘 피드가 비었을 때 쓴다. 요약은 한 번에 최대 maxSummaries개(시간·비용 상한).
 // 고를 소식이 거의 없으면(새 관심사, 배치 전에 들어온 글) 최근 글을 지금 처리해 후보를 만든다(prepareFresh).
-// 그래도 없으면 상세 관심사를 큰 분류까지 넓혀 고른다(코스피 → 주식).
+// 고른 관심사에 맞는 소식만 준다. 모자라면 모자란 대로(상세 관심사를 큰 분류로 넓히지 않는다: 코스피만 골랐으면 주식 전체는 주지 않는다, 2026-10-22 사용자 결정).
 
 export type InstantProgress =
   | { stage: 'finding' }
@@ -60,7 +59,7 @@ export async function buildTodayFeedNow(
   let exclude = await withSimilarExcluded(a, candidates);
   const want = a.dailyItems;
   const maxLinks = linkCap(want);
-  let weights = a.weights;
+  const weights = a.weights;
   let picked = rankFeed(candidates, weights, exclude, { limit: want, maxLinks });
   // AI가 막혀 있으면(크레딧 소진·지출 상한) 새로 처리·요약하지 않고, 처리하다 막혀도 이미 요약된 소식으로 계속한다
   let aiBlocked = (await aiBlockedReason()) !== null;
@@ -76,11 +75,6 @@ export async function buildTodayFeedNow(
     candidates = (await loadCandidates(ctx, { centroids: a.known.length > 0 })).filter(summarizable);
     exclude = await withSimilarExcluded(a, candidates);
     picked = rankFeed(candidates, weights, exclude, { limit: want, maxLinks });
-  }
-  if (!picked.length) {
-    weights = widenToGroups(a.weights);
-    picked = rankFeed(candidates, weights, exclude, { limit: want, maxLinks });
-    if (picked.length) ctx.log(`관심사에 맞는 소식이 없어 큰 분류까지 넓혀 ${picked.length}개 고름`);
   }
   const toSummarize = aiBlocked ? [] : picked.filter((r) => !candidates.find((c) => c.id === r.clusterId)!.summarized).slice(0, maxSummaries);
   if (picked.length) onProgress({ stage: 'found', ready: picked.length - picked.filter((r) => !candidates.find((c) => c.id === r.clusterId)!.summarized).length, toMake: toSummarize.length });
@@ -147,8 +141,7 @@ export async function makeOneMore(userId: string, alsoExclude: number[]): Promis
   const candidates = (await loadCandidates(ctx, { centroids: a.known.length > 0, sinceHours: MORE_WINDOW_HOURS })).filter(summarizable);
   const exclude = await withSimilarExcluded(a, candidates);
   for (const id of alsoExclude) exclude.add(id);
-  let picked = rankFeed(candidates, a.weights, exclude, { limit: 3 });
-  if (!picked.length) picked = rankFeed(candidates, widenToGroups(a.weights), exclude, { limit: 3 });
+  const picked = rankFeed(candidates, a.weights, exclude, { limit: 3 });
   try {
     for (const r of picked) {
       if (candidates.find((c) => c.id === r.clusterId)?.summarized) return { clusterId: r.clusterId, topicId: r.topicId };
@@ -211,11 +204,7 @@ export async function fillTodayFeedNow(userId: string, want: number, onProgress:
     const exclude = await withSimilarExcluded(a, candidates);
     for (const r of rows) exclude.add(r.cluster_id);
     const opts = { limit: need + FILL_SPARE, maxLinks: linkCap(a.dailyItems) };
-    let picked = rankFeed(candidates, a.weights, exclude, opts);
-    if (picked.length < need) {
-      const wide = rankFeed(candidates, widenToGroups(a.weights), exclude, opts);
-      if (wide.length > picked.length) picked = wide;
-    }
+    const picked = rankFeed(candidates, a.weights, exclude, opts);
     const byId = new Map(candidates.map((c) => [c.id, c]));
     aiBlocked = (await aiBlockedReason()) !== null;
     const got: RankedItem[] = picked.filter((r) => byId.get(r.clusterId)!.summarized).slice(0, need);
@@ -314,12 +303,3 @@ export async function prepareFresh(base: Ctx, a: Audience, { collectAfter = COLL
   }
 }
 
-/** 상세 관심사의 큰 분류를 절반 가중치로 더한다(이미 고른 큰 분류는 그대로). 직접 적은 관심사는 큰 분류가 없다 */
-export function widenToGroups(weights: Record<string, number>): Record<string, number> {
-  const out = { ...weights };
-  for (const [id, w] of Object.entries(weights)) {
-    const g = groupOf(id);
-    if (g !== id && !(g in out)) out[g] = w * 0.5;
-  }
-  return out;
-}

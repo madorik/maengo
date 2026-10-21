@@ -68,6 +68,15 @@ test('제외 목록과 관련 없는 토픽은 빼고, 대표 토픽은 기여�
   assert.equal(out[0]!.topicId, 'llm-agent');
 });
 
+test('상세 관심사만 골랐으면 큰 분류나 다른 상세 관심사만 붙은 소식은 고르지 않는다(모자라도 채우지 않는다)', () => {
+  // 코스피·코스닥만 고른 사람: 주식(큰 분류)·미국 주식만 붙은 소식은 빼고, 코스피가 붙은 것만(2026-10-22 버그)
+  const kospi = c(1, 'kospi', { topics: [{ topicId: 'kospi', relevance: 1 }, { topicId: 'stock', relevance: 1 }] });
+  const stockOnly = c(2, 'stock', { topics: [{ topicId: 'stock', relevance: 1 }] });
+  const us = c(3, 'stock-us', { topics: [{ topicId: 'stock-us', relevance: 1 }, { topicId: 'stock', relevance: 1 }] });
+  const out = rankFeed([kospi, stockOnly, us], { kospi: 1, kosdaq: 1 }, new Set(), { limit: 10 });
+  assert.deepEqual(out.map((x) => [x.clusterId, x.topicId]), [[1, 'kospi']]);
+});
+
 test('신선한 소식과 여러 곳에서 다룬 소식이 위로 간다', () => {
   const out = rankFeed([c(1, 'rag', { ageHours: 60 }), c(2, 'rag', { ageHours: 2 }), c(3, 'rag', { ageHours: 60, size: 6 })], { rag: 1 }, new Set(), { maxPerTopic: 5 });
   assert.deepEqual(out.map((x) => x.clusterId), [2, 3, 1]);
