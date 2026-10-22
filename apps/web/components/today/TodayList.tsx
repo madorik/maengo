@@ -10,6 +10,7 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
+import { Spinner } from "@/components/ui/Spinner";
 import { useItemAudio } from "@/components/article/useItemAudio";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
 import { useArrivalHighlight, useMoreArrival, type Arrival } from "./arrival";
@@ -220,17 +221,16 @@ function ListenAll() {
     );
   }
   const playingToday = !p.playlist && p.status === "playing";
-  // 음성 정보를 못 받았으면 누를 때 다시 받는다(불러오는 중에만 막는다)
-  const failed = !p.playlist && !p.ready && !!p.error;
+  // 음성 정보를 받기 전에도 누를 수 있다: 받는 대로 시작하고(그동안 도는 고리), 못 받았으면 다시 받아 시작한다
   return (
     <button
       type="button"
-      onClick={() => (playingToday ? p.pause() : failed ? p.retry() : p.playToday())}
-      disabled={!p.playlist && !p.ready && !failed}
+      onClick={() => (playingToday ? p.pause() : p.playToday())}
+      aria-busy={p.starting || undefined}
       aria-label={playingToday ? "오늘 소식 듣기 일시정지" : "오늘 소식 전체 듣기"}
       className={cls}
     >
-      {playingToday ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
+      {p.starting ? <Spinner /> : playingToday ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
       {playingToday ? "일시정지" : "전체 듣기"}
     </button>
   );

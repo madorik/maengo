@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { IconClose, IconList, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { Spinner } from "@/components/ui/Spinner";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -170,13 +171,13 @@ function TodayListenScreen() {
             <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12 sm:size-14" />
             <button
               type="button"
-              aria-label={playing ? "일시정지" : p.ready ? "재생" : "다시 시도"}
-              // 에피소드 정보를 못 받았으면 다시 받는다(막혀 있지 않게)
-              onClick={p.ready ? p.toggle : p.retry}
-              disabled={!p.ready && !p.error}
+              aria-label={playing ? "일시정지" : p.error && !p.ready ? "다시 시도" : "재생"}
+              aria-busy={p.starting || undefined}
+              // 막지 않는다: 에피소드 정보를 받기 전이면 받는 대로 시작하고, 못 받았으면 다시 받아 시작한다
+              onClick={p.toggle}
               className="btn btn-sky size-16 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-20"
             >
-              {playing ? <IconPause className="size-8" /> : <IconPlay className="size-9" />}
+              {p.starting ? <Spinner className="size-8" /> : playing ? <IconPause className="size-8" /> : <IconPlay className="size-9" />}
             </button>
             <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12 sm:size-14" />
             <button

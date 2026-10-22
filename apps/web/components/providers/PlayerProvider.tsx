@@ -49,6 +49,8 @@ export interface PlayerApi {
   enabled: boolean;
   /** 에피소드 정보를 받아 왔는지 */
   ready: boolean;
+  /** 에피소드 정보를 받기 전에 재생을 눌러, 받는 대로 시작하려고 기다리는 중 */
+  starting: boolean;
   /** 음성을 만드는 중(처음 듣는 말투·소식) */
   preparing: boolean;
   /** 오늘 소식 전부의 음성이 이미 있는지(지금 말투·목소리) */
@@ -171,6 +173,15 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const [episode, setEpisode] = useState<EpisodeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
+  /** 에피소드 정보를 받기 전에 재생을 눌렀다(받는 대로 시작한다). 화면을 연 직후 몇 초 동안 재생 버튼이 막혀 있지 않게(2026-10-22) */
+  const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
+  /** 받는 대로 시작할 때 쓸 최신 값(읽은 소식·건너뛰기·이어 듣던 자리) */
+  const startFromRef = useRef<{ read: ReadonlySet<number>; skip: boolean; resumeRaw: string | null }>({ read: new Set(), skip: false, resumeRaw: null });
+  const want = (on: boolean) => {
+    startingRef.current = on;
+    setStarting(on);
+  };
   const [status, setStatus] = useState<Status>("idle");
   const [cur, setCur] = useState(-1);
   const [posMs, setPosMs] = useState(0);
@@ -334,6 +345,21 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         setPreparing(false);
         setEpisode(ep);
         if (!playlistRef.current) baseIdsRef.current = ep.chapters.map((c) => c.clusterId);
+        // 받기 전에 재생을 눌렀으면 받는 대로 시작한다: 이어 듣던 자리, 아니면 처음 들을 소식부터(play와 같은 자리)
+        let offsetMs = 0;
+        if (startingRef.current) {
+          startingRef.current = false;
+          setStarting(false);
+          if (!keep.resume && !playlistRef.current && ep.chapters.length) {
+            const { read, skip, resumeRaw } = startFromRef.current;
+            const at = resumeTarget(ep.chapters, parseResume(resumeRaw, ep.date), read, skip);
+            keep = { index: at?.index ?? startIndex(ep.chapters, read, skip), resume: true };
+            offsetMs = at?.offsetMs ?? 0;
+            onceRef.current = null;
+            setReadSnap(new Set(read));
+            track("listen_start", { mode: "today" });
+          }
+        }
         // 듣던 소식은 번호가 아니라 소식으로 찾는다(목록이 늘어 번호가 밀렸어도 같은 소식)
         const kept = keep.clusterId === undefined ? -1 : ep.chapters.findIndex((c) => c.clusterId === keep.clusterId);
         const index = kept >= 0 ? kept : Math.min(keep.index, ep.chapters.length - 1);
@@ -343,9 +369,9 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           setPosMs(0);
         } else setCur(index);
         // 듣던 중이고 오늘 전체 음성이 아직 없으면 그 소식부터 먼저 듣는다
-        if (keep.resume && index >= 0 && !ep.ready && !playlistRef.current) return startLead(ep, index, 0, true);
+        if (keep.resume && index >= 0 && !ep.ready && !playlistRef.current) return startLead(ep, index, offsetMs, true);
         if (ep.ready || keep.resume) {
-          openFile(ep, index, keep.resume);
+          openFile(ep, index, keep.resume, offsetMs);
         } else {
           // 아직 음성이 없다. 재생을 누를 때 만든다(지금 만들면 듣지 않을 음성에 비용이 든다)
           setLead(null);
@@ -355,7 +381,11 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           audio.load();
         }
       } catch {
-        if (seq === loadSeq.current) setError(LOAD_ERROR);
+        if (seq !== loadSeq.current) return;
+        setError(LOAD_ERROR);
+        // 받기 전에 누른 재생은 그만둔다(실패 문구와 '다시 시도'가 보인다)
+        startingRef.current = false;
+        setStarting(false);
       }
     },
     [fetchEpisode, openFile, setLead, startLead],
@@ -365,6 +395,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const prefsRef = useRef({ persona, voice });
   useEffect(() => {
     prefsRef.current = { persona, voice };
+    startFromRef.current = { read, skip: skipRead, resumeRaw };
     todayIdsRef.current = keptIds(data.items.map((i) => i.clusterId), removed);
     listKeyRef.current = listKey;
     busyRef.current = !idle;
@@ -548,7 +579,18 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     !playlist && episode && status === "idle" && cur < 0 ? resumeTarget(chapters, parseResume(resumeRaw, episode.date), readSet, skip) : null;
 
   const play = () => {
-    if (!episode || !chapters.length) return;
+    if (!episode) {
+      // 아직 받는 중이면 받는 대로 시작한다(받기에 실패했으면 다시 받고 시작). 앱(웹뷰)은 탭 밖의 재생을 막지 않는다.
+      // 브라우저가 막으면 소리가 안 나고, 한 번 더 누르면 그때는 바로 시작된다
+      if (!enabled) return;
+      want(true);
+      if (error) {
+        setError(null);
+        void load(persona, voice, { index: -1, resume: false });
+      }
+      return;
+    }
+    if (!chapters.length) return;
     if (status === "idle" || status === "done") track("listen_start", { mode: playlistRef.current ? "playlist" : "today" });
     // 음성을 기다리는 중에 멈췄다가 다시 누르면 다 되는 대로 시작한다
     if (pendingRef.current) pendingRef.current.play = true;
@@ -576,6 +618,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   };
 
   const pause = () => {
+    want(false);
     // 음성을 만드는 중에 멈추면 다 만들어져도 저절로 시작하지 않는다(잠금 화면·알림 버튼도 여기로 온다)
     if (pendingRef.current) pendingRef.current.play = false;
     audioRef.current?.pause();
@@ -606,7 +649,11 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const retry = () => {
     setError(null);
-    if (!episode) return void load(persona, voice, { index: cur, resume: false });
+    if (!episode) {
+      // 다시 받는 대로 시작한다
+      want(true);
+      return void load(persona, voice, { index: cur, resume: false });
+    }
     play();
   };
 
@@ -1110,6 +1157,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const api: PlayerApi = {
     enabled,
     ready: !!episode,
+    starting,
     preparing,
     audioReady: !!episode?.ready,
     error,

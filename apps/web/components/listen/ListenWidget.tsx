@@ -11,6 +11,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
+import { Spinner } from "@/components/ui/Spinner";
 import { Sheet } from "@/components/ui/Sheet";
 import { minutesLabel } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
@@ -157,9 +158,9 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
     setOpen(false);
     launcherRef.current?.focus();
   };
-  // 에피소드 정보를 못 받았으면 재생 버튼이 다시 받기를 한다(막혀 있지 않게)
-  const canPlay = p.ready || !!p.error;
-  const playAction = p.ready ? p.toggle : p.retry;
+  // 재생 버튼은 막지 않는다: 에피소드 정보를 받기 전이면 받는 대로 시작하고(그동안 도는 고리), 못 받았으면 다시 받아 시작한다
+  const playLabel = playing ? "일시정지" : p.error && !p.ready ? "다시 시도" : "재생";
+  const playIcon = (size: string) => (p.starting ? <Spinner className={size} /> : playing ? <IconPause className={size} /> : <IconPlay className={size} />);
 
   // 앱의 꽉 찬 시트에서는 버튼을 조금 키운다(듣기 화면과 같은 크기)
   const big = inApp;
@@ -209,12 +210,12 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         <SkipButton dir={-1} onClick={() => p.skipBy(-SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12" />
         <button
           type="button"
-          aria-label={playing ? "일시정지" : p.ready ? "재생" : "다시 시도"}
-          onClick={playAction}
-          disabled={!canPlay}
+          aria-label={playLabel}
+          aria-busy={p.starting || undefined}
+          onClick={p.toggle}
           className={`btn btn-sky mx-1 min-h-0 shrink-0 rounded-full p-0 ${big ? "size-16 min-[360px]:size-20" : "size-14 min-[360px]:size-16"}`}
         >
-          {playing ? <IconPause className={big ? "size-8" : "size-6"} /> : <IconPlay className={big ? "size-9" : "size-7"} />}
+          {playIcon(big ? (playing ? "size-8" : "size-9") : playing ? "size-6" : "size-7")}
         </button>
         <SkipButton dir={1} onClick={() => p.skipBy(SKIP_MS)} disabled={!p.canSeek} className="size-11 min-[360px]:size-12" />
         <button type="button" aria-label="다음 소식" onClick={p.next} disabled={!p.canNext || !p.ready} className="btn btn-ghost size-11 min-h-0 shrink-0 rounded-full p-0 min-[360px]:size-12">
@@ -303,12 +304,12 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       </button>
       <button
         type="button"
-        onClick={playAction}
-        disabled={!canPlay}
-        aria-label={playing ? "일시정지" : p.ready ? `${heading} 재생` : "다시 시도"}
+        onClick={p.toggle}
+        aria-busy={p.starting || undefined}
+        aria-label={playLabel === "재생" ? `${heading} 재생` : playLabel}
         className="btn btn-sky size-12 min-h-0 shrink-0 rounded-full p-0"
       >
-        {playing ? <IconPause className="size-5" /> : <IconPlay className="size-6" />}
+        {playIcon(playing ? "size-5" : "size-6")}
       </button>
       {foldButton}
     </div>
