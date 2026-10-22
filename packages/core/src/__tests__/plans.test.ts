@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { daysBefore, discountPct, packAmount, planFromRow } from '../plans';
+import { archiveLabel, daysBefore, discountPct, packAmount, planFromRow } from '../plans';
 
 test('n일 전', () => {
   assert.equal(daysBefore('2026-10-03', 6), '2026-09-27');
@@ -24,4 +24,10 @@ test('할인율은 내림', () => {
   assert.equal(discountPct({ priceKrw: 4100, listPriceKrw: 5900 }), 30);
   assert.equal(discountPct({ priceKrw: 5900, listPriceKrw: null }), 0);
   assert.equal(discountPct({ priceKrw: 5900, listPriceKrw: 5900 }), 0);
+});
+
+test('보관 기간 표기: 없으면 무제한, 30일 단위는 개월', () => {
+  assert.equal(archiveLabel(null), '무제한');
+  assert.equal(archiveLabel(90), '3개월');
+  assert.equal(archiveLabel(45), '45일');
 });

@@ -1,4 +1,4 @@
-import { discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
+import { archiveLabel, discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
 import Image from "next/image";
 import Link from "next/link";
 import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe } from "@/components/icons";
@@ -21,8 +21,6 @@ import playlistShot from "./playlist.webp";
 // 검색과 속도를 위해 정적으로 만들고, 로그인 여부에 따라 달라지는 버튼만 AuthLink가 브라우저에서 바꾼다.
 
 const START = { href: "/login", label: "무료로 시작하기" };
-/** 보관 기간: 30일 단위면 'n개월'(90 → 3개월), 아니면 'n일' */
-const archiveLabel = (days: number) => (days >= 30 && days % 30 === 0 ? `${days / 30}개월` : `${days}일`);
 const OPEN = { href: "/today", label: "오늘의 소식 열기" };
 
 /**
@@ -286,7 +284,7 @@ export async function Landing() {
               <Plan
                 name="Free"
                 price="0원"
-                items={[`하루 소식 ${free.dailyItems}개`, free.canBuyMaengo ? `가입하면 ${SIGNUP_BONUS}맹고, 맹고 추가 구매` : `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${archiveLabel(free.archiveDays ?? 0)}, 관심사 ${free.topicLimit}개`]}
+                items={[`하루 소식 ${free.dailyItems}개`, free.canBuyMaengo ? `가입하면 ${SIGNUP_BONUS}맹고, 맹고 추가 구매` : `가입하면 ${SIGNUP_BONUS}맹고`, `보관함 최근 ${archiveLabel(free.archiveDays)}, 관심사 ${free.topicLimit}개`]}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan
@@ -296,8 +294,8 @@ export async function Landing() {
                 listPrice={discountPct(plus) > 0 ? `${plus.listPriceKrw!.toLocaleString("ko-KR")}원` : undefined}
                 discount={discountPct(plus)}
                 items={[`하루 소식 ${plus.dailyItems}개`, "오디오로 이어 듣기, 여성·남성 목소리", `${plus.canBuyMaengo && !free.canBuyMaengo ? "맹고 추가 구매, " : ""}목록에 없는 관심사 ${plus.customLimit}개`, `보관함 전체, 관심사 ${plus.topicLimit}개`]}
-                later="팟캐스트 앱 연동과 주간 스터디 팩은 곧 열려요"
-                cta={{ signedOut: START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
+                // 로그인 전 버튼: 할인 중이면 '할인가로 시작하기'(2026-10-22 사용자 결정), 아니면 다른 시작 버튼과 같게
+                cta={{ signedOut: discountPct(plus) > 0 ? { ...START, label: "할인가로 시작하기" } : START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
               />
             </div>
           </div>
@@ -375,7 +373,6 @@ function Plan({
   items,
   cta,
   badge,
-  later,
   featured = false,
 }: {
   name: string;
@@ -386,7 +383,6 @@ function Plan({
   items: string[];
   cta: { signedOut: { href: string; label: string }; signedIn: { href: string; label: string }; ghost?: boolean };
   badge?: string;
-  later?: string;
   featured?: boolean;
 }) {
   return (
@@ -415,7 +411,6 @@ function Plan({
           </li>
         ))}
       </ul>
-      {later && <p className="mt-3 text-[13px] font-semibold text-sub">{later}</p>}
       <AuthLink signedOut={cta.signedOut} signedIn={cta.signedIn} className={`btn mt-6 w-full ${cta.ghost ? "btn-ghost" : ""}`} />
     </div>
   );

@@ -1,4 +1,4 @@
-import type { PlanLimits } from "@maengo/core/plans";
+import { archiveLabel, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
@@ -16,16 +16,16 @@ export const metadata: Metadata = { title: "맹고 Premium" };
 // 결제 페이지(유튜브의 'Premium 받기'처럼 설정과 따로). 입구: 계정 메뉴, 잠긴 듣기 버튼, 맹고가 모자랄 때(#maengo).
 // 설정 > 플랜에는 내 플랜만 보여 준다. 결제는 앱 안에서만(애플·구글), 웹에서는 앱에서 살 수 있다고만 알린다.
 
-/** Free·Premium 비교(2026-10-14 사용자 지정 네 줄 + 2026-10-15 내 관심 링크). 값은 plans 표. 맹고 추가 구매는 두 플랜이 다를 때만(2026-10-15 Free도 가능) */
+/** Free·Premium 비교(2026-10-22 사용자 지정 다섯 줄). 숫자는 plans 표(하루 소식·음성·추가 구매·보관 기간)와 가입 선물(SIGNUP_BONUS) */
 function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string; plus: string }[] {
-  const can = (ok: boolean, yes = "가능") => (ok ? yes : "불가");
+  const can = (ok: boolean) => (ok ? "가능" : "불가");
   const both = (f: (l: PlanLimits) => string) => ({ free: f(free), plus: f(plus) });
   return [
-    { label: "매일 소식", ...both((l) => `${l.dailyItems}개`) },
-    { label: "음성 듣기", ...both((l) => can(l.audio)) },
-    { label: "관심사 추가", ...both((l) => can(l.customLimit > 0, `${l.customLimit}개`)) },
-    { label: "내 관심 링크", ...both((l) => can(l.linkLimit > 0, `${l.linkLimit}개`)) },
-    ...(free.canBuyMaengo !== plus.canBuyMaengo ? [{ label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) }] : []),
+    { label: "하루 무료 소식", ...both((l) => `${l.dailyItems}개`) },
+    { label: "가입하면 무료 지급", ...both(() => `맹고 ${SIGNUP_BONUS}개`) },
+    { label: "소식 플레이어 + 음성 듣기(TTS)", ...both((l) => can(l.audio)) },
+    { label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) },
+    { label: "받은 소식 보관", ...both((l) => archiveLabel(l.archiveDays)) },
   ];
 }
 

@@ -67,6 +67,9 @@ export function discountPct(p: Pick<PlanLimits, 'priceKrw' | 'listPriceKrw'>): n
   return Math.floor(((p.listPriceKrw - p.priceKrw) / p.listPriceKrw) * 100);
 }
 
+/** 받은 소식 보관 기간 표기: 없으면(null) '무제한', 30일 단위면 'n개월'(90 → 3개월), 아니면 'n일' */
+export const archiveLabel = (days: number | null) => (days == null ? '무제한' : days >= 30 && days % 30 === 0 ? `${days / 30}개월` : `${days}일`);
+
 /** 원 가격 표기 '3,800원'. 앱 결제 화면은 스토어가 준 가격(₩3,800 등 그 나라 통화)을 쓰고, 스토어가 없는 웹·서버 화면이 이것을 쓴다 */
 export const krwLabel = (krw: number) => `${krw.toLocaleString('ko-KR')}원`;
 
