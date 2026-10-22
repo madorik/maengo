@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV, NAV_MORE } from "./nav";
 
-/** 주 메뉴 링크(오늘·보관함·플레이리스트, 아래에 요금. 설정은 계정 메뉴에). 데스크톱 왼쪽 메뉴(SideNav)와 모바일 서랍(MobileNav)이 같이 쓴다 */
+/** 주 메뉴 링크(오늘 소식·보관함·플레이리스트, 아래에 요금. 설정은 계정 메뉴에). 데스크톱 왼쪽 메뉴(SideNav)와 모바일 서랍(MobileNav)이 같이 쓴다 */
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   return (

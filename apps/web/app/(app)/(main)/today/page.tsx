@@ -6,7 +6,7 @@ import { billingNoticeOf } from "@/lib/billing/notice";
 import { subscriptionView } from "@/lib/server/billing";
 import { requireProfile } from "@/lib/server/session";
 
-export const metadata: Metadata = { title: "오늘" };
+export const metadata: Metadata = { title: "오늘 소식" };
 
 // 오늘 목록은 (app) 레이아웃이 읽은 오늘 피드(TodayProvider)로 그린다. 결제 안내 띠는 따로 읽어 기다리지 않고(Suspense) 끼워 넣는다
 export default function TodayPage() {
