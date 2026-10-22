@@ -9,7 +9,7 @@ const LINK = "text-sub no-underline hover:text-ink hover:underline";
 export function SiteFooter() {
   return (
     <footer className="border-t-2 border-line">
-      <div className="mx-auto flex max-w-[1100px] flex-col gap-2 px-5 py-8 text-[13px] font-semibold text-sub sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex max-w-[1100px] flex-col gap-2 px-5 pb-[calc(32px+env(safe-area-inset-bottom))] pt-8 text-[13px] font-semibold text-sub sm:flex-row sm:items-center sm:justify-between">
         <span className="flex items-center gap-2">
           <MangoIcon className="size-6" />
           관심사에 맞춘 오늘의 소식, 맹고

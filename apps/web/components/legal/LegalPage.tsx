@@ -23,7 +23,7 @@ export function LegalPage({ title, path, children }: { title: string; path: (typ
           </Link>
         </div>
       </header>
-      <main className="mx-auto max-w-[720px] px-5 pb-16 pt-8">
+      <main className="mx-auto max-w-[720px] px-5 pb-[calc(64px+env(safe-area-inset-bottom))] pt-8">
         <h1 className="text-[28px] font-black tracking-[-0.03em]">{title}</h1>
         <p className="mt-1 text-[14px] font-semibold text-sub">시행일 {LEGAL_EFFECTIVE_DATE}</p>
         <div className="mt-8 text-[15px] font-medium leading-[1.8] text-ink [&_a]:font-bold [&_a]:text-sky-dark [&_h2]:mb-2 [&_h2]:mt-10 [&_h2]:text-[18px] [&_h2]:font-black [&_h2]:tracking-[-0.02em] [&_h3]:mb-1 [&_h3]:mt-5 [&_h3]:text-[15px] [&_h3]:font-black [&_li]:mt-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mt-2 [&_ul]:list-disc [&_ul]:pl-5">
