@@ -89,7 +89,10 @@ function listening(sil) {
     [4, 9, 13, 8, 5].forEach((h, i) => (s += `<rect x="${161.6 + i * 4}" y="${161 - h / 2}" width="2.6" height="${h}" rx="1.3" fill="${SKY}"/>`));
   }
   s += `<rect x="167" y="178" width="6" height="8" rx="2" fill="${f(SKY)}"${st}/></g>`;
-  // 팔과 손
+  // 왼손: 몸 왼쪽 아래로 내려 이어폰 줄을 살짝 잡는다. 줄보다 나중에 그려서 손이 줄 위에 온다
+  s += `<path d="M64 154 Q55 161 50 162" fill="none" stroke="${f(ARM)}" stroke-width="${sw(7)}" stroke-linecap="round"/>`;
+  s += `<circle cx="48" cy="162" r="7" fill="${f(MANGO)}" stroke="${f(ARM)}" stroke-width="${sw(2.6)}"/>`;
+  // 오른손(휴대폰)과 팔
   s += `<path d="M140 156 Q150 163 158 164" fill="none" stroke="${f(ARM)}" stroke-width="${sw(7)}" stroke-linecap="round"/>`;
   s += `<circle cx="159" cy="164" r="7" fill="${f(MANGO)}" stroke="${f(ARM)}" stroke-width="${sw(2.6)}"/>`;
   return s;
