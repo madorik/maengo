@@ -26,7 +26,25 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="kr.maengo.app" android:host="auth" />
             </intent-filter>
+            <!-- 홈 화면 위젯이 여는 화면 kr.maengo.app://open/article/123 (열 수 있는 화면은 apps/web/lib/app-client.ts appLinkPath) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kr.maengo.app" android:host="open" />
+            </intent-filter>
         </activity>
+
+        <!-- 홈 화면 위젯 '오늘 소식'(TodayWidgetProvider, 앱 1.3부터) -->
+        <receiver
+            android:name=".TodayWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/today_widget_info" />
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

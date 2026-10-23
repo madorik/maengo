@@ -18,6 +18,18 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<!-- 홈 화면 위젯이 여는 화면 kr.maengo.app://open/… (apps/web/lib/native/shell.ts). 로그인 콜백(…://auth)은 ASWebAuthenticationSession이 받는다 -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>kr.maengo.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kr.maengo.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>

@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2A2B8615BC28E80A930FE57C /* MaengoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 307A9000DEF6D8D63C880891 /* MaengoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
+		3F5B9C773740BFF1211562F9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C3467FB63138B67D94919683 /* Assets.xcassets */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -16,13 +18,48 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		7E6035DE91D97B213AE7F711 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F396B55C7F20E3341B41BB6E /* GoogleService-Info.plist */; };
+		87EF312CDCE52F15DB775B16 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 303915B25F6ED00314B6E2B8 /* Foundation.framework */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1B2C3D4E5F60718293A4B5D /* NativeAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* NativeAuth.swift */; };
+		C69A3BDAE4EE252C76E89ECD /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0DF6C1969A8BE0628C9E72CC /* WidgetKit.framework */; };
+		EB11CC45008352DB3F6B1FB5 /* MaengoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A0A6F7D618F04E92E22B4E /* MaengoWidget.swift */; };
+		EBCD9B1EFC5DBC65BE11956B /* NativeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E707295C7657A01A6FC05E8A /* NativeWidget.swift */; };
+		F7A173194C864DBE737C7D61 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EF4586AFD1BBC31BF542490F /* SwiftUI.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		89A505DD9B8748CEBCF74AAA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6BE20F53D828CC30083073A9;
+			remoteInfo = MaengoWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6AD83E69D4C54370D7619369 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2A2B8615BC28E80A930FE57C /* MaengoWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		0DF6C1969A8BE0628C9E72CC /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/WidgetKit.framework; sourceTree = DEVELOPER_DIR; };
+		104BC8607978FD9ECA2D8C65 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		16A0A6F7D618F04E92E22B4E /* MaengoWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MaengoWidget.swift; sourceTree = "<group>"; };
 		22822CCE6428BA83CDA10FFF /* App.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		27A85B45C1663B65DE341364 /* MaengoWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = MaengoWidget.entitlements; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+		303915B25F6ED00314B6E2B8 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		307A9000DEF6D8D63C880891 /* MaengoWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MaengoWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -34,10 +71,23 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A1B2C3D4E5F60718293A4B5C /* NativeAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAuth.swift; sourceTree = "<group>"; };
+		C3467FB63138B67D94919683 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E707295C7657A01A6FC05E8A /* NativeWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativeWidget.swift; sourceTree = "<group>"; };
+		EF4586AFD1BBC31BF542490F /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/SwiftUI.framework; sourceTree = DEVELOPER_DIR; };
 		F396B55C7F20E3341B41BB6E /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		3530977809828069BD26886A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				87EF312CDCE52F15DB775B16 /* Foundation.framework in Frameworks */,
+				C69A3BDAE4EE252C76E89ECD /* WidgetKit.framework in Frameworks */,
+				F7A173194C864DBE737C7D61 /* SwiftUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3011FED79650016851F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -49,12 +99,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2DE12219A5F1D8B2D89FAD46 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F01BE92DE7639A1EA6F9F39B /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
+				2DE12219A5F1D8B2D89FAD46 /* Frameworks */,
+				BF19159B4D8A84E6613B9999 /* MaengoWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -62,6 +122,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				307A9000DEF6D8D63C880891 /* MaengoWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -81,8 +142,31 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 				F396B55C7F20E3341B41BB6E /* GoogleService-Info.plist */,
 				22822CCE6428BA83CDA10FFF /* App.entitlements */,
+				E707295C7657A01A6FC05E8A /* NativeWidget.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		BF19159B4D8A84E6613B9999 /* MaengoWidget */ = {
+			isa = PBXGroup;
+			children = (
+				16A0A6F7D618F04E92E22B4E /* MaengoWidget.swift */,
+				104BC8607978FD9ECA2D8C65 /* Info.plist */,
+				27A85B45C1663B65DE341364 /* MaengoWidget.entitlements */,
+				C3467FB63138B67D94919683 /* Assets.xcassets */,
+			);
+			name = MaengoWidget;
+			path = MaengoWidget;
+			sourceTree = "<group>";
+		};
+		F01BE92DE7639A1EA6F9F39B /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				303915B25F6ED00314B6E2B8 /* Foundation.framework */,
+				0DF6C1969A8BE0628C9E72CC /* WidgetKit.framework */,
+				EF4586AFD1BBC31BF542490F /* SwiftUI.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -95,10 +179,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				6AD83E69D4C54370D7619369 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				D915D908B64B9A4272A2DC65 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -107,6 +193,23 @@
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		6BE20F53D828CC30083073A9 /* MaengoWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 015D760D87DAA06AF0E52734 /* Build configuration list for PBXNativeTarget "MaengoWidget" */;
+			buildPhases = (
+				76E514F0B7BED5BD3C0D8040 /* Sources */,
+				3530977809828069BD26886A /* Frameworks */,
+				304B9AFE57953812930F094B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MaengoWidget;
+			productName = MaengoWidget;
+			productReference = 307A9000DEF6D8D63C880891 /* MaengoWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -141,11 +244,20 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				6BE20F53D828CC30083073A9 /* MaengoWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		304B9AFE57953812930F094B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F5B9C773740BFF1211562F9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3021FED79650016851F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -170,10 +282,28 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5D /* NativeAuth.swift in Sources */,
+				EBCD9B1EFC5DBC65BE11956B /* NativeWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76E514F0B7BED5BD3C0D8040 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EB11CC45008352DB3F6B1FB5 /* MaengoWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D915D908B64B9A4272A2DC65 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = MaengoWidget;
+			target = 6BE20F53D828CC30083073A9 /* MaengoWidget */;
+			targetProxy = 89A505DD9B8748CEBCF74AAA /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -311,7 +441,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = QYS79FM739;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -319,7 +449,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = kr.maengo.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -335,7 +465,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = QYS79FM739;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -343,7 +473,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.maengo.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
@@ -352,9 +482,73 @@
 			};
 			name = Release;
 		};
+		A8D1A3517774EEE376C27B41 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = MaengoWidget/MaengoWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = QYS79FM739;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MaengoWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = kr.maengo.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		D493B2C6C4527B9E37B9E28D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = MaengoWidget/MaengoWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = QYS79FM739;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MaengoWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = kr.maengo.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		015D760D87DAA06AF0E52734 /* Build configuration list for PBXNativeTarget "MaengoWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A8D1A3517774EEE376C27B41 /* Release */,
+				D493B2C6C4527B9E37B9E28D /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

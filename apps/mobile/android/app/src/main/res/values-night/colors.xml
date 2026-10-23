@@ -2,4 +2,10 @@
 <resources>
     <!-- 다크 모드 창 바탕(웹 globals.css의 다크 color-paper 토큰) -->
     <color name="maengo_paper">#151722</color>
+    <!-- 홈 화면 위젯(다크) -->
+    <color name="maengo_ink">#ECEEF5</color>
+    <color name="maengo_sub">#A6ABC0</color>
+    <color name="maengo_faint">#6F7491</color>
+    <color name="maengo_mango_deep">#F4B740</color>
+    <color name="maengo_mango_tint">#3A2F14</color>
 </resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 홈 화면 위젯 바탕(앱 창 바탕색, 둥근 모서리) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/maengo_paper" />
+    <corners android:radius="22dp" />
+</shape>

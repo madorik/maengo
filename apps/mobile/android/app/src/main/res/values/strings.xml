@@ -4,4 +4,9 @@
     <string name="title_activity_main">맹고</string>
     <string name="package_name">kr.maengo.app</string>
     <string name="custom_url_scheme">kr.maengo.app</string>
+    <!-- 홈 화면 위젯(TodayWidgetProvider) -->
+    <string name="widget_title">오늘 소식</string>
+    <string name="widget_description">오늘 받은 소식 제목을 홈 화면에서 봐요</string>
+    <string name="widget_signed_out">맹고를 열어 로그인해 주세요</string>
+    <string name="widget_failed">소식을 불러오지 못했어요</string>
 </resources>

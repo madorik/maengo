@@ -1,6 +1,6 @@
 {
   "name": "@maengo/mobile",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "private": true,
   "description": "맹고 iOS·Android 앱(Capacitor). 운영 웹을 띄우고 앱에서만 되는 기능을 붙인다",
   "scripts": {
@@ -16,6 +16,7 @@
     "@capacitor/app": "8.1.2",
     "@capacitor/browser": "8.0.5",
     "@capacitor/core": "8.5.3",
+    "@capacitor/haptics": "8.0.2",
     "@capacitor/ios": "8.5.3",
     "@capacitor/share": "8.0.3",
     "@capacitor/splash-screen": "8.0.2",

@@ -4,4 +4,10 @@
     <color name="maengo_mango">#FFC23D</color>
     <!-- 창 바탕(웹 globals.css의 color-paper 토큰). 다크는 values-night -->
     <color name="maengo_paper">#FFFFFF</color>
+    <!-- 홈 화면 위젯 글자·칩 색(웹 globals.css 토큰과 같다). 다크는 values-night -->
+    <color name="maengo_ink">#1F2340</color>
+    <color name="maengo_sub">#6B7089</color>
+    <color name="maengo_faint">#A3A8BC</color>
+    <color name="maengo_mango_deep">#A86A00</color>
+    <color name="maengo_mango_tint">#FFF4D6</color>
 </resources>

@@ -42,6 +42,14 @@ Premium은 매달 자동으로 갱신되며, 갱신 24시간 전까지 App Store
 이용약관(EULA): https://watalabs.com/maengo/terms
 개인정보 처리방침: https://watalabs.com/maengo/privacy
 
+### 출시 노트(1.3.0, 초안)
+맹고 1.3.0이에요.
+• 홈 화면 위젯이 생겼어요. 오늘 받은 소식 제목을 홈 화면(아이폰은 잠금 화면도)에서 보고, 누르면 그 소식이 열려요
+• Free도 하루 1개는 '이 글 듣기'로 들을 수 있어요
+• 처음 시작할 때 알림을 켜서 소식이 오면 바로 알려 드려요
+• 소식을 공유하면 받은 사람이 앱 없이도 요약을 볼 수 있어요
+• 소식 화면에서 좌우로 밀어 이전·다음 소식으로 넘겨요
+
 ### 출시 노트(1.2.1, 초안)
 맹고 1.2.1이에요.
 • 화면을 끄거나 다른 앱을 써도 듣기가 이어져요. 잠금 화면과 알림에서 멈추고 넘길 수 있어요
@@ -118,6 +126,7 @@ Native features beyond the web content:
 - In-App Purchase: Premium monthly auto-renewable subscription (7-day free trial) and consumable "맹고" packs, with Restore Purchases and Manage Subscription in Settings > 플랜.
 - Sign in with Apple, and account deletion inside the app (Settings > 계정 삭제).
 - Native share sheet on each article (top-right share button).
+- Home Screen and Lock Screen widgets (1.3): today's news titles; tapping a title opens that article in the app.
 
 Content: summaries of public news articles and official blogs, each linking to the original source.
 ```

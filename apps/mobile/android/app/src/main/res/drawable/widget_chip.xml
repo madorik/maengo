@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯 소식 줄의 카테고리 칩 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/maengo_mango_tint" />
+    <corners android:radius="6dp" />
+</shape>

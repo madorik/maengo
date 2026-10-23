@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 앱이 넣어 둔 위젯 토큰을 읽는 앱 그룹(App/App.entitlements와 같다) -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.kr.maengo.app</string>
+	</array>
+</dict>
+</plist>

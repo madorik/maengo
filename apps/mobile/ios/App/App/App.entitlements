@@ -5,5 +5,10 @@
 	<!-- 앱 알림(APNs). 개발 빌드는 development, 스토어로 내보낼 때 배포 프로필이 production으로 바꾼다 -->
 	<key>aps-environment</key>
 	<string>development</string>
+	<!-- 홈 화면 위젯(MaengoWidget 확장)과 토큰을 나눠 쓰는 앱 그룹(NativeWidget.swift) -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.kr.maengo.app</string>
+	</array>
 </dict>
 </plist>

@@ -6,10 +6,12 @@ import UIKit
 // 로그인 주소를 ASWebAuthenticationSession(사파리)으로 열고, kr.maengo.app://auth/callback?code=… 로 돌아오면 그 주소를 웹에 넘긴다.
 // 웹은 그 code로 /auth/callback을 열어 세션을 만든다(apps/web/lib/native/auth.ts).
 
-/** Capacitor 화면에 앱 전용 플러그인을 등록한다(SceneDelegate가 이 화면을 띄운다) */
+/** Capacitor 화면에 앱 전용 플러그인을 등록한다(SceneDelegate가 이 화면을 띄운다). 위젯·별점은 NativeWidget.swift */
 class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(AuthSessionPlugin())
+        bridge?.registerPluginInstance(MaengoWidgetPlugin())
+        bridge?.registerPluginInstance(MaengoReviewPlugin())
     }
 }
 
