@@ -72,7 +72,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
   const rows = must(
     await db
       .from('summaries')
-      .select('cluster_id, title, clusters!inner(first_seen_at,size,is_video,skip_reason,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight)))')
+      .select('cluster_id, title, clusters!inner(first_seen_at,size,is_video,skip_reason,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight,lang)))')
       .eq('tier', 'basic')
       .gte('clusters.first_seen_at', since)
       .is('clusters.skip_reason', null),
@@ -84,7 +84,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
       first_seen_at: string;
       size: number;
       is_video: boolean;
-      rep: { views: number | null; hn_points: number | null; published_at: string | null; sources: { weight: number } | null } | null;
+      rep: { views: number | null; hn_points: number | null; published_at: string | null; sources: { weight: number; lang: string } | null } | null;
     };
   }[];
   if (!rows.length) return [];
@@ -103,6 +103,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
         id: r.cluster_id,
         ageHours: (now.getTime() - Date.parse(r.clusters.first_seen_at)) / HOUR,
         sourceWeight: rep?.sources?.weight ?? 1,
+        lang: rep?.sources?.lang,
         popularity: rep ? popularityBoost({ sourceWeight: 1, views: rep.views, hnPoints: rep.hn_points, publishedAt: rep.published_at }, now) : 1,
         size: r.clusters.size,
         isVideo: r.clusters.is_video,

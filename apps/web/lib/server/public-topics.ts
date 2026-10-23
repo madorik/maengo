@@ -48,7 +48,7 @@ interface SummaryRow {
     size: number;
     is_video: boolean;
     rep_item_id: number | null;
-    rep: { views: number | null; hn_points: number | null; published_at: string | null; sources: { weight: number } | null } | null;
+    rep: { views: number | null; hn_points: number | null; published_at: string | null; sources: { weight: number; lang: string } | null } | null;
   };
 }
 
@@ -73,7 +73,7 @@ const recent = cache(async () => {
   const summaries = must(
     await db
       .from('summaries')
-      .select('cluster_id,title,short,published_at,created_at,clusters!inner(first_seen_at,size,is_video,skip_reason,rep_item_id,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight)))')
+      .select('cluster_id,title,short,published_at,created_at,clusters!inner(first_seen_at,size,is_video,skip_reason,rep_item_id,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight,lang)))')
       .eq('tier', 'basic')
       .gte('clusters.first_seen_at', since)
       .is('clusters.skip_reason', null)
@@ -144,6 +144,7 @@ export async function publicTopicDigest(topic: PublicTopic): Promise<PublicTopic
         id: s.cluster_id,
         ageHours: (now.getTime() - Date.parse(s.clusters.first_seen_at)) / 3600_000,
         sourceWeight: rep?.sources?.weight ?? 1,
+        lang: rep?.sources?.lang,
         popularity: rep ? popularityBoost({ sourceWeight: 1, views: rep.views, hnPoints: rep.hn_points, publishedAt: rep.published_at }, now) : 1,
         size: s.clusters.size,
         isVideo: s.clusters.is_video,

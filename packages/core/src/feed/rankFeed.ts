@@ -1,6 +1,7 @@
 import { isLinkTopicId } from '../topics/links';
 import type { FeedbackKind } from '../types';
 import { isStaleMarketQuote } from './market';
+import { langBoost } from './quality';
 
 // PLAN.md 6.3 랭킹 공식. 순수 함수라 웹(첫 피드)과 파이프라인(rank 단계)이 같이 쓴다.
 // 내 관심 링크(토픽 's-…')의 글은 관련도 1이라 늘 위로 가므로, 하루 소식의 절반까지만 고른다(maxLinks, 2026-10-15 D19). 모자라면 제약을 풀어 채운다.
@@ -17,6 +18,8 @@ export interface RankCandidate {
   topics: { topicId: string; relevance: number }[];
   /** 대표 글 제목(요약이 있으면 요약 제목). 이틀 지난 시세 기사를 빼는 데 쓴다(market.ts). 없으면 빼지 않는다 */
   title?: string | null;
+  /** 대표 글 출처의 언어. 한국어면 점수를 더 준다(quality.ts langBoost). 없으면 배수 1 */
+  lang?: string | null;
 }
 
 export interface RankOptions {
@@ -64,7 +67,7 @@ const FRESHNESS_HOURS = 36;
 
 export function baseScore(c: RankCandidate): number {
   const freshness = Math.exp(-Math.max(0, c.ageHours) / FRESHNESS_HOURS);
-  return freshness * c.sourceWeight * (c.popularity ?? 1) * (1 + 0.3 * Math.log(Math.max(1, c.size)));
+  return freshness * c.sourceWeight * langBoost(c.lang) * (c.popularity ?? 1) * (1 + 0.3 * Math.log(Math.max(1, c.size)));
 }
 
 /**

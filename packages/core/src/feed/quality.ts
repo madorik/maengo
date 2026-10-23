@@ -34,6 +34,18 @@ export function itemQuality(s: QualitySignals, now: Date = new Date()): number {
   return s.sourceWeight * popularityBoost(s, now);
 }
 
+/**
+ * 한국어 출처의 배수(2026-10-24 사용자 결정: "한국 사이트에 가중치를 더 많이"). 소식끼리 순위(rankFeed)와 같은 소식 안 대표 글 고르기
+ * (pipeline cluster)에 곱한다. 출처 신뢰도(credibilityLabel)에는 넣지 않는다. 해외 소식은 그 관심사에 한국 소식이 모자랄 때 주로 들어온다
+ * (10-24 요약된 후보로 본 시뮬: 오늘 피드 28개 중 영어 4 → 2)
+ */
+export const KO_SOURCE_BOOST = 2;
+
+/** 출처 언어의 배수. 한국어면 KO_SOURCE_BOOST, 아니면(모르면) 1 */
+export function langBoost(lang: string | null | undefined): number {
+  return lang === 'ko' ? KO_SOURCE_BOOST : 1;
+}
+
 /** 요약 프롬프트에 붙이는 출처 신뢰도. 공식·큐레이션·전문 출처(가중치 1.0 이상)는 높음 */
 export function credibilityLabel(sourceWeight: number): '높음' | '보통' {
   return sourceWeight >= 1 ? '높음' : '보통';

@@ -73,6 +73,12 @@ export async function loadAudience(ctx: Ctx, only?: string | string[]): Promise<
   return [...byId.values()].filter((a) => Object.keys(a.weights).length > 0);
 }
 
+/** 출처별 가중치와 언어(대표 글의 출처로 후보 점수를 매긴다. 한국어는 rankFeed가 더 준다, core/feed/quality.ts langBoost) */
+async function sourceTraits(): Promise<{ weights: Map<number, number>; langs: Map<number, string> }> {
+  const rows = check(await db.from('sources').select('id,weight,lang'), 'sources') as { id: number; weight: number; lang: string }[];
+  return { weights: new Map(rows.map((r) => [r.id, r.weight])), langs: new Map(rows.map((r) => [r.id, r.lang])) };
+}
+
 export interface Candidate extends RankCandidate {
   summarized: boolean;
   centroid: number[] | null;
@@ -133,7 +139,7 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
     const rows = check(await db.from('items').select('id,source_id,views,hn_points,published_at,title').in('id', chunk), 'items') as RepItem[];
     for (const r of rows) repItems.set(r.id, r);
   });
-  const weights = new Map((check(await db.from('sources').select('id,weight'), 'sources') as { id: number; weight: number }[]).map((s) => [s.id, s.weight]));
+  const { weights, langs } = await sourceTraits();
 
   const freshSince = ctx.now.getTime() - freshHours * HOUR;
   return clusters
@@ -142,6 +148,7 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
       id: c.id,
       ageHours: (ctx.now.getTime() - Date.parse(c.first_seen_at)) / HOUR,
       sourceWeight: weights.get(repItems.get(c.rep_item_id ?? -1)?.source_id ?? -1) ?? 1,
+      lang: langs.get(repItems.get(c.rep_item_id ?? -1)?.source_id ?? -1),
       popularity: popularityOf(repItems.get(c.rep_item_id ?? -1), ctx.now),
       size: c.size,
       isVideo: c.is_video,
@@ -192,11 +199,12 @@ export async function loadTopicCandidates(
     const items = check(await db.from('items').select('id,source_id,views,hn_points,published_at,title').in('id', chunk), 'items') as RepItem[];
     for (const r of items) repItems.set(r.id, r);
   });
-  const weights = new Map((check(await db.from('sources').select('id,weight'), 'sources') as { id: number; weight: number }[]).map((x) => [x.id, x.weight]));
+  const { weights, langs } = await sourceTraits();
   return [...byCluster.values()].map(({ c, topics }) => ({
     id: c.id,
     ageHours: (ctx.now.getTime() - Date.parse(c.first_seen_at)) / HOUR,
     sourceWeight: weights.get(repItems.get(c.rep_item_id ?? -1)?.source_id ?? -1) ?? 1,
+    lang: langs.get(repItems.get(c.rep_item_id ?? -1)?.source_id ?? -1),
     popularity: popularityOf(repItems.get(c.rep_item_id ?? -1), ctx.now),
     size: c.size,
     isVideo: c.is_video,

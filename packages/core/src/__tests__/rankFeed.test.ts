@@ -156,3 +156,20 @@ test('관심사가 받는 수보다 많으면 날마다 돌아가며 하나씩 �
   assert.equal(skipped.size, 4); // 나흘 동안 네 관심사가 한 번씩 빠진다
   assert.equal(todaysTopics({ ai: 1, stock: 1 }, 3, '2026-10-24'), null);
 });
+
+test('한국어 출처 소식은 같은 조건의 해외 소식보다 앞선다(langBoost)', () => {
+  const out = rankFeed([c(1, 'ai', { lang: 'en' }), c(2, 'ai', { lang: 'ko' })], { ai: 1 }, new Set(), { limit: 2, maxPerTopic: 2 });
+  assert.deepEqual(out.map((x) => x.clusterId), [2, 1]);
+});
+
+test('해외 소식은 출처 가중치가 두 배 넘게 높아야 한국어 소식을 앞선다', () => {
+  const close = rankFeed([c(1, 'ai', { lang: 'en', sourceWeight: 1.9 }), c(2, 'ai', { lang: 'ko', sourceWeight: 1 })], { ai: 1 }, new Set(), { limit: 1 });
+  assert.equal(close[0]!.clusterId, 2);
+  const far = rankFeed([c(1, 'ai', { lang: 'en', sourceWeight: 2.1 }), c(2, 'ai', { lang: 'ko', sourceWeight: 1 })], { ai: 1 }, new Set(), { limit: 1 });
+  assert.equal(far[0]!.clusterId, 1);
+});
+
+test('관심사에 한국어 소식이 없으면 해외 소식으로 채운다', () => {
+  const out = rankFeed([c(1, 'robot', { lang: 'en' }), c(2, 'ai', { lang: 'ko' })], { robot: 1, ai: 1 }, new Set(), { limit: 2 });
+  assert.deepEqual(out.map((x) => x.clusterId).sort(), [1, 2]);
+});

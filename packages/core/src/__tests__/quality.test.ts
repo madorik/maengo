@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { credibilityLabel, itemQuality, popularityBoost } from '../feed/quality';
+import { credibilityLabel, itemQuality, KO_SOURCE_BOOST, langBoost, popularityBoost } from '../feed/quality';
 import { rankFeed, type RankCandidate } from '../feed/rankFeed';
 
 const now = new Date('2026-10-11T00:00:00Z');
@@ -41,4 +41,10 @@ test('같은 조건이면 많이 본 영상이 순위에서 앞선다', () => {
   const c = (id: number, popularity: number): RankCandidate => ({ id, ageHours: 6, sourceWeight: 1, size: 1, isVideo: true, popularity, topics: [{ topicId: 'ai', relevance: 0.9 }] });
   const out = rankFeed([c(1, 0.9), c(2, 1.4)], { ai: 1 }, new Set(), { limit: 2 });
   assert.deepEqual(out.map((x) => x.clusterId), [2, 1]);
+});
+
+test('출처 언어 배수: 한국어만 더 준다', () => {
+  assert.equal(langBoost('ko'), KO_SOURCE_BOOST);
+  assert.equal(langBoost('en'), 1);
+  assert.equal(langBoost(undefined), 1);
 });

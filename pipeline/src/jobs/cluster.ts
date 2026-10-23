@@ -1,4 +1,4 @@
-import { itemQuality } from '@maengo/core/feed';
+import { itemQuality, langBoost } from '@maengo/core/feed';
 import { db, check, fromVector, inChunks, selectAll, toVector } from '../lib/db';
 import { add, cosine, normalize } from '../lib/vec';
 import { HOUR, type Ctx } from '../lib/ctx';
@@ -37,12 +37,15 @@ export async function cluster(ctx: Ctx) {
   const items = await selectAll<ItemRow>((from, to) =>
     db.from('items').select('id,embedding,cluster_id,kind,source_id,published_at,views,hn_points').not('embedding', 'is', null).gte('published_at', since).order('id').range(from, to),
   );
-  const weights = new Map<number, number>(
-    (check(await db.from('sources').select('id,weight'), 'sources') as { id: number; weight: number }[]).map((s) => [s.id, s.weight]),
-  );
+  const sources = check(await db.from('sources').select('id,weight,lang'), 'sources') as { id: number; weight: number; lang: string }[];
+  const weights = new Map<number, number>(sources.map((s) => [s.id, s.weight]));
+  const langs = new Map<number, string>(sources.map((s) => [s.id, s.lang]));
+  // 대표 글(원문 링크·순위에 쓰는 글)은 같은 소식이면 한국어 출처를 먼저 고른다(langBoost, 2026-10-24)
   const memberOf = (it: ItemRow) => ({
     id: it.id,
-    quality: itemQuality({ sourceWeight: weights.get(it.source_id ?? -1) ?? 1, views: it.views, hnPoints: it.hn_points, publishedAt: it.published_at }, ctx.now),
+    quality:
+      itemQuality({ sourceWeight: weights.get(it.source_id ?? -1) ?? 1, views: it.views, hnPoints: it.hn_points, publishedAt: it.published_at }, ctx.now) *
+      langBoost(langs.get(it.source_id ?? -1)),
     at: Date.parse(it.published_at ?? ctx.now.toISOString()),
     kind: it.kind,
   });
