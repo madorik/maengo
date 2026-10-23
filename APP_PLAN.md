@@ -52,7 +52,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 ├─ offline.html               웹을 못 불러올 때 안내 화면 원본. sync 때 서버 주소를 넣어 www/index.html로 만든다(www는 gitignore)
 ├─ ios/                       Xcode 프로젝트(커밋한다)
 ├─ android/                   Android Studio 프로젝트(커밋한다)
-├─ assets/                    아이콘·스플래시 원본 PNG(scripts/render-assets.mjs가 icon.svg 그림으로 만든다)
+├─ assets/                    아이콘·스플래시 원본 PNG(scripts/render-assets.mjs가 만든다. 아이콘은 icon.svg 망고, 스플래시는 이어폰 끼고 소식 듣는 맹고)
 └─ scripts/render-assets.mjs
 ```
 
@@ -60,7 +60,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 - 개발 서버로: `CAP_SERVER_URL=http://localhost:3100 npx cap sync` → `npx cap run ios` / `adb reverse tcp:3100 tcp:3100 && npx cap run android`. 시뮬레이터·에뮬레이터는 localhost로 맥에 닿는다
 - 실기기는 `http://<맥 LAN IP>:3100`. 단 맥 방화벽이 node의 들어오는 연결을 막고 있어(2026-10-10 확인) 풀어야 하고, Next 개발 서버의 `allowedDevOrigins`에 그 IP를 더해야 한다
 - 운영으로 되돌리기: `CAP_SERVER_URL` 없이 `npx cap sync`. 서버 주소는 sync 때 네이티브 프로젝트에 들어가므로 바꿀 때마다 sync한다
-- 아이콘·스플래시를 바꾸면: `node scripts/render-assets.mjs && npx @capacitor/assets@3.0.5 generate --ios --android`(pnpm dlx는 sharp 설치 스크립트를 막아 실패한다)
+- 아이콘·스플래시를 바꾸면: `node scripts/render-assets.mjs && npx @capacitor/assets@3.0.5 generate --ios --android`(pnpm dlx는 sharp 설치 스크립트를 막아 실패한다). assets 도구가 AndroidManifest.xml 줄바꿈을 바꿔 놓으니 그 파일은 되돌린다. 안드로이드 12+ 스플래시 아이콘(res/drawable-*/splash_icon.png)은 render-assets.mjs가 바로 넣는다
 
 - **원격 URL 방식**: `server.url`(기본 `https://watalabs.com/maengo`(2026-10-17부터, 1.1은 `https://maengo.vercel.app`), 개발 때는 `CAP_SERVER_URL=http://<맥 LAN IP>:3100`)을 띄운다. 웹이 서버 컴포넌트·Server Actions를 써서 정적 export로 넣을 수 없다. 웹을 배포하면 앱도 바로 바뀐다(스토어 심사 없음). Capacitor 문서는 `server.url`을 라이브 리로드용으로 설명하니, 4.2 거절을 줄이려면 1장의 앱 전용 기능을 꼭 갖춘다.
 - **앱인지 알아내기**: `appendUserAgent: 'MaengoApp/<버전> (ios|android)'`. 서버는 UA로(`lib/server/app-client.ts` 같은 헬퍼), 브라우저 코드는 `Capacitor.isNativePlatform()`으로 본다.

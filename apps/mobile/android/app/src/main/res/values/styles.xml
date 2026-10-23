@@ -19,9 +19,10 @@
     </style>
 
 
-    <!-- 안드로이드 12+ 시스템 스플래시: 망고색 바탕에 앱 아이콘. 11 이하는 android:background의 splash.png -->
+    <!-- 안드로이드 12+ 시스템 스플래시: 망고색 바탕에 이어폰 낀 맹고(splash_icon, scripts/render-assets.mjs). 11 이하는 android:background의 splash.png -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
         <item name="windowSplashScreenBackground">#FFC23D</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
     </style>
 </resources>
