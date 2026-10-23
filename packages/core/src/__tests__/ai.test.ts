@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { isKoreanSummary } from '../ai/gemini';
 import { GEMINI_MODELS } from '../ai/models';
 import { createDummyAi } from '../ai/dummy';
 import { templateScript } from '../ai/script';
@@ -81,4 +82,10 @@ test('TTS 글: 말투 지시문 없이 대본 줄만, 대담은 화자 이름을
   const pair = ttsText(templateScript({ ...item, persona: 'dialogue' }), true);
   assert.match(pair.split('\n')[0]!, /^진행자: /);
   assert.match(pair.split('\n')[1]!, /^해설자: /);
+});
+
+test('요약 언어 검사: 원어 이름이 섞인 한국어는 통과, 영어 요약은 막는다', () => {
+  assert.equal(isKoreanSummary('OpenAI, ChatGPT 음성 모델 GPT-Live-1.1 배포 PostgreSQL 19 출시가 11월로 미뤄졌어요.'), true);
+  assert.equal(isKoreanSummary('Import AI 477: In which I tell the IMF the Singularity has begun. Jack Clark writes about RSI.'), false);
+  assert.equal(isKoreanSummary(''), false);
 });

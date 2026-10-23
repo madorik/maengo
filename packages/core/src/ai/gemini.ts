@@ -16,6 +16,16 @@ export { PROMPT_VERSION } from './prompts';
 
 export const EMBED_DIMENSIONS = 768;
 
+/**
+ * 요약 글이 한국어인지. 제품·회사 이름은 원어로 쓰니 영문 글자가 섞여도 되고, 글자 중 한글이 20% 미만이면 영어 요약으로 본다.
+ * (2026-10-23 운영 요약 163개는 모두 통과, 영어로 쓴 요약은 한글이 거의 0이다)
+ */
+export function isKoreanSummary(text: string): boolean {
+  const hangul = text.match(/[가-힣]/g)?.length ?? 0;
+  const latin = text.match(/[A-Za-z]/g)?.length ?? 0;
+  return hangul > 0 && hangul >= (hangul + latin) * 0.2;
+}
+
 /** TTS 목소리(Gemini 기본 목소리 이름). 대담은 진행자 = 여성, 해설자 = 남성 */
 const TTS_VOICES = { f: 'Kore', m: 'Charon' } as const;
 
@@ -395,9 +405,14 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
         .map((t) => ({ topicId: t.id, relevance: Math.min(1, Math.max(0, Number(t.relevance) || 0)) }))
         .slice(0, 3);
       const picked = new Set(topics.map((t) => t.topicId));
+      const skip = data.skip?.trim() ? data.skip.trim() : null;
+      // 영문 글을 요약하다 영어로 답하면 저장하지 않는다(요약 실패로 세어 다시 시도된다)
+      if (!skip && !isKoreanSummary([data.title ?? '', data.short ?? '', ...(data.body ?? [])].join(' '))) {
+        throw new GeminiOutputError(model, `한국어가 아닌 요약: ${(data.title ?? '').slice(0, 60)}`);
+      }
       return {
         model,
-        skip: data.skip?.trim() ? data.skip.trim() : null,
+        skip,
         title: data.title?.trim() ?? '',
         short: data.short?.trim() ?? '',
         body: (data.body ?? []).map((p) => p.trim()).filter(Boolean),

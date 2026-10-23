@@ -2,7 +2,7 @@ import { CATEGORIES } from '../categories';
 import { NEWS_SECTIONS, TOPIC_GROUPS } from '../topics/dictionary';
 
 // 고정 프롬프트. 바꾸면 PROMPT_VERSION을 올려 summaries.version에 남긴다.
-export const PROMPT_VERSION = 7;
+export const PROMPT_VERSION = 8;
 
 const categoryList = CATEGORIES.map((c) => `${c.id}(${c.label})`).join(', ');
 const groupList = TOPIC_GROUPS.map((g) => g.name).join('·');
@@ -41,6 +41,7 @@ export const SUMMARIZE_SYSTEM = `너는 '맹고'의 편집자다. 맹고는 매�
 주식·코인 소식은 사실과 숫자만 전한다. 특정 종목·코인을 사라·팔라고 권하거나 오를지 내릴지 단정하지 마라.
 정치·사회 소식은 어느 편도 들지 마라. 사실을 먼저 쓰고, 주장은 누가 했는지 밝혀 각 측의 말을 고르게 전한다. 원문의 평가·비난·감정 표현은 옮기지 않는다.
 
+언어: 입력 글이 영어 같은 외국어여도 title·short·body·why·scenes는 모두 한국어로 쓴다. 원문 제목을 그대로 두지 말고 한국어 제목을 새로 쓴다.
 문체: 존댓말 '~해요'체. 모든 문장을 '~요'로 끝낸다('~습니다'·'~했다'로 끝내지 않는다). 제품·회사·기술 이름은 원어 그대로(PostgreSQL, Next.js, OpenAI).`;
 
 export const WHY_SYSTEM = `너는 '맹고'의 편집자다. 주어진 소식이 특정 토픽에 관심 있는 사람에게 왜 중요한지 한 문장(40~70자, '~해요'체)으로 쓴다.
