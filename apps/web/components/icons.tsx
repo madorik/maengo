@@ -32,6 +32,7 @@ export const IconExternal = (p: Props) => (
 export const IconWave = (p: Props) => <Line {...p}><path d="M6 10v6" /><path d="M10 6v12" /><path d="M14 9v8" /><path d="M18 12v4" /></Line>;
 export const IconChevronDown = (p: Props) => <Line {...p}><path d="M6 9l6 6 6-6" /></Line>;
 export const IconBack = (p: Props) => <Line {...p}><path d="M15 6l-6 6 6 6" /></Line>;
+export const IconChevronRight = (p: Props) => <Line {...p}><path d="M9 6l6 6-6 6" /></Line>;
 export const IconPodcast = (p: Props) => <Line {...p}><path d="M5 19.5h.01" /><path d="M5 12a7 7 0 0 1 7 7" /><path d="M5 5a14 14 0 0 1 14 14" /></Line>;
 export const IconUser = (p: Props) => <Line {...p}><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" /><path d="M4 20a8 8 0 0 1 16 0" /></Line>;
 export const IconBell = (p: Props) => <Line {...p}><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></Line>;

@@ -4,6 +4,7 @@ import { track } from "@/lib/analytics";
 import type { FeedbackKind } from "@maengo/core/types";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { useSwipeSurface } from "@/components/app/SwipePager";
 import { IconExternal, IconNext, IconThumbDown, IconThumbUp } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { useProfile } from "@/components/providers/ProfileProvider";
@@ -85,6 +86,9 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
     paraRefs.current[activePara]?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
   }, [activePara, playing]);
 
+  // 앱에서는 본문을 좌우로 밀어 이전·다음 글로 넘긴다(article/layout.tsx의 ArticleSwipe). 머리말과 듣기 막대는 제자리에 둔다
+  const swipeRef = useSwipeSurface();
+
   const fb = feedback[item.clusterId];
   const sourceLink = item.kind === "video" ? "유튜브에서 보기" : "원문 보기";
 
@@ -102,7 +106,7 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
       </header>
 
       {/* 아래 여백: '이 글 듣기' 막대(높이는 ListenBar가 --listen-bar-h로 남긴다) + 그 위 플레이어 버튼만큼 */}
-      <main className="mx-auto max-w-[680px] px-5 pb-[calc(var(--listen-bar-h,104px)+88px)] pt-6">
+      <main ref={swipeRef} className="mx-auto max-w-[680px] px-5 pb-[calc(var(--listen-bar-h,104px)+88px)] pt-6">
         <div className="flex flex-wrap items-center gap-2">
           <CategoryChip category={item.category} />
           <SourceChip item={item} />
