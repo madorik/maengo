@@ -72,13 +72,14 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
   const rows = must(
     await db
       .from('summaries')
-      .select('cluster_id, clusters!inner(first_seen_at,size,is_video,skip_reason,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight)))')
+      .select('cluster_id, title, clusters!inner(first_seen_at,size,is_video,skip_reason,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight)))')
       .eq('tier', 'basic')
       .gte('clusters.first_seen_at', since)
       .is('clusters.skip_reason', null),
     'candidates',
   ) as unknown as {
     cluster_id: number;
+    title: string;
     clusters: {
       first_seen_at: string;
       size: number;
@@ -106,6 +107,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
         size: r.clusters.size,
         isVideo: r.clusters.is_video,
         topics: byCluster.get(r.cluster_id)!,
+        title: r.title,
       };
     });
 }
@@ -113,7 +115,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
 async function buildToday(profile: Profile, date: string): Promise<FeedRow[]> {
   const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(), rankWeightsOf(profile), exclusions(profile.id, date)]);
   // 내 관심 링크 글은 하루 소식의 절반까지(D19)
-  const ranked = rankFeed(candidates, weights, exclude, { limit: MAX_DAILY, maxLinks: linkCap(entitlements(profile).dailyItems) }).map((r, i) => ({ rank: i + 1, clusterId: r.clusterId, topicId: r.topicId }));
+  const ranked = rankFeed(candidates, weights, exclude, { limit: MAX_DAILY, visible: entitlements(profile).dailyItems, maxLinks: linkCap(entitlements(profile).dailyItems), day: date }).map((r, i) => ({ rank: i + 1, clusterId: r.clusterId, topicId: r.topicId }));
   if (ranked.length) {
     must(
       await db.from('feeds').upsert(

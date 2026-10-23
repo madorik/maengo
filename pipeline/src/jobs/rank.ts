@@ -39,7 +39,7 @@ export async function rank(ctx: Ctx) {
       const prev = rebuild ? await previousDay(a.id, ctx.date) : null;
       const kept = prev ? prev.rows.slice(0, prev.visible) : [];
       for (const k of kept) exclude.add(k.cluster_id);
-      const ranked = rankFeed(candidates, a.weights, exclude, { limit: Math.max(0, MAX_DAILY - kept.length), maxLinks: linkCap(a.dailyItems) });
+      const ranked = rankFeed(candidates, a.weights, exclude, { limit: Math.max(0, MAX_DAILY - kept.length), visible: a.dailyItems, maxLinks: linkCap(a.dailyItems), day: ctx.date });
       const rows = [...kept, ...ranked.map((r) => ({ cluster_id: r.clusterId, topic_id: r.topicId }))];
       if (!rows.length) {
         empty++;

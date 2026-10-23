@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { feedbackDelta, linkCap, rankFeed, type RankCandidate } from '../feed/rankFeed';
+import { isMarketQuote } from '../feed/market';
+import { bestTopic, feedbackDelta, linkCap, MIN_RELEVANCE, perTopicShare, rankFeed, todaysTopics, type RankCandidate } from '../feed/rankFeed';
 import { initialTopicWeights, TOPIC_GROUPS, TOPICS, whyLead } from '../topics/dictionary';
 
 const c = (id: number, topicId: string, extra: Partial<RankCandidate> = {}): RankCandidate => ({
@@ -100,4 +101,58 @@ test('사전 id는 겹치지 않고, 큰 분류는 부모가 없다', () => {
 
 test('why 앞머리는 직업이 아니라 관심 토픽으로', () => {
   assert.equal(whyLead('RAG'), 'RAG에 관심 있다면');
+});
+
+test('관심사 셋을 고른 무료(하루 3개)는 관심사마다 하나씩 받는다', () => {
+  // 주식 소식 점수가 더 높아도 한 관심사가 2개를 가져가지 않는다(2026-10-23: 주식·코인·반도체로봇을 고른 사람이 사흘간 반도체로봇 1개)
+  const stock = [1, 2, 3].map((id) => c(id, 'stock', { size: 6 }));
+  const out = rankFeed([...stock, c(4, 'coin'), c(5, 'chip-robot')], { stock: 1, coin: 1, 'chip-robot': 1 }, new Set(), { limit: 3 });
+  assert.deepEqual(out.map((x) => x.topicId).sort(), ['chip-robot', 'coin', 'stock']);
+  assert.equal(perTopicShare(3, { stock: 1, coin: 1, 'chip-robot': 1 }), 1);
+  assert.equal(perTopicShare(10, { ai: 1, coin: 1, 'chip-robot': 1, kospi: 1, kosdaq: 1 }), 2);
+  assert.equal(perTopicShare(3, { ai: 1, 's-12': 1 }), 3); // 내 관심 링크는 관심사 수에 넣지 않는다
+});
+
+test('요약 뒤 분류에 이 사람 관심사가 없으면 대표 토픽이 없다', () => {
+  assert.equal(bestTopic([{ topicId: 'society', relevance: 1 }], { kospi: 1, kosdaq: 1 }), null);
+  assert.equal(bestTopic([{ topicId: 'kospi', relevance: 0.6 }, { topicId: 'ai', relevance: 0.9 }], { kospi: 1, ai: 0.5 }), 'kospi');
+});
+
+test('여분까지 골라도 앞에서부터 하루 소식만큼 쓰면 관심사별 몫이 지켜진다', () => {
+  // 배송은 하루 3개 + 여분 3개를 고르고 앞에서부터 쓴다. 점수순으로 다시 섞으면 주식 셋이 앞에 왔다
+  const stock = [1, 2, 3, 4].map((id) => c(id, 'stock', { size: 6 }));
+  const out = rankFeed([...stock, c(5, 'coin'), c(6, 'chip-robot')], { stock: 1, coin: 1, 'chip-robot': 1 }, new Set(), { limit: 6, visible: 3 });
+  assert.deepEqual(out.slice(0, 3).map((x) => x.topicId).sort(), ['chip-robot', 'coin', 'stock']);
+  assert.equal(out.length, 6);
+});
+
+test('시세·증시 마감 기사는 이틀까지만', () => {
+  const quote = (id: number, ageHours: number) => c(id, 'kospi', { ageHours, title: '코스피 7.57% 급락…AI 인프라 신용 리스크' });
+  const earnings = c(3, 'kospi', { ageHours: 200, title: 'TSMC 3분기 순이익 68.7% 급증' });
+  const out = rankFeed([quote(1, 47), quote(2, 49), earnings], { kospi: 1 }, new Set(), { limit: 10 });
+  assert.deepEqual(out.map((x) => x.clusterId).sort(), [1, 3]);
+  for (const t of ['뉴욕증시, 기술주 반등에 나스닥 1.11% 상승 마감', '국제유가, 중동 긴장 속 장중 최고치 찍고 하락', '원·달러 환율 1,400원 돌파', 'Bitcoin slides below $100,000']) assert.ok(isMarketQuote(t), t);
+  for (const t of ['신현송 한은 총재 취임 6개월, 물가 관리 집중', '이태원참사 유가족 협의회 기자회견', '앤트로픽, IPO 앞두고 매출 15배 급증']) assert.ok(!isMarketQuote(t), t);
+});
+
+test('관련도 0.4 아래 분류는 없는 셈 친다', () => {
+  const noise = c(1, 'kospi', { topics: [{ topicId: 'kospi', relevance: MIN_RELEVANCE - 0.01 }] });
+  const ok = c(2, 'kospi', { topics: [{ topicId: 'kospi', relevance: MIN_RELEVANCE }] });
+  assert.deepEqual(rankFeed([noise, ok], { kospi: 1 }, new Set(), { limit: 10 }).map((x) => x.clusterId), [2]);
+});
+
+test('관심사가 받는 수보다 많으면 날마다 돌아가며 하나씩 빠진다', () => {
+  const weights = { dev: 1, ai: 1, stock: 1, 'chip-robot': 1 };
+  // 주식 점수가 늘 높아도, 날마다 차례인 관심사 셋이 하나씩 받는다
+  const cands = [c(1, 'dev'), c(2, 'ai'), c(3, 'stock', { size: 9 }), c(4, 'stock', { size: 9 }), c(5, 'chip-robot')];
+  const skipped = new Set<string>();
+  for (const day of ['2026-10-24', '2026-10-25', '2026-10-26', '2026-10-27']) {
+    const got = rankFeed(cands, weights, new Set(), { limit: 6, visible: 3, day }).slice(0, 3).map((x) => x.topicId);
+    assert.equal(new Set(got).size, 3, `${day}: ${got}`);
+    const missing = Object.keys(weights).filter((t) => !got.includes(t));
+    assert.equal(missing.length, 1);
+    skipped.add(missing[0]!);
+  }
+  assert.equal(skipped.size, 4); // 나흘 동안 네 관심사가 한 번씩 빠진다
+  assert.equal(todaysTopics({ ai: 1, stock: 1 }, 3, '2026-10-24'), null);
 });

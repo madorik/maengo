@@ -194,7 +194,7 @@ export async function summarize(ctx: Ctx) {
   for (const a of audience) {
     const exclude = await withSimilarExcluded(a, candidates);
     const want = a.dailyItems + (a.plan === 'free' ? BUFFER.free : BUFFER.paid);
-    for (const r of rankFeed(candidates, a.weights, exclude, { limit: want, maxLinks: linkCap(a.dailyItems) })) {
+    for (const r of rankFeed(candidates, a.weights, exclude, { limit: want, visible: a.dailyItems, maxLinks: linkCap(a.dailyItems), day: ctx.date })) {
       const c = candidates.find((x) => x.id === r.clusterId)!;
       if (!c.summarized) needed.set(r.clusterId, Math.max(needed.get(r.clusterId) ?? 0, r.score));
     }

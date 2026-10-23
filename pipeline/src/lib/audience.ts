@@ -84,6 +84,15 @@ export interface Candidate extends RankCandidate {
  */
 export const summarizable = (c: Candidate): boolean => c.summarized || !c.isVideo;
 
+/**
+ * 묶음의 지금 분류. 요약하면 AI가 임베딩으로 붙인 분류를 지우고 다시 정하므로(summarizeCluster), 요약한 뒤에 읽어 후보의 topics를 바꾼다.
+ * 안 바꾸면 '부산교통공사 파업'이 임베딩 분류(코스피)대로 코스피 소식으로 나갔다(2026-10-23, 요약 뒤 분류는 사회뿐)
+ */
+export async function clusterTopics(clusterId: number): Promise<{ topicId: string; relevance: number }[]> {
+  const rows = check(await db.from('cluster_topics').select('topic_id,relevance').eq('cluster_id', clusterId), 'cluster_topics') as { topic_id: string; relevance: number }[];
+  return rows.map((r) => ({ topicId: r.topic_id, relevance: r.relevance }));
+}
+
 /** 묶음의 대표 글. 출처 가중치와 인기(조회수·점수)를 랭킹에 넘긴다 */
 interface RepItem {
   id: number;
@@ -91,6 +100,7 @@ interface RepItem {
   views: number | null;
   hn_points: number | null;
   published_at: string | null;
+  title: string;
 }
 
 function popularityOf(rep: RepItem | undefined, now: Date): number {
@@ -120,7 +130,7 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
   });
   const repIds = clusters.map((c) => c.rep_item_id).filter((x): x is number => x != null);
   await inChunks(repIds, 200, async (chunk) => {
-    const rows = check(await db.from('items').select('id,source_id,views,hn_points,published_at').in('id', chunk), 'items') as RepItem[];
+    const rows = check(await db.from('items').select('id,source_id,views,hn_points,published_at,title').in('id', chunk), 'items') as RepItem[];
     for (const r of rows) repItems.set(r.id, r);
   });
   const weights = new Map((check(await db.from('sources').select('id,weight'), 'sources') as { id: number; weight: number }[]).map((s) => [s.id, s.weight]));
@@ -136,6 +146,7 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
       size: c.size,
       isVideo: c.is_video,
       topics: topics.get(c.id)!,
+      title: repItems.get(c.rep_item_id ?? -1)?.title ?? null,
       summarized: summarized.has(c.id),
       centroid: fromVector(c.centroid),
     }));
@@ -178,7 +189,7 @@ export async function loadTopicCandidates(
   });
   const repIds = [...byCluster.values()].map((v) => v.c.rep_item_id).filter((x): x is number => x != null);
   await inChunks(repIds, 200, async (chunk) => {
-    const items = check(await db.from('items').select('id,source_id,views,hn_points,published_at').in('id', chunk), 'items') as RepItem[];
+    const items = check(await db.from('items').select('id,source_id,views,hn_points,published_at,title').in('id', chunk), 'items') as RepItem[];
     for (const r of items) repItems.set(r.id, r);
   });
   const weights = new Map((check(await db.from('sources').select('id,weight'), 'sources') as { id: number; weight: number }[]).map((x) => [x.id, x.weight]));
@@ -190,6 +201,7 @@ export async function loadTopicCandidates(
     size: c.size,
     isVideo: c.is_video,
     topics,
+    title: repItems.get(c.rep_item_id ?? -1)?.title ?? null,
     summarized: summarized.has(c.id),
     centroid: fromVector(c.centroid),
   }));

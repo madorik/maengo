@@ -1,9 +1,9 @@
-import { linkCap, rankFeed, type RankedItem } from '@maengo/core/feed';
+import { bestTopic, linkCap, rankFeed, type RankedItem } from '@maengo/core/feed';
 import { createGeminiAi } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
 import { summarizeCluster } from './jobs/summarize';
 import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
-import { loadAudience, loadCandidates, loadTopicCandidates, summarizable, withSimilarExcluded, type Audience, type Candidate } from './lib/audience';
+import { clusterTopics, loadAudience, loadCandidates, loadTopicCandidates, summarizable, withSimilarExcluded, type Audience, type Candidate } from './lib/audience';
 import { HOUR, type Ctx } from './lib/ctx';
 import { check, db } from './lib/db';
 import { env } from './lib/env';
@@ -191,7 +191,10 @@ export async function buildFeedsFor(
             if (r !== 'ok') return false;
             summarized++;
             const c = seen.get(id);
-            if (c) c.summarized = true;
+            if (c) {
+              c.summarized = true;
+              c.topics = await clusterTopics(id);
+            }
             return true;
           } catch (e) {
             if (isAiBlocked(e)) aiBlocked = true;
@@ -216,7 +219,7 @@ export async function buildFeedsFor(
       const pick = (): RankedItem[] => {
         const pool = [...seen.values()].filter((c) => summarizable(c) && (c.summarized || (mayMake && !aiBlocked)));
         // 내 관심 링크 글은 하루 소식의 절반까지(D19). 여분(SPARE)에도 같은 상한을 둔다
-        const opts = { limit: want + SPARE, maxLinks: linkCap(want) };
+        const opts = { limit: want + SPARE, visible: want, maxLinks: linkCap(want), day: ctx.date };
         return rankFeed(pool, a.weights, exclude, opts);
       };
       let ranked = pick();
@@ -231,7 +234,11 @@ export async function buildFeedsFor(
         const batch = ranked.slice(i, i + (want - got.length));
         i += batch.length;
         const ok = await Promise.all(batch.map((r) => ensureSummary(r.clusterId)));
-        batch.forEach((r, k) => ok[k] && got.push(r));
+        // 요약하면서 분류가 바뀌었으면(ensureSummary가 topics를 새로 읽는다) 이 사람 관심사가 남았는지 다시 보고, 없으면 다음 것으로 채운다
+        batch.forEach((r, k) => {
+          const topicId = ok[k] ? bestTopic(seen.get(r.clusterId)?.topics ?? [], a.weights) : null;
+          if (topicId) got.push({ ...r, topicId });
+        });
         if (Date.now() > deadline) break;
       }
       if (!got.length) return Date.now() > deadline ? 'later' : aiBlocked ? 'blocked' : 'empty';

@@ -1,5 +1,6 @@
 import { isLinkTopicId } from '../topics/links';
 import type { FeedbackKind } from '../types';
+import { isStaleMarketQuote } from './market';
 
 // PLAN.md 6.3 랭킹 공식. 순수 함수라 웹(첫 피드)과 파이프라인(rank 단계)이 같이 쓴다.
 // 내 관심 링크(토픽 's-…')의 글은 관련도 1이라 늘 위로 가므로, 하루 소식의 절반까지만 고른다(maxLinks, 2026-10-15 D19). 모자라면 제약을 풀어 채운다.
@@ -14,14 +15,37 @@ export interface RankCandidate {
   popularity?: number;
   isVideo: boolean;
   topics: { topicId: string; relevance: number }[];
+  /** 대표 글 제목(요약이 있으면 요약 제목). 이틀 지난 시세 기사를 빼는 데 쓴다(market.ts). 없으면 빼지 않는다 */
+  title?: string | null;
 }
 
 export interface RankOptions {
   limit?: number;
+  /** 이 사람이 실제로 받는 수(하루 소식). limit에 여분을 더해 고를 때 넘긴다. 관심사별 몫(perTopicShare)을 이 수로 나눈다. 없으면 limit */
+  visible?: number;
   maxPerTopic?: number;
   maxVideos?: number;
   /** 대표 토픽이 내 관심 링크인 소식의 상한. 없으면 제한 없음 */
   maxLinks?: number;
+  /** 피드 날짜(KST 'YYYY-MM-DD'). 관심사가 받는 수보다 많으면 이 날짜로 돌아가며 먼저 줄 관심사를 고른다(todaysTopics). 없으면 돌리지 않는다 */
+  day?: string;
+}
+
+/**
+ * 이보다 관련도가 낮은 분류는 랭킹에서 없는 셈 친다. 임베딩 분류(tag 단계)는 관련도 0.5 이상이면 89%, 0.4 이상 82%가 맞고
+ * 그 아래는 '김천 고물상 매몰 → 코스피(0.06)' 같은 잡음이었다(2026-10-23, 요약된 묶음 109개의 AI 분류와 비교). AI 분류는 곁가지도 0.4 이상이다
+ */
+export const MIN_RELEVANCE = 0.4;
+
+/**
+ * 관심사가 하루 받는 수보다 많을 때 오늘 먼저 한 자리씩 줄 관심사: 이름순으로 늘어놓고 날마다 한 칸씩 밀어 visible개.
+ * 점수로만 고르면 늘 같은 관심사가 빠졌다(무료 3개에 관심사 4개 → 반도체·로봇이 매일 빠짐, 2026-10-23). 관심사가 받는 수 이하면 null
+ */
+export function todaysTopics(weights: Record<string, number>, visible: number, day: string): string[] | null {
+  const interests = Object.keys(weights).filter((t) => !isLinkTopicId(t) && (weights[t] ?? 0) > 0).sort();
+  if (interests.length <= visible) return null;
+  const start = Math.floor(Date.parse(`${day}T00:00:00Z`) / 86_400_000) % interests.length;
+  return Array.from({ length: visible }, (_, i) => interests[(start + i) % interests.length]!);
 }
 
 /** 하루 소식 중 내 관심 링크 글의 상한: 절반(올림). Premium 10개면 5개 */
@@ -43,24 +67,43 @@ export function baseScore(c: RankCandidate): number {
   return freshness * c.sourceWeight * (c.popularity ?? 1) * (1 + 0.3 * Math.log(Math.max(1, c.size)));
 }
 
+/**
+ * 이 사람 관심사 중 이 소식의 대표 토픽(가중치 × 관련도가 가장 큰 것). 없으면 null.
+ * 요약하면 AI가 분류를 다시 정하므로(summarizeCluster), 요약 뒤에 다시 불러 관심사가 남았는지 본다
+ */
+export function bestTopic(topics: RankCandidate['topics'], weights: Record<string, number>): string | null {
+  let best = { topicId: '', value: 0 };
+  for (const t of topics) {
+    if (t.relevance < MIN_RELEVANCE) continue;
+    const value = (weights[t.topicId] ?? 0) * t.relevance;
+    if (value > best.value) best = { topicId: t.topicId, value };
+  }
+  return best.topicId || null;
+}
+
+/**
+ * 관심사 하나가 하루 소식에서 먼저 차지할 수 있는 수: 하루 소식 수를 고른 관심사 수로 나눈 몫(올림).
+ * 전에는 늘 2개라 무료(하루 3개)로 관심사 셋을 고르면 한 관심사가 2개를 가져가 하나는 못 받았다(2026-10-23)
+ */
+export function perTopicShare(limit: number, weights: Record<string, number>): number {
+  const interests = Object.keys(weights).filter((t) => !isLinkTopicId(t) && (weights[t] ?? 0) > 0).length;
+  return Math.max(1, Math.ceil(limit / Math.max(1, interests)));
+}
+
 export function rankFeed(
   candidates: RankCandidate[],
   weights: Record<string, number>,
   exclude: ReadonlySet<number>,
-  { limit = 5, maxPerTopic = 2, maxVideos = 2, maxLinks = Infinity }: RankOptions = {},
+  { limit = 5, visible = limit, maxPerTopic = perTopicShare(visible, weights), maxVideos = 2, maxLinks = Infinity, day }: RankOptions = {},
 ): RankedItem[] {
   const scored: (RankedItem & { isVideo: boolean })[] = [];
   for (const c of candidates) {
-    if (exclude.has(c.id)) continue;
+    if (exclude.has(c.id) || isStaleMarketQuote(c)) continue;
     let relevance = 0;
-    let best = { topicId: '', value: 0 };
-    for (const t of c.topics) {
-      const value = (weights[t.topicId] ?? 0) * t.relevance;
-      relevance += value;
-      if (value > best.value) best = { topicId: t.topicId, value };
-    }
-    if (relevance <= 0) continue;
-    scored.push({ clusterId: c.id, topicId: best.topicId, score: relevance * baseScore(c), isVideo: c.isVideo });
+    for (const t of c.topics) if (t.relevance >= MIN_RELEVANCE) relevance += (weights[t.topicId] ?? 0) * t.relevance;
+    const topicId = bestTopic(c.topics, weights);
+    if (relevance <= 0 || !topicId) continue;
+    scored.push({ clusterId: c.id, topicId, score: relevance * baseScore(c), isVideo: c.isVideo });
   }
   scored.sort((a, b) => b.score - a.score || a.clusterId - b.clusterId);
 
@@ -84,12 +127,15 @@ export function rankFeed(
       if (isLinkTopicId(s.topicId)) links++;
     }
   };
+  // 고른 차례대로 돌려준다(각 단계 안은 점수순). 부르는 쪽은 여분까지 고른 뒤 앞에서부터 하루 소식만큼 쓰므로,
+  // 전체를 점수순으로 다시 섞으면 제약을 풀어 채운 같은 관심사 소식이 앞으로 와서 관심사별 몫이 깨진다(2026-10-23)
+  // 관심사가 받는 수보다 많으면 오늘 차례인 관심사에 먼저 하나씩(점수순)
+  const todays = day ? new Set(todaysTopics(weights, visible, day)) : null;
+  if (todays?.size) fill((s) => todays.has(s.topicId) && !perTopic.has(s.topicId) && underCaps(s));
   fill((s) => (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s));
   fill(underCaps);
   fill(() => true);
-  return picked
-    .sort((a, b) => b.score - a.score)
-    .map(({ clusterId, topicId, score }) => ({ clusterId, topicId, score }));
+  return picked.map(({ clusterId, topicId, score }) => ({ clusterId, topicId, score }));
 }
 
 export const WEIGHT_MIN = 0.1;
