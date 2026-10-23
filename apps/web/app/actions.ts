@@ -107,7 +107,20 @@ export async function completeOnboarding(formData: FormData) {
     const r = await addCustomTopics(profile, etcText);
     if (r.tone === "warn") redirect(`/onboarding?error=${r.code === "adult" ? "adult" : "etc"}`);
   }
-  must(await db.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", profile.id), "profiles onboarded");
+  // '시작하기'를 누를 때 알림 권한을 받아 이 기기를 등록했으면(OnboardingSubmit) 알림을 켠 채로 시작한다(2026-10-23 사용자 결정).
+  // 설정의 알림 켜기와 같이 등록된 기기가 있을 때만 켠다. 시간은 기본값(오전 7시), 설정에서 바꾼다
+  let pushEnabled = false;
+  if (formData.get("push") === "on") {
+    const { count } = await db.from("device_tokens").select("token", { count: "exact", head: true }).eq("user_id", profile.id);
+    pushEnabled = !!count;
+  }
+  must(
+    await db
+      .from("profiles")
+      .update({ onboarded_at: new Date().toISOString(), ...(pushEnabled ? { push_enabled: true } : {}) })
+      .eq("id", profile.id),
+    "profiles onboarded",
+  );
   redirect("/today");
 }
 

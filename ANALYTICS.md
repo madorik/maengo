@@ -21,7 +21,7 @@
   - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice`·`charged`·`product` ← 같은 이름의 변수
   - 사용자 속성: `plan` ← `{{dlv - plan}}`, `platform` ← `{{dlv - platform}}`
   - 트리거: 맞춤 이벤트, 이벤트 이름 정규식 일치
-    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|voice_change|more_receive|share|purchase_start|purchase_complete)$`
+    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|purchase_start|purchase_complete)$`
 - 이벤트를 새로 넣으면 `lib/analytics.ts`의 `AnalyticsEvent`, 이 문서, `gtm-import.json`의 정규식을 같이 고치고 GTM에 다시 게시한다
 
 ## 이벤트
@@ -40,8 +40,9 @@
 | `feedback` | 좋아요·싫어요 | `kind`(more·skip·clear) |
 | `topic_edit` | 관심사 고치기 | `action`(group·add·remove·text), `group`, `picks`, `topic`(직접 적은 건 custom) |
 | `link_edit` | 내 관심 링크 넣기·빼기(Premium) | `action`(add·remove·fail), `reason`(fail일 때: invalid·youtube·blocked·private·unreachable·nofeed·empty·adult·limit). 주소는 남기지 않는다 |
-| `notify_toggle` | 알림 켜고 끄기 | `on` |
+| `notify_toggle` | 알림 켜고 끄기(설정. 온보딩 '시작하기'에서 권한을 물은 결과는 `group`=onboarding) | `on`, `group` |
 | `push_open` | 알림을 눌러 들어옴(`?from=push`) | — |
+| `widget_open` | 홈 화면 위젯을 눌러 들어옴(`?from=widget`, 앱 1.3부터) | — |
 | `voice_change` | 목소리 바꾸기(설정) | `voice`(f·m) |
 | `more_receive` | 하나 더 받기로 소식을 받음 | `charged`(지갑 맹고를 썼는지) |
 | `share` | 글 화면 '공유'(1.2 앱·웹) | `category`, `action`(shared: 공유 시트를 띄움, copied: 공유 시트가 없어 복사) |

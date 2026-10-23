@@ -97,10 +97,12 @@ function AllDone({ notifyLabel }: { notifyLabel: string }) {
 }
 
 function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | null }) {
-  const { consumed } = useToday();
+  const { consumed, listenAccess, listened } = useToday();
   const p = usePlayer();
-  const profile = useProfile();
   const done = consumed(item.clusterId);
+  // Premium이거나 Free의 오늘 듣기 몫(하루 1개, 2026-10-23)이면 들을 수 있다. 몫을 다 쓴 Free는 잠금(결제 페이지로)
+  const access = listenAccess(item.clusterId);
+  const free = access === "free";
   // '하나 더 받기'로 막 붙은 소식이면 이 카드로 스크롤하고 잠깐 짚는다
   const cardRef = useRef<HTMLLIElement>(null);
   const titleRef = useRef<HTMLAnchorElement>(null);
@@ -109,7 +111,7 @@ function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | nul
   const at = p.chapters.findIndex((c) => c.clusterId === item.clusterId);
   // 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 플레이어로, 아니면 이 소식 하나만 만들어 듣는다(플레이리스트를 듣는 중이면 하나만).
   // 에피소드 정보를 받기 전에 누른 글 하나 듣기는 정보가 와도 끊지 않는다(lib/player/route.ts)
-  const single = useItemAudio(item.clusterId, p.enabled);
+  const single = useItemAudio(item.clusterId, p.enabled || free);
   const singleBusy = singleStarted(single.ctl);
   const viaPlayer = viaTodayPlayer({
     inPlayer: at >= 0,
@@ -166,8 +168,8 @@ function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | nul
           <span className="font-extrabold">{item.author}</span>
           <span className="ml-2 font-semibold text-faint">{item.publishedLabel}</span>
         </p>
-        {!profile.audio ? (
-          // Free: 듣기 자리는 두고, 누르면 결제 페이지로(막힌 기능에서 안내하는 자리)
+        {access === null ? (
+          // Free가 오늘 몫을 다 썼으면: 듣기 자리는 두고, 누르면 결제 페이지로(막힌 기능에서 안내하는 자리)
           <Link
             href="/premium"
             aria-label={`${item.title} 듣기, Premium에서 쓸 수 있어요`}
@@ -177,7 +179,7 @@ function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | nul
             듣기
             <PremiumBadge />
           </Link>
-        ) : p.enabled && (
+        ) : (p.enabled || free) && (
           <button
             type="button"
             onClick={listen}
@@ -188,6 +190,10 @@ function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | nul
           >
             {preparing ? <IconClose className="size-4 text-sub" /> : playing ? <IconPause className="size-4 text-sky" /> : <IconSpeaker className="size-5 text-sky" />}
             {preparing ? "취소" : playing ? "멈춤" : "듣기"}
+            {/* 오늘 몫을 쓰게 되는 처음 듣는 소식(상세의 '이 글 듣기'와 같다) */}
+            {free && !listened.has(item.clusterId) && !preparing && !playing && (
+              <span className="rounded-full bg-sky-tint px-1.5 py-0.5 text-[11px] font-black text-sky-dark">오늘 무료</span>
+            )}
           </button>
         )}
       </div>

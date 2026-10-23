@@ -18,6 +18,8 @@ export interface PlanLimits {
   /** 하루 맹고(하루에 받는 소식 수) */
   dailyItems: number;
   audio: boolean;
+  /** audio가 없는 플랜이 하루에 '이 글 듣기'로 들을 수 있는 소식 수(KST, 처음 듣는 소식만 센다). audio 플랜은 상관없다 */
+  dailyListens: number;
   /** 목록에서 고르는 관심사 수 */
   topicLimit: number;
   /** 기타(목록에 없는 걸 직접 적는) 관심사 수. 0이면 못 넣는다 */
@@ -36,6 +38,7 @@ export interface PlanRow {
   list_price_krw: number | null;
   daily_items: number;
   audio: boolean;
+  daily_listens: number;
   topic_limit: number;
   custom_limit: number;
   link_limit: number;
@@ -43,7 +46,7 @@ export interface PlanRow {
   archive_days: number | null;
 }
 
-export const PLAN_COLUMNS = 'id,name,price_krw,list_price_krw,daily_items,audio,topic_limit,custom_limit,link_limit,can_buy_maengo,archive_days';
+export const PLAN_COLUMNS = 'id,name,price_krw,list_price_krw,daily_items,audio,daily_listens,topic_limit,custom_limit,link_limit,can_buy_maengo,archive_days';
 
 export function planFromRow(r: PlanRow): PlanLimits {
   return {
@@ -53,6 +56,7 @@ export function planFromRow(r: PlanRow): PlanLimits {
     listPriceKrw: r.list_price_krw,
     dailyItems: r.daily_items,
     audio: r.audio,
+    dailyListens: r.daily_listens,
     topicLimit: r.topic_limit,
     customLimit: r.custom_limit,
     linkLimit: r.link_limit,

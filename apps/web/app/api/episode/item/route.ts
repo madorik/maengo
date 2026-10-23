@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getItemEpisode } from "@/lib/server/episode";
 import { currentProfile } from "@/lib/server/session";
-import { entitlements } from "@/lib/server/profile";
+import { itemListenAccess } from "@/lib/server/listen-access";
 import { ttsFailure } from "@/lib/server/file-response";
 import { parseEpisodeParams } from "../params";
 
@@ -14,10 +14,11 @@ import { parseEpisodeParams } from "../params";
 export async function GET(request: NextRequest) {
   const profile = await currentProfile();
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!entitlements(profile).audio) return NextResponse.json({ error: "plus_required" }, { status: 403 });
   const params = parseEpisodeParams(request.nextUrl.searchParams);
   const id = Number(request.nextUrl.searchParams.get("id"));
   if (!params || !Number.isInteger(id)) return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  // Premium이거나 Free의 오늘 듣기 몫(lib/server/listen-access.ts)
+  if (!(await itemListenAccess(profile, id))) return NextResponse.json({ error: "plus_required" }, { status: 403 });
   let episode;
   try {
     episode = await getItemEpisode(profile, id, params.persona, params.voice, { generate: false });

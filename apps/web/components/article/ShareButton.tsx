@@ -5,13 +5,15 @@ import { IconCheck, IconShare } from "@/components/icons";
 import { track } from "@/lib/analytics";
 import { withBase } from "@/lib/base-path";
 import { shareContent } from "@/lib/native/share";
+import { isLinkTopicId } from "@maengo/core/topics";
 import type { FeedItem } from "@/lib/types";
 
 /**
- * 글 화면 위 '공유'. 제목·요약·원문 주소와 맹고 소개 주소를 보낸다(맹고 글 화면은 로그인해야 보여서 그 주소는 넣지 않는다).
+ * 글 화면 위 '공유'. 제목·요약과 로그인 없이 보는 소식 주소(/s/[id], 미리보기 카드에 제목이 보인다)를 보낸다.
+ * 내 관심 링크(사용자가 넣은 출처)의 글은 공개 주소가 없어서 예전처럼 원문 주소와 맹고 소개 주소를 보낸다.
  * 공유 시트가 없어 복사했으면 아이콘만 잠깐 체크로 바꾼다
  */
-export function ShareButton({ item }: { item: Pick<FeedItem, "title" | "short" | "url" | "category"> }) {
+export function ShareButton({ item }: { item: Pick<FeedItem, "clusterId" | "title" | "short" | "url" | "category" | "topicId"> }) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -22,7 +24,9 @@ export function ShareButton({ item }: { item: Pick<FeedItem, "title" | "short" |
 
   const share = async () => {
     setError(false);
-    const text = `${item.title}\n\n${item.short}\n\n원문 ${item.url}\n\n맹고에서 요약했어요 ${location.origin}${withBase("/")}`;
+    const text = isLinkTopicId(item.topicId)
+      ? `${item.title}\n\n${item.short}\n\n원문 ${item.url}\n\n맹고에서 요약했어요 ${location.origin}${withBase("/")}`
+      : `${item.title}\n\n${item.short}\n\n${location.origin}${withBase(`/s/${item.clusterId}`)}`;
     const r = await shareContent({ title: item.title, text });
     if (r === "shared" || r === "copied") track("share", { category: item.category, action: r });
     if (r === "copied") setCopied(true);

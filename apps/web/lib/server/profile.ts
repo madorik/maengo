@@ -125,6 +125,8 @@ export function entitlements(p: Profile) {
   const l = p.limits;
   return {
     audio: l.audio,
+    /** audio가 없을 때 하루에 '이 글 듣기'로 들을 수 있는 소식 수(lib/server/listen-access.ts) */
+    dailyListens: l.audio ? 0 : l.dailyListens,
     topicLimit: l.topicLimit,
     /** 하루 맹고(하루에 받는 소식 수). 더 받기는 지갑에서 */
     dailyItems: l.dailyItems,

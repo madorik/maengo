@@ -7,7 +7,6 @@ import { useEffect, useRef } from "react";
 import { useSwipeSurface } from "@/components/app/SwipePager";
 import { IconExternal, IconNext, IconThumbDown, IconThumbUp } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
-import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SourceChip } from "@/components/today/TodayList";
 import { Bubble } from "@/components/ui/Bubble";
@@ -37,8 +36,7 @@ const CHOICES: { kind: FeedbackKind; label: string; Icon: typeof IconThumbUp }[]
  * 그 밖(지난 글, 아직 전체 음성이 없는 오늘 글)은 그 글 하나짜리 파일로 듣는다. 글 하나 들으려고 오늘 소식 전부의 음성을 만들지 않게.
  */
 export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: FeedItem; isToday: boolean; inPlaylist: boolean }) {
-  const { data, feedback, markRead, setFeedback } = useToday();
-  const profile = useProfile();
+  const { data, feedback, markRead, setFeedback, listenAccess, listened } = useToday();
   const index = isToday ? data.items.findIndex((i) => i.clusterId === fromServer.clusterId) : -1;
   // 오늘 글은 플랜 전환 등으로 바뀐 최신 내용을 쓴다
   const item = data.items[index] ?? fromServer;
@@ -49,7 +47,9 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
   // 에피소드 정보를 받기 전에 누른 글 하나 듣기는 정보가 와도 끊지 않는다(lib/player/route.ts)
   const inPlayer = index >= 0 && p.chapters.some((c) => c.clusterId === item.clusterId);
   const today = useTodayAudio(index >= 0 ? item.clusterId : -1, next);
-  const single = useItemAudio(item.clusterId, profile.audio);
+  // Premium이거나 Free의 오늘 듣기 몫(하루 1개, 2026-10-23)이면 이 글 하나를 듣는다
+  const access = listenAccess(item.clusterId);
+  const single = useItemAudio(item.clusterId, access !== null);
   const singleBusy = singleStarted(single.ctl);
   const viaPlayer = viaTodayPlayer({
     inPlayer,
@@ -63,8 +63,8 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
   useEffect(() => {
     if (viaPlayer && singleBusy) cancelSingle?.();
   }, [viaPlayer, singleBusy, cancelSingle]);
-  // 무료면 오늘 쪽 막대가 잠금 안내를 보여 준다
-  const audio = viaPlayer || !profile.audio ? today : single;
+  // 들을 수 없으면(Free가 오늘 몫을 다 씀) 오늘 쪽 막대가 잠금 안내를 보여 준다
+  const audio = viaPlayer || access === null ? today : single;
   const activePara = audio.activePara;
   const playing = audio.ctl.state === "playing";
 
@@ -221,7 +221,8 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
         )}
       </main>
 
-      <ListenBar ctl={audio.ctl} />
+      {/* 오늘 몫을 쓰게 되는 처음 듣는 글이면 버튼에 '오늘 무료'를 붙인다 */}
+      <ListenBar ctl={audio.ctl} free={access === "free" && !listened.has(item.clusterId)} />
     </div>
   );
 }

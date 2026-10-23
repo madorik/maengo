@@ -57,6 +57,8 @@ export interface TodayData {
   items: FeedItem[];
   read: number[];
   listened: number[];
+  /** 오늘(KST) 처음 들은 소식. Free의 하루 듣기 수를 센다 */
+  listenedToday: number[];
   feedback: Record<number, FeedbackKind>;
 }
 
@@ -71,6 +73,8 @@ export interface ProfileView {
   demo: boolean;
   plan: Plan;
   audio: boolean;
+  /** audio가 없을 때 하루에 '이 글 듣기'로 들을 수 있는 소식 수(Free 1). audio면 0 */
+  dailyListens: number;
   dailyItems: number;
   /** 맹고 추가 구매를 할 수 있는지(plans 표) */
   canBuyMaengo: boolean;

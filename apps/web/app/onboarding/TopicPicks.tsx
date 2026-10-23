@@ -10,11 +10,25 @@ type Option = { id: string; name: string };
  * 온보딩에서 고르는 칸들(관심 분야 + 뉴스 헤드라인 + 기타). 관심 분야와 뉴스를 합쳐 플랜 한도(limit, plans 표 topic_limit)까지 고르고,
  * 다 고르면 나머지 칸은 막는다(서버도 넘치면 받지 않는다, completeOnboarding). 기타(직접 적기, Premium만)는 이 한도에 세지 않는다.
  * 체크박스는 브라우저가 들고(uncontrolled), 고른 수는 폼의 체크 상태에서 센다: 뒤로 가기로 돌아와 브라우저가 체크를 되살려도 수가 맞게
- * (처음 붙을 때·pageshow·바뀔 때마다 다시 센다). 폼이 초기화되면(액션을 마친 뒤 React가 reset) 같이 0으로.
- * 기타 입력칸은 기타 칸이 체크되면 열린다(group/etc)
+ * (처음 붙을 때·pageshow·바뀔 때마다 다시 센다). 폼이 초기화되면(액션을 마친 뒤 React가 reset) 기본 체크로 돌아간 상태를 다시 센다.
+ * preselected는 처음부터 골라 둔 칸이다(바로 '시작하기'를 눌러도 되게). 기타 입력칸은 기타 칸이 체크되면 열린다(group/etc)
  */
-export function TopicPicks({ groups, news, limit, customAllowed, etcChecked }: { groups: Option[]; news: Option[]; limit: number; customAllowed: boolean; etcChecked: boolean }) {
-  const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
+export function TopicPicks({
+  groups,
+  news,
+  limit,
+  customAllowed,
+  etcChecked,
+  preselected = [],
+}: {
+  groups: Option[];
+  news: Option[];
+  limit: number;
+  customAllowed: boolean;
+  etcChecked: boolean;
+  preselected?: readonly string[];
+}) {
+  const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set(preselected));
   const ref = useRef<HTMLDivElement>(null);
   /** 폼에서 지금 체크된 관심 분야·뉴스를 다시 센다 */
   const sync = useCallback(() => {
@@ -22,11 +36,11 @@ export function TopicPicks({ groups, news, limit, customAllowed, etcChecked }: {
     if (!form) return;
     setPicked(new Set(Array.from(form.querySelectorAll<HTMLInputElement>('input[name="topic"]:checked'), (i) => i.value)));
   }, []);
-  // 브라우저가 되살린 체크를 세고(뒤로 가기·새로 고침), 폼 reset은 체크를 기본값(안 고름)으로 되돌리니 세던 수도 같이 비운다
+  // 브라우저가 되살린 체크를 세고(뒤로 가기·새로 고침), 폼 reset은 체크를 기본값(미리 골라 둔 칸)으로 되돌린 뒤에 다시 센다
   useEffect(() => {
     const form = ref.current?.closest("form");
     if (!form) return;
-    const onReset = () => setPicked(new Set());
+    const onReset = () => requestAnimationFrame(sync);
     const restored = requestAnimationFrame(sync);
     form.addEventListener("reset", onReset);
     window.addEventListener("pageshow", sync);
@@ -38,7 +52,9 @@ export function TopicPicks({ groups, news, limit, customAllowed, etcChecked }: {
   }, [sync]);
   const capped = limit < groups.length + news.length;
   const full = capped && picked.size >= limit;
-  const choice = (o: Option) => <Choice key={o.id} id={o.id} name={o.name} disabled={full && !picked.has(o.id)} onChange={sync} />;
+  const choice = (o: Option) => (
+    <Choice key={o.id} id={o.id} name={o.name} defaultChecked={preselected.includes(o.id)} disabled={full && !picked.has(o.id)} onChange={sync} />
+  );
 
   return (
     <>

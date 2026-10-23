@@ -575,8 +575,32 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     items,
     read: reads.filter((r) => r.read_at).map((r) => r.cluster_id),
     listened: reads.filter((r) => r.listened_at).map((r) => r.cluster_id),
+    listenedToday: reads.filter((r) => r.listened_at && kstDate(new Date(r.listened_at)) === kstDate()).map((r) => r.cluster_id),
     feedback: Object.fromEntries(feedback.map((f) => [f.cluster_id, f.kind])),
   };
+}
+
+/** 홈 화면 위젯이 보이는 오늘 소식 한 줄 */
+export interface WidgetItem {
+  id: number;
+  title: string;
+  category: CategoryId;
+  read: boolean;
+}
+
+/**
+ * 홈 화면 위젯(/api/widget)의 오늘 소식. 읽기만 한다: 오늘 화면(todayFeed)과 달리 모자란 소식을 채우거나 새로 만들지 않는다
+ * (위젯은 한 시간마다 불러서 그때마다 피드를 바꾸면 안 된다). 아직 피드가 없으면 빈 목록과 알림 시각을 준다
+ */
+export async function widgetToday(profile: Profile): Promise<{ date: string; notifyLabel: string; items: WidgetItem[] }> {
+  const date = kstDate();
+  const notifyLabel = notifyTimeLabel(profile.notifyAt);
+  const day = await readDay(profile.id, date, { withInfo: true });
+  if (!day) return { date, notifyLabel, items: [] };
+  const rows = visibleRows({ ...day, visible: shownCount(day, entitlements(profile).dailyItems) });
+  const [items, { reads }] = await Promise.all([itemsFor(profile, rows, date, day.info), readsAndFeedback(profile.id)]);
+  const consumed = new Set(reads.filter((r) => r.read_at || r.listened_at).map((r) => r.cluster_id));
+  return { date, notifyLabel, items: items.map((i) => ({ id: i.clusterId, title: i.title, category: i.category, read: consumed.has(i.clusterId) })) };
 }
 
 export const LIBRARY_PAGE_SIZE = 10;
@@ -776,6 +800,7 @@ export function toProfileView(p: Profile): ProfileView {
     demo: p.demo,
     plan: p.plan,
     audio: entitlements(p).audio,
+    dailyListens: entitlements(p).dailyListens,
     dailyItems: entitlements(p).dailyItems,
     canBuyMaengo: entitlements(p).canBuyMaengo,
     persona: p.persona,

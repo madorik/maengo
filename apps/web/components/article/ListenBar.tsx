@@ -36,7 +36,8 @@ export interface ListenBarCtl {
   next?: () => void;
 }
 
-export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
+/** free: Free의 오늘 듣기 몫으로 듣는 글이라 '이 글 듣기' 옆에 '오늘 무료'를 붙인다 */
+export function ListenBar({ ctl, free = false }: { ctl: ListenBarCtl; free?: boolean }) {
   const playing = ctl.state === "playing";
   const retry = ctl.retry ?? ctl.play;
   const barRef = useRef<HTMLDivElement>(null);
@@ -166,6 +167,7 @@ export function ListenBar({ ctl }: { ctl: ListenBarCtl }) {
           <button type="button" onClick={ctl.play} disabled={!ctl.ready} className="btn btn-sky min-h-14 flex-1 text-[17px]">
             <IconSpeaker className="size-6" />이 글 듣기
             {ctl.totalMs > 0 && <span className="font-round text-[15px] font-extrabold opacity-85">{formatClock(ctl.totalMs)}</span>}
+            {free && <span className="rounded-full bg-white/25 px-2 py-0.5 text-[12px] font-black">오늘 무료</span>}
           </button>
         )}
       </div>

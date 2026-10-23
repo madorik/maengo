@@ -2,7 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { Share } from "@capacitor/share";
 
 // 소식 공유. 앱은 네이티브 공유 시트(@capacitor/share, 1.2 빌드부터), 웹 브라우저는 navigator.share, 둘 다 없으면 글을 복사한다.
-// 맹고 소식 페이지는 로그인해야 보여서 링크는 원문과 맹고 소개 주소를 넣는다.
+// 보내는 글은 ShareButton이 만든다(로그인 없이 보는 소식 주소 /s/[id], 내 관심 링크 글은 원문과 맹고 소개 주소).
 
 export interface ShareContent {
   title: string;

@@ -1,5 +1,6 @@
 "use client";
 
+import { Capacitor } from "@capacitor/core";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
 import { isAppUserAgent } from "@/lib/app-client";
@@ -310,8 +311,16 @@ function paintFrame(
     const p = hints ? Math.min(Math.max((x * sign) / reach, 0), 1) : 0;
     hint.style.opacity = p ? String(p * opacity) : "";
     hint.style.transform = `translate3d(${(1 - p) * -24 * sign}px,-50%,0) scale(${0.7 + 0.3 * p})`;
+    // 넘어갈 만큼 끈 순간 가볍게 한 번 떨린다(앱 1.3부터, 손을 떼면 넘어간다는 신호)
+    if (p >= 1 && !hint.hasAttribute("data-armed")) tick();
     hint.toggleAttribute("data-armed", p >= 1);
   }
+}
+
+/** 가벼운 진동 한 번. 진동 플러그인이 든 앱(1.3부터)에서만 */
+function tick() {
+  if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable("Haptics")) return;
+  void import("@capacitor/haptics").then(({ Haptics, ImpactStyle }) => Haptics.impact({ style: ImpactStyle.Light })).catch(() => {});
 }
 
 /** 화면 안쪽에서 가로로 스크롤되는 줄(보관함 카테고리 칩 등)에서 시작했는지 */

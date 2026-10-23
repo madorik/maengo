@@ -385,7 +385,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "arg1",
-                "value": "^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|voice_change|more_receive|share|purchase_start|purchase_complete)$"
+                "value": "^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|purchase_start|purchase_complete)$"
               }
             ]
           }

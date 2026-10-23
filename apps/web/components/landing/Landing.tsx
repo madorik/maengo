@@ -28,7 +28,7 @@ function planItems(l: PlanLimits): string[] {
   return [
     `하루 무료 소식 ${l.dailyItems}개`,
     `가입하면 맹고 ${SIGNUP_BONUS}개 무료 지급`,
-    ...(l.audio ? ["소식 플레이어 + 음성 듣기(TTS) 기능 제공"] : []),
+    ...(l.audio ? ["소식 플레이어 + 음성 듣기(TTS) 기능 제공"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
     ...(l.canBuyMaengo ? ["맹고 추가 구매"] : []),
     l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)}만 보관`,
   ];
@@ -48,11 +48,11 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["소식은 언제 와요?", "매일 아침 6시에 새 소식을 모아 요약하고, 설정에서 고른 시각에 오늘의 소식이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
   [
     "음성으로 들을 수 있나요?",
-    "네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.",
+    `네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.${free.dailyListens > 0 && !free.audio ? ` Free도 하루 ${free.dailyListens}개는 '이 글 듣기'로 들을 수 있어요.` : ""}`,
   ],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
-  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요. 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 전체 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
   ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
 ];

@@ -45,8 +45,11 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
   const account = p.demo ? "공용 데모 계정(로컬 개발용)" : `${p.provider === "apple" ? "Apple" : "Google"} 계정${p.email ? ` · ${p.email}` : ""}`;
   // 로그아웃 전에 이 기기(앱)·이 브라우저(웹 푸시)의 알림 토큰을 지운다(다음 사람이 여기서 로그인해도 앞사람 알림이 오지 않게)
   const logout = async () => {
-    if (isAppUserAgent(navigator.userAgent)) await (await import("@/lib/native/push")).unregisterApp();
-    else await unregisterThisBrowser();
+    if (isAppUserAgent(navigator.userAgent)) {
+      await (await import("@/lib/native/push")).unregisterApp();
+      // 홈 화면 위젯도 앞사람 소식을 보이지 않게
+      await (await import("@/lib/native/widget")).clearWidget();
+    } else await unregisterThisBrowser();
     await signOut();
   };
 

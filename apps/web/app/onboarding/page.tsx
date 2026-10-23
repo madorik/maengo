@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { NEWS_SECTIONS, TOPIC_GROUPS } from "@maengo/core/topics";
+import { NEWS_SECTIONS, TOPIC_BY_ID, TOPIC_GROUPS } from "@maengo/core/topics";
 import { completeOnboarding } from "../actions";
 import { OnboardingSubmit } from "./OnboardingSubmit";
 import { TopicPicks } from "./TopicPicks";
@@ -23,6 +23,12 @@ function errorText(error: string, limit: number): string | undefined {
   };
   return Object.hasOwn(texts, error) ? texts[error] : undefined;
 }
+
+/**
+ * 처음부터 골라 두는 칸(2026-10-23 사용자 결정). 가입하고 아무것도 안 고른 채 떠나는 사람이 많아서(12명 중 5명)
+ * 많이 고른 분야(AI·주식)와 뉴스 헤드라인 하나(경제)를 골라 둬서 바로 '시작하기'를 눌러도 소식이 오게 한다
+ */
+const PRESELECTED = ["ai", "stock", "economy"] as const;
 
 // 처음 로그인한 사람이 관심 분야(5개)와 뉴스 분야(6개)를 고르는 화면(PLAN.md 5.2). 직업은 묻지 않는다.
 // 한 화면에 다 보이게 두 칸 격자로 둔다. 둘을 합쳐 플랜 한도(Free 5개)까지 고르고, 다 고르면 나머지 칸은 막는다(TopicPicks).
@@ -60,6 +66,7 @@ export default async function OnboardingPage({ searchParams }: Props) {
           limit={topicLimit}
           customAllowed={customAllowed}
           etcChecked={error === "etc" || error === "adult"}
+          preselected={PRESELECTED.filter((id) => TOPIC_BY_ID.has(id)).slice(0, topicLimit)}
         />
         {message && (
           <p role="alert" className="mt-4 text-[14px] font-bold text-cherry">

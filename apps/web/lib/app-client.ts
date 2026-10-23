@@ -45,3 +45,26 @@ export function appPushRegisteredHere(): boolean {
 
 /** 앱 로그인이 돌아오는 딥링크(apps/mobile: iOS NativeAuth.swift, 안드로이드 AndroidManifest의 intent-filter). Supabase 돌아올 주소 허용 목록에 kr.maengo.app://** 가 있어야 한다 */
 export const APP_AUTH_CALLBACK = "kr.maengo.app://auth/callback";
+
+/** 앱 딥링크 스킴(로그인 콜백 kr.maengo.app://auth/…, 위젯 kr.maengo.app://open/…). capacitor.config.ts의 appId와 같다 */
+export const APP_SCHEME = "kr.maengo.app";
+
+/** 위젯 등에서 앱 안 화면을 여는 딥링크로 열어도 되는 화면(아무 주소나 열지 않게) */
+const OPENABLE = /^\/(today|library|playlist|article\/\d+)$/;
+
+/**
+ * "kr.maengo.app://open/article/123?from=widget" → "/article/123?from=widget". 열 수 없는 주소면 null.
+ * 위젯이 보내는 주소는 apps/mobile의 위젯 코드(MaengoWidget)가 만든다
+ */
+export function appLinkPath(url: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== `${APP_SCHEME}:` || u.hostname !== "open") return null;
+  if (!OPENABLE.test(u.pathname)) return null;
+  const from = u.searchParams.get("from");
+  return from && /^\w{1,20}$/.test(from) ? `${u.pathname}?from=${from}` : u.pathname;
+}

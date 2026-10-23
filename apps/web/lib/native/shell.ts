@@ -2,6 +2,7 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
+import { appLinkPath } from "@/lib/app-client";
 import { stripBase, withBase } from "@/lib/base-path";
 import { startAppPush } from "./push";
 
@@ -11,6 +12,9 @@ import { startAppPush } from "./push";
 // 뒤로 가기로 앱을 내리는 첫 화면. 웹 기록이 남아 있어도 뒤로 가지 않는다.
 // 로그인 뒤 기록에 /login이 남는데, 거기로 돌아가면 proxy가 다시 /today로 보내서 뒤로 가기가 먹지 않는 것처럼 보인다
 const ROOT_PATHS = new Set(["/today", "/login", "/onboarding"]);
+
+/** 실행 주소(위젯 딥링크)를 이미 따랐는지 */
+const LAUNCH_KEY = "maengo:launch-url";
 
 /** 앱 기능을 켜고, 끄는 함수를 돌려준다 */
 export function startNativeShell(): () => void {
@@ -54,15 +58,33 @@ export function startNativeShell(): () => void {
     }
   }
 
-  // 앱 알림: 알림을 누르면 그 화면으로, 알림을 켠 기기면 토큰을 다시 등록(lib/native/push.ts)
-  const stopPush = startAppPush((path) => {
+  const go = (path: string) => {
     const to = withBase(path);
     if (location.pathname + location.search !== to) location.assign(to);
-  });
+  };
+
+  // 앱 알림: 알림을 누르면 그 화면으로, 알림을 켠 기기면 토큰을 다시 등록(lib/native/push.ts)
+  const stopPush = startAppPush(go);
+
+  // 홈 화면 위젯을 누르면 kr.maengo.app://open/<화면>으로 앱이 열린다(1.3부터). 앱이 떠 있었으면 appUrlOpen으로,
+  // 꺼져 있다 켜졌으면 실행 주소(getLaunchUrl)로 받는다. 실행 주소는 그 실행 내내 남아 있어서 화면을 새로 불러도 한 번만 따른다
+  const openLink = (url: string) => {
+    const path = appLinkPath(url);
+    if (path) go(path);
+  };
+  const link = App.addListener("appUrlOpen", ({ url }) => openLink(url));
+  void App.getLaunchUrl()
+    .then((r) => {
+      if (!r?.url || sessionStorage.getItem(LAUNCH_KEY) === r.url) return;
+      sessionStorage.setItem(LAUNCH_KEY, r.url);
+      openLink(r.url);
+    })
+    .catch(() => {});
 
   return () => {
     document.removeEventListener("click", onClick);
     void back.then((h) => h.remove());
+    void link.then((h) => h.remove());
     stopPush();
   };
 }

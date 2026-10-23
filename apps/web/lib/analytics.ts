@@ -18,6 +18,7 @@ export type AnalyticsEvent =
   | "link_edit"
   | "notify_toggle"
   | "push_open"
+  | "widget_open"
   | "voice_change"
   | "more_receive"
   | "share"

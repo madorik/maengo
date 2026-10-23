@@ -23,7 +23,8 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
   return [
     { label: "하루 무료 소식", ...both((l) => `${l.dailyItems}개`) },
     { label: "가입하면 무료 지급", ...both(() => `맹고 ${SIGNUP_BONUS}개`) },
-    { label: "소식 플레이어 + 음성 듣기(TTS)", ...both((l) => can(l.audio)) },
+    // 음성이 없는 플랜도 하루 몇 개는 '이 글 듣기'로 들어 본다(2026-10-23, plans.daily_listens)
+    { label: "소식 플레이어 + 음성 듣기(TTS)", ...both((l) => (l.audio ? "가능" : l.dailyListens > 0 ? `하루 ${l.dailyListens}개` : "불가")) },
     { label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) },
     { label: "받은 소식 보관", ...both((l) => archiveLabel(l.archiveDays)) },
   ];
