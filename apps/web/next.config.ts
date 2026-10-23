@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   basePath: BASE_PATH,
   // packages/core·pipeline은 빌드 없이 TS 소스를 그대로 내보낸다(pipeline은 "오늘 맹고 받기"가 쓴다)
   transpilePackages: ["@maengo/core", "@maengo/pipeline"],
+  // 공유한 소식의 카드 이미지(app/s/[id]/opengraph-image.tsx)는 요청 때 그려서 글꼴·아이콘 파일을 함수에 같이 넣어야 한다.
+  // 글꼴은 assets/fonts에 복사해 둔 것을 쓴다(pnpm의 node_modules 링크는 배포된 함수 안에 없다, 2026-10-23 운영 ENOENT).
+  // 맹고 기본 카드 이미지(app/opengraph-image.tsx)는 빌드 때 한 번 그려서 필요 없다
+  outputFileTracingIncludes: {
+    "/s/**": ["./assets/fonts/*.otf", "./app/icon.svg"],
+  },
   // 유튜브 썸네일
   images: { remotePatterns: [{ protocol: "https", hostname: "i.ytimg.com", pathname: "/vi/**" }] },
   // 서버 액션: 브라우저는 watalabs.com에서 보내고, 이 서버가 보는 호스트는 maengo.vercel.app이라 허용해 둔다

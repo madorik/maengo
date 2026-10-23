@@ -22,7 +22,8 @@ function fit(title: string): { text: string; fontSize: number } {
 
 export default async function SharedItemImage({ params }: { params: Promise<{ id: string }> }) {
   const item = await sharedItem(Number((await params).id));
-  const fonts = join(process.cwd(), "node_modules/pretendard/dist/public/static");
+  // 요청 때 그려서 글꼴은 프로젝트 안 복사본을 읽는다(next.config.ts outputFileTracingIncludes)
+  const fonts = join(process.cwd(), "assets/fonts");
   const [black, bold, icon] = await Promise.all([
     readFile(join(fonts, "Pretendard-Black.otf")),
     readFile(join(fonts, "Pretendard-Bold.otf")),
