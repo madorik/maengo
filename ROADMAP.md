@@ -135,6 +135,7 @@ Premium이 블로그·사이트 주소를 넣으면 그곳의 RSS를 찾아 새 
 - [x] **나** ④ 온보딩에 AI·주식·경제를 미리 골라 둠(바로 '시작하기' 가능)
 - [x] **나** ⑤ 앱 1.3(Android versionCode 6, iOS 1.3.0 빌드 6): 홈 화면 위젯 '오늘 소식'(Android `TodayWidgetProvider` 4×2, iOS `MaengoWidget` 작은·중간·큰·잠금 화면). 위젯 토큰(`/api/widget/token`, SESSION_SECRET 서명)으로 `/api/widget`을 부름(읽기만, 피드를 만들지 않음). 줄을 누르면 `kr.maengo.app://open/article/<id>` → 웹 `appLinkPath`(열 수 있는 화면만, 테스트). 앱과 위젯은 iOS 앱 그룹 `group.kr.maengo.app`으로 토큰 공유. 스토어 별점 요청(`MaengoReview`: 서로 다른 3일 이상 오늘 소식을 다 본 순간, 120일에 한 번), 스와이프로 넘어갈 만큼 끈 순간 가벼운 진동(@capacitor/haptics 8.0.2). 분석 `widget_open`(`?from=widget`)
 - [x] **나** 확인: 에뮬레이터 위젯(데이터·읽음 흐림·줄 누르면 그 글, 앱이 꺼진 상태에서도), 시뮬레이터 위젯(중간·작은, 홈 화면 배치는 IconState.plist로)·앱 그룹 토큰·꺼진 상태 딥링크. 테스트 212개·타입체크·lint·`next build` 통과
+- [x] 커밋 `4d300d8`(웹)·`556953e`(앱 1.3)·`c13c119`(카드 이미지 글꼴: pnpm 링크가 함수에 없어 운영 500 → assets/fonts 복사본) 푸시, 운영 배포 2026-10-23 21:20 KST(`maengo-3zuetvkql`). 1~4는 지금 앱(1.2.x)에도 들어감
 - [ ] **사용자** GTM에 `widget_open` 넣기: 트리거 정규식에 `widget_open` 추가 후 게시(또는 `gtm-import.json` 다시 가져오기)
 - [ ] **사용자** Xcode 계정 로그인(1.2.1 빌드 5와 같은 대기) → **나** 1.3 아카이브(`-allowProvisioningUpdates`로 앱 그룹·위젯 번들 ID `kr.maengo.app.widget`이 자동 등록됨)·업로드, Play 1.3(6) 내부 테스트
 - [ ] **사용자** 실기기: 위젯 넣기·누르기(앱이 떠 있을 때 딥링크는 시뮬레이터가 확인 창을 띄워 실기기에서만 확인), 별점 창, 진동
