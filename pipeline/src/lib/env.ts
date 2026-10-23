@@ -26,8 +26,8 @@ export const env = {
   summarizeLimit: num('PIPELINE_SUMMARIZE_LIMIT', 40),
   /** 하루(KST) Gemini 추정 지출 상한(달러). 넘으면 그날 요약·임베딩을 멈춘다(lib/ai-guard.ts) */
   geminiDailyCapUsd: num('GEMINI_DAILY_USD_CAP', 1),
-  /** 한 번 실행에서 요약할 영상 수 상한(영상은 토큰이 많이 든다) */
-  videoLimit: num('PIPELINE_VIDEO_LIMIT', 2),
+  /** 한 번 실행에서 요약할 영상 수 상한. 영상은 요약하지 않는다(2026-10-23 사용자 결정, 유튜브 출처도 뺐다) */
+  videoLimit: num('PIPELINE_VIDEO_LIMIT', 0),
   maxVideoMinutes: num('PIPELINE_MAX_VIDEO_MINUTES', 20),
   /** 알림을 눌렀을 때 열 맹고 주소(웹 푸시 링크). 도메인 + /maengo, 끝에 / 없음 */
   siteUrl: new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || DEFAULT_SITE_ORIGIN).origin + MAENGO_BASE_PATH,

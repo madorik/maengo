@@ -73,7 +73,7 @@ export default async function TopicPage({ params }: Props) {
           <TopicGroupIcon id={topic.id} className="size-14 rounded-2xl" iconClassName="size-8" />
           <h1 className="mt-4 text-[34px] font-black leading-[1.2] tracking-[-0.04em] md:text-[44px]">{topic.name} 소식</h1>
           <p className="mt-4 text-[17px] font-medium leading-relaxed text-sub">
-            맹고의 {topic.name} 분야는 {detailsLine(topic)} 소식을 다뤄요. 매일 아침 6시에 국내외 매체와 공식 블로그, 유튜브에서 새 글을 모아 같은 소식은 하나로 묶고, AI로 요약해서 음성
+            맹고의 {topic.name} 분야는 {detailsLine(topic)} 소식을 다뤄요. 매일 아침 6시에 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI로 요약해서 음성
             지원해줘요.
           </p>
           {topic.details.length > 0 && (

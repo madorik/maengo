@@ -3,11 +3,13 @@ import { dictionary } from './audience';
 import type { Ctx } from './ctx';
 import { check, db, selectAll } from './db';
 import { SECTION_BY_SOURCE_URL } from './headline';
+import { TOPIC_BY_SOURCE_URL, wantsSourceTopic } from './source-topic';
 
 // 관심사 거름: 글을 임베딩(Gemini 유료)하기 전에, 누군가 고른 관심사에 걸리는 글만 남긴다.
 // 출처 79곳에서 하루 4천 개 넘게 모이는데 피드에 쓰이는 건 그중 일부라, 전부 임베딩하면 돈이 샌다(2026-10-14).
 // - 관심사(분야·상세·기타): 이름·별칭이 제목이나 설명에 들어간 글. 분야를 고르면 그 분야의 상세 관심사 낱말도 쓴다
 // - 뉴스 분야(정치·경제 등): 낱말 대신 그 분야 섹션 피드의 글(헤드라인은 언론사 여럿의 기사가 한 묶음에 모여야 한다)
+// - 분야를 정해 둔 출처(sources.ts의 topic, 공식 블로그·보안 매체 등): 그 분야를 누가 골랐으면 낱말과 상관없이 모두(lib/source-topic.ts)
 // - 내 관심 링크(토픽 's-<sources.id>'): 누군가 구독한 출처의 글은 낱말과 상관없이 모두(그 사람에게 그 출처의 새 글을 주는 게 목적이라)
 
 export interface ItemText {
@@ -37,14 +39,16 @@ export async function interestFilter(ctx: Ctx, topics: Set<string>): Promise<(it
     .flatMap((t) => [t.name, ...t.aliases]);
   const hits = matcher(words);
   const sections = new Set([...topics].filter(isNewsSection));
-  const sectionSources = new Set<number>();
-  if (sections.size) {
-    const rows = check(await db.from('sources').select('id,url'), 'sources') as { id: number; url: string }[];
-    for (const r of rows) if (sections.has(SECTION_BY_SOURCE_URL.get(r.url) ?? '')) sectionSources.add(r.id);
+  // 뉴스 분야 섹션 피드, 그리고 분야를 정해 둔 출처(sources.ts의 topic) 중 누군가 고른 분야의 출처
+  const wholeSources = new Set<number>();
+  const rows = check(await db.from('sources').select('id,url'), 'sources') as { id: number; url: string }[];
+  for (const r of rows) {
+    const topic = TOPIC_BY_SOURCE_URL.get(r.url);
+    if (sections.has(SECTION_BY_SOURCE_URL.get(r.url) ?? '') || (topic && wantsSourceTopic(topic, topics))) wholeSources.add(r.id);
   }
   // 내 관심 링크로 구독한 출처의 글은 모두 통과(토픽 집합에 든 's-…'만)
   const linked = new Set([...topics].map(linkSourceId).filter((id): id is number => id != null));
-  return (i) => linked.has(i.source_id ?? -1) || sectionSources.has(i.source_id ?? -1) || hits(`${i.title} ${i.excerpt ?? ''}`);
+  return (i) => linked.has(i.source_id ?? -1) || wholeSources.has(i.source_id ?? -1) || hits(`${i.title} ${i.excerpt ?? ''}`);
 }
 
 /** 글에 관심사 단어가 들었는지. 영문은 낱말 단위로(AI가 said에 걸리지 않게), 한글은 그대로 찾는다 */
