@@ -10,7 +10,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { Bubble } from "@/components/ui/Bubble";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { minutesLabel } from "@/lib/player/labels";
+import { minutesLabel, PREPARING_TEXT } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
 import { Queue, Switch } from "./controls";
 import { PlusLock } from "./PlusLock";
@@ -149,8 +149,8 @@ function TodayListenScreen() {
           )}
           {p.preparing && (
             <div className="flex items-center justify-center gap-3 pb-3">
-              <p role="status" className="min-w-0 text-[14px] font-bold text-sky-dark">
-                음성 만드는 중
+              <p role="status" className="min-w-0 text-[14px] font-bold leading-relaxed text-sky-dark">
+                {PREPARING_TEXT}
               </p>
               <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
                 취소

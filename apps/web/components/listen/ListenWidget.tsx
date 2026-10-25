@@ -13,7 +13,7 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { Sheet } from "@/components/ui/Sheet";
-import { minutesLabel } from "@/lib/player/labels";
+import { minutesLabel, PREPARING_SHORT, PREPARING_TEXT } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { Queue, Switch } from "./controls";
@@ -148,7 +148,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   const sub = p.error
       ? p.error
       : p.preparing
-        ? "음성 만드는 중"
+        ? PREPARING_SHORT
         : ch
       ? (playing ? "듣는 중" : "멈춤")
       : p.status === "done"
@@ -185,7 +185,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       {p.preparing && (
         <div className="mt-2 flex items-center gap-2 rounded-xl bg-sky-tint py-2 pl-3 pr-2">
           <p role="status" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-sky-dark">
-            음성 만드는 중
+            {PREPARING_TEXT}
           </p>
           <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
             취소

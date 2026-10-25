@@ -15,6 +15,7 @@ import { track } from "@/lib/analytics";
 import { withBase } from "@/lib/base-path";
 import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
 import { PLAYLIST_MAX, playlistAudioUrl, playlistQuery } from "@/lib/playlist";
+import { waitUrl } from "@/lib/voice-samples";
 import type { EpisodeData, ProfileView } from "@/lib/types";
 import { reinsert } from "@/lib/undo";
 import { useToast } from "@/components/ui/Toast";
@@ -139,6 +140,8 @@ export interface PlayerApi {
 // 오류는 짧게 한 줄로(옆에 '다시 시도' 버튼이 있다)
 /** 에피소드 정보(목록·챕터 표)를 못 받았을 때 */
 const LOAD_ERROR = "소식을 불러오지 못했어요";
+/** 음성을 기다릴 때 안내 소리를 켜기까지 기다리는 시간. 이미 만든 음성은 보통 이 안에 열린다 */
+const WAIT_DELAY_MS = 800;
 /** 다 만든 음성 파일을 못 열었을 때 */
 const FILE_ERROR = "음성을 불러오지 못했어요";
 const PLAY_ERROR = "재생하지 못했어요";
@@ -258,6 +261,46 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     setLeadState(l);
   }, []);
 
+  /**
+   * 음성을 만드는 동안 트는 안내(public/voice-samples/wait-*.mp3, 2026-10-25 사용자 결정). 본 소리와 다른 <audio>라 탭 안에서 같이 play를 건다.
+   * 소리가 나오면(preparing이 풀리면)·멈춤·취소·실패 때 끈다
+   */
+  const waitRef = useRef<HTMLAudioElement>(null);
+  /** 안내가 끝났을 때 본 소리를 다시 걸지(iOS가 두 소리를 같이 못 틀어 본 소리를 멈췄을 때 대비). 멈춤·취소·실패면 끈다 */
+  const resumeAfterWaitRef = useRef(false);
+  const waitTimerRef = useRef<number | undefined>(undefined);
+  /**
+   * 탭 안에서 소리 없이 걸어 두고(iOS는 탭 밖에서 처음 트는 소리를 막는다), WAIT_DELAY_MS 뒤에도 음성을 기다리는 중이면 처음부터 소리를 켠다.
+   * 이미 만든 음성이면 그 사이에 열려서 안내가 들리지 않는다(첫 소식 음성은 있고 나머지만 없을 때 '에이…'만 들리고 끊기지 않게)
+   */
+  const startWait = useCallback(() => {
+    const w = waitRef.current;
+    if (!w) return;
+    resumeAfterWaitRef.current = true;
+    window.clearTimeout(waitTimerRef.current);
+    w.muted = true;
+    w.currentTime = 0;
+    w.play().catch(() => {});
+    waitTimerRef.current = window.setTimeout(() => {
+      if (!resumeAfterWaitRef.current) return;
+      w.currentTime = 0;
+      w.muted = false;
+    }, WAIT_DELAY_MS);
+  }, []);
+  const stopWait = useCallback(() => {
+    resumeAfterWaitRef.current = false;
+    window.clearTimeout(waitTimerRef.current);
+    const w = waitRef.current;
+    if (w && !w.paused) w.pause();
+  }, []);
+  /** 안내를 끝낸다(다 들었거나 음성이 다 됨). 사용자가 멈추지 않았는데 본 소리가 멈춰 있으면 다시 건다 */
+  const endWait = useCallback(() => {
+    const again = resumeAfterWaitRef.current;
+    stopWait();
+    const audio = audioRef.current;
+    if (again && audio?.paused && audio.getAttribute("src")) audio.play().catch(() => {});
+  }, [stopWait]);
+
   /** 파일을 걸고 재생을 건다. 음성이 아직 없으면 이 요청에서 서버가 만든다 */
   const openFile = useCallback(
     (ep: Pick<EpisodeData, "audioUrl" | "ready" | "persona" | "voice"> & { chapters?: Chapter[] }, index: number, play: boolean, offsetMs = 0) => {
@@ -274,8 +317,9 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       // 바로 play()를 불러 둔다(탭 안이면 iOS 자동 재생 정책, 화면을 끈 채 이어 갈 때는 재생 중 상태를 놓지 않게).
       // 음성을 만드는 동안 기다렸다가 시작되고, 위치는 loadedmetadata에서 소리가 나기 전에 옮긴다
       if (play) audio.play().catch(() => {});
+      if (play && !ep.ready) startWait();
     },
-    [setLead],
+    [setLead, startWait],
   );
 
   /**
@@ -326,9 +370,10 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       audio.src = itemAudioUrl(query);
       audio.load();
       audio.play().catch(() => {});
+      startWait();
       if (warm) warmFull(ep);
     },
-    [setLead, warmFull],
+    [setLead, startWait, warmFull],
   );
 
   const load = useCallback(
@@ -422,6 +467,11 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     }
     void load(prefsRef.current.persona, prefsRef.current.voice, { index: -1, resume: false });
   }, [enabled, listKey, load]);
+
+  // 음성이 다 되면(파일이 열리면) 안내를 끈다
+  useEffect(() => {
+    if (!preparing) endWait();
+  }, [preparing, endWait]);
 
   // 미뤄 둔 새 목록은 다 듣거나 쉬게 되면 받는다
   useEffect(() => {
@@ -619,6 +669,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const pause = () => {
     want(false);
+    stopWait();
     // 음성을 만드는 중에 멈추면 다 만들어져도 저절로 시작하지 않는다(잠금 화면·알림 버튼도 여기로 온다)
     if (pendingRef.current) pendingRef.current.play = false;
     audioRef.current?.pause();
@@ -627,6 +678,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const cancel = () => {
     const audio = audioRef.current;
     if (!audio) return;
+    stopWait();
     pendingRef.current = null;
     refreshRef.current = null;
     setLead(null);
@@ -1303,6 +1355,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         onError={(e) => {
           const audio = e.currentTarget;
           if (!audio.getAttribute("src")) return;
+          stopWait();
           if (preparing) void ttsErrorMessage().then(setError);
           else setError(FILE_ERROR);
           setPreparing(false);
@@ -1316,6 +1369,15 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           // 실패하면 pause 이벤트 없이 멈추므로 직접 바꾼다('듣는 중 0:00'으로 남지 않게. 잠금 화면·알림도 이 상태를 따른다)
           setStatus(cur >= 0 ? "paused" : "idle");
         }}
+        hidden
+      />
+      <audio
+        ref={waitRef}
+        src={waitUrl(voice)}
+        // 듣기를 쓸 수 있는 사람만 미리 받아 둔다(탭하자마자 나오게)
+        preload={profile.audio ? "auto" : "none"}
+        // 안내를 다 들었는데 본 소리가 멈춰 있으면(iOS가 안내를 틀며 멈춘 경우) 다시 건다. 사용자가 멈췄으면 stopWait가 꺼 둔다
+        onEnded={endWait}
         hidden
       />
       {children}

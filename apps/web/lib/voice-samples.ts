@@ -26,3 +26,17 @@ export function samplePath(persona: Persona, vk: VoiceKey): string {
 export function sampleUrl(persona: Persona, voice: Voice): string {
   return withBase(samplePath(persona, voiceKey(persona, voice)));
 }
+
+/**
+ * 음성을 만드는 동안 틀어 주는 안내(PlayerProvider). 화면 문구(lib/player/labels.ts의 PREPARING_TEXT)와 같은 말을 아나운서 목소리로.
+ * 목소리마다 한 번 만들어 public/voice-samples에 둔다(scripts/voice-samples.ts, 2026-10-25 사용자 결정)
+ */
+export const WAIT_LINES: ScriptLine[] = [{ text: "AI가 요약을 음성으로 변환하고 있어요." }, { text: "조금만 기다려주세요." }];
+
+export function waitPath(vk: VoiceKey): string {
+  return `/voice-samples/wait-${vk}.mp3`;
+}
+
+export function waitUrl(voice: Voice): string {
+  return withBase(waitPath(voiceKey("announcer", voice)));
+}
