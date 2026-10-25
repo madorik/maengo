@@ -36,6 +36,15 @@ export function concatWav(parts: Uint8Array[], sampleRate: number, bitsPerSample
   return out;
 }
 
+/** 모노 PCM 끝에 ms만큼 무음을 붙인다(16비트는 0, 8비트는 128이 무음) */
+export function withTrailingSilence(pcm: Uint8Array, sampleRate: number, bitsPerSample: 8 | 16, ms: number): Uint8Array {
+  const bytes = Math.round((sampleRate * ms) / 1000) * (bitsPerSample / 8);
+  const out = new Uint8Array(pcm.length + bytes);
+  out.set(pcm, 0);
+  if (bitsPerSample === 8) out.fill(128, pcm.length);
+  return out;
+}
+
 /** WAV에서 PCM과 형식을 꺼낸다. 헤더가 없으면(raw PCM) null */
 export function parseWav(bytes: Uint8Array): { pcm: Uint8Array; sampleRate: number; bitsPerSample: 8 | 16; channels: number } | null {
   const ascii = (at: number) => String.fromCharCode(bytes[at]!, bytes[at + 1]!, bytes[at + 2]!, bytes[at + 3]!);

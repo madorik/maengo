@@ -3,9 +3,10 @@ import { test } from 'node:test';
 import { isKoreanSummary } from '../ai/gemini';
 import { GEMINI_MODELS } from '../ai/models';
 import { createDummyAi } from '../ai/dummy';
-import { templateScript } from '../ai/script';
+import { closingLine, templateScript } from '../ai/script';
 import { layoutChapters } from '../audio/chapters';
-import { concatWav } from '../audio/wav';
+import { concatWav, withTrailingSilence } from '../audio/wav';
+import { estimateTimeline, SEGMENT_TAIL_MS } from '../audio/personas';
 
 test('Gemini 모델은 고정 버전만(-latest 별칭·Pro 금지)', () => {
   for (const id of Object.values(GEMINI_MODELS)) {
@@ -28,7 +29,7 @@ test('대본: 대담은 진행자·해설자가 번갈아 말하고, 해설자�
   assert.deepEqual(lines.map((l) => l.who), ['진행자', '해설자', '진행자', '해설자', '진행자', '해설자']);
   assert.deepEqual(lines.map((l) => l.para), [undefined, 0, undefined, 1, undefined, undefined]);
   assert.match(lines[0]!.text, /이번 소식/);
-  assert.match(lines.at(-1)!.text, /관심 있다면, /);
+  assert.equal(lines.at(-1)!.text, 'RAG 챗봇 회귀 테스트에 바로 쓸 수 있어요.'); // 'OO에 관심 있다면' 앞머리는 읽지 않는다
 });
 
 test('대본: 본문을 문장 단위로 읽고 문단 번호를 단다', () => {
@@ -88,4 +89,24 @@ test('요약 언어 검사: 원어 이름이 섞인 한국어는 통과, 영어 
   assert.equal(isKoreanSummary('OpenAI, ChatGPT 음성 모델 GPT-Live-1.1 배포 PostgreSQL 19 출시가 11월로 미뤄졌어요.'), true);
   assert.equal(isKoreanSummary('Import AI 477: In which I tell the IMF the Singularity has begun. Jack Clark writes about RSI.'), false);
   assert.equal(isKoreanSummary(''), false);
+});
+
+test('듣기 마지막 줄(아나운서): 정리하면, 제목이라는 소식이었습니다', () => {
+  assert.equal(templateScript({ ...item, persona: 'announcer' }).at(-1)!.text, '정리하면, 에이전트 평가, 정답셋 없이 시작하는 법이라는 소식이었습니다.');
+  assert.equal(closingLine('앤트로픽 2분기 매출 115억 달러 달성, 오픈AI 추월'), '정리하면, 앤트로픽 2분기 매출 115억 달러 달성, 오픈AI 추월이라는 소식이었습니다.');
+  assert.equal(closingLine('Next.js, 의존성 보안 취약점 패치 예고'), '정리하면, Next.js, 의존성 보안 취약점 패치 예고라는 소식이었습니다.');
+  assert.equal(closingLine('코스피 3.73% 급락…'), '정리하면, 코스피 3.73% 급락이라는 소식이었습니다.');
+  // 관심사별 why가 달라도 대본이 같다(음성을 관심사마다 따로 만들지 않는다)
+  assert.deepEqual(templateScript({ ...item, persona: 'announcer' }), templateScript({ ...item, persona: 'announcer', why: '보안에 관심 있다면: 다른 문장.' }));
+});
+
+test('소식 음성 끝 무음 2초: 24kHz 16비트면 96,000바이트가 0으로 붙는다', () => {
+  const pcm = new Uint8Array([1, 2, 3, 4]);
+  const out = withTrailingSilence(pcm, 24000, 16, SEGMENT_TAIL_MS);
+  assert.equal(out.length, 4 + 24000 * 2 * 2);
+  assert.deepEqual([...out.subarray(0, 4)], [1, 2, 3, 4]);
+  assert.ok(out.subarray(4).every((b) => b === 0));
+  // 어림 길이에도 무음을 넣는다(음성을 만들기 전 챕터 길이)
+  const est = estimateTimeline([{ text: '안녕하세요.' }], 'announcer');
+  assert.ok(est.durationMs - est.lineTimesMs[0]!.endMs >= SEGMENT_TAIL_MS);
 });

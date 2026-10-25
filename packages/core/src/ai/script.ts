@@ -1,4 +1,5 @@
 import type { ScriptLine } from '../types';
+import { josa } from '../util/josa';
 import type { ScriptInput } from './types';
 
 // 말투별 듣기 대본. LLM 없이 요약 본문을 그대로 읽고 앞뒤에 짧은 연결 문장만 붙인다(대본 호출 비용 0).
@@ -11,9 +12,9 @@ export function splitSentences(text: string): string[] {
     .filter(Boolean);
 }
 
-/** 'OO라면: 본문' → 'OO라면, 본문' (말로 읽을 때) */
-function spokenWhy(why: string): string {
-  return why.replace(/:\s*/, ', ');
+/** 'OO에 관심 있다면: 본문' → '본문'. 소리로는 앞머리를 읽지 않는다(2026-10-25 사용자 결정, 화면 글에는 그대로 둔다) */
+export function spokenWhy(why: string): string {
+  return why.replace(/^[^:]*:\s*/, '');
 }
 
 function withPeriod(s: string): string {
@@ -25,11 +26,20 @@ function bodyLines(body: string[]): ScriptLine[] {
   return body.flatMap((p, para) => splitSentences(p).map((text) => ({ text, para })));
 }
 
+/**
+ * 아나운서 마지막 줄: '정리하면, (제목)이라는 소식이었습니다.' 제목 끝 문장부호는 떼고 받침에 맞춰 '이라는·라는'.
+ * 관심사별 why는 읽지 않는다(2026-10-25 사용자 결정). 그래서 같은 소식·목소리면 관심사가 달라도 음성이 같다
+ */
+export function closingLine(title: string): string {
+  const t = title.trim().replace(/[\s.…!?,'"“”‘’]+$/u, '');
+  return `정리하면, ${josa(t, '이라는', '라는')} 소식이었습니다.`;
+}
+
 export function templateScript(input: ScriptInput): ScriptLine[] {
   const why = spokenWhy(input.why);
   switch (input.persona) {
     case 'announcer':
-      return [{ text: withPeriod(input.title) }, ...bodyLines(input.body), { text: why }];
+      return [{ text: withPeriod(input.title) }, ...bodyLines(input.body), { text: closingLine(input.title) }];
     case 'teacher':
       return [
         { text: `이번엔 ${input.topicName} 이야기예요.` },

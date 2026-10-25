@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { templateScript } from '@maengo/core/ai';
 import { GeminiQuotaError } from '@maengo/core/gemini';
-import { estimateTimeline, layoutChapters, voiceKey } from '@maengo/core/audio';
+import { estimateTimeline, layoutChapters, SEGMENT_TAIL_MS, voiceKey, withTrailingSilence } from '@maengo/core/audio';
 import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
 import type { FeedItem } from '../types';
 import { tts, ttsModel, ttsVoiceId } from './ai';
@@ -45,8 +45,11 @@ export interface Episode {
   chapters: Chapter[];
 }
 
-/** 대본·TTS 입력 형식을 바꾸면 올린다(예전 음성을 다시 쓰지 않게). 2: 말투 지시문을 빼고 대본만 읽게 함(2026-10-10) */
-const SCRIPT_VERSION = 2;
+/**
+ * 대본·TTS 입력 형식을 바꾸면 올린다(예전 음성을 다시 쓰지 않게). 2: 말투 지시문을 빼고 대본만 읽게 함(2026-10-10)
+ * 3: 끝에 무음 2초(SEGMENT_TAIL_MS), 마지막 줄을 why 대신 '정리하면, (제목)이라는 소식이었습니다.'로(2026-10-25)
+ */
+const SCRIPT_VERSION = 3;
 /** 무료 등급 TTS 분당 한도를 넘지 않게 한 번에 세 개까지만 만든다 */
 const TTS_CONCURRENCY = 3;
 /** R2 전에 로컬에 WAV(PCM)로 만들어 둔 음성. 있으면 TTS를 다시 부르지 않고 MP3로 옮긴다 */
@@ -188,7 +191,8 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
         source = 'TTS';
         await recordUse(who.userId, 'voice');
       }
-      const mp3 = encodeMp3(pcm, sampleRate);
+      // 끝에 무음을 붙여 저장한다. 줄 시각은 그대로라 마지막 줄 뒤가 쉼이 된다
+      const mp3 = encodeMp3(withTrailingSilence(pcm, sampleRate, 16, SEGMENT_TAIL_MS), sampleRate);
       const r2Key = `audio/seg/${key}.mp3`;
       await audioStore.put(r2Key, mp3, 'audio/mpeg');
       const row: SegmentRow = { key, r2_key: r2Key, duration_ms: mp3DurationMs(mp3.length), lines: timed };
