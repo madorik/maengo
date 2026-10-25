@@ -100,10 +100,10 @@ test('듣기 마지막 줄(아나운서): 정리하면, 제목이라는 소식�
   assert.deepEqual(templateScript({ ...item, persona: 'announcer' }), templateScript({ ...item, persona: 'announcer', why: '보안에 관심 있다면: 다른 문장.' }));
 });
 
-test('소식 음성 끝 무음 2초: 24kHz 16비트면 96,000바이트가 0으로 붙는다', () => {
+test('소식 음성 끝 무음 1초: 24kHz 16비트면 48,000바이트가 0으로 붙는다', () => {
   const pcm = new Uint8Array([1, 2, 3, 4]);
   const out = withTrailingSilence(pcm, 24000, 16, SEGMENT_TAIL_MS);
-  assert.equal(out.length, 4 + 24000 * 2 * 2);
+  assert.equal(out.length, 4 + 24000 * 2);
   assert.deepEqual([...out.subarray(0, 4)], [1, 2, 3, 4]);
   assert.ok(out.subarray(4).every((b) => b === 0));
   // 어림 길이에도 무음을 넣는다(음성을 만들기 전 챕터 길이)

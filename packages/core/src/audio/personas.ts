@@ -38,8 +38,8 @@ export function voiceKey(persona: Persona, voice: Voice): VoiceKey {
 export const LINE_GAP_MS = 450;
 /** 항목 시작 전 여백(더미 음성에서는 차임이 들어가는 자리) */
 export const SEGMENT_LEAD_MS = 400;
-/** 소식 음성 끝에 붙이는 무음. 전체 듣기에서 소식과 소식 사이에 쉼이 된다(2026-10-25 사용자 결정) */
-export const SEGMENT_TAIL_MS = 2000;
+/** 소식 음성 끝에 붙이는 무음. 다음 소식이 바로 이어 시작되지 않게 하는 쉼(2026-10-25 사용자 결정, 같은 날 2초→1초) */
+export const SEGMENT_TAIL_MS = 1000;
 const MIN_LINE_MS = 900;
 
 export function estimateLineMs(text: string, persona: Persona): number {
