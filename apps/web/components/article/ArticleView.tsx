@@ -5,12 +5,11 @@ import type { FeedbackKind } from "@maengo/core/types";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useSwipeSurface } from "@/components/app/SwipePager";
-import { IconExternal, IconNext, IconThumbDown, IconThumbUp } from "@/components/icons";
+import { IconBack, IconExternal, IconNext, IconThumbDown, IconThumbUp } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SourceChip } from "@/components/today/TodayList";
 import { Bubble } from "@/components/ui/Bubble";
-import { BackButton } from "@/components/ui/BackButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { FeedItem } from "@/lib/types";
 import { usePlayer } from "@/components/providers/PlayerProvider";
@@ -96,8 +95,14 @@ export function ArticleView({ item: fromServer, isToday, inPlaylist }: { item: F
     <div className="min-h-dvh bg-paper">
       <header className="sticky top-0 z-10 border-b-2 border-line bg-paper pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-[720px] items-center gap-2 px-2">
-          {/* 들어온 화면(오늘·보관함·다른 글)으로 돌아간다. 바로 열었으면 오늘이나 보관함으로 */}
-          <BackButton fallback={isToday ? "/today" : "/library"} />
+          {/* 어디서 들어왔든 오늘 소식으로 간다(2026-10-25 사용자 결정, 전에는 '뒤로'로 들어온 화면에 돌아갔다) */}
+          <Link
+            href="/today"
+            className="inline-flex min-h-11 items-center gap-1 rounded-xl px-2 text-[15px] font-extrabold text-sub no-underline hover:bg-snow"
+          >
+            <IconBack />
+            오늘 소식
+          </Link>
           <span className="ml-auto pr-1 font-round text-[15px] font-black text-faint">
             {index >= 0 ? `${index + 1}/${data.items.length}` : ""}
           </span>
