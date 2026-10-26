@@ -44,7 +44,7 @@ export default async function LoginPage({ searchParams }: Props) {
         <Link href="/privacy" className="font-bold text-sub underline">
           개인정보 처리방침
         </Link>
-        에 동의하게 돼요. 만 14세 이상만 가입할 수 있어요.
+        에 동의하게 돼요.
       </p>
     </div>
   );
