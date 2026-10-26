@@ -32,7 +32,7 @@ function planItems(l: PlanLimits): string[] {
     `하루 무료 소식 ${l.dailyItems}개`,
     ...(l.audio ? ["소식 플레이어 + 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
     ...(l.canBuyMaengo ? ["맹고 추가 구매"] : []),
-    l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)}만 보관`,
+    l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관`,
   ];
 }
 

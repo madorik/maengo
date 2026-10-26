@@ -103,9 +103,11 @@ type TaskOutcome = { stats: Record<string, unknown>; unfinished?: boolean };
 async function runTask(task: Task, now: Date, deadline: number, hooks: SchedulerHooks): Promise<TaskOutcome> {
   if (task.name === 'daily') {
     const premium = await expirePremium(now, deadline, hooks);
+    // 보관 기간(가장 긴 플랜, Premium 6개월)이 지난 피드·읽음·플레이리스트 정리(마이그레이션 20261026170000). 피드가 빠진 뒤에 벡터·행을 정리한다
+    const archive = check(await db.rpc('prune_archive'), 'prune_archive');
     // 오래된 벡터·행 정리(무료 DB 500MB 안에 머물게, 마이그레이션 20261017150000)
     const pruned = check(await db.rpc('prune_storage'), 'prune_storage');
-    return { stats: { ...premium, pruned } };
+    return { stats: { ...premium, archive, pruned } };
   }
   if (task.name === 'trial_reminder') return remindTrialEnding(now, deadline);
   const ctx = makeCtx(now, deadline, task.config);

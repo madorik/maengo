@@ -28,6 +28,8 @@ test('할인율은 내림', () => {
 
 test('보관 기간 표기: 없으면 무제한, 30일 단위는 개월', () => {
   assert.equal(archiveLabel(null), '무제한');
+  assert.equal(archiveLabel(30), '1개월');
   assert.equal(archiveLabel(90), '3개월');
+  assert.equal(archiveLabel(180), '6개월');
   assert.equal(archiveLabel(45), '45일');
 });
