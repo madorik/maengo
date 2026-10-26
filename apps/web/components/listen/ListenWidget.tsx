@@ -165,6 +165,17 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   // 앱의 꽉 찬 시트에서는 버튼을 조금 키운다(듣기 화면과 같은 크기)
   const big = inApp;
   const summary = `${source} ${count}개${minutes && `, ${voiceName} 목소리로 ${minutes}`}`;
+  // 재생 속도. 듣기 화면·글 듣기 막대와 같은 값(누를 때마다 lib/player/rate.ts 순서로 돈다)
+  const rateButton = (
+    <button
+      type="button"
+      onClick={p.cycleRate}
+      aria-label={`재생 속도 ${p.rate}배, 눌러서 바꾸기`}
+      className="tile min-h-11 min-w-14 shrink-0 px-2 font-round text-[15px] font-black tabular-nums text-sky-dark"
+    >
+      {p.rate.toFixed(1)}x
+    </button>
+  );
 
   const controls = (
     <div className={big ? "px-5 pb-5 pt-2" : "px-4 pb-4 pt-3"}>
@@ -322,7 +333,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         <Sheet title={heading} full open={open} onClose={close}>
           <div className="flex items-center gap-3 px-5 pb-1">
             <Mascot mood="listen" className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
-            <p className="min-w-0 truncate text-[13px] font-bold text-sub">{summary}</p>
+            <p className="min-w-0 flex-1 truncate text-[13px] font-bold text-sub">{summary}</p>
+            {rateButton}
           </div>
           {controls}
           {tabs}
@@ -353,6 +365,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
               </h2>
               <p className="truncate text-[12px] font-bold text-sub">{summary}</p>
             </div>
+            {rateButton}
             <button type="button" aria-label="플레이어 창 닫기" onClick={close} className="flex size-11 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
               <IconChevronDown className="size-6" />
             </button>
