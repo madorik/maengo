@@ -45,7 +45,7 @@ export async function proxy(request: NextRequest) {
     if (!isAppUserAgent(request.headers.get("user-agent"))) return response;
     res = redirect(signedIn ? "/today" : "/login");
   } else if (pathname === "/login" && signedIn) res = redirect("/today");
-  else if (pathname !== "/login" && !signedIn) res = redirect("/login");
+  else if (pathname !== "/login" && pathname !== "/contact" && !signedIn) res = redirect("/login");
 
   if (raw && !demo) res.cookies.delete(SESSION_COOKIE);
   // 로그인 힌트 쿠키를 세션과 맞춘다(소개 페이지 버튼 문구용)
@@ -58,6 +58,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/login", "/onboarding", "/today/:path*", "/article/:path*", "/listen/:path*", "/library/:path*", "/settings/:path*", "/admin/:path*",
+    // 문의하기 양식은 누구나 열지만, 로그인한 사람의 토큰을 갱신해 회원으로 알아보게 거친다
+    "/contact",
     // 앱에서 연 소개 페이지만(lib/app-client.ts의 APP_UA_MARK와 같은 값이어야 한다. matcher는 상수만 된다)
     { source: "/", has: [{ type: "header", key: "user-agent", value: ".*MaengoApp/.*" }] },
   ],

@@ -11,6 +11,7 @@ import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import type { FeedbackKind } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, LibraryReadFilter, ProfileView, TodayData } from '../types';
 import { ai } from './ai';
+import { isAdmin } from './admin';
 import { db, must } from './db';
 import { instantBuilding } from './instant-lock';
 import { entitlements, type Profile } from './profile';
@@ -810,6 +811,7 @@ export function toProfileView(p: Profile): ProfileView {
     skipRead: p.skipRead,
     playbackRate: p.playbackRate,
     aiProvider: ai.provider,
+    admin: isAdmin(p),
   };
 }
 

@@ -76,9 +76,10 @@ export async function Landing() {
         <div className="mx-auto flex h-16 max-w-[1100px] items-center justify-between gap-3 px-5">
           <Link href="/" className="flex items-center gap-2 no-underline">
             <MangoIcon className="size-9" />
-            <span className="text-[26px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
+            {/* 좁은 휴대폰(375px 밑)에서는 글자를 숨겨 메뉴가 한 줄에 들어가게 한다(아이콘·이름은 그대로 링크) */}
+            <span className="text-[26px] font-black tracking-[-0.04em] text-mango-deep max-[374px]:sr-only">맹고</span>
           </Link>
-          <nav aria-label="소개 메뉴" className="flex items-center gap-1">
+          <nav aria-label="소개 메뉴" className="flex items-center gap-1 whitespace-nowrap">
             <a href="#features" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
               무엇을 해 주나요
             </a>
@@ -86,9 +87,12 @@ export async function Landing() {
               관심 분야
             </Link>
             {/* 요금은 휴대폰에서도 보인다(기능은 넓은 화면에서만) */}
-            <a href="#pricing" className="inline-flex min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow">
+            <a href="#pricing" className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:px-3">
               요금
             </a>
+            <Link href="/contact" className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:px-3">
+              문의하기
+            </Link>
             <AuthLink signedOut={{ href: "/login", label: "로그인" }} signedIn={{ href: "/today", label: "오늘의 소식" }} className="btn btn-ghost ml-1 min-h-11 px-4 text-[14px]" />
           </nav>
         </div>
@@ -329,16 +333,16 @@ export async function Landing() {
               </details>
             ))}
           </div>
-          {/* 질문 목록에 없는 건 메일로 */}
+          {/* 질문 목록에 없는 건 문의하기 양식으로(로그인 없이도 된다) */}
           {SUPPORT_EMAIL && (
             <div className="tile mt-6 flex flex-col items-center gap-4 p-5 text-center sm:flex-row sm:justify-between sm:text-left">
               <div className="min-w-0">
                 <p className="text-[17px] font-black">더 궁금한 게 있나요?</p>
                 <p className="mt-1 break-all text-[14px] font-semibold text-sub">{SUPPORT_EMAIL}</p>
               </div>
-              <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("[맹고 문의]")}`} className="btn btn-ghost min-h-12 shrink-0 px-6 text-[15px]">
+              <Link href="/contact" className="btn btn-ghost min-h-12 shrink-0 px-6 text-[15px] no-underline">
                 문의하기
-              </a>
+              </Link>
             </div>
           )}
         </section>

@@ -1,11 +1,13 @@
 import { kstDate } from '@maengo/core/kst';
 
-// 관리자 화면 맨 위 빨간 줄 중 운영(배송·수집) 판단. DB를 읽지 않는 계산만(테스트: __tests__/admin-ops.test.ts).
+// 관리자 화면 알림(종) 중 운영(배송·수집) 판단. DB를 읽지 않는 계산만(테스트: __tests__/admin-ops.test.ts).
 // 읽기는 lib/server/admin-alerts.ts. 관리자만 보는 화면이라 무엇을 볼지까지 적는다.
 
 export interface AdminAlert {
   title: string;
   detail: string;
+  /** 누르면 갈 관리자 화면(종 목록에서 링크로) */
+  href?: string;
 }
 
 /** scheduler_tasks 한 줄에서 여기서 쓰는 칸 */

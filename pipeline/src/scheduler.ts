@@ -20,7 +20,7 @@ import { remindTrialEnding } from './trial-reminder';
 // summarize 작업은 표에서 꺼 두었다(enabled=false, 필요하면 켤 수 있게 코드는 남긴다).
 // 무엇을 언제 돌릴지는 scheduler_tasks 표가 정한다: 차례가 된 작업만 가져와 돌리고, 결과와 다음 차례를 표에 남긴다.
 // Vercel 함수는 300초까지라 한 번에 약 4분 예산을 두고, 다 못 한 작업은 놓아줘 다음 실행이 이어받는다.
-// 작업이 실패하면 30분 뒤 다시(하루 세 번까지, lib/retry.ts). 관리자 화면 맨 위에 빨간 줄로 띄운다(apps/web/lib/server/admin-alerts.ts).
+// 작업이 실패하면 30분 뒤 다시(하루 세 번까지, lib/retry.ts). 관리자 화면 알림 종에 띄운다(apps/web/lib/server/admin-alerts.ts).
 // trial_reminder(하루 한 번 12:00 KST): 내일 무료 체험이 끝나는 사람에게 푸시 한 번(trial-reminder.ts).
 // 작업이 '다 못 했다'(unfinished)고 하면 성공으로 적지 않고 놓아줘 다음 실행(5분 뒤)이 바로 잇는다(차례 시각은 그대로).
 

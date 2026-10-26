@@ -7,7 +7,7 @@ import { env } from './env';
 // - 선불 크레딧이 바닥나면(402) 한 시간 동안 부르지 않는다(service_flags 'gemini_blocked'). 한 시간 뒤 한 번 다시 해 본다
 // - 오늘(KST) 추정 지출이 상한(GEMINI_DAILY_USD_CAP, 기본 $1)을 넘으면 그날은 부르지 않는다
 // 막히면 GeminiBlockedError(할당량 오류의 한 갈래)를 던지고, 부르는 쪽은 이미 요약된 소식으로 계속한다.
-// 관리자 화면 맨 위에 같은 상태를 빨간 줄로 띄운다(apps/web/lib/server/admin-alerts.ts).
+// 관리자 화면 알림 종에 같은 상태를 띄운다(apps/web/lib/server/admin-alerts.ts).
 
 const FLAG = 'gemini_blocked';
 const BLOCK_MINUTES = 60;

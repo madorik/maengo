@@ -138,7 +138,7 @@ export interface SummarizeOutput {
   scenes?: { t: string; label: string }[];
 }
 
-export type UsageKind = 'summary' | 'why' | 'script' | 'tts' | 'embed' | 'video' | 'topic_map' | 'classify' | 'screen';
+export type UsageKind = 'summary' | 'why' | 'script' | 'tts' | 'embed' | 'video' | 'topic_map' | 'classify' | 'screen' | 'support';
 
 export interface UsageEvent {
   model: string;

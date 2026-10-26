@@ -7,7 +7,7 @@ import type { RcEvent } from "@/lib/billing/revenuecat";
 // RevenueCat 웹훅(구매·갱신·해지·만료·환불 등). 대시보드에 Authorization 값으로 `Bearer {REVENUECAT_WEBHOOK_AUTH}`를 넣는다.
 // 원본 이벤트와 돈이 오간 거래는 문의 대응용으로 남기고(billing_events·purchases), 플랜·지갑은 내용을 믿지 않고
 // 누구의 일인지만 본 뒤 RevenueCat에서 그 사람 상태를 다시 읽어 맞춘다(lib/server/billing.ts).
-// 실패하면 500으로 답해 RevenueCat이 다시 보내게 하고, 관리자 화면 맨 위에 빨간 줄로 알린다(lib/server/admin-alerts.ts).
+// 실패하면 500으로 답해 RevenueCat이 다시 보내게 하고, 관리자 화면 알림 종에 띄운다(lib/server/admin-alerts.ts).
 // 맹고 묶음 환불(CANCELLATION)은 넣었던 맹고를 한 번 회수한다(clawbackRefund). 구매는 회원 사이에 저절로 옮기지 않는다(BILLING.md 구매 복원):
 // 그래도 옮기기(TRANSFER)가 오면 내준 쪽·받은 쪽을 모두 다시 맞춘다(내준 쪽은 권한이 없어져 Free로).
 

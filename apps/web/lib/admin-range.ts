@@ -40,6 +40,7 @@ export const ADMIN_TABS = [
   { id: 'growth', label: '가입·활동' },
   { id: 'revenue', label: '매출·콘텐츠' },
   { id: 'ops', label: '운영' },
+  { id: 'inquiries', label: '문의' },
 ] as const;
 
 export type AdminTab = (typeof ADMIN_TABS)[number]['id'];

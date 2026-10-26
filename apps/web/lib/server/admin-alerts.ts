@@ -2,8 +2,9 @@ import 'server-only';
 import { addDays, kstDate } from '@maengo/core/kst';
 import { type AdminAlert, opsAlerts, type TaskState } from '../admin-ops';
 import { db, must } from './db';
+import { openInquiries, unsentInquiries } from './inquiry';
 
-// 관리자 화면 맨 위 빨간 줄: Gemini가 막혔는지(크레딧 소진 표시, 하루 지출 상한. 파이프라인 lib/ai-guard.ts와 같은 기준),
+// 관리자 화면 알림(위 막대의 종, components/admin/AlertBell.tsx): Gemini가 막혔는지(크레딧 소진 표시, 하루 지출 상한. 파이프라인 lib/ai-guard.ts와 같은 기준),
 // 결제 웹훅을 처리하지 못했는지(app/api/billing/revenuecat), 배송·수집이 멈췄거나 실패가 몰렸는지(판단은 lib/admin-ops.ts).
 
 export type { AdminAlert };
@@ -51,6 +52,18 @@ export async function adminAlerts(now = new Date()): Promise<AdminAlert[]> {
     out.push({
       title: `오늘 Gemini 지출이 상한 $${cap}에 닿았어요`,
       detail: `오늘 추정 $${spent.toFixed(2)}. 자정(한국 시간)까지 요약·임베딩을 멈추고 이미 요약된 소식으로만 피드를 만들어요. 상한은 GEMINI_DAILY_USD_CAP.`,
+    });
+  }
+  // 답장 기다리는 문의(관리자 > 운영 탭 아래 문의에서 답장)
+  const waiting = await openInquiries().catch(() => 0);
+  if (waiting > 0) out.push({ title: `답장을 기다리는 문의가 ${waiting}건 있어요`, detail: '문의 탭에서 AI 초안을 보고 보내면 돼요.', href: '/admin?tab=inquiries' });
+  // 문의하기 양식은 DB에 남았지만 운영자 메일로 가지 않은 것(RESEND_API_KEY 없음·도메인 인증 전·Resend 실패)
+  const unsent = await unsentInquiries(now).catch(() => 0);
+  if (unsent > 0) {
+    out.push({
+      title: `메일로 보내지 못한 문의가 ${unsent}건 있어요`,
+      detail: '최근 7일. 내용과 답장 주소는 문의 탭에 있어요(\'운영자 메일 못 감\'). RESEND_API_KEY와 Resend 도메인 인증을 확인하세요.',
+      href: '/admin?tab=inquiries',
     });
   }
   out.push(...(await opsState(now)));

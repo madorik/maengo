@@ -23,6 +23,7 @@ export function trialNotice(trialDays: number, price: string, chargeLabel: strin
     `오늘부터 ${trialDays}일 동안 Premium을 무료로 써요.`,
     `체험이 끝나는 ${chargeLabel}에 월 ${price}이 자동으로 결제되고, 그 뒤로 매달 같은 날 갱신돼요.`,
     "체험 중에 해지하면 결제되지 않아요. 해지는 설정 > 플랜 > 구독 관리(App Store·Google Play 구독)에서 할 수 있어요.",
+    "결제된 뒤 Premium 기능을 쓰면 그 결제는 환불할 수 없어요. 쓰지 않았으면 결제한 날부터 7일 안에 환불할 수 있어요.",
   ];
 }
 

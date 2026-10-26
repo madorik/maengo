@@ -6,8 +6,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { track } from "@/lib/analytics";
-import { appInfoOf } from "@/lib/app-client";
-import { BILLING_MAIL_SUBJECT, supportMailHref } from "@/lib/site";
 import { useInApp, useStore } from "./useStore";
 import { AppOnlyNotice } from "./AppOnlyNotice";
 import { announcePurchase } from "./PurchaseDone";
@@ -158,8 +156,8 @@ export function PremiumBuy({ uid, plan, firstSub, sub }: { uid: string; plan: Pl
       </button>
       <p className="mt-2 text-center text-[13px] font-medium leading-relaxed text-sub">
         {trialDays
-          ? `무료 체험이 끝나면 월 ${premium.price}이 자동으로 결제되고 매달 갱신돼요. 체험 중에 해지하면 결제되지 않아요. `
-          : "매달 자동으로 갱신되고, 스토어의 구독 관리에서 언제든 해지할 수 있어요. "}
+          ? `무료 체험이 끝나면 월 ${premium.price}이 자동으로 결제되고 매달 갱신돼요. 체험 중에 해지하면 결제되지 않아요. 결제 뒤 Premium 기능을 쓰면 그 결제는 환불할 수 없어요. `
+          : "매달 자동으로 갱신되고, 스토어의 구독 관리에서 언제든 해지할 수 있어요. 결제 뒤 Premium 기능을 쓰면 그 결제는 환불할 수 없어요. "}
         <Link href="/terms" className="underline">
           이용약관
         </Link>{" "}
@@ -293,9 +291,9 @@ export function MaengoShop({ uid, canBuy, wallet, onBought }: { uid: string; can
               {s.busy === chosen.productId ? "결제 중" : `${chosen.maengo}맹고 구매 · ${chosen.price}`}
             </button>
           )}
-          {/* 청약철회 제한 사전 고지(전자상거래법 17조 6항, 약관 6조) */}
+          {/* 청약철회 제한 사전 고지(전자상거래법 17조 6항, 약관 6조). 맹고 묶음은 나눠 쓰는 콘텐츠라 남은 맹고는 7일 안에 환불(2026-10-26) */}
           <p className="mt-2 text-center text-[13px] font-medium leading-relaxed text-sub">
-            구매한 뒤 맹고를 써서 소식을 더 받으면 환불할 수 없어요.{" "}
+            쓴 맹고는 환불되지 않아요. 남은 맹고는 구매한 날부터 7일 안에 환불할 수 있어요.{" "}
             <Link href="/terms" className="underline">
               이용약관
             </Link>
@@ -336,10 +334,6 @@ function RestoreButton({ uid }: { uid: string }) {
       "구매를 복원하지 못했어요.",
     );
   };
-  const mail = () => {
-    const app = appInfoOf(navigator.userAgent);
-    return supportMailHref(BILLING_MAIL_SUBJECT, [`회원: ${uid.slice(0, 8)}`, `앱: ${app ? `${app.version} (${app.platform})` : "웹 브라우저"}`, "내용: 다른 계정에서 산 구매 복원"]);
-  };
   return (
     <div className="mt-10 text-center">
       <button type="button" onClick={restore} disabled={s.busy !== null} className="min-h-10 text-[13px] font-bold text-sub underline">
@@ -348,9 +342,9 @@ function RestoreButton({ uid }: { uid: string }) {
       {inUse ? (
         <p role="alert" className="mt-2 text-[14px] font-bold text-cherry">
           다른 맹고 계정에서 산 구매라 이 계정으로 복원할 수 없어요.
-          <a href={mail()} className="ml-2 underline">
+          <Link href="/contact?c=billing&q=restore" className="ml-2 underline">
             문의하기
-          </a>
+          </Link>
         </p>
       ) : (
         <ErrorText text={s.error} />

@@ -85,6 +85,8 @@ export interface ProfileView {
   /** 재생 속도. 플레이어·글 하나 듣기의 처음 속도 */
   playbackRate: number;
   aiProvider: 'dummy' | 'gemini';
+  /** 관리자(/admin)에 들어갈 수 있는지(lib/server/admin.ts isAdmin: ADMIN_EMAILS의 이메일, 로컬은 데모 계정). 계정 메뉴에 '관리자'를 보인다 */
+  admin: boolean;
 }
 
 export interface EpisodeData {

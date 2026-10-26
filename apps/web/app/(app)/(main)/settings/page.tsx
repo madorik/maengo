@@ -23,11 +23,9 @@ import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { userLinks } from "@/lib/server/links";
 import { entitlements, webPushTokens } from "@/lib/server/profile";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
-import { appInfoOf, deviceOf } from "@/lib/app-client";
-import { SUPPORT_EMAIL, supportMailHref } from "@/lib/site";
-
-/** 웹 버전: 배포한 커밋(Vercel이 넣는다). 커밋 정보 없이 올린 배포면 배포 id(dpl_…) 앞부분, 로컬은 '개발' */
-const WEB_VERSION = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || process.env.VERCEL_DEPLOYMENT_ID?.replace(/^dpl_/, "").slice(0, 7) || "개발";
+import { appInfoOf } from "@/lib/app-client";
+import { WEB_VERSION } from "@/lib/server/web-version";
+import { IconChevronRight } from "@/components/icons";
 
 export const metadata: Metadata = { title: "설정" };
 
@@ -67,14 +65,6 @@ export default async function SettingsPage() {
   const ua = (await headers()).get("user-agent");
   const app = appInfoOf(ua);
   const version = app ? `앱 ${app.version} · 웹 ${WEB_VERSION}` : `웹 ${WEB_VERSION}`;
-  // 문의 메일: 제목과 문제를 찾는 데 쓸 정보를 미리 채운다
-  const mailHref = supportMailHref("[맹고 문의]", [
-    `앱: ${app ? `${app.version} (${app.platform})` : "웹 브라우저"}`,
-    `웹: ${WEB_VERSION}`,
-    `기기: ${deviceOf(ua)}`,
-    `플랜: ${profile.limits.name}`,
-    `회원: ${profile.id.slice(0, 8)}`,
-  ]);
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
@@ -172,12 +162,11 @@ export default async function SettingsPage() {
 
         <Section id="about" title="앱 정보">
           <div className="divide-y-2 divide-line">
-            {SUPPORT_EMAIL && (
-              <a href={mailHref} className="flex min-h-12 items-center justify-between gap-3 font-bold text-ink no-underline hover:underline">
-                문의하기
-                <span className="min-w-0 truncate text-[14px] text-sub">{SUPPORT_EMAIL}</span>
-              </a>
-            )}
+            {/* 문의하기 양식(/contact). 회원 번호·플랜·최근 결제·앱 버전은 서버가 붙인다 */}
+            <Link href="/contact" className="flex min-h-12 items-center justify-between gap-3 font-bold text-ink no-underline hover:underline">
+              문의하기
+              <IconChevronRight className="size-4 text-sub" />
+            </Link>
             <p className="flex min-h-12 items-center justify-between gap-3 font-bold">
               버전
               <span className="font-round text-[15px] text-sub tabular-nums">{version}</span>

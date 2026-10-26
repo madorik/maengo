@@ -16,7 +16,7 @@ const googleTtsKey = process.env.GOOGLE_TTS_API_KEY?.trim();
 // 100만 토큰당 달러(추정치, core/ai/models.ts의 고정 모델 단가). TTS는 2027-01-01부터 두 배
 const PRICE = { tts: { input: 0.5, output: 6 }, text: { input: 0.25, output: 1.5 } };
 
-function logUsage(e: UsageEvent) {
+export function logUsage(e: UsageEvent) {
   const price = e.kind === 'tts' ? PRICE.tts : PRICE.text;
   const usd = (e.inputTokens * price.input + (e.outputTokens + e.thinkingTokens) * price.output) / 1e6;
   void db
