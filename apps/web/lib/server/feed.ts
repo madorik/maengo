@@ -350,7 +350,7 @@ export async function todayFillStatus(profile: Profile): Promise<{ hasFeed: bool
   return { hasFeed: day.rows.length > 0, visible: day.visible, want: entitlements(profile).dailyItems + day.extra };
 }
 
-/** 보관함에서 볼 수 있는 가장 오래된 날(plans 표 archive_days, Free는 최근 90일). null이면 전부 */
+/** 보관함에서 볼 수 있는 가장 오래된 날(plans 표 archive_days, Free 최근 30일·Premium 180일). null이면 전부 */
 function archiveFrom(profile: Profile, today: string): string | null {
   const days = entitlements(profile).archiveDays;
   return days === null ? null : daysBefore(today, days - 1);
@@ -648,6 +648,7 @@ export async function getLibrary(
     read,
     query = null,
     overlap = 0,
+    syncToday = true,
   }: {
     page: number;
     category: CategoryId | null;
@@ -655,16 +656,20 @@ export async function getLibrary(
     query?: string | null;
     /** 이 쪽 앞의 소식을 이만큼 겹쳐 준다(앱 이어 붙이기: 받는 사이 목록이 줄어도 건너뛰는 소식이 없게, 겹친 건 화면이 거른다) */
     overlap?: number;
+    /**
+     * 오늘 피드를 먼저 읽어 오늘 보여 줄 개수(feed_days.visible)를 맞춘다(플랜이 바뀌었거나 모자란 걸 채운 뒤). 화면(1쪽)은 늘 맞추고,
+     * 앱이 이어 붙이는 쪽(/api/library)은 1쪽을 그릴 때 맞췄으니 건너뛴다(오늘 소식 본문까지 읽는 조회라 쪽마다 DB를 한 번 더 오갔다)
+     */
+    syncToday?: boolean;
   },
 ): Promise<LibraryData> {
   const now = new Date();
-  // 오늘 피드를 먼저 읽는다: 오늘 보여 줄 개수(feed_days.visible)를 거기서 맞춘다(플랜이 바뀌었거나 모자란 걸 채운 뒤)
-  const today = await todayFeed(profile);
+  const today = syncToday ? (await todayFeed(profile)).date : kstDate();
   const r = must(
     await db.rpc('library_page', {
       p_user: profile.id,
-      p_today: today.date,
-      p_from: archiveFrom(profile, today.date),
+      p_today: today,
+      p_from: archiveFrom(profile, today),
       p_category: category,
       p_unread: read === 'unread',
       p_terms: libraryTerms(query),
