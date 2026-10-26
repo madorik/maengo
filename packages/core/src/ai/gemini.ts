@@ -1,5 +1,6 @@
 import { GoogleGenAI, MediaResolution, Modality, ThinkingLevel, type Part, type SpeechConfig } from '@google/genai';
 import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
+import { alignLines } from '../audio/align';
 import { parseWav } from '../audio/wav';
 import { GEMINI_MODELS } from './models';
 import { templateScript } from './script';
@@ -35,23 +36,6 @@ const TTS_VOICES = { f: 'Kore', m: 'Charon' } as const;
  */
 export function ttsText(lines: { who?: string; text: string }[], pair: boolean): string {
   return lines.map((l) => (pair ? `${l.who ?? '해설자'}: ${l.text}` : l.text)).join('\n');
-}
-
-/**
- * TTS는 줄별 시각을 주지 않는다. 전체 길이를 글자 수(+줄 사이 쉼)에 비례해 나눠 대본 하이라이트에 쓴다.
- * 문단 단위 표시에는 충분히 맞고, 문장 단위로는 조금 어긋날 수 있다.
- */
-function spreadLines(lines: { text: string }[], durationMs: number): { startMs: number; endMs: number }[] {
-  const PAUSE = 6; // 줄 사이 쉼을 글자 6개 정도로 본다
-  const total = lines.reduce((n, l) => n + l.text.length + PAUSE, 0) || 1;
-  let at = 0;
-  return lines.map((l) => {
-    const startMs = Math.round((at / total) * durationMs);
-    at += l.text.length;
-    const endMs = Math.round((at / total) * durationMs);
-    at += PAUSE;
-    return { startMs, endMs };
-  });
 }
 
 /** 하루 할당량이 없거나 다 썼다. 같은 실행 안에서 다시 불러도 소용없다(무료 등급의 Pro 모델은 할당량이 0) */
@@ -563,7 +547,7 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       const sampleRate = wav?.sampleRate ?? Number(data.mimeType?.match(/rate=(\d+)/)?.[1] ?? 24000);
       const bitsPerSample = wav?.bitsPerSample ?? 16;
       const durationMs = Math.round((pcm.length / (sampleRate * (bitsPerSample / 8))) * 1000);
-      return { pcm, sampleRate, bitsPerSample, durationMs, lineTimesMs: spreadLines(input.lines, durationMs) };
+      return { pcm, sampleRate, bitsPerSample, durationMs, lineTimesMs: alignLines(pcm, sampleRate, input.lines.map((l) => l.text)) };
     },
   };
 }

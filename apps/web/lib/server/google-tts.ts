@@ -1,11 +1,12 @@
 import 'server-only';
 import type { SpeakInput, SpeakOutput } from '@maengo/core/ai';
-import { parseWav } from '@maengo/core/audio';
+import { alignLines, parseWav } from '@maengo/core/audio';
 import type { Persona } from '@maengo/core/types';
 
 // Google Cloud Text-to-Speech, Chirp 3: HD 한국어 목소리. 2026-10-10 Gemini TTS(무료 등급 하루 10번)에서 바꿨다.
 // 과금은 글자 수(공백 포함, 한글도 1자). 매월 100만 자 무료, 그 뒤 100만 자당 $30. 요청 하나에 5,000바이트(한글 약 1,600자)까지.
-// 대본을 줄마다 따로 만들어 이어 붙인다. 대담은 줄마다 목소리가 다르고, 줄별 시각을 정확히 알 수 있고, 5,000바이트 한도에 걸리지 않는다.
+// 같은 사람이 말하는 한 문단을 한 번에 만들어 이어 붙인다. 처음엔 줄(문장)마다 따로 만들었는데 문장마다 억양이 처음부터 다시 시작해
+// 뚝뚝 끊겨 들렸다(2026-10-26). 문단 안 줄별 시각은 음성의 쉼으로 찾는다(core/audio/align.ts).
 
 const ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 /**
@@ -24,13 +25,18 @@ export function chirpVoiceId(persona: Persona, vk: 'f' | 'm' | 'pair'): string {
   return vk === 'pair' ? `${v.f}+${v.m}` : v[vk];
 }
 const SAMPLE_RATE = 24000;
-/** 줄 사이 쉼. 문단이 바뀌거나 말하는 사람이 바뀌면 조금 더 쉰다 */
+/** 문단 사이 쉼. 문단이 바뀌거나 말하는 사람이 바뀌면 조금 더 쉰다(제목 다음은 짧게) */
 const GAP_MS = 300;
 const TURN_GAP_MS = 550;
-/** 말투별 빠르기(1이 기본). 아나운서는 조금 빠르게, 선생님은 조금 천천히 */
-const RATE: Record<Persona, number> = { announcer: 1.05, teacher: 0.95, dialogue: 1 };
-/** 한 소식의 줄을 동시에 몇 개까지 만들지 */
+/**
+ * 말투별 빠르기(1이 기본). 선생님은 조금 천천히. 아나운서는 1.05였다가 1로(2026-10-26: 플레이어 속도 1.0x가 원래 빠르기가 되게,
+ * 빠르게 듣고 싶으면 플레이어에서 올린다)
+ */
+const RATE: Record<Persona, number> = { announcer: 1, teacher: 0.95, dialogue: 1 };
+/** 한 소식의 문단을 동시에 몇 개까지 만들지 */
 const PARALLEL = 4;
+/** 한 번에 보낼 글 크기. 요청 한도 5,000바이트보다 넉넉히 작게, 넘으면 문단을 나눠 보낸다 */
+const MAX_BYTES = 4000;
 
 /** 요청 한도(분당 요청 수 등)에 걸렸다. retryMs는 Google이 알려 준 대기 시간(모르면 null) */
 export class TtsQuotaError extends Error {
@@ -82,35 +88,48 @@ export function createGoogleTts(opts: { apiKey: string; onChars?: (chars: number
       const pair = input.voice === 'pair';
       const rate = RATE[input.persona];
       const voiceOf = (who?: string): 'f' | 'm' => (pair ? (who === '진행자' ? 'f' : 'm') : (input.voice as 'f' | 'm'));
-      const pcms: Uint8Array[] = new Array(input.lines.length);
+      const textOf = (run: number[]) => run.map((i) => input.lines[i]!.text).join(' ');
+      // 같은 사람의 같은 문단 줄을 하나로 묶는다(줄 번호 목록). 제목·마무리처럼 문단 번호가 없는 줄은 혼자
+      const runs: number[][] = [];
+      input.lines.forEach((line, i) => {
+        const run = runs.at(-1);
+        const prev = run && input.lines[run.at(-1)!]!;
+        const same = prev?.para !== undefined && prev.para === line.para && prev.who === line.who;
+        if (run && same && Buffer.byteLength(textOf(run)) + 1 + Buffer.byteLength(line.text) <= MAX_BYTES) run.push(i);
+        else runs.push([i]);
+      });
+      const pcms: Uint8Array[] = new Array(runs.length);
       let next = 0;
       await Promise.all(
-        Array.from({ length: Math.min(PARALLEL, input.lines.length) }, async () => {
-          while (next < input.lines.length) {
-            const i = next++;
-            const line = input.lines[i]!;
-            pcms[i] = await synth(line.text, VOICES[input.persona][voiceOf(line.who)], rate);
+        Array.from({ length: Math.min(PARALLEL, runs.length) }, async () => {
+          while (next < runs.length) {
+            const r = next++;
+            const run = runs[r]!;
+            pcms[r] = await synth(textOf(run), VOICES[input.persona][voiceOf(input.lines[run[0]!]!.who)], rate);
           }
         }),
       );
-      opts.onChars?.(input.lines.reduce((n, l) => n + l.text.length, 0));
+      opts.onChars?.(runs.reduce((n, run) => n + textOf(run).length, 0));
 
-      // 줄 사이에 쉼을 넣어 이어 붙이고, 줄마다 시작·끝 시각을 잰다
+      // 문단 사이에 쉼을 넣어 이어 붙인다. 줄 시각은 혼자인 줄이면 음성 전체, 묶인 줄이면 쉼으로 찾는다
       const bytesPerMs = (SAMPLE_RATE * 2) / 1000;
       const silence = (ms: number) => new Uint8Array(Math.round((ms * bytesPerMs) / 2) * 2);
       const parts: Uint8Array[] = [];
-      const lineTimesMs: { startMs: number; endMs: number }[] = [];
+      const lineTimesMs: { startMs: number; endMs: number }[] = new Array(input.lines.length);
       let at = 0;
-      input.lines.forEach((line, i) => {
-        if (i > 0) {
-          const prev = input.lines[i - 1]!;
+      runs.forEach((run, r) => {
+        if (r > 0) {
+          const prev = input.lines[runs[r - 1]!.at(-1)!]!;
+          const line = input.lines[run[0]!]!;
           const turn = prev.who !== line.who || (prev.para !== undefined && prev.para !== line.para);
           const gap = silence(turn ? TURN_GAP_MS : GAP_MS);
           parts.push(gap);
           at += gap.length;
         }
-        const pcm = pcms[i]!;
-        lineTimesMs.push({ startMs: Math.round(at / bytesPerMs), endMs: Math.round((at + pcm.length) / bytesPerMs) });
+        const pcm = pcms[r]!;
+        const base = at / bytesPerMs;
+        const times = run.length > 1 ? alignLines(pcm, SAMPLE_RATE, run.map((i) => input.lines[i]!.text)) : [{ startMs: 0, endMs: pcm.length / bytesPerMs }];
+        run.forEach((i, j) => (lineTimesMs[i] = { startMs: Math.round(base + times[j]!.startMs), endMs: Math.round(base + times[j]!.endMs) }));
         parts.push(pcm);
         at += pcm.length;
       });
