@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>맹고 쇼츠 스테이지</title>
+<link rel="stylesheet" href="file:///Users/mgjeong/private-workspace/maengo/apps/web/node_modules/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+  :root { --mango:#FFC23D; --ink:#1F2340; --deep:#E5A21F; --paper:#fff; --sky:#1478C8; }
+  html, body { margin:0; padding:0; width:1080px; height:1920px; overflow:hidden; background:var(--mango); }
+  body { font-family:"Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  #stage { position:relative; width:1080px; height:1920px; overflow:hidden; background:var(--mango); }
+  .abs { position:absolute; }
+
+  /* 쇼츠·릴스 화면에서 위 140px, 아래 약 400px, 오른쪽 버튼 줄은 앱 UI가 덮는다. 중요한 건 그 안쪽에 둔다 */
+  #top { left:80px; top:170px; display:flex; align-items:center; gap:20px; font-size:40px; font-weight:700; }
+  #top .brand { background:var(--ink); color:var(--mango); border-radius:999px; padding:8px 26px; font-weight:900; }
+  #top .meta { opacity:.75; }
+  #title { left:80px; top:262px; width:920px; font-size:74px; font-weight:900; line-height:1.22; letter-spacing:-0.025em; word-break:keep-all; }
+
+  #mascot { left:260px; top:478px; width:560px; height:536px; transform-origin:50% 90%; }
+  #mascot svg { width:100%; height:100%; overflow:visible; }
+
+  #card { left:80px; top:1046px; width:920px; height:370px; border-radius:48px; background:var(--paper); box-shadow:0 24px 60px rgb(31 35 64 / .16); box-sizing:border-box; padding:0 56px; display:flex; align-items:center; justify-content:center; }
+  #cap { font-size:66px; font-weight:800; line-height:1.32; letter-spacing:-0.02em; text-align:center; word-break:keep-all; }
+  #cap span { opacity:.28; }
+  #cap span.on { opacity:1; }
+
+  #foot { left:80px; top:1452px; width:920px; }
+  #bar { height:10px; border-radius:5px; background:rgb(31 35 64 / .16); overflow:hidden; }
+  #bar i { display:block; height:100%; width:0; background:var(--ink); border-radius:5px; }
+  #src { margin-top:18px; font-size:34px; font-weight:600; opacity:.7; }
+
+  #outro { left:0; top:930px; width:1080px; display:flex; flex-direction:column; align-items:center; gap:20px; opacity:0; }
+  #outro .tag { font-size:66px; font-weight:900; letter-spacing:-0.025em; text-align:center; line-height:1.25; }
+  #outro .url { font-size:50px; font-weight:800; background:var(--paper); border-radius:999px; padding:16px 44px; margin-top:18px; }
+  #outro .store { font-size:36px; font-weight:600; opacity:.75; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="top" class="abs"><span class="brand">맹고</span><span class="meta"></span></div>
+  <div id="title" class="abs"></div>
+  <div id="mascot" class="abs"></div>
+  <div id="card" class="abs"><div id="cap"></div></div>
+  <div id="foot" class="abs"><div id="bar"><i></i></div><div id="src"></div></div>
+  <div id="outro" class="abs">
+    <div class="tag">관심 분야 소식,<br>맹고가 읽어드려요</div>
+    <div class="url">watalabs.com/maengo</div>
+    <div class="store">App Store · Google Play</div>
+  </div>
+</div>
+
+<script>
+// render.mjs가 window.init(data, amp, fps)로 소식 데이터와 프레임별 음량(0~1)을 넣은 뒤 window.seek(t초)로 한 장씩 찍는다.
+// 맹고 그림은 apps/mobile/scripts/render-assets.mjs의 스플래시(이어폰 맹고)와 같고, 입·눈·소리만 움직인다.
+const OUTRO = 3.2;
+const CAP_MAX = 26; // 자막 한 덩어리 최대 글자 수(공백 포함). 카드 안에서 두세 줄
+const MANGO = "#FFC23D", SHADE = "#FF9F2E", INK = "#191C32", SKY = "#1A8FE0", SKY_DARK = "#1270B3", ARM = "#E5A21F";
+const KFONT = "'Pretendard Variable', 'Apple SD Gothic Neo', sans-serif";
+
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const P = (t, s, d) => clamp((t - s) / d);
+const outCubic = (p) => 1 - Math.pow(1 - p, 3);
+const outBack = (p) => { const c = 1.70158; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+const q = (s) => document.querySelector(s);
+
+// ---- 맹고 ----
+function listening(sil) {
+  const T = 12;
+  const f = (c) => (sil ? "#FFFFFF" : c);
+  const st = sil ? ` stroke="#FFFFFF" stroke-width="${T}" stroke-linejoin="round"` : "";
+  const sw = (n) => (sil ? n + T : n);
+  let s = "";
+  s += `<g class="bubble"><path d="M28 62 L37 95 L48 62 Z" fill="${f("#1478C8")}"${st}/><rect x="4" y="24" width="86" height="42" rx="18" fill="${f("#1478C8")}"${st}/>`;
+  if (!sil) for (const [y, line] of [[41.5, "오늘의 소식"], [58.5, "입니다~"]]) s += `<text x="47" y="${y}" text-anchor="middle" font-family="${KFONT}" font-size="14" font-weight="800" letter-spacing="-0.3" fill="#FFFFFF">${line}</text>`;
+  s += `</g>`;
+  s += `<path d="M100 46 C146 44 168 84 165 122 C162 158 130 180 96 177 C62 174 38 152 39 121 C40 99 52 86 63 73 C75 59 83 47 100 46 Z" fill="${f(MANGO)}"${st}/>`;
+  if (!sil) {
+    s += `<path d="M164 112 C166 150 136 178 98 177 C128 166 152 146 164 112 Z" fill="${SHADE}"/>`;
+    s += `<ellipse cx="70" cy="88" rx="9" ry="16" transform="rotate(-30 70 88)" fill="#FFE08A"/>`;
+  }
+  s += `<rect x="96" y="34" width="8" height="15" rx="3" transform="rotate(15 100 42)" fill="${f("#7A4A2A")}"${st}/>`;
+  s += `<path d="M102 44 C112 24 138 16 158 22 C148 42 124 50 102 44 Z" fill="${f("#34B36A")}"${st}/>`;
+  if (!sil) {
+    s += `<path d="M107 42 C122 34 138 28 152 24" fill="none" stroke="#23914F" stroke-width="3" stroke-linecap="round"/>`;
+    s += `<g class="eyes"><circle cx="78" cy="112" r="16" fill="#fff"/><circle cx="122" cy="112" r="16" fill="#fff"/>`;
+    s += `<circle cx="81" cy="115" r="8" fill="${INK}"/><circle cx="119" cy="115" r="8" fill="${INK}"/>`;
+    s += `<circle cx="84" cy="111" r="2.6" fill="#fff"/><circle cx="122" cy="111" r="2.6" fill="#fff"/></g>`;
+    s += `<path class="smile" d="M91 136 Q100 145 109 136" fill="none" stroke="${INK}" stroke-width="4.5" stroke-linecap="round"/>`;
+    s += `<path class="mouth" d="" fill="${INK}"/>`;
+    s += `<ellipse cx="64" cy="137" rx="8" ry="5" fill="#FF6F61" opacity="0.45"/><ellipse cx="136" cy="137" rx="8" ry="5" fill="#FF6F61" opacity="0.45"/>`;
+  }
+  s += `<g fill="none" stroke="${f(SKY)}" stroke-width="${sw(3)}" stroke-linecap="round">`;
+  s += `<path d="M41 117 C34 158 64 194 108 196"/><path d="M165 117 C168 156 150 190 108 196"/><path d="M108 200 C114 212 164 212 173 186"/></g>`;
+  s += `<rect x="103.5" y="191" width="9" height="11" rx="3.5" fill="${f(SKY_DARK)}"${st}/>`;
+  for (const cx of [41, 165]) {
+    s += `<rect x="${cx - 3.5}" y="112" width="7" height="9" rx="2.5" fill="${f(SKY_DARK)}"${st}/>`;
+    s += `<circle cx="${cx}" cy="108" r="9.5" fill="${f(SKY)}"${st}/>`;
+    if (!sil) s += `<circle cx="${cx - 2.5}" cy="105.5" r="4.5" fill="#4FB3F6"/><circle cx="${cx - 3.5}" cy="104" r="1.6" fill="#fff" opacity="0.9"/>`;
+  }
+  if (!sil) s += `<g class="waves" fill="none" stroke="${SKY}" stroke-width="2.6" stroke-linecap="round"><path d="M180 101 Q185 108 180 115"/><path d="M186 95 Q194 108 186 121"/></g>`;
+  s += `<g transform="rotate(-12 170 154)"><rect x="155" y="128" width="30" height="51" rx="6" fill="${f(INK)}"${st}/>`;
+  if (!sil) {
+    s += `<rect x="158" y="132" width="24" height="42" rx="3.5" fill="#FFFFFF"/>`;
+    s += `<circle cx="170" cy="144" r="5.5" fill="${MANGO}"/><path d="M171 139.5 C173 136.5 176 136 178 137 C176 139.5 173.5 140.2 171 139.5 Z" fill="#34B36A"/>`;
+    [4, 9, 13, 8, 5].forEach((h, i) => (s += `<rect class="pbar" data-h="${h}" x="${161.6 + i * 4}" y="${161 - h / 2}" width="2.6" height="${h}" rx="1.3" fill="${SKY}"/>`));
+  }
+  s += `<rect x="167" y="178" width="6" height="8" rx="2" fill="${f(SKY)}"${st}/></g>`;
+  s += `<path d="M64 154 Q55 161 50 162" fill="none" stroke="${f(ARM)}" stroke-width="${sw(7)}" stroke-linecap="round"/>`;
+  s += `<circle cx="48" cy="162" r="7" fill="${f(MANGO)}" stroke="${f(ARM)}" stroke-width="${sw(2.6)}"/>`;
+  s += `<path d="M140 156 Q150 163 158 164" fill="none" stroke="${f(ARM)}" stroke-width="${sw(7)}" stroke-linecap="round"/>`;
+  s += `<circle cx="159" cy="164" r="7" fill="${f(MANGO)}" stroke="${f(ARM)}" stroke-width="${sw(2.6)}"/>`;
+  return s;
+}
+
+/** 말할 때 벌린 입. a는 음량(0~1) */
+function mouthPath(a) {
+  const w = 8 + 3 * a, d = 5 + 13 * a, y = 134;
+  return `M${100 - w} ${y} Q100 ${y + 2.5} ${100 + w} ${y} Q${100 + w * 0.9} ${y + d} 100 ${y + d} Q${100 - w * 0.9} ${y + d} ${100 - w} ${y} Z`;
+}
+
+// ---- 자막 ----
+/** 한 줄을 CAP_MAX 글자 안쪽 덩어리로 나눈다. 쉼표 뒤에서 먼저 끊고, 줄 시각은 글자 수에 비례해 나눈다 */
+function chunkLine(line) {
+  const text = line.text.replace(/\.$/, "");
+  const words = text.split(" ");
+  const parts = [];
+  let cur = "";
+  for (const w of words) {
+    const next = cur ? cur + " " + w : w;
+    if (cur && next.length > CAP_MAX) { parts.push(cur); cur = w; continue; }
+    cur = next;
+    if (/,$/.test(w) && cur.length >= CAP_MAX * 0.45) { parts.push(cur); cur = ""; }
+  }
+  if (cur) parts.push(cur);
+  // 마지막 덩어리가 너무 짧으면 앞 덩어리에 붙인다
+  if (parts.length > 1 && parts.at(-1).length < 8 && parts.at(-2).length + parts.at(-1).length < CAP_MAX + 8) {
+    const last = parts.pop();
+    parts[parts.length - 1] += " " + last;
+  }
+  const weight = (s) => s.replace(/\s/g, "").length;
+  const total = parts.reduce((n, p) => n + weight(p), 0);
+  const dur = (line.endMs - line.startMs) / 1000;
+  let at = line.startMs / 1000;
+  return parts.map((p) => { const d = (dur * weight(p)) / total; const c = { text: p, s: at, e: at + d }; at += d; return c; });
+}
+
+let D, AMP, FPS, CHUNKS, VOICE_END, shown = -1;
+window.init = (data, amp, fps) => {
+  D = data; AMP = amp; FPS = fps;
+  VOICE_END = data.durationMs / 1000;
+  window.DURATION = VOICE_END + OUTRO;
+  const d = new Date(data.date);
+  const kst = new Date(d.getTime() + 9 * 3600_000);
+  q("#top .meta").textContent = `${data.topic} 소식 · ${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일`;
+  q("#title").textContent = data.title;
+  q("#src").textContent = data.source ? `출처 ${data.source}` : "";
+  q("#mascot").innerHTML = `<svg viewBox="-12 6 222 216">${listening(true)}${listening(false)}</svg>`;
+  // 첫 줄은 제목을 읽는 부분이라 자막 대신 제목·말풍선이 맡는다
+  CHUNKS = data.lines.slice(1).flatMap(chunkLine);
+  return window.DURATION;
+};
+
+function setCaption(i, t) {
+  const cap = q("#cap");
+  const c = CHUNKS[i];
+  if (i !== shown) {
+    cap.innerHTML = [...c.text].map((ch) => (ch === " " ? " " : `<span>${ch}</span>`)).join("");
+    shown = i;
+  }
+  const spans = cap.querySelectorAll("span");
+  const on = Math.ceil(spans.length * clamp((t - c.s) / (c.e - c.s)));
+  spans.forEach((s, k) => s.classList.toggle("on", k < on));
+  const p = i === 0 ? 1 : outCubic(P(t, c.s, 0.18));
+  cap.style.opacity = p;
+  cap.style.transform = `translateY(${(1 - p) * 18}px)`;
+}
+
+window.seek = (t) => {
+  const fi = Math.min(AMP.length - 1, Math.max(0, Math.round(t * FPS)));
+  const a = t < VOICE_END ? AMP[fi] : 0;
+
+  // 맹고: 입은 음량대로, 몸은 아주 살짝 흔들리고, 3~4초마다 눈을 깜박인다
+  const svg = q("#mascot svg");
+  const talking = a > 0.06;
+  svg.querySelector(".smile").style.display = talking ? "none" : "";
+  const mouth = svg.querySelector(".mouth");
+  mouth.style.display = talking ? "" : "none";
+  if (talking) mouth.setAttribute("d", mouthPath(a));
+  let blink = 1;
+  for (let k = 0; k < 40; k++) {
+    const bt = 1.6 + k * 3.4 + (k % 3) * 0.7;
+    if (t >= bt && t < bt + 0.16) blink = 1 - Math.sin(Math.PI * ((t - bt) / 0.16)) * 0.9;
+  }
+  svg.querySelector(".eyes").setAttribute("transform", `translate(0 112) scale(1 ${blink}) translate(0 -112)`);
+  svg.querySelector(".waves").style.opacity = 0.25 + 0.75 * a;
+  svg.querySelectorAll(".pbar").forEach((b, k) => {
+    const h = +b.dataset.h * (0.35 + 0.65 * clamp(a * (0.7 + 0.3 * Math.sin(t * 9 + k * 1.7))));
+    b.setAttribute("height", h); b.setAttribute("y", 161 - h / 2);
+  });
+  // 말풍선은 제목 읽는 동안만, 끝나면 톡 사라진다
+  const firstEnd = D.lines[0].endMs / 1000;
+  const bub = outCubic(1 - P(t, firstEnd, 0.25));
+  svg.querySelectorAll(".bubble").forEach((g) => { g.style.opacity = bub; g.style.transform = `scale(${0.85 + 0.15 * bub})`; g.style.transformOrigin = "37px 95px"; });
+
+  // 마무리로 넘어가며 맹고는 가운데 위로 올라가 조금 커진다
+  const o = outCubic(P(t, VOICE_END + 0.1, 0.6));
+  const sway = Math.sin(t * 1.4) * 1.2 * (1 - o);
+  const bob = -a * 6 * (1 - o);
+  q("#mascot").style.transform = `translate(0, ${bob - 230 * o}px) scale(${1 + 0.12 * o}) rotate(${sway}deg)`;
+
+  for (const el of ["#top", "#title", "#card", "#foot"]) q(el).style.opacity = 1 - o;
+  const oo = outBack(P(t, VOICE_END + 0.45, 0.5));
+  q("#outro").style.opacity = clamp(oo * 1.4);
+  q("#outro").style.transform = `translateY(${(1 - oo) * 40}px)`;
+
+  // 자막: 지금 읽는 덩어리. 줄 사이 쉼에서는 앞 덩어리를 그대로 둔다
+  // 제목을 읽는 동안에는 곧 읽을 첫 덩어리를 흐리게 띄워 둔다(첫 화면이 비지 않게)
+  let i = 0;
+  for (let k = 0; k < CHUNKS.length; k++) if (t >= CHUNKS[k].s) i = k;
+  q("#card").style.opacity = 1 - o;
+  setCaption(i, t);
+
+  q("#bar i").style.width = `${clamp(t / VOICE_END) * 100}%`;
+};
+</script>
+</body>
+</html>
