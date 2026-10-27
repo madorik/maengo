@@ -1,6 +1,6 @@
 # 와타랩스
 
-> 와타랩스(Watalabs)는 일상에서 귀찮고 불편한 일을 찾아 AI로 편하게 만드는 앱을 만드는 1인 회사예요. 개발자 한 명이 기획부터 디자인, 개발, 운영까지 직접 해요. 지금 만드는 앱은 맹고(Maengo)예요.
+> 와타랩스(Watalabs)는 일상에서 귀찮고 불편한 일을 찾아 AI로 편하게 만드는 앱을 만드는 회사예요. 지금 만드는 앱은 맹고(Maengo)예요.
 
 ## 맹고 (Maengo)
 
@@ -20,8 +20,6 @@
 - [코인 소식](https://watalabs.com/maengo/topics/coin)
 - [반도체·로봇 소식](https://watalabs.com/maengo/topics/chip-robot)
 - [Tech 소식](https://watalabs.com/maengo/topics/tech)
-- [이용약관](https://watalabs.com/maengo/terms)
-- [개인정보 처리방침](https://watalabs.com/maengo/privacy)
 
 ## 문의
 
