@@ -33,7 +33,7 @@ export function ogImages() {
   return [{ url: appUrl("/opengraph-image"), width: 1200, height: 630, alt: `${SITE_NAME} - 관심 분야의 소식을 AI로 요약해서 음성 지원해줘요` }];
 }
 /** 소개 페이지 문구를 바꾼 날. 사이트맵 lastmod로 나간다(빌드 시각을 쓰면 배포마다 모두 '바뀜'이 돼 검색엔진이 믿지 않는다) */
-export const LANDING_UPDATED_ON = "2026-10-18";
+export const LANDING_UPDATED_ON = "2026-10-27";
 
 // ---- 운영사(와타랩스) ----
 export const COMPANY_NAME = "와타랩스";

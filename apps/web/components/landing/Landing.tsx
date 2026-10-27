@@ -1,7 +1,7 @@
 import { archiveLabel, discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
 import Image from "next/image";
 import Link from "next/link";
-import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe } from "@/components/icons";
+import { Crown, IconCar, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe, IconSnow, IconTrain } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot } from "@/components/Mascot";
 import { JsonLd } from "@/components/public/PublicPage";
@@ -9,6 +9,7 @@ import { SiteFooter } from "@/components/public/SiteFooter";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
+import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
 import { SITE_DEFINITION, SITE_DESCRIPTION, SITE_NAME, SITE_NAME_EN, SUPPORT_EMAIL, appUrl, organizationId, organizationJsonLd } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
@@ -47,11 +48,14 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
     `관심 분야 ${PUBLIC_TOPICS.length}개(${PUBLIC_TOPICS.map((t) => t.name).join(", ")})와 뉴스 분야 ${NEWS_SECTION_NAMES.length}개(${NEWS_SECTION_NAMES.join(", ")})에서 골라요. AI 안의 바이브코딩, 주식 안의 미국 주식처럼 세부 관심사를 고르면 더 좁혀 받고, 목록에 없는 관심사는 Premium에서 직접 적을 수 있어요.`,
   ],
   ["어떤 소식을 모아요?", "테크 소식은 공식 기술 문서와 국내 대기업 테크 블로그, AI·코인·반도체 전문 매체에서 모으고, 정치·경제·사회·생활/문화·IT/과학·세계 뉴스는 네이버 뉴스 헤드라인에 오른 기사에서 골라요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 모든 소식에 원문 출처를 붙여요."],
+  ["해외 AI 소식도 한국어로 받을 수 있나요?", "네. 해외 매체와 공식 블로그의 영어 글도 한국어로 요약해요. 원문 링크가 함께 붙어서 필요하면 바로 원문을 확인할 수 있어요."],
   ["소식은 언제 와요?", "매일 아침 6시에 새 소식을 모아 요약하고, 설정에서 고른 시각에 오늘의 소식이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
   [
     "음성으로 들을 수 있나요?",
     `네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.${free.dailyListens > 0 && !free.audio ? ` Free도 하루 ${free.dailyListens}개는 '이 글 듣기'로 들을 수 있어요.` : ""}`,
   ],
+  ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", "네. Premium에서 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요."],
+  ["자주 보는 블로그의 새 글도 받을 수 있나요?", `네. Premium에서 '내 관심 링크'에 블로그나 사이트 주소를 넣으면 새 글을 요약해서 하루 소식에 같이 보내 드려요. ${plus.linkLimit}곳까지 넣을 수 있고, 유튜브와 브런치는 아직 넣을 수 없어요.`],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 전체 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
@@ -64,6 +68,20 @@ const SOURCES = [
   { kind: "공식 기술 문서", title: "PostgreSQL 19, 11월 출시로 연기", Icon: IconDoc },
   { kind: "기업 테크 블로그", title: "주문 시스템을 이벤트 기반으로 바꾼 이야기", Icon: IconCode },
   { kind: "네이버 뉴스 헤드라인", title: "반도체 수출, 석 달 연속 늘어", Icon: IconGlobe },
+];
+
+/** 화면을 보기 어려운 순간들(2026-10-27 사용자: 손 시린 날·만원 지하철·운전 중). 듣기가 맹고의 핵심이라 기능보다 먼저 보인다 */
+const MOMENTS = [
+  { title: "손 시린 출근길", body: "전체 듣기를 한 번 누르고 휴대폰을 주머니에 넣어 두세요. 오늘 소식을 끝까지 이어서 읽어 드려요.", Icon: IconSnow },
+  { title: "만원 지하철", body: "화면을 들여다볼 틈이 없어도 이어폰만 있으면 돼요. 앱에서는 화면을 꺼도 계속 들려요.", Icon: IconTrain },
+  { title: "운전 중", body: "출발 전에 전체 듣기를 눌러 두면 도착할 때까지 화면을 보지 않고 들을 수 있어요.", Icon: IconCar },
+];
+
+/** 내 관심 링크 예시(소개용). 설정 > 내 관심 링크 칸과 같은 모양 */
+const LINK_EXAMPLES = [
+  { url: "devnote.tistory.com", name: "개발 공부 기록", last: "3시간 전" },
+  { url: "velog.io/@frontend", name: "프론트엔드 노트", last: "어제" },
+  { url: "blog.naver.com/stocknote", name: "주식 공부 노트", last: "2일 전" },
 ];
 
 export async function Landing() {
@@ -105,12 +123,12 @@ export async function Landing() {
         <section aria-labelledby="hero-title" className="mx-auto grid max-w-[1100px] items-start gap-12 px-5 pb-16 pt-10 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-20">
           <div className="md:order-2">
             <h1 id="hero-title" className="text-[36px] font-black leading-[1.2] tracking-[-0.045em] md:text-[54px]">
-              쏟아지는 소식,
+              관심 분야 소식만,
               <br />
-              내 관심 분야만.
+              귀로 들어요.
             </h1>
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
-              {SITE_DEFINITION} AI, 주식, 반도체처럼 고른 분야의 소식만 매일 모아 출처와 함께 핵심만 짚고, 출퇴근길엔 플레이리스트로 이어서 들려 드려요.
+              {SITE_DEFINITION} AI, 주식, 반도체처럼 고른 분야의 소식만 매일 모아 출처와 함께 핵심만 짚고, 화면을 보기 어려울 땐 끝까지 이어서 읽어 드려요.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
@@ -123,11 +141,28 @@ export async function Landing() {
           </div>
         </section>
 
+        <section aria-labelledby="moments-title" className="mx-auto max-w-[1100px] px-5 pb-16 md:pb-24">
+          <h2 id="moments-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
+            읽을 수 없을 땐, 들으면 돼요
+          </h2>
+          <ul className="mt-10 grid gap-4 md:grid-cols-3">
+            {MOMENTS.map(({ title, body, Icon }) => (
+              <li key={title} className="tile flex flex-col gap-3 p-6">
+                <span className="flex size-12 items-center justify-center rounded-2xl bg-sky-tint text-sky-dark">
+                  <Icon className="size-6" />
+                </span>
+                <span className="text-[19px] font-black">{title}</span>
+                <span className="text-[15px] font-medium leading-relaxed text-sub">{body}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section id="features" aria-label="맹고가 해 주는 일" className="scroll-mt-20 border-y-2 border-line bg-snow">
           <div className="mx-auto flex max-w-[1100px] flex-col gap-20 px-5 py-16 md:gap-28 md:py-24">
             <Feature
               title="관심 있는 분야만, 매일 받아요"
-              body="요즘은 하루에도 너무 많은 정보가 쏟아져요. AI, 주식, 코인, 반도체처럼 관심 있는 분야만 고르면 그 분야 소식만 매일 골라 드려요. 목록에 없는 관심사는 Premium에서 직접 적을 수 있고, 여러 곳에서 다룬 같은 소식은 하나로 묶어요."
+              body="요즘은 하루에도 너무 많은 정보가 쏟아져요. AI, 주식, 코인, 반도체처럼 관심 있는 분야만 고르면 그 분야 소식만 매일 골라 드려요. 여러 곳에서 다룬 같은 소식은 하나로 묶고, 새 AI 모델 출시나 보안 위협처럼 이슈도가 높은 소식은 맨 앞에 놓아요."
             >
               <div className="tile p-5">
                 <p className="text-[14px] font-black text-sub">내 관심사</p>
@@ -152,6 +187,68 @@ export async function Landing() {
 
             <Feature
               flip
+              title="출퇴근길엔 플레이리스트로 들어요"
+              body="듣고 싶은 소식을 플레이리스트에 담고 전체 듣기를 누르면 끝까지 이어서 읽어 드려요. 듣는 동안 대본에서 지금 읽는 문장을 짚어 주고, 앱에서는 화면을 꺼도 계속 들려요. 목소리는 여성·남성 중에 골라요."
+            >
+              {/* 실제 화면(앱): 플레이리스트와, 전체 듣기를 누르면 열리는 재생·대본 창 */}
+              <div className="flex items-start justify-center gap-3 sm:gap-4">
+                {[playlistShot, playlistScriptShot].map((shot, i) => (
+                  <div key={i} className={`w-1/2 max-w-[220px] rounded-[34px] bg-[#1F2340] p-2 shadow-[0_18px_44px_rgb(31_35_64/0.22)] ${i === 1 ? "mt-10" : ""}`}>
+                    <Image src={shot} alt="" sizes="220px" className="h-auto w-full rounded-[27px]" />
+                  </div>
+                ))}
+              </div>
+            </Feature>
+
+            <Feature
+              title="다 읽지 않아도, 핵심만 요약해요"
+              body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심 내용만 짧게 요약하고, 이 소식이 내 관심 분야에서 왜 중요한지도 한 줄로 짚어 드려요. 같은 소식이라도 어떤 관심사로 골랐는지에 따라 다르게 설명하고, 영어로 된 해외 글도 한국어로 요약해요."
+            >
+              <div className="flex items-start gap-2">
+                <Mascot className="size-24 shrink-0" />
+                <div className="flex flex-1 flex-col gap-3 pt-2">
+                  <Bubble>
+                    <p className="text-[16px] font-bold leading-relaxed">
+                      <span className="text-mango-deep">LLM 에이전트에 관심 있다면, </span>지금 만드는 에이전트의 회귀 테스트에 바로 쓸 수 있어요.
+                    </p>
+                  </Bubble>
+                  <Bubble>
+                    <p className="text-[16px] font-bold leading-relaxed">
+                      <span className="text-mango-deep">RAG에 관심 있다면, </span>챗봇 답변 품질을 배포할 때마다 확인할 수 있어요.
+                    </p>
+                  </Bubble>
+                </div>
+              </div>
+            </Feature>
+
+            <Feature
+              flip
+              title="자주 가는 블로그, 새 글도 같이 받아요"
+              body="즐겨 보는 블로그나 사이트 주소를 '내 관심 링크'에 넣어 두면, 그곳에 올라온 새 글을 요약해서 하루 소식에 함께 보내 드려요. 네이버 블로그, 티스토리, 벨로그, 미디엄, 서브스택 같은 곳을 넣을 수 있고, Premium에서 3곳까지 쓸 수 있어요."
+            >
+              {/* 설정 > 내 관심 링크 칸과 같은 모양(넣어 둔 주소, 가져올 수 있다는 체크, 이름과 마지막 글 시점) */}
+              <div className="tile p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[14px] font-black text-sub">내 관심 링크</p>
+                  <PremiumBadge />
+                </div>
+                <ul className="mt-3 flex flex-col gap-3">
+                  {LINK_EXAMPLES.map(({ url, name, last }) => (
+                    <li key={url}>
+                      <div className="tile flex min-h-12 items-center gap-2 px-4">
+                        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{url}</span>
+                        <IconCheck className="size-5 text-leaf [stroke-width:3]" />
+                      </div>
+                      <p className="mt-1 truncate px-1 text-[13px] font-bold text-faint">
+                        {name} · 마지막 글 {last}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Feature>
+
+            <Feature
               title="모든 소식엔 출처가 있어요"
               body="테크 소식은 공식 기술 문서와 국내 대기업 테크 블로그를 인용하고, 뉴스는 네이버 뉴스 헤드라인에 오른 기사에서 골라요. 소식마다 원문 링크가 붙어 있어 더 궁금하면 바로 확인할 수 있어요."
             >
@@ -176,42 +273,7 @@ export async function Landing() {
             </Feature>
 
             <Feature
-              title="다 읽지 않아도, 핵심만 요약해요"
-              body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심 내용만 짧게 요약하고, 이 소식이 내 관심 분야에서 왜 중요한지도 한 줄로 짚어 드려요. 같은 소식이라도 어떤 관심사로 골랐는지에 따라 다르게 설명해요."
-            >
-              <div className="flex items-start gap-2">
-                <Mascot className="size-24 shrink-0" />
-                <div className="flex flex-1 flex-col gap-3 pt-2">
-                  <Bubble>
-                    <p className="text-[16px] font-bold leading-relaxed">
-                      <span className="text-mango-deep">LLM 에이전트에 관심 있다면, </span>지금 만드는 에이전트의 회귀 테스트에 바로 쓸 수 있어요.
-                    </p>
-                  </Bubble>
-                  <Bubble>
-                    <p className="text-[16px] font-bold leading-relaxed">
-                      <span className="text-mango-deep">RAG에 관심 있다면, </span>챗봇 답변 품질을 배포할 때마다 확인할 수 있어요.
-                    </p>
-                  </Bubble>
-                </div>
-              </div>
-            </Feature>
-
-            <Feature
               flip
-              title="출퇴근길엔 플레이리스트로 들어요"
-              body="듣고 싶은 소식을 플레이리스트에 담고 전체 듣기를 누르면 끝까지 이어서 읽어 드려요. 듣는 동안 대본에서 지금 읽는 문장을 짚어 주고, 앱에서는 화면을 꺼도 계속 들려요. 목소리는 여성·남성 중에 골라요."
-            >
-              {/* 실제 화면(앱): 플레이리스트와, 전체 듣기를 누르면 열리는 재생·대본 창 */}
-              <div className="flex items-start justify-center gap-3 sm:gap-4">
-                {[playlistShot, playlistScriptShot].map((shot, i) => (
-                  <div key={i} className={`w-1/2 max-w-[220px] rounded-[34px] bg-[#1F2340] p-2 shadow-[0_18px_44px_rgb(31_35_64/0.22)] ${i === 1 ? "mt-10" : ""}`}>
-                    <Image src={shot} alt="" sizes="220px" className="h-auto w-full rounded-[27px]" />
-                  </div>
-                ))}
-              </div>
-            </Feature>
-
-            <Feature
               title="다 보면 끝, 지난 소식은 보관함에"
               body="끝없이 스크롤하게 만들지 않아요. 오늘 분량을 다 보면 오늘은 거기까지예요. 지난 소식은 보관함에 날짜별로 쌓이고, 카테고리로 다시 찾을 수 있어요."
             >
