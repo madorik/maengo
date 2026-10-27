@@ -37,7 +37,7 @@ export const LANDING_UPDATED_ON = "2026-10-18";
 
 // ---- 운영사(와타랩스) ----
 export const COMPANY_NAME = "와타랩스";
-export const COMPANY_NAME_EN = "Watalabs";
+export const COMPANY_NAME_EN = "WataLabs";
 
 /** 회사 사이트 주소(https://watalabs.com/) */
 export function companyUrl(): string {

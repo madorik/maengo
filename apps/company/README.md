@@ -14,3 +14,7 @@
   - `og.png`: 링크 공유 카드(1200×630).
   - `llms.txt`: AI가 읽는 사이트 요약. 맹고 분야·요금·주요 페이지가 바뀌면 같이 고친다.
   - `<키>.txt`: IndexNow 키 파일. 배포 뒤 `pnpm indexnow`로 두 사이트맵 주소를 빙·네이버 등에 알린다(`scripts/indexnow.mjs`).
+- 브랜드(2026-10-27, 정책은 `맹고-문서/와타랩스-브랜드.md`):
+  - 심볼 = 남색(#1F2340) 타일 위 맹고색(#FFC23D) 미소 w. 이름 글꼴 Jua, 본문 Pretendard(둘 다 OFL).
+  - `favicon.svg`(둥근 타일), `apple-touch-icon.png`(180, 꽉 찬 사각형 — iOS가 모서리를 깎는다), `og.png`(남색 바탕 + 미소 + 이름).
+  - `brand/`: `symbol.svg`(둥근 타일), `symbol-square.svg`·`symbol-1024.png`(꽉 찬 사각형, 스토어·계정 프로필용), `smile.svg`(타일 없는 미소, 어두운 바탕용), `logo-ko.png`·`logo-en.png`(심볼 + 이름, 투명 바탕 2배).

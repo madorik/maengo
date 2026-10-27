@@ -20,7 +20,8 @@
   <meta name="twitter:title" content="와타랩스" />
   <meta name="twitter:description" content="일상의 귀찮고 불편한 일을 AI로 편하게 만드는 앱을 만들어요." />
   <meta name="twitter:image" content="https://watalabs.com/og.png" />
-  <meta name="theme-color" content="#FFC23D" />
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151722" media="(prefers-color-scheme: dark)" />
   <!-- 검색엔진용 운영사·사이트 정보. 맹고 페이지(apps/web lib/site.ts organizationJsonLd)가 같은 @id로 운영사를 가리킨다 -->
   <script type="application/ld+json">
   {
@@ -30,7 +31,7 @@
         "@type": "Organization",
         "@id": "https://watalabs.com/#organization",
         "name": "와타랩스",
-        "alternateName": "Watalabs",
+        "alternateName": "WataLabs",
         "url": "https://watalabs.com/",
         "logo": "https://watalabs.com/apple-touch-icon.png",
         "email": "watalabs.help@gmail.com",
@@ -61,33 +62,29 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <style>
     :root {
       --mango: #FFC23D;
       --mango-dark: #E09A12;
-      --mango-tint: #FFF4D6;
       --leaf: #23914F;
       --ink: #1F2340;
       --sub: #5E6380;
       --line: #E4E6EE;
       --paper: #FFFFFF;
-      --awning-b: #FFE6A3;
-      --shade: rgba(31, 35, 64, 0.08);
+      --mark-tile: #1F2340;
       --bezel: #1F2340;
       color-scheme: light;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --mango-tint: #3A2F14;
         --leaf: #3CC77A;
         --ink: #ECEEF5;
         --sub: #A6ABC0;
         --line: #2A2E40;
         --paper: #151722;
-        --awning-b: #5A4718;
-        --shade: rgba(0, 0, 0, 0.35);
+        --mark-tile: #2A2E48;
         --bezel: #2A2E40;
         color-scheme: dark;
       }
@@ -109,31 +106,19 @@
     a:focus-visible, button:focus-visible { outline: 3px solid #1A8FE0; outline-offset: 3px; border-radius: 8px; }
     .wrap { width: min(100% - 32px, 920px); margin-inline: auto; }
 
-    /* 가게 차양: 이 페이지에서 하나뿐인 큰 장식. 줄무늬 + 아래 물결 가장자리 */
-    .awning {
-      --stripe: 64px;
-      height: calc(88px + env(safe-area-inset-top));
-      padding-top: env(safe-area-inset-top);
-      background: repeating-linear-gradient(90deg, var(--mango) 0 var(--stripe), var(--awning-b) var(--stripe) calc(var(--stripe) * 2));
-      -webkit-mask: radial-gradient(calc(var(--stripe) / 2) at 50% 0, #000 98%, transparent 101%) 0 100% / var(--stripe) 24px repeat-x,
-        linear-gradient(#000 0 0) 0 0 / 100% calc(100% - 23px) no-repeat;
-              mask: radial-gradient(calc(var(--stripe) / 2) at 50% 0, #000 98%, transparent 101%) 0 100% / var(--stripe) 24px repeat-x,
-        linear-gradient(#000 0 0) 0 0 / 100% calc(100% - 23px) no-repeat;
-      filter: drop-shadow(0 6px 0 var(--shade));
-      transform-origin: top;
-      animation: unroll 700ms cubic-bezier(.2, .8, .2, 1) both;
-    }
-    @keyframes unroll { from { transform: scaleY(0.2); } to { transform: none; } }
-    @media (prefers-reduced-motion: reduce) { .awning { animation: none; } }
-
-    .sign { text-align: center; padding: 56px 0 72px; }
+    /* 첫 화면: 심볼(웃는 w)과 이름. 들어올 때 미소를 한 번 그린다(미소 길이 88 = 반원 두 개) */
+    .sign { text-align: center; padding: calc(72px + env(safe-area-inset-top)) 0 72px; }
+    .sign .mark { display: block; width: clamp(80px, 18vw, 112px); height: auto; margin: 0 auto 28px; }
+    .sign .mark rect { fill: var(--mark-tile); }
+    .sign .mark path { stroke: var(--mango); stroke-dasharray: 88 200; animation: smile 640ms cubic-bezier(.2, .8, .2, 1) 120ms both; }
+    @keyframes smile { from { stroke-dashoffset: 110; } to { stroke-dashoffset: 0; } }
+    @media (prefers-reduced-motion: reduce) { .sign .mark path { animation: none; } }
     .sign h1 {
       margin: 0;
-      font-family: "Black Han Sans", "Pretendard Variable", sans-serif;
+      font-family: "Jua", "Pretendard Variable", sans-serif;
       font-weight: 400;
-      font-size: clamp(64px, 17vw, 156px);
-      line-height: 1;
-      letter-spacing: -0.02em;
+      font-size: clamp(64px, 16vw, 136px);
+      line-height: 1.05;
     }
     .sign p { margin: 20px auto 0; max-width: 30ch; font-size: clamp(18px, 2.4vw, 22px); font-weight: 600; color: var(--sub); }
 
@@ -173,8 +158,8 @@
     footer .row { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; }
 
     @media (max-width: 560px) {
-      .awning { --stripe: 44px; height: calc(64px + env(safe-area-inset-top)); }
-      .sign { padding: 40px 0 56px; }
+      .sign { padding: calc(48px + env(safe-area-inset-top)) 0 56px; }
+      .sign .mark { margin-bottom: 20px; }
       section { padding: 48px 0; }
       .shelf svg { width: 60px; height: 60px; border-radius: 16px; }
       .shelf h3 { font-size: 30px; }
@@ -185,9 +170,11 @@
   </style>
 </head>
 <body>
-  <div class="awning" aria-hidden="true"></div>
-
   <header class="sign wrap">
+    <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
+      <rect width="120" height="120" rx="30"/>
+      <path d="M32 53 A14 14 0 0 0 60 53 A14 14 0 0 0 88 53" fill="none" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
     <h1>와타랩스</h1>
     <p>일상에서 귀찮고 불편한 일을 찾아,<br />AI로 편하게 만드는 앱을 만들어요.</p>
   </header>
