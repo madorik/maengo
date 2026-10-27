@@ -1,6 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
-import { popularityBoost, rankFeed, type RankCandidate } from '@maengo/core/feed';
+import { popularityBoost, rankFeed, type Impact, type RankCandidate } from '@maengo/core/feed';
 import { childrenOf } from '@maengo/core/topics';
 import { PUBLIC_TOPICS, type PublicTopic } from '../public-topics';
 import { db, must } from './db';
@@ -41,6 +41,7 @@ interface SummaryRow {
   cluster_id: number;
   title: string;
   short: string;
+  impact: Impact | null;
   published_at: string | null;
   created_at: string;
   clusters: {
@@ -73,7 +74,7 @@ const recent = cache(async () => {
   const summaries = must(
     await db
       .from('summaries')
-      .select('cluster_id,title,short,published_at,created_at,clusters!inner(first_seen_at,size,is_video,skip_reason,rep_item_id,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight,lang)))')
+      .select('cluster_id,title,short,impact,published_at,created_at,clusters!inner(first_seen_at,size,is_video,skip_reason,rep_item_id,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight,lang)))')
       .eq('tier', 'basic')
       .gte('clusters.first_seen_at', since)
       .is('clusters.skip_reason', null)
@@ -149,6 +150,7 @@ export async function publicTopicDigest(topic: PublicTopic): Promise<PublicTopic
         size: s.clusters.size,
         isVideo: s.clusters.is_video,
         topics: topicsOf.get(s.cluster_id)!.filter((t) => ids.has(t.topicId)),
+        impact: s.impact,
       };
     });
   const byId = new Map(mine.map((s) => [s.cluster_id, s]));

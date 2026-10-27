@@ -140,6 +140,7 @@ export async function summarizeCluster(
         body: out.body,
         author: out.author || rep.author || rep.sources?.name || null,
         category: out.category,
+        impact: out.impact,
         published_at: rep.published_at,
         scenes: out.scenes?.length ? out.scenes : null,
         model: out.model,

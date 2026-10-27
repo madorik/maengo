@@ -1,5 +1,6 @@
 import { GoogleGenAI, MediaResolution, Modality, ThinkingLevel, type Part, type SpeechConfig } from '@google/genai';
 import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
+import { IMPACTS, isImpact } from '../feed/impact';
 import { alignLines } from '../audio/align';
 import { parseWav } from '../audio/wav';
 import { GEMINI_MODELS } from './models';
@@ -220,6 +221,7 @@ function summarizeSchema(topicIds: string[], video: boolean) {
       short: str,
       body: { type: 'array', items: str },
       category: { type: 'string', enum: CATEGORY_IDS },
+      impact: { type: 'string', enum: IMPACTS },
       author: str,
       topics: {
         type: 'array',
@@ -241,7 +243,7 @@ function summarizeSchema(topicIds: string[], video: boolean) {
         ? { scenes: { type: 'array', items: { type: 'object', properties: { t: str, label: str }, required: ['t', 'label'] } } }
         : {}),
     },
-    required: ['skip', 'title', 'short', 'body', 'category', 'author', 'topics', 'why'],
+    required: ['skip', 'title', 'short', 'body', 'category', 'impact', 'author', 'topics', 'why'],
   };
 }
 
@@ -371,7 +373,7 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       if (video) parts.push({ fileData: { fileUri: input.videoUrl!, mimeType: 'video/*' } });
       parts.push({ text: `토픽 사전\n${dictionaryBlock(input)}\n\n${sourceBlock(input)}` });
       const { data, model } = await generateJson<{
-        skip: string; title: string; short: string; body: string[]; category: string; author: string;
+        skip: string; title: string; short: string; body: string[]; category: string; impact: string; author: string;
         topics: { id: string; relevance: number }[]; why: { topicId: string; text: string }[];
         scenes?: { t: string; label: string }[];
       }>({
@@ -401,6 +403,7 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
         short: data.short?.trim() ?? '',
         body: (data.body ?? []).map((p) => p.trim()).filter(Boolean),
         category: isCategory(data.category) ? data.category : 'etc',
+        impact: isImpact(data.impact) ? data.impact : null,
         author: data.author?.trim() ?? '',
         topics,
         why: (data.why ?? []).filter((w) => picked.has(w.topicId) && w.text?.trim()).map((w) => ({ topicId: w.topicId, text: w.text.trim() })),

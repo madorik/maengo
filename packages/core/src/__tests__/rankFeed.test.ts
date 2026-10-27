@@ -173,3 +173,35 @@ test('관심사에 한국어 소식이 없으면 해외 소식으로 채운다',
   const out = rankFeed([c(1, 'robot', { lang: 'en' }), c(2, 'ai', { lang: 'ko' })], { robot: 1, ai: 1 }, new Set(), { limit: 2 });
   assert.deepEqual(out.map((x) => x.clusterId).sort(), [1, 2]);
 });
+
+test('큰 소식은 점수가 낮아도 맨 앞에 온다', () => {
+  // 여러 곳에서 다룬 한국어 주식 소식보다, 해외에서 먼저 나온 새 모델 출시가 앞이다
+  const stock = c(1, 'stock', { lang: 'ko', size: 9 });
+  const model = c(2, 'ai', { lang: 'en', title: 'Anthropic releases Claude Opus 5' });
+  const routine = c(3, 'ai', { lang: 'ko' });
+  const out = rankFeed([stock, model, routine], { stock: 1, ai: 1 }, new Set(), { limit: 3 });
+  assert.equal(out[0]!.clusterId, 2);
+  // AI가 요약하며 routine으로 매겼으면 제목이 그래 보여도 앞에 두지 않는다
+  const demoted = rankFeed([stock, { ...model, impact: 'routine' }, routine], { stock: 1, ai: 1 }, new Set(), { limit: 3 });
+  assert.equal(demoted[0]!.clusterId, 1);
+});
+
+test('notable은 routine보다 앞서고, major는 이틀이 지나면 맨 앞 자리 없이 배수만 남는다', () => {
+  const out = rankFeed([c(1, 'ai', { impact: 'routine' }), c(2, 'ai', { impact: 'notable' })], { ai: 1 }, new Set(), { limit: 2, maxPerTopic: 2 });
+  assert.deepEqual(out.map((x) => x.clusterId), [2, 1]);
+  // 사흘 된 major(신선도 0.14 × 3)보다 방금 나온 routine이 앞
+  const old = rankFeed([c(1, 'ai', { impact: 'major', ageHours: 72 }), c(2, 'ai', { impact: 'routine', ageHours: 1 })], { ai: 1 }, new Set(), { limit: 2, maxPerTopic: 2 });
+  assert.deepEqual(old.map((x) => x.clusterId), [2, 1]);
+});
+
+test('큰 소식은 관심사 차례보다 먼저지만 하루 소식의 절반까지, 관심사별 몫 안에서만', () => {
+  const weights = { dev: 1, ai: 1, stock: 1, 'chip-robot': 1, coin: 1 };
+  // 2026-10-27 차례는 ai가 아닌 날을 고른다
+  const day = ['2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31'].find((d) => !todaysTopics(weights, 3, d)!.includes('ai'))!;
+  const cands = [c(1, 'ai', { impact: 'major' }), c(2, 'ai', { impact: 'major' }), c(3, 'coin', { impact: 'major' }), c(4, 'dev'), c(5, 'stock'), c(6, 'chip-robot'), c(7, 'coin')];
+  const got = rankFeed(cands, weights, new Set(), { limit: 6, visible: 3, day }).slice(0, 3);
+  // 하루 3개면 큰 소식은 2개까지(ai 몫 1개 + coin 1개), 남은 1개는 오늘 차례 관심사
+  assert.deepEqual(got.slice(0, 2).map((x) => x.clusterId), [1, 3]);
+  assert.ok(todaysTopics(weights, 3, day)!.includes(got[2]!.topicId), got[2]!.topicId);
+  assert.ok(!['ai', 'coin'].includes(got[2]!.topicId));
+});

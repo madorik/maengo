@@ -1,4 +1,4 @@
-import { excludesCluster, popularityBoost, type RankCandidate } from '@maengo/core/feed';
+import { excludesCluster, popularityBoost, type Impact, type RankCandidate } from '@maengo/core/feed';
 import { rankingWeights, TOPICS } from '@maengo/core/topics';
 import type { FeedbackKind, Plan, Topic } from '@maengo/core/types';
 import { db, check, fromVector, inChunks, selectAll } from './db';
@@ -99,6 +99,12 @@ export async function clusterTopics(clusterId: number): Promise<{ topicId: strin
   return rows.map((r) => ({ topicId: r.topic_id, relevance: r.relevance }));
 }
 
+/** 요약하며 AI가 매긴 소식의 무게(core/feed/impact.ts). 요약한 뒤 읽어 후보의 impact를 바꾼다(요약 전엔 제목으로만 봤다) */
+export async function summaryImpact(clusterId: number): Promise<Impact | null> {
+  const row = check(await db.from('summaries').select('impact').eq('cluster_id', clusterId).eq('tier', 'basic').maybeSingle(), 'summary impact') as { impact: Impact | null } | null;
+  return row?.impact ?? null;
+}
+
 /** 묶음의 대표 글. 출처 가중치와 인기(조회수·점수)를 랭킹에 넘긴다 */
 interface RepItem {
   id: number;
@@ -127,12 +133,16 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
   const ids = clusters.map((c) => c.id);
   const topics = new Map<number, { topicId: string; relevance: number }[]>();
   const summarized = new Set<number>();
+  const impacts = new Map<number, Impact | null>();
   const repItems = new Map<number, RepItem>();
   await inChunks(ids, 200, async (chunk) => {
     const ct = check(await db.from('cluster_topics').select('cluster_id,topic_id,relevance').in('cluster_id', chunk), 'cluster_topics') as { cluster_id: number; topic_id: string; relevance: number }[];
     for (const r of ct) (topics.get(r.cluster_id) ?? topics.set(r.cluster_id, []).get(r.cluster_id)!).push({ topicId: r.topic_id, relevance: r.relevance });
-    const s = check(await db.from('summaries').select('cluster_id').eq('tier', 'basic').in('cluster_id', chunk), 'summaries') as { cluster_id: number }[];
-    for (const r of s) summarized.add(r.cluster_id);
+    const s = check(await db.from('summaries').select('cluster_id,impact').eq('tier', 'basic').in('cluster_id', chunk), 'summaries') as { cluster_id: number; impact: Impact | null }[];
+    for (const r of s) {
+      summarized.add(r.cluster_id);
+      impacts.set(r.cluster_id, r.impact);
+    }
   });
   const repIds = clusters.map((c) => c.rep_item_id).filter((x): x is number => x != null);
   await inChunks(repIds, 200, async (chunk) => {
@@ -154,6 +164,7 @@ export async function loadCandidates(ctx: Ctx, { freshHours = ctx.windowHours, c
       isVideo: c.is_video,
       topics: topics.get(c.id)!,
       title: repItems.get(c.rep_item_id ?? -1)?.title ?? null,
+      impact: impacts.get(c.id) ?? null,
       summarized: summarized.has(c.id),
       centroid: fromVector(c.centroid),
     }));
@@ -189,10 +200,14 @@ export async function loadTopicCandidates(
   for (const r of rows) (byCluster.get(r.cluster_id) ?? byCluster.set(r.cluster_id, { c: r.clusters, topics: [] }).get(r.cluster_id)!).topics.push({ topicId: r.topic_id, relevance: r.relevance });
   const ids = [...byCluster.keys()];
   const summarized = new Set<number>();
+  const impacts = new Map<number, Impact | null>();
   const repItems = new Map<number, RepItem>();
   await inChunks(ids, 200, async (chunk) => {
-    const s = check(await db.from('summaries').select('cluster_id').eq('tier', 'basic').in('cluster_id', chunk), 'summaries') as { cluster_id: number }[];
-    for (const r of s) summarized.add(r.cluster_id);
+    const s = check(await db.from('summaries').select('cluster_id,impact').eq('tier', 'basic').in('cluster_id', chunk), 'summaries') as { cluster_id: number; impact: Impact | null }[];
+    for (const r of s) {
+      summarized.add(r.cluster_id);
+      impacts.set(r.cluster_id, r.impact);
+    }
   });
   const repIds = [...byCluster.values()].map((v) => v.c.rep_item_id).filter((x): x is number => x != null);
   await inChunks(repIds, 200, async (chunk) => {
@@ -210,6 +225,7 @@ export async function loadTopicCandidates(
     isVideo: c.is_video,
     topics,
     title: repItems.get(c.rep_item_id ?? -1)?.title ?? null,
+    impact: impacts.get(c.id) ?? null,
     summarized: summarized.has(c.id),
     centroid: fromVector(c.centroid),
   }));

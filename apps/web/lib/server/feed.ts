@@ -1,7 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
-import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type RankCandidate } from '@maengo/core/feed';
+import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type Impact, type RankCandidate } from '@maengo/core/feed';
 import { assembleClusterInfo, partsOfEmbedded, TIERS, type ClusterInfo, type EmbeddedCluster, type ItemRow, type RepRow, type SummaryRow, type WhyRow } from '../cluster-info';
 import { libraryTerms } from '../library-search';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
@@ -73,7 +73,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
   const rows = must(
     await db
       .from('summaries')
-      .select('cluster_id, title, clusters!inner(first_seen_at,size,is_video,skip_reason,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight,lang)))')
+      .select('cluster_id, title, impact, clusters!inner(first_seen_at,size,is_video,skip_reason,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight,lang)))')
       .eq('tier', 'basic')
       .gte('clusters.first_seen_at', since)
       .is('clusters.skip_reason', null),
@@ -81,6 +81,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
   ) as unknown as {
     cluster_id: number;
     title: string;
+    impact: Impact | null;
     clusters: {
       first_seen_at: string;
       size: number;
@@ -110,6 +111,7 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
         isVideo: r.clusters.is_video,
         topics: byCluster.get(r.cluster_id)!,
         title: r.title,
+        impact: r.impact,
       };
     });
 }

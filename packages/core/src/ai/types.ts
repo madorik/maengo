@@ -1,4 +1,5 @@
 import type { CategoryId } from '../categories';
+import type { Impact } from '../feed/impact';
 import type { Persona, ScriptLine, Topic, VoiceKey } from '../types';
 
 export interface WhyInput {
@@ -131,6 +132,8 @@ export interface SummarizeOutput {
   short: string;
   body: string[];
   category: CategoryId;
+  /** 소식의 무게(feed/impact.ts). 랭킹이 큰 소식을 앞에 놓는다. 모르면 null */
+  impact: Impact | null;
   author: string;
   topics: { topicId: string; relevance: number }[];
   /** 토픽별 "왜 중요한가" 본문(앞머리 제외) */

@@ -1,10 +1,12 @@
 import { isLinkTopicId } from '../topics/links';
 import type { FeedbackKind } from '../types';
+import { impactBoost, impactOf, MAJOR_FIRST_HOURS, type Impact } from './impact';
 import { isStaleMarketQuote } from './market';
 import { langBoost } from './quality';
 
 // PLAN.md 6.3 랭킹 공식. 순수 함수라 웹(첫 피드)과 파이프라인(rank 단계)이 같이 쓴다.
 // 내 관심 링크(토픽 's-…')의 글은 관련도 1이라 늘 위로 가므로, 하루 소식의 절반까지만 고른다(maxLinks, 2026-10-15 D19). 모자라면 제약을 풀어 채운다.
+// 큰 소식(새 AI 모델 출시·보안 위협처럼 일·돈·안전에 바로 영향을 주는 것, impact.ts)은 점수를 더 주고 이틀 안이면 맨 앞에 놓는다(2026-10-27).
 
 export interface RankCandidate {
   id: number;
@@ -20,6 +22,8 @@ export interface RankCandidate {
   title?: string | null;
   /** 대표 글 출처의 언어. 한국어면 점수를 더 준다(quality.ts langBoost). 없으면 배수 1 */
   lang?: string | null;
+  /** 요약할 때 AI가 매긴 소식의 무게(summaries.impact). 없으면 제목으로 본다(impact.ts impactOf) */
+  impact?: Impact | null;
 }
 
 export interface RankOptions {
@@ -67,7 +71,7 @@ const FRESHNESS_HOURS = 36;
 
 export function baseScore(c: RankCandidate): number {
   const freshness = Math.exp(-Math.max(0, c.ageHours) / FRESHNESS_HOURS);
-  return freshness * c.sourceWeight * langBoost(c.lang) * (c.popularity ?? 1) * (1 + 0.3 * Math.log(Math.max(1, c.size)));
+  return freshness * c.sourceWeight * langBoost(c.lang) * impactBoost(impactOf(c)) * (c.popularity ?? 1) * (1 + 0.3 * Math.log(Math.max(1, c.size)));
 }
 
 /**
@@ -99,14 +103,15 @@ export function rankFeed(
   exclude: ReadonlySet<number>,
   { limit = 5, visible = limit, maxPerTopic = perTopicShare(visible, weights), maxVideos = 2, maxLinks = Infinity, day }: RankOptions = {},
 ): RankedItem[] {
-  const scored: (RankedItem & { isVideo: boolean })[] = [];
+  const scored: (RankedItem & { isVideo: boolean; major: boolean })[] = [];
   for (const c of candidates) {
     if (exclude.has(c.id) || isStaleMarketQuote(c)) continue;
     let relevance = 0;
     for (const t of c.topics) if (t.relevance >= MIN_RELEVANCE) relevance += (weights[t.topicId] ?? 0) * t.relevance;
     const topicId = bestTopic(c.topics, weights);
     if (relevance <= 0 || !topicId) continue;
-    scored.push({ clusterId: c.id, topicId, score: relevance * baseScore(c), isVideo: c.isVideo });
+    const major = impactOf(c) === 'major' && c.ageHours <= MAJOR_FIRST_HOURS;
+    scored.push({ clusterId: c.id, topicId, score: relevance * baseScore(c), isVideo: c.isVideo, major });
   }
   scored.sort((a, b) => b.score - a.score || a.clusterId - b.clusterId);
 
@@ -118,6 +123,7 @@ export function rankFeed(
   const perTopic = new Map<string, number>();
   let videos = 0;
   let links = 0;
+  let majors = 0;
   const underCaps = (s: (typeof scored)[number]) => !(s.isVideo && videos >= maxVideos) && !(isLinkTopicId(s.topicId) && links >= maxLinks);
   const fill = (ok: (s: (typeof scored)[number]) => boolean) => {
     for (const s of scored) {
@@ -128,10 +134,14 @@ export function rankFeed(
       perTopic.set(s.topicId, (perTopic.get(s.topicId) ?? 0) + 1);
       if (s.isVideo) videos++;
       if (isLinkTopicId(s.topicId)) links++;
+      if (s.major) majors++;
     }
   };
   // 고른 차례대로 돌려준다(각 단계 안은 점수순). 부르는 쪽은 여분까지 고른 뒤 앞에서부터 하루 소식만큼 쓰므로,
   // 전체를 점수순으로 다시 섞으면 제약을 풀어 채운 같은 관심사 소식이 앞으로 와서 관심사별 몫이 깨진다(2026-10-23)
+  // 큰 소식을 맨 먼저: 관심사 차례보다 앞서지만 관심사별 몫은 지키고, 하루 소식의 절반(올림)까지만
+  const maxMajors = Math.ceil(visible / 2);
+  fill((s) => s.major && majors < maxMajors && (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s));
   // 관심사가 받는 수보다 많으면 오늘 차례인 관심사에 먼저 하나씩(점수순)
   const todays = day ? new Set(todaysTopics(weights, visible, day)) : null;
   if (todays?.size) fill((s) => todays.has(s.topicId) && !perTopic.has(s.topicId) && underCaps(s));

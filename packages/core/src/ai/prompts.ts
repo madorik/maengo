@@ -2,7 +2,7 @@ import { CATEGORIES } from '../categories';
 import { NEWS_SECTIONS, TOPIC_GROUPS } from '../topics/dictionary';
 
 // 고정 프롬프트. 바꾸면 PROMPT_VERSION을 올려 summaries.version에 남긴다.
-export const PROMPT_VERSION = 8;
+export const PROMPT_VERSION = 9;
 
 const categoryList = CATEGORIES.map((c) => `${c.id}(${c.label})`).join(', ');
 const groupList = TOPIC_GROUPS.map((g) => g.name).join('·');
@@ -37,6 +37,13 @@ export const SUMMARIZE_SYSTEM = `너는 '맹고'의 편집자다. 맹고는 매�
    'OO에 관심 있다면' 같은 앞머리는 붙이지 마라(앱이 붙인다).
 8. author: 원문 글쓴이나 회사·채널 이름. 모르면 빈 문자열.
 9. 영상이면 scenes에 핵심 장면 3~5개를 {t: "m:ss", label: 20자 이내}로. 글이면 빈 배열.
+10. impact: 이 소식이 얼마나 큰 변화인지 하나로 고른다. 큰 소식일수록 하루 소식의 앞에 놓인다.
+   - major: 많은 사람의 일·돈·안전에 바로 영향을 주거나 업계 판도를 바꾸는 소식. 예: OpenAI·Anthropic·Google·Meta 같은 주요 AI 회사의 새 모델 출시,
+     널리 쓰는 소프트웨어·서비스의 심각한 보안 취약점·실제 해킹·대규모 개인정보 유출, 새 법·규제 시행, 기준금리 결정, 대규모 사고·장애,
+     판도를 바꾸는 신기술·대형 인수합병.
+   - notable: 새로 나오거나 바뀌는 것이 있는 소식. 예: 새 제품·기능·버전 출시, 연구 결과, 정책 발표, 실적 발표, 투자 유치.
+   - routine: 바뀌는 것이 없는 소식. 예: 전망·의견·칼럼·인터뷰·사용 후기·행사 소식·평소 같은 시세 등락.
+   애매하면 한 단계 낮게 고른다.
 
 주식·코인 소식은 사실과 숫자만 전한다. 특정 종목·코인을 사라·팔라고 권하거나 오를지 내릴지 단정하지 마라.
 정치·사회 소식은 어느 편도 들지 마라. 사실을 먼저 쓰고, 주장은 누가 했는지 밝혀 각 측의 말을 고르게 전한다. 원문의 평가·비난·감정 표현은 옮기지 않는다.

@@ -3,7 +3,7 @@ import { createGeminiAi } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
 import { summarizeCluster } from './jobs/summarize';
 import { aiBlockedReason, guardAi, isAiBlocked } from './lib/ai-guard';
-import { clusterTopics, loadAudience, loadCandidates, loadTopicCandidates, summarizable, withSimilarExcluded, type Audience, type Candidate } from './lib/audience';
+import { clusterTopics, loadAudience, loadCandidates, loadTopicCandidates, summarizable, summaryImpact, withSimilarExcluded, type Audience, type Candidate } from './lib/audience';
 import { HOUR, type Ctx } from './lib/ctx';
 import { check, db } from './lib/db';
 import { env } from './lib/env';
@@ -140,6 +140,17 @@ async function saveFeed(a: Audience, date: string, got: RankedItem[], want: numb
 }
 
 /**
+ * 모은 소식을 요약한 뒤의 무게(AI가 매긴 impact)와 분류로 다시 줄 세운다. 요약 전엔 제목으로만 큰 소식을 가려서,
+ * 큰 소식으로 나온 것이 뒤에 있거나 아니라고 나온 것이 맨 앞에 있을 수 있다. 고른 소식은 그대로, 차례만 바꾼다
+ */
+function reorder(got: RankedItem[], a: Audience, opts: { visible: number; maxLinks: number; day: string }, seen: ReadonlyMap<number, Candidate>): RankedItem[] {
+  const pool = got.map((r) => seen.get(r.clusterId)).filter((c): c is Candidate => !!c);
+  const sorted = rankFeed(pool, a.weights, new Set(), { ...opts, limit: got.length });
+  const placed = new Set(sorted.map((r) => r.clusterId));
+  return [...sorted, ...got.filter((r) => !placed.has(r.clusterId))];
+}
+
+/**
  * 이 사람들의 오늘 피드를 만든다. 사람마다 관심사로 소식을 골라(모자라면 기간을 넓혀 한 달까지), 위에서부터 요약해 하루 소식만큼 모은다.
  * 요약이 없는 소식은 지금 요약한다(같은 소식은 한 번만, 동시에 SUMMARY_CONCURRENCY개). deadline이 지나면 새 요약을 시작하지 않는다.
  * 한 사람의 실패는 그 사람만 failed로 두고(errors에 이유) 나머지는 계속한다. 사용량은 끝나면(실패해도) 마저 남긴다.
@@ -194,6 +205,7 @@ export async function buildFeedsFor(
             if (c) {
               c.summarized = true;
               c.topics = await clusterTopics(id);
+              c.impact = await summaryImpact(id);
             }
             return true;
           } catch (e) {
@@ -216,10 +228,10 @@ export async function buildFeedsFor(
       const mayMake = !inactive.has(a.id);
       // AI가 막혔거나 오래 안 온 사람이면 이미 요약된 것만 고른다. 요약 안 된 영상은 여기서 요약하지 않으니(videos: 0) 뺀다(summarizable).
       // 고른 관심사에 맞는 것만 고른다. 모자라도 큰 분류로 넓히지 않는다(코스피만 골랐으면 주식 전체는 주지 않는다, 2026-10-22 사용자 결정)
+      // 내 관심 링크 글은 하루 소식의 절반까지(D19). 여분(SPARE)에도 같은 상한을 둔다
+      const opts = { limit: want + SPARE, visible: want, maxLinks: linkCap(want), day: ctx.date };
       const pick = (): RankedItem[] => {
         const pool = [...seen.values()].filter((c) => summarizable(c) && (c.summarized || (mayMake && !aiBlocked)));
-        // 내 관심 링크 글은 하루 소식의 절반까지(D19). 여분(SPARE)에도 같은 상한을 둔다
-        const opts = { limit: want + SPARE, visible: want, maxLinks: linkCap(want), day: ctx.date };
         return rankFeed(pool, a.weights, exclude, opts);
       };
       let ranked = pick();
@@ -242,7 +254,7 @@ export async function buildFeedsFor(
         if (Date.now() > deadline) break;
       }
       if (!got.length) return Date.now() > deadline ? 'later' : aiBlocked ? 'blocked' : 'empty';
-      return saveFeed(a, ctx.date, got, want, triesOf(a.id));
+      return saveFeed(a, ctx.date, reorder(got, a, opts, seen), want, triesOf(a.id));
     };
 
     await mapLimit(audience, 4, async (a) => {
