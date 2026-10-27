@@ -5,7 +5,8 @@ import { platformOf, track } from "@/lib/analytics";
 
 /**
  * 로그인한 화면에서 한 번: GA4 사용자 ID(회원 id의 해시, 서버가 만든다)·플랜·플랫폼을 알리고,
- * 알림을 눌러 들어왔으면(?from=push) push_open을, 홈 화면 위젯을 눌러 들어왔으면(?from=widget) widget_open을 남긴다. (app) 레이아웃에 있다
+ * 알림을 눌러 들어왔으면(?from=push) push_open을, 홈 화면 위젯을 눌러 들어왔으면(?from=widget) widget_open을 남긴다. (app) 레이아웃에 있다.
+ * 주소로 세는 건 페이지를 새로 열 때(웹 알림)뿐이고, 앱은 화면을 다시 불러오지 않고 옮기며 lib/native/shell.ts가 센다
  */
 export function AnalyticsSession({ uid, plan }: { uid: string; plan: string }) {
   useEffect(() => {

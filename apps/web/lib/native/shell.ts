@@ -2,8 +2,9 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
+import { track } from "@/lib/analytics";
 import { appLinkPath } from "@/lib/app-client";
-import { stripBase, withBase } from "@/lib/base-path";
+import { stripBase } from "@/lib/base-path";
 import { startAppPush } from "./push";
 
 // 앱다운 마감(APP_PLAN.md 1단계). components/NativeShell.tsx가 앱 안에서만 불러온다.
@@ -16,8 +17,11 @@ const ROOT_PATHS = new Set(["/today", "/login", "/onboarding"]);
 /** 실행 주소(위젯 딥링크)를 이미 따랐는지 */
 const LAUNCH_KEY = "maengo:launch-url";
 
+/** 알림·위젯으로 화면을 옮길 때 쓰는 Next 라우터(경로는 /maengo 없이) */
+type ShellRouter = { push: (href: string) => void; refresh: () => void };
+
 /** 앱 기능을 켜고, 끄는 함수를 돌려준다 */
-export function startNativeShell(): () => void {
+export function startNativeShell(router: ShellRouter): () => void {
   if (!Capacitor.isNativePlatform()) return () => {};
 
   // 웹이 화면에 붙었으니 스플래시를 걷는다(웹을 못 불러오면 capacitor.config.ts 설정대로 3초 뒤 저절로 걷힌다)
@@ -58,9 +62,19 @@ export function startNativeShell(): () => void {
     }
   }
 
+  // 알림·위젯이 연 화면으로 앱 안에서 옮긴다. 페이지를 통째로 다시 불러오면 듣던 음성이 끊기고, 안드로이드는 Capacitor가
+  // HTML을 끝까지 받은 뒤에야 웹뷰에 넘겨서 그동안 화면이 멈춘 듯 보인다(2026-10-27 알림을 눌러 연 오늘 화면이 스크롤되지 않음).
+  // 이미 그 화면이면 새 소식만 받아 맨 위로. 어디서 왔는지(?from=push|widget)는 주소에 남기지 않고 여기서 센다
   const go = (path: string) => {
-    const to = withBase(path);
-    if (location.pathname + location.search !== to) location.assign(to);
+    const url = new URL(path, location.origin);
+    const from = url.searchParams.get("from");
+    if (from === "push") track("push_open");
+    if (from === "widget") track("widget_open");
+    url.searchParams.delete("from");
+    const to = url.pathname + url.search;
+    if (to !== stripBase(location.pathname) + location.search) return router.push(to);
+    router.refresh();
+    window.scrollTo({ top: 0 });
   };
 
   // 앱 알림: 알림을 누르면 그 화면으로, 알림을 켠 기기면 토큰을 다시 등록(lib/native/push.ts)

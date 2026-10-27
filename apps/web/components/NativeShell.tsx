@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { appInfoOf, isAppUserAgent } from "@/lib/app-client";
 
@@ -13,17 +14,19 @@ const NAV_BUTTONS_HEIGHT = "min(env(safe-area-inset-bottom), max(0px, (env(safe-
 // 브라우저에서는 아무것도 하지 않고, 플러그인 코드도 따로 나뉜 조각이라 받지 않는다.
 export function NativeShell() {
   const android = useSyncExternalStore(noSubscribe, () => appInfoOf(navigator.userAgent)?.platform === "android", () => false);
+  // 알림·위젯으로 화면을 옮길 때 페이지를 다시 불러오지 않고 이 라우터로 옮긴다(lib/native/shell.ts의 go)
+  const router = useRouter();
   useEffect(() => {
     if (!isAppUserAgent(navigator.userAgent)) return;
     let stop: (() => void) | undefined;
     let cancelled = false;
     void import("@/lib/native/shell").then((m) => {
-      if (!cancelled) stop = m.startNativeShell();
+      if (!cancelled) stop = m.startNativeShell(router);
     });
     return () => {
       cancelled = true;
       stop?.();
     };
-  }, []);
+  }, [router]);
   return android ? <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] bg-paper" style={{ height: NAV_BUTTONS_HEIGHT }} /> : null;
 }
