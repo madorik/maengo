@@ -1,9 +1,9 @@
 import { archiveLabel, discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
 import Image from "next/image";
 import Link from "next/link";
-import { Crown, IconCar, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe, IconSnow, IconTrain } from "@/components/icons";
+import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
-import { Mascot } from "@/components/Mascot";
+import { Mascot, type MascotMood } from "@/components/Mascot";
 import { JsonLd } from "@/components/public/PublicPage";
 import { SiteFooter } from "@/components/public/SiteFooter";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
@@ -72,11 +72,14 @@ const SOURCES = [
   { kind: "네이버 뉴스 헤드라인", title: "반도체 수출, 석 달 연속 늘어", Icon: IconGlobe },
 ];
 
-/** 화면을 보기 어려운 순간들(2026-10-27 사용자: 손 시린 날·만원 지하철·운전 중). 듣기가 맹고의 핵심이라 기능보다 먼저 보인다 */
-const MOMENTS = [
-  { title: "손 시린 출근길", body: "전체 듣기를 한 번 누르고 휴대폰을 주머니에 넣어 두세요. 오늘 소식을 끝까지 이어서 읽어 드려요.", Icon: IconSnow },
-  { title: "만원 지하철", body: "화면을 들여다볼 틈이 없어도 이어폰만 있으면 돼요. 앱에서는 화면을 꺼도 계속 들려요.", Icon: IconTrain },
-  { title: "운전 중", body: "출발 전에 전체 듣기를 눌러 두면 도착할 때까지 화면을 보지 않고 들을 수 있어요.", Icon: IconCar },
+/**
+ * 화면을 보기 어려운 순간들(2026-10-27 사용자: 손 시린 날·만원 지하철·운전 중). 듣기가 맹고의 핵심이라 기능보다 먼저 보인다.
+ * 카드마다 그 순간의 맹고 표정(떨기·찡그림·웃으며 듣기)
+ */
+const MOMENTS: { title: string; body: string; mood: MascotMood; tint: string }[] = [
+  { title: "손 시린 출근길", body: "전체 듣기를 한 번 누르고 휴대폰을 주머니에 넣어 두세요. 오늘 소식을 끝까지 이어서 읽어 드려요.", mood: "shiver", tint: "bg-sky-tint" },
+  { title: "만원 지하철", body: "화면을 들여다볼 틈이 없어도 이어폰만 있으면 돼요. 앱에서는 화면을 꺼도 계속 들려요.", mood: "squeeze", tint: "bg-mango-tint" },
+  { title: "운전 중", body: "출발 전에 전체 듣기를 눌러 두면 도착할 때까지 화면을 보지 않고 들을 수 있어요.", mood: "listen", tint: "bg-leaf-tint" },
 ];
 
 /** 내 관심 링크 예시(소개용). 설정 > 내 관심 링크 칸과 같은 모양 */
@@ -148,10 +151,11 @@ export async function Landing() {
             읽을 수 없을 땐, 들으면 돼요
           </h2>
           <ul className="mt-10 grid gap-4 md:grid-cols-3">
-            {MOMENTS.map(({ title, body, Icon }) => (
+            {MOMENTS.map(({ title, body, mood, tint }) => (
               <li key={title} className="tile flex flex-col gap-3 p-6">
-                <span className="flex size-12 items-center justify-center rounded-2xl bg-sky-tint text-sky-dark">
-                  <Icon className="size-6" />
+                {/* 캐릭터 배경은 다크 모드에서도 밝게(남색 헤드폰이 어두운 카드에 묻히지 않게) */}
+                <span className={`keep-light flex size-24 items-center justify-center rounded-3xl ${tint}`}>
+                  <Mascot mood={mood} className="size-20" />
                 </span>
                 <span className="text-[19px] font-black">{title}</span>
                 <span className="text-[15px] font-medium leading-relaxed text-sub">{body}</span>

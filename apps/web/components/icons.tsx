@@ -158,13 +158,3 @@ export const IconShare = (p: Props) => (
 export const IconLink = (p: Props) => (
   <Line {...p}><path d="M10 13.5a4.5 4.5 0 0 0 6.4 0l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4l-1.4 1.4" /><path d="M14 10.5a4.5 4.5 0 0 0-6.4 0L5 13.1a4.5 4.5 0 0 0 6.4 6.4l1.4-1.4" /></Line>
 );
-// 소개 페이지 '이런 순간' 카드: 추운 날·지하철·운전
-export const IconSnow = (p: Props) => (
-  <Line {...p}><path d="M12 3v18" /><path d="M4.2 7.5l15.6 9" /><path d="M4.2 16.5l15.6-9" /><path d="M9.5 4.5L12 6l2.5-1.5" /><path d="M9.5 19.5L12 18l2.5 1.5" /></Line>
-);
-export const IconTrain = (p: Props) => (
-  <Line {...p}><path d="M8 3h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z" /><path d="M5 10h14" /><path d="M8.5 13.5h.01" /><path d="M15.5 13.5h.01" /><path d="M9 17l-2 4" /><path d="M15 17l2 4" /></Line>
-);
-export const IconCar = (p: Props) => (
-  <Line {...p}><path d="M5 17H3.5v-4l2-5.3A2 2 0 0 1 7.4 6.5h9.2a2 2 0 0 1 1.9 1.2l2 5.3v4H19" /><path d="M3.5 13h17" /><path d="M9 17h6" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /></Line>
-);
