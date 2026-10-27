@@ -27,11 +27,13 @@ const OPEN = { href: "/today", label: "오늘의 소식 열기" };
 /**
  * 요금 카드의 기능 목록(2026-10-22 사용자 지정, /premium 비교표와 같은 내용). 숫자는 plans 표.
  * 2026-10-26 사용자: 가입 선물 맹고 줄은 빼고(자주 묻는 질문에만), Premium 음성은 '무제한'으로
+ * 2026-10-27 사용자: '하루 무료 소식' → '하루 소식', 내 관심 링크 n곳을 넣는다(관심사 개수는 넣지 않는다)
  */
 function planItems(l: PlanLimits): string[] {
   return [
-    `하루 무료 소식 ${l.dailyItems}개`,
+    `하루 소식 ${l.dailyItems}개`,
     ...(l.audio ? ["소식 플레이어 + 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
+    ...(l.linkLimit > 0 ? [`내 관심 링크 ${l.linkLimit}곳`] : []),
     ...(l.canBuyMaengo ? ["맹고 추가 구매"] : []),
     l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관`,
   ];

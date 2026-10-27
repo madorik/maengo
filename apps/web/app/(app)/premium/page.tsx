@@ -16,14 +16,18 @@ export const metadata: Metadata = { title: "맹고 Premium" };
 // 결제 페이지(유튜브의 'Premium 받기'처럼 설정과 따로). 입구: 계정 메뉴, 잠긴 듣기 버튼, 맹고가 모자랄 때(#maengo).
 // 설정 > 플랜에는 내 플랜만 보여 준다. 결제는 앱 안에서만(애플·구글), 웹에서는 앱에서 살 수 있다고만 알린다.
 
-/** Free·Premium 비교(2026-10-22 사용자 지정, 10-26 가입 선물 줄 빼고 Premium 음성은 '무제한'). 숫자는 plans 표(하루 소식·음성·추가 구매·보관 기간) */
+/**
+ * Free·Premium 비교(2026-10-22 사용자 지정, 10-26 가입 선물 줄 빼고 Premium 음성은 '무제한',
+ * 10-27 '하루 무료 소식' → '하루 소식'·내 관심 링크 줄 추가, 관심사 개수는 넣지 않음). 숫자는 plans 표(하루 소식·음성·링크·추가 구매·보관 기간)
+ */
 function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string; plus: string }[] {
   const can = (ok: boolean) => (ok ? "가능" : "불가");
   const both = (f: (l: PlanLimits) => string) => ({ free: f(free), plus: f(plus) });
   return [
-    { label: "하루 무료 소식", ...both((l) => `${l.dailyItems}개`) },
+    { label: "하루 소식", ...both((l) => `${l.dailyItems}개`) },
     // 음성이 없는 플랜도 하루 몇 개는 '이 글 듣기'로 들어 본다(2026-10-23, plans.daily_listens)
     { label: "소식 플레이어 + 음성 듣기(TTS)", ...both((l) => (l.audio ? "무제한" : l.dailyListens > 0 ? `하루 ${l.dailyListens}개` : "불가")) },
+    { label: "내 관심 링크", ...both((l) => (l.linkLimit > 0 ? `${l.linkLimit}곳` : "불가")) },
     { label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) },
     { label: "받은 소식 보관", ...both((l) => archiveLabel(l.archiveDays)) },
   ];
