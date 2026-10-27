@@ -64,7 +64,8 @@ export function startNativeShell(router: ShellRouter): () => void {
 
   // 알림·위젯이 연 화면으로 앱 안에서 옮긴다. 페이지를 통째로 다시 불러오면 듣던 음성이 끊기고, 안드로이드는 Capacitor가
   // HTML을 끝까지 받은 뒤에야 웹뷰에 넘겨서 그동안 화면이 멈춘 듯 보인다(2026-10-27 알림을 눌러 연 오늘 화면이 스크롤되지 않음).
-  // 이미 그 화면이면 새 소식만 받아 맨 위로. 어디서 왔는지(?from=push|widget)는 주소에 남기지 않고 여기서 센다
+  // 이미 그 화면이면 맨 위로. 옮기든 아니든 새로 받는다: 오늘 소식은 (app) 레이아웃(TodayProvider)이 들고 있어 화면만 옮기면 다시 읽지 않는다
+  // (2026-10-28 새벽에 앱을 다른 화면에 둔 채 아침 알림을 눌렀더니 새벽에 받아 둔 빈 오늘이 보였다). 어디서 왔는지(?from=push|widget)는 주소에 남기지 않고 여기서 센다
   const go = (path: string) => {
     const url = new URL(path, location.origin);
     const from = url.searchParams.get("from");
@@ -72,9 +73,10 @@ export function startNativeShell(router: ShellRouter): () => void {
     if (from === "widget") track("widget_open");
     url.searchParams.delete("from");
     const to = url.pathname + url.search;
-    if (to !== stripBase(location.pathname) + location.search) return router.push(to);
+    if (to !== stripBase(location.pathname) + location.search) router.push(to);
+    else window.scrollTo({ top: 0 });
+    // 옮기기(push)가 끝난 뒤에 돈다(Next 라우터는 새로 받기를 앞선 이동 뒤에 줄 세운다)
     router.refresh();
-    window.scrollTo({ top: 0 });
   };
 
   // 앱 알림: 알림을 누르면 그 화면으로, 알림을 켠 기기면 토큰을 다시 등록(lib/native/push.ts)

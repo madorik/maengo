@@ -1,7 +1,9 @@
 "use client";
 
 import { track } from "@/lib/analytics";
+import { kstDate } from "@maengo/core/kst";
 import type { FeedbackKind } from "@maengo/core/types";
+import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { withBase } from "@/lib/base-path";
@@ -61,6 +63,17 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
     setListenedToday((prev) => new Set([...prev, ...initial.listenedToday]));
     setFeedbackState((prev) => ({ ...initial.feedback, ...prev }));
   }
+
+  // 오늘 피드는 이 레이아웃이 들고 있어 화면을 옮겨도 다시 읽지 않는다. 앱·탭을 뒤에 둔 사이 날짜가 바뀌었거나 오늘 소식이 아직 없었으면
+  // (그사이 알림 시각에 왔을 수 있다) 다시 앞으로 올 때 새로 받는다(2026-10-28 새벽에 열어 둔 빈 오늘이 아침에도 그대로 남았다)
+  const router = useRouter();
+  useEffect(() => {
+    const onShow = () => {
+      if (document.visibilityState === "visible" && (initial.date !== kstDate() || initial.items.length === 0)) router.refresh();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => document.removeEventListener("visibilitychange", onShow);
+  }, [initial, router]);
 
   const markRead = useCallback((id: number) => {
     setRead((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
