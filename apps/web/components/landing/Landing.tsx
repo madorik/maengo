@@ -152,12 +152,14 @@ export async function Landing() {
           </h2>
           <ul className="mt-10 grid gap-4 md:grid-cols-3">
             {MOMENTS.map(({ title, body, mood, tint }) => (
-              <li key={title} className="tile flex flex-col gap-3 p-6">
-                {/* 캐릭터 배경은 다크 모드에서도 밝게(남색 헤드폰이 어두운 카드에 묻히지 않게) */}
-                <span className={`keep-light flex size-24 items-center justify-center rounded-3xl ${tint}`}>
-                  <Mascot mood={mood} className="size-20" />
-                </span>
-                <span className="text-[19px] font-black">{title}</span>
+              <li key={title} className="tile flex flex-col gap-4 p-6">
+                {/* 캐릭터 옆에 제목(위가 비지 않게). 캐릭터 배경은 다크 모드에서도 밝게(남색 헤드폰이 어두운 카드에 묻히지 않게) */}
+                <div className="flex items-center gap-4">
+                  <span className={`keep-light flex size-20 shrink-0 items-center justify-center rounded-3xl ${tint}`}>
+                    <Mascot mood={mood} className="size-16" />
+                  </span>
+                  <span className="text-[20px] font-black">{title}</span>
+                </div>
                 <span className="text-[15px] font-medium leading-relaxed text-sub">{body}</span>
               </li>
             ))}
