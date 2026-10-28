@@ -98,7 +98,7 @@ export function TopicPicks({
           )}
         </fieldset>
       </div>
-      <fieldset className="mt-6 min-w-0">
+      <fieldset className="mt-5 min-w-0">
         <legend className="text-[15px] font-black">뉴스 헤드라인</legend>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">{news.map(choice)}</div>
       </fieldset>
@@ -137,7 +137,7 @@ function Choice({
         onChange={onChange}
         className="peer sr-only"
       />
-      <span className="tile flex min-h-14 items-center gap-2.5 px-2.5 py-2 transition-[background-color,border-color,opacity] peer-[:not(:checked):not(:disabled)]:hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-disabled:opacity-45 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
+      <span className="tile flex min-h-12 items-center gap-2.5 px-2.5 py-1.5 transition-[background-color,border-color,opacity] peer-[:not(:checked):not(:disabled)]:hover:bg-snow peer-checked:border-sky peer-checked:bg-sky-tint peer-disabled:opacity-45 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky">
         <span className="relative shrink-0">
           <TopicGroupIcon id={id} className="size-9 rounded-xl" iconClassName="size-5" />
           <i aria-hidden className="absolute -right-1.5 -top-1.5 hidden size-5 items-center justify-center rounded-full border-2 border-paper bg-sky text-white group-has-[:checked]:flex">

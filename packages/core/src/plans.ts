@@ -87,6 +87,12 @@ export const SIGNUP_BONUS = 10;
  */
 export const DAILY_LINK_VOICES = 3;
 
+/**
+ * 온보딩에서 고르는 분야 수(관심 분야 + 뉴스 헤드라인, 2026-10-28 사용자 결정). 처음엔 3개까지만 고르고 나머지는 설정에서 플랜 한도까지 더한다.
+ * Free 하루 소식 3개와 같아서 고른 분야마다 하나씩 온다
+ */
+export const ONBOARDING_TOPIC_LIMIT = 3;
+
 /** 'YYYY-MM-DD'에서 n일 전(날짜 계산만, 시간대 무관) */
 export function daysBefore(date: string, n: number): string {
   const t = Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))) - n * 86_400_000;

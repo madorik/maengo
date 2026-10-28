@@ -1,5 +1,6 @@
 "use server";
 
+import { ONBOARDING_TOPIC_LIMIT } from "@maengo/core/plans";
 import type { Voice } from "@maengo/core/types";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
@@ -85,7 +86,7 @@ export async function signOut() {
  */
 export async function completeOnboarding(formData: FormData) {
   const profile = await requireProfile();
-  const limit = entitlements(profile).topicLimit;
+  const limit = Math.min(ONBOARDING_TOPIC_LIMIT, entitlements(profile).topicLimit);
   const picked = [...new Set(formData.getAll("topic").map(String))].filter((id) => TOPIC_BY_ID.has(id));
   if (picked.length > limit) redirect("/onboarding?error=limit");
   const etc = formData.get("etc") === "on";
