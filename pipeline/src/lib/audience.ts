@@ -231,6 +231,19 @@ export async function loadTopicCandidates(
   }));
 }
 
+/**
+ * 후보 중 중심 벡터가 없는 것만 읽어 채운다(같은 사건 빼기, core/feed rankDistinct가 추린 후보에 부른다).
+ * 배송은 후보 객체를 여러 사람이 나눠 쓰므로 한 번 읽은 벡터는 다음 사람이 다시 읽지 않는다
+ */
+export async function fillCentroids(candidates: Candidate[]): Promise<void> {
+  const need = candidates.filter((c) => !c.centroid);
+  await inChunks(need, 100, async (chunk) => {
+    const rows = check(await db.from('clusters').select('id,centroid').in('id', chunk.map((c) => c.id)), 'centroids') as { id: number; centroid: unknown }[];
+    const byId = new Map(rows.map((r) => [r.id, fromVector(r.centroid)]));
+    for (const c of chunk) c.centroid = byId.get(c.id) ?? null;
+  });
+}
+
 /** 알아요를 누른 소식과 코사인 ≥ 0.9인 후보도 뺀다(PLAN.md 6.3) */
 export async function withSimilarExcluded(a: Audience, candidates: Candidate[]): Promise<Set<number>> {
   if (!a.known.length) return a.exclude;

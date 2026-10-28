@@ -1,7 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
-import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankFeed, WEIGHT_MAX, WEIGHT_MIN, type Impact, type RankCandidate } from '@maengo/core/feed';
+import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankDistinct, WEIGHT_MAX, WEIGHT_MIN, type Impact, type RankCandidate, type SimilarityKey } from '@maengo/core/feed';
 import { assembleClusterInfo, partsOfEmbedded, TIERS, type ClusterInfo, type EmbeddedCluster, type ItemRow, type RepRow, type SummaryRow, type WhyRow } from '../cluster-info';
 import { libraryTerms } from '../library-search';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
@@ -116,10 +116,29 @@ async function summarizedCandidates(days = 7): Promise<RankCandidate[]> {
     });
 }
 
+/** 같은 사건 빼기(rankDistinct)에 쓸 묶음 중심 벡터를 후보에 채운다. 묶음당 9KB 남짓이라 추린 후보와 오늘 피드 것만 읽는다 */
+async function fillCentroids(candidates: RankCandidate[]): Promise<void> {
+  const need = candidates.filter((c) => !c.centroid);
+  if (!need.length) return;
+  const rows = must(await db.from('clusters').select('id,centroid').in('id', need.map((c) => c.id)), 'centroids') as { id: number; centroid: unknown }[];
+  const vectorOf = (v: unknown) => (Array.isArray(v) ? (v as number[]) : typeof v === 'string' && v.startsWith('[') ? (JSON.parse(v) as number[]) : null);
+  const byId = new Map(rows.map((r) => [r.id, vectorOf(r.centroid)]));
+  for (const c of need) c.centroid = byId.get(c.id) ?? null;
+}
+
+/** 오늘 피드에 이미 있는 소식(새로 고를 때 같은 사건인지 견줄 기준). 후보 기간 밖의 소식은 견주지 않는다 */
+async function priorOf(rows: FeedRow[], candidates: RankCandidate[]): Promise<SimilarityKey[]> {
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+  const mine = rows.flatMap((r) => (byId.has(r.clusterId) ? [{ c: byId.get(r.clusterId)!, topicId: r.topicId }] : []));
+  await fillCentroids(mine.map((m) => m.c));
+  return mine.map(({ c, topicId }) => ({ centroid: c.centroid, topicId, ageHours: c.ageHours }));
+}
+
 async function buildToday(profile: Profile, date: string): Promise<FeedRow[]> {
   const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(), rankWeightsOf(profile), exclusions(profile.id, date)]);
-  // 내 관심 링크 글은 하루 소식의 절반까지(D19)
-  const ranked = rankFeed(candidates, weights, exclude, { limit: MAX_DAILY, visible: entitlements(profile).dailyItems, maxLinks: linkCap(entitlements(profile).dailyItems), day: date }).map((r, i) => ({ rank: i + 1, clusterId: r.clusterId, topicId: r.topicId }));
+  // 내 관심 링크 글은 하루 소식의 절반까지(D19). 같은 사건을 다룬 소식은 뒤로 미룬다(2026-10-28)
+  const opts = { limit: MAX_DAILY, visible: entitlements(profile).dailyItems, maxLinks: linkCap(entitlements(profile).dailyItems), day: date };
+  const ranked = (await rankDistinct(candidates, weights, exclude, opts, fillCentroids)).map((r, i) => ({ rank: i + 1, clusterId: r.clusterId, topicId: r.topicId }));
   if (ranked.length) {
     must(
       await db.from('feeds').upsert(
@@ -211,7 +230,8 @@ const todayFeed = cache(async (profile: Profile): Promise<FeedDay> => {
 async function topUp(profile: Profile, day: FeedDay, need: number): Promise<FeedDay> {
   const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), rankWeightsOf(profile), exclusions(profile.id, day.date)]);
   for (const r of day.rows) exclude.add(r.clusterId);
-  const picked = rankFeed(candidates, weights, exclude, { limit: need });
+  // 오늘 피드에 있는 소식과 같은 사건인 소식은 뒤로 미룬다
+  const picked = await rankDistinct(candidates, weights, exclude, { limit: need, prior: await priorOf(day.rows, candidates) }, fillCentroids);
   if (!picked.length) return day;
   let rank = day.rows.at(-1)?.rank ?? 0;
   const rows = picked.map((p) => ({ rank: ++rank, clusterId: p.clusterId, topicId: p.topicId }));
@@ -252,7 +272,8 @@ export async function receiveMore(profile: Profile): Promise<MoreResult> {
   if (fresh) {
     const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), rankWeightsOf(profile), exclusions(profile.id, date)]);
     for (const r of day.rows) exclude.add(r.clusterId);
-    const [next] = rankFeed(candidates, weights, exclude, { limit: 1 });
+    // 오늘 피드에 있는 소식과 같은 사건인 소식은 뒤로 미룬다
+    const [next] = await rankDistinct(candidates, weights, exclude, { limit: 1, prior: await priorOf(day.rows, candidates) }, fillCentroids);
     let pick = next ? { clusterId: next.clusterId, topicId: next.topicId } : null;
     if (!pick) {
       // 요약된 게 다 떨어졌다: 한 달 안의 묶음을 지금 요약한다(파이프라인은 무거워서 여기서만 불러온다)

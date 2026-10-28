@@ -3,10 +3,12 @@ import type { FeedbackKind } from '../types';
 import { impactBoost, impactOf, MAJOR_FIRST_HOURS, type Impact } from './impact';
 import { isStaleMarketQuote } from './market';
 import { langBoost } from './quality';
+import { sameStory, type SimilarityKey } from './similar';
 
 // PLAN.md 6.3 랭킹 공식. 순수 함수라 웹(첫 피드)과 파이프라인(rank 단계)이 같이 쓴다.
 // 내 관심 링크(토픽 's-…')의 글은 관련도 1이라 늘 위로 가므로, 하루 소식의 절반까지만 고른다(maxLinks, 2026-10-15 D19). 모자라면 제약을 풀어 채운다.
 // 큰 소식(새 AI 모델 출시·보안 위협처럼 일·돈·안전에 바로 영향을 주는 것, impact.ts)은 점수를 더 주고 이틀 안이면 맨 앞에 놓는다(2026-10-27).
+// 후보에 묶음 중심 벡터가 있으면 이미 고른 소식과 같은 사건인 소식(similar.ts)은 뒤로 미룬다(2026-10-28). 벡터는 무거워서 rankDistinct가 추린 후보에만 채운다.
 
 export interface RankCandidate {
   id: number;
@@ -24,6 +26,8 @@ export interface RankCandidate {
   lang?: string | null;
   /** 요약할 때 AI가 매긴 소식의 무게(summaries.impact). 없으면 제목으로 본다(impact.ts impactOf) */
   impact?: Impact | null;
+  /** 묶음 중심 벡터. 있으면 이미 고른 소식과 같은 사건인지 본다(similar.ts). 없으면 견주지 않는다 */
+  centroid?: number[] | null;
 }
 
 export interface RankOptions {
@@ -36,6 +40,8 @@ export interface RankOptions {
   maxLinks?: number;
   /** 피드 날짜(KST 'YYYY-MM-DD'). 관심사가 받는 수보다 많으면 이 날짜로 돌아가며 먼저 줄 관심사를 고른다(todaysTopics). 없으면 돌리지 않는다 */
   day?: string;
+  /** 이미 받은 소식(오늘 피드에 있는 것). 이것과 같은 사건인 소식도 뒤로 미룬다. 개수 제약에는 세지 않는다 */
+  prior?: SimilarityKey[];
 }
 
 /**
@@ -101,9 +107,9 @@ export function rankFeed(
   candidates: RankCandidate[],
   weights: Record<string, number>,
   exclude: ReadonlySet<number>,
-  { limit = 5, visible = limit, maxPerTopic = perTopicShare(visible, weights), maxVideos = 2, maxLinks = Infinity, day }: RankOptions = {},
+  { limit = 5, visible = limit, maxPerTopic = perTopicShare(visible, weights), maxVideos = 2, maxLinks = Infinity, day, prior = [] }: RankOptions = {},
 ): RankedItem[] {
-  const scored: (RankedItem & { isVideo: boolean; major: boolean })[] = [];
+  const scored: (RankedItem & SimilarityKey & { isVideo: boolean; major: boolean })[] = [];
   for (const c of candidates) {
     if (exclude.has(c.id) || isStaleMarketQuote(c)) continue;
     let relevance = 0;
@@ -111,13 +117,14 @@ export function rankFeed(
     const topicId = bestTopic(c.topics, weights);
     if (relevance <= 0 || !topicId) continue;
     const major = impactOf(c) === 'major' && c.ageHours <= MAJOR_FIRST_HOURS;
-    scored.push({ clusterId: c.id, topicId, score: relevance * baseScore(c), isVideo: c.isVideo, major });
+    scored.push({ clusterId: c.id, topicId, score: relevance * baseScore(c), isVideo: c.isVideo, major, centroid: c.centroid, ageHours: c.ageHours });
   }
   scored.sort((a, b) => b.score - a.score || a.clusterId - b.clusterId);
 
   // 다양성 제약을 지키며 고르고, 모자라면 제약을 차례로 풀어 채운다: 토픽당 개수를 먼저, 영상·링크 상한은 맨 나중에(콜드 스타트).
   // 전에는 한 번에 다 풀었다: 관심사가 하나뿐이면 토픽당 2개 다음이 바로 '제약 없음'이라 인기 높은 유튜브 영상이 자리를 다 차지했고,
-  // 배송은 영상을 요약하지 않아(예산 0) Premium이 하루 3개만 받았다(2026-10-20)
+  // 배송은 영상을 요약하지 않아(예산 0) Premium이 하루 3개만 받았다(2026-10-20).
+  // 같은 사건 빼기는 맨 나중에 푼다: 모자라면 같은 사건이라도 하루 소식 수를 채운다(맨 뒤에 붙는다)
   const picked: typeof scored = [];
   const taken = new Set<number>();
   const perTopic = new Map<string, number>();
@@ -125,6 +132,8 @@ export function rankFeed(
   let links = 0;
   let majors = 0;
   const underCaps = (s: (typeof scored)[number]) => !(s.isVideo && videos >= maxVideos) && !(isLinkTopicId(s.topicId) && links >= maxLinks);
+  // 벡터 비교라 다른 조건을 다 지난 뒤에 본다
+  const distinct = (s: (typeof scored)[number]) => !picked.some((p) => sameStory(s, p)) && !prior.some((p) => sameStory(s, p));
   const fill = (ok: (s: (typeof scored)[number]) => boolean) => {
     for (const s of scored) {
       if (picked.length === limit) break;
@@ -141,14 +150,37 @@ export function rankFeed(
   // 전체를 점수순으로 다시 섞으면 제약을 풀어 채운 같은 관심사 소식이 앞으로 와서 관심사별 몫이 깨진다(2026-10-23)
   // 큰 소식을 맨 먼저: 관심사 차례보다 앞서지만 관심사별 몫은 지키고, 하루 소식의 절반(올림)까지만
   const maxMajors = Math.ceil(visible / 2);
-  fill((s) => s.major && majors < maxMajors && (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s));
+  fill((s) => s.major && majors < maxMajors && (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s) && distinct(s));
   // 관심사가 받는 수보다 많으면 오늘 차례인 관심사에 먼저 하나씩(점수순)
   const todays = day ? new Set(todaysTopics(weights, visible, day)) : null;
-  if (todays?.size) fill((s) => todays.has(s.topicId) && !perTopic.has(s.topicId) && underCaps(s));
-  fill((s) => (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s));
-  fill(underCaps);
+  if (todays?.size) fill((s) => todays.has(s.topicId) && !perTopic.has(s.topicId) && underCaps(s) && distinct(s));
+  fill((s) => (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s) && distinct(s));
+  fill((s) => underCaps(s) && distinct(s));
+  fill(distinct);
   fill(() => true);
   return picked.map(({ clusterId, topicId, score }) => ({ clusterId, topicId, score }));
+}
+
+/** rankDistinct가 먼저 추리는 후보 수(limit의 배수). 같은 사건으로 빠질 몫까지 넉넉히 */
+const SHORTLIST = 3;
+
+/**
+ * 같은 사건 빼기까지 해서 고른다. 묶음 중심 벡터는 묶음당 9KB 남짓이라(72시간 후보 1,300개면 12MB) 후보 전체에 읽지 않고,
+ * 벡터 없이 limit의 SHORTLIST배를 먼저 추린 뒤 그 후보에만 벡터를 채워(fillCentroids, 후보의 centroid를 채운다) 다시 고른다.
+ * prior의 벡터는 부르는 쪽이 채워 넘긴다
+ */
+export async function rankDistinct<C extends RankCandidate>(
+  candidates: readonly C[],
+  weights: Record<string, number>,
+  exclude: ReadonlySet<number>,
+  options: RankOptions,
+  fillCentroids: (candidates: C[]) => Promise<void>,
+): Promise<RankedItem[]> {
+  const limit = options.limit ?? 5;
+  const short = new Set(rankFeed(candidates as C[], weights, exclude, { ...options, visible: options.visible ?? limit, limit: limit * SHORTLIST }).map((r) => r.clusterId));
+  const pool = candidates.filter((c) => short.has(c.id));
+  await fillCentroids(pool);
+  return rankFeed(pool, weights, exclude, options);
 }
 
 export const WEIGHT_MIN = 0.1;

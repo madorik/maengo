@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { isMarketQuote } from '../feed/market';
-import { bestTopic, feedbackDelta, linkCap, MIN_RELEVANCE, perTopicShare, rankFeed, todaysTopics, type RankCandidate } from '../feed/rankFeed';
+import { bestTopic, feedbackDelta, linkCap, MIN_RELEVANCE, perTopicShare, rankDistinct, rankFeed, todaysTopics, type RankCandidate } from '../feed/rankFeed';
+import { sameStory } from '../feed/similar';
 import { initialTopicWeights, TOPIC_GROUPS, TOPICS, whyLead } from '../topics/dictionary';
 
 const c = (id: number, topicId: string, extra: Partial<RankCandidate> = {}): RankCandidate => ({
@@ -204,4 +205,54 @@ test('큰 소식은 관심사 차례보다 먼저지만 하루 소식의 절반�
   assert.deepEqual(got.slice(0, 2).map((x) => x.clusterId), [1, 3]);
   assert.ok(todaysTopics(weights, 3, day)!.includes(got[2]!.topicId), got[2]!.topicId);
   assert.ok(!['ai', 'coin'].includes(got[2]!.topicId));
+});
+
+/** 기준 벡터 [1, 0]과 코사인이 cos인 벡터 */
+const near = (cos: number) => [cos, Math.sqrt(1 - cos * cos)];
+
+test('같은 사건: 0.75부터, 같은 관심사에 하루 안이면 0.70부터', () => {
+  const k = (topicId: string, cos: number, ageHours = 6) => ({ topicId, ageHours, centroid: near(cos) });
+  const base = { topicId: 'kospi', ageHours: 6, centroid: [1, 0] };
+  assert.equal(sameStory(base, k('ai', 0.76)), true);
+  assert.equal(sameStory(base, k('ai', 0.72)), false);
+  assert.equal(sameStory(base, k('kospi', 0.72)), true);
+  // 같은 관심사라도 하루 넘게 떨어진 소식은 0.75부터
+  assert.equal(sameStory(base, k('kospi', 0.72, 40)), false);
+  // 벡터가 없으면 견주지 않는다
+  assert.equal(sameStory(base, { topicId: 'kospi', ageHours: 6 }), false);
+});
+
+test('이미 고른 소식과 같은 사건이면 뒤로 미루고, 모자랄 때만 맨 뒤에 채운다', () => {
+  // 2(코스피 급등의 다른 기사)는 1과 0.82, 3은 다른 소식
+  const cands = [c(1, 'kospi', { centroid: [1, 0], popularity: 3 }), c(2, 'kospi', { centroid: near(0.82), popularity: 2 }), c(3, 'kospi', { centroid: near(0.2) })];
+  assert.deepEqual(rankFeed(cands, { kospi: 1 }, new Set(), { limit: 2, maxPerTopic: 3 }).map((x) => x.clusterId), [1, 3]);
+  assert.deepEqual(rankFeed(cands, { kospi: 1 }, new Set(), { limit: 3, maxPerTopic: 3 }).map((x) => x.clusterId), [1, 3, 2]);
+  // 벡터가 없으면 전처럼 점수순
+  const plain = cands.map(({ centroid: _, ...rest }) => rest);
+  assert.deepEqual(rankFeed(plain, { kospi: 1 }, new Set(), { limit: 2, maxPerTopic: 3 }).map((x) => x.clusterId), [1, 2]);
+});
+
+test('오늘 피드에 이미 있는 소식(prior)과 같은 사건도 뒤로 미룬다', () => {
+  const cands = [c(2, 'kospi', { centroid: near(0.8), popularity: 2 }), c(3, 'ai', { centroid: near(0.1) })];
+  const prior = [{ topicId: 'kospi', ageHours: 6, centroid: [1, 0] }];
+  assert.deepEqual(rankFeed(cands, { kospi: 1, ai: 1 }, new Set(), { limit: 1, prior }).map((x) => x.clusterId), [3]);
+});
+
+test('rankDistinct는 추린 후보에만 벡터를 채워 같은 사건을 뺀다', async () => {
+  const vectors = new Map([[1, [1, 0]], [2, near(0.9)], [3, near(0.3)], [4, near(0.1)]]);
+  const cands = [1, 2, 3, 4].map((id) => c(id, 'ai', { popularity: 5 - id }));
+  const filled: number[] = [];
+  const out = await rankDistinct(cands, { ai: 1 }, new Set(), { limit: 1, maxPerTopic: 3 }, async (pool) => {
+    for (const p of pool) {
+      filled.push(p.id);
+      p.centroid = vectors.get(p.id);
+    }
+  });
+  // 1개를 고르면 3배인 3개(1·2·3)만 벡터를 읽는다
+  assert.deepEqual(filled.sort(), [1, 2, 3]);
+  assert.deepEqual(out.map((x) => x.clusterId), [1]);
+  const two = await rankDistinct(cands, { ai: 1 }, new Set(), { limit: 2, maxPerTopic: 3 }, async (pool) => {
+    for (const p of pool) p.centroid = vectors.get(p.id);
+  });
+  assert.deepEqual(two.map((x) => x.clusterId), [1, 3]);
 });
