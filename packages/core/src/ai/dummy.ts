@@ -16,7 +16,7 @@ export interface DummyCanned {
 
 const SAMPLE_RATE = 8000;
 
-const PITCH: Record<string, number> = { f: 880, m: 587, 진행자: 784, 해설자: 523 };
+const PITCH: Record<string, number> = { f: 880, m: 587 };
 
 function tone(pcm: Uint8Array, atMs: number, ms: number, freq: number, amp: number) {
   const start = Math.floor((atMs / 1000) * SAMPLE_RATE);
@@ -29,16 +29,13 @@ function tone(pcm: Uint8Array, atMs: number, ms: number, freq: number, amp: numb
 }
 
 export function dummySpeak(input: SpeakInput): SpeakOutput {
-  const { lineTimesMs, durationMs } = estimateTimeline(input.lines, input.persona);
+  const { lineTimesMs, durationMs } = estimateTimeline(input.lines);
   const pcm = new Uint8Array(Math.ceil((durationMs / 1000) * SAMPLE_RATE)).fill(128);
 
-  const base = PITCH[input.voice === 'pair' ? '진행자' : input.voice] ?? 880;
+  const base = PITCH[input.voice] ?? 880;
   tone(pcm, 0, 160, base, 46);
   tone(pcm, 170, 220, base * 1.5, 46);
-  input.lines.forEach((line, i) => {
-    const pitch = (line.who && PITCH[line.who]) || base;
-    tone(pcm, lineTimesMs[i]!.startMs, 70, pitch * 0.75, 20);
-  });
+  input.lines.forEach((_, i) => tone(pcm, lineTimesMs[i]!.startMs, 70, base * 0.75, 20));
 
   return { pcm, sampleRate: SAMPLE_RATE, bitsPerSample: 8, lineTimesMs, durationMs };
 }

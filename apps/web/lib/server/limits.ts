@@ -2,11 +2,12 @@ import 'server-only';
 import { kstDate } from '@maengo/core/kst';
 import { db, must } from './db';
 
-// 음성 사용 기록과 서비스 전체 TTS 한도. Premium 듣기는 사람별 횟수 제한이 없다.
-// 새 음성을 만들면 usage_log(user_id, kind='voice')에 기록만 한다(비용 추적용)
+// 음성 사용 기록과 서비스 전체 TTS 한도. Premium 듣기는 사람별 횟수 제한이 없다(내 관심 링크 소식만 하루 새 음성 수가 있다).
+// 새 음성을 만들면 usage_log(user_id, kind='voice')에 남긴다(비용 추적용). 내 관심 링크 소식이면 kind='voice_link'도 남겨
+// 하루에 새로 만드는 링크 음성 수(DAILY_LINK_VOICES)를 센다(lib/server/episode.ts)
 // '오늘 소식 받기'(즉석 피드, kind='instant')와 '남은 소식 더 받기'(kind='fill')는 한 사람이 하루에 부를 수 있는 횟수를 이 기록으로 센다(app/api/feed/today, …/fill)
 
-export type UsageKindForLimit = 'voice' | 'instant' | 'fill';
+export type UsageKindForLimit = 'voice' | 'voice_link' | 'instant' | 'fill';
 
 export async function recordUse(userId: string, kind: UsageKindForLimit) {
   const { error } = await db.from('usage_log').insert({ provider: 'maengo', kind, user_id: userId, units: 1, est_usd: 0 });
@@ -19,6 +20,14 @@ export async function usesToday(userId: string, kind: UsageKindForLimit): Promis
   const { count, error } = await db.from('usage_log').select('id', { count: 'exact', head: true }).eq('provider', 'maengo').eq('kind', kind).eq('user_id', userId).gte('at', since);
   if (error) throw new Error(`usage_log: ${error.message}`);
   return count ?? 0;
+}
+
+/** 내 관심 링크 소식 음성을 오늘 새로 만들 수 있는 몫(DAILY_LINK_VOICES)을 다 썼다 */
+export class LinkVoiceLimitError extends Error {
+  constructor() {
+    super('오늘 새로 만들 수 있는 링크 소식 음성을 다 썼어요');
+    this.name = 'LinkVoiceLimitError';
+  }
 }
 
 /** 서비스 전체의 TTS 한도(Gemini 무료 등급 하루 요청 수)가 찼다. until까지 TTS를 부르지 않는다 */

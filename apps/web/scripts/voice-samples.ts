@@ -10,18 +10,18 @@ import { SAMPLE_LINES, SAMPLES, samplePath, WAIT_LINES, waitPath } from "../lib/
 const force = process.argv.includes("--force");
 const pub = path.join(import.meta.dirname, "..", "public");
 
-const jobs = SAMPLES.flatMap(({ persona, vk }) => [
-  { persona, vk, file: samplePath(persona, vk), lines: SAMPLE_LINES[persona] },
-  { persona, vk, file: waitPath(vk), lines: WAIT_LINES },
+const jobs = SAMPLES.flatMap(({ persona, voice }) => [
+  { persona, voice, file: samplePath(persona, voice), lines: SAMPLE_LINES },
+  { persona, voice, file: waitPath(voice), lines: WAIT_LINES },
 ]);
 
-for (const { persona, vk, file: rel, lines } of jobs) {
+for (const { persona, voice, file: rel, lines } of jobs) {
   const file = path.join(pub, rel);
   if (existsSync(file) && !force) {
     console.log(`건너뜀 ${path.basename(file)}(이미 있음)`);
     continue;
   }
-  const speech = await tts.speak({ model: ttsModel(), persona, voice: vk, lines });
+  const speech = await tts.speak({ model: ttsModel(), persona, voice, lines });
   const mp3 = encodeMp3(speech.pcm, speech.sampleRate);
   writeFileSync(file, mp3);
   console.log(`만듦 ${path.basename(file)} ${(speech.durationMs / 1000).toFixed(1)}초 ${(mp3.length / 1024).toFixed(0)}KB`);

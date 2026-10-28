@@ -1,30 +1,22 @@
-import { voiceKey } from "@maengo/core/audio";
-import type { Persona, ScriptLine, Voice, VoiceKey } from "@maengo/core/types";
+import type { Persona, ScriptLine, Voice } from "@maengo/core/types";
 import { withBase } from "./base-path";
 
-// 설정 > 듣기의 미리 듣기. 말투·목소리마다 짧은 인사를 한 번만 만들어 public/voice-samples에 두고(scripts/voice-samples.ts),
+// 설정 > 듣기의 미리 듣기. 목소리마다 짧은 인사를 한 번만 만들어 public/voice-samples에 두고(scripts/voice-samples.ts),
 // 들을 때는 정적 파일만 튼다(TTS를 다시 부르지 않는다). 문구를 바꾸면 스크립트를 --force로 다시 돌린다.
-export const SAMPLE_LINES: Record<Persona, ScriptLine[]> = {
-  announcer: [{ text: "안녕하세요, 맹고 아나운서예요. 관심 있는 주제를 모아서 요약해 드릴게요." }],
-  teacher: [{ text: "안녕하세요, 맹고 선생님이에요. 관심 있는 주제를 모아서 요약해 드릴게요." }],
-  dialogue: [
-    { who: "진행자", text: "안녕하세요, 맹고 진행자예요." },
-    { who: "해설자", text: "저는 해설자예요. 관심 있는 주제를 모아서 묻고 답하며 요약해 드릴게요." },
-  ],
-};
+export const SAMPLE_LINES: ScriptLine[] = [{ text: "안녕하세요, 맹고 아나운서예요. 관심 있는 주제를 모아서 요약해 드릴게요." }];
 
-/** 만들어 둘 샘플: 지금 말투(아나운서)의 여성·남성 목소리 */
-export const SAMPLES: { persona: Persona; vk: VoiceKey }[] = [
-  { persona: "announcer", vk: "f" },
-  { persona: "announcer", vk: "m" },
+/** 만들어 둘 샘플: 아나운서의 여성·남성 목소리 */
+export const SAMPLES: { persona: Persona; voice: Voice }[] = [
+  { persona: "announcer", voice: "f" },
+  { persona: "announcer", voice: "m" },
 ];
 
-export function samplePath(persona: Persona, vk: VoiceKey): string {
-  return `/voice-samples/${persona}-${vk}.mp3`;
+export function samplePath(persona: Persona, voice: Voice): string {
+  return `/voice-samples/${persona}-${voice}.mp3`;
 }
 
 export function sampleUrl(persona: Persona, voice: Voice): string {
-  return withBase(samplePath(persona, voiceKey(persona, voice)));
+  return withBase(samplePath(persona, voice));
 }
 
 /**
@@ -33,10 +25,10 @@ export function sampleUrl(persona: Persona, voice: Voice): string {
  */
 export const WAIT_LINES: ScriptLine[] = [{ text: "AI가 요약을 음성으로 변환하고 있어요." }, { text: "조금만 기다려주세요." }];
 
-export function waitPath(vk: VoiceKey): string {
-  return `/voice-samples/wait-${vk}.mp3`;
+export function waitPath(voice: Voice): string {
+  return `/voice-samples/wait-${voice}.mp3`;
 }
 
 export function waitUrl(voice: Voice): string {
-  return withBase(waitPath(voiceKey("announcer", voice)));
+  return withBase(waitPath(voice));
 }

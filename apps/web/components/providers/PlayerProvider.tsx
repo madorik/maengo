@@ -99,7 +99,6 @@ export interface PlayerApi {
   next: () => void;
   prev: () => void;
   restart: () => void;
-  setPersona: (p: Persona) => void;
   setVoice: (v: Voice) => void;
   setAutoNext: (on: boolean) => void;
   setSkipRead: (on: boolean) => void;
@@ -188,7 +187,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const [status, setStatus] = useState<Status>("idle");
   const [cur, setCur] = useState(-1);
   const [posMs, setPosMs] = useState(0);
-  const [persona, setPersonaState] = useState(profile.persona);
+  // 말투는 아나운서 하나(core/audio PERSONA)라 바꾸지 않는다. 주소·캐시 키에 같이 넘긴다
+  const persona = profile.persona;
   const [voice, setVoiceState] = useState(profile.voice);
   const [autoNext, setAutoNextState] = useState(profile.autoNext);
   const [skipRead, setSkipReadState] = useState(profile.skipRead);
@@ -776,19 +776,12 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const restart = () => goTo(startIndex(chapters, readSet, skip));
 
-  const setPersona = (p: Persona) => {
-    if (p === persona) return;
-    setPersonaState(p);
-    void savePlayerPrefs({ persona: p });
-    void load(p, voice, { index: cur, resume: status === "playing", clusterId: chapters[cur]?.clusterId });
-  };
-
   const setVoice = (v: Voice) => {
     if (v === voice) return;
     track("voice_change", { voice: v });
     setVoiceState(v);
     void savePlayerPrefs({ voice: v });
-    if (persona !== "dialogue") void load(persona, v, { index: cur, resume: status === "playing", clusterId: chapters[cur]?.clusterId });
+    void load(persona, v, { index: cur, resume: status === "playing", clusterId: chapters[cur]?.clusterId });
   };
 
   const setAutoNext = (on: boolean) => {
@@ -1244,7 +1237,6 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     next,
     prev,
     restart,
-    setPersona,
     setVoice,
     setAutoNext,
     setSkipRead,

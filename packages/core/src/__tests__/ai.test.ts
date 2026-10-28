@@ -17,23 +17,13 @@ test('Gemini 모델은 고정 버전만(-latest 별칭·Pro 금지)', () => {
 
 const item = {
   model: 'm',
-  topicName: 'LLM 에이전트',
   title: '에이전트 평가, 정답셋 없이 시작하는 법',
   short: '실패한 대화를 모아 평가셋의 씨앗으로 씁니다.',
   body: ['실패한 대화를 모읍니다. 사람이 고친 답이 곧 정답이에요.', '처음부터 완벽한 정답셋을 만들 필요는 없어요.'],
-  why: 'LLM 에이전트에 관심 있다면: RAG 챗봇 회귀 테스트에 바로 쓸 수 있어요.',
 };
 
-test('대본: 대담은 진행자·해설자가 번갈아 말하고, 해설자가 문단을 읽는다', () => {
-  const lines = templateScript({ ...item, persona: 'dialogue' });
-  assert.deepEqual(lines.map((l) => l.who), ['진행자', '해설자', '진행자', '해설자', '진행자', '해설자']);
-  assert.deepEqual(lines.map((l) => l.para), [undefined, 0, undefined, 1, undefined, undefined]);
-  assert.match(lines[0]!.text, /이번 소식/);
-  assert.equal(lines.at(-1)!.text, 'RAG 챗봇 회귀 테스트에 바로 쓸 수 있어요.'); // 'OO에 관심 있다면' 앞머리는 읽지 않는다
-});
-
 test('대본: 본문을 문장 단위로 읽고 문단 번호를 단다', () => {
-  const lines = templateScript({ ...item, persona: 'announcer' });
+  const lines = templateScript(item);
   assert.deepEqual(lines.filter((l) => l.para !== undefined).map((l) => [l.para, l.text]), [
     [0, '실패한 대화를 모읍니다.'],
     [0, '사람이 고친 답이 곧 정답이에요.'],
@@ -43,8 +33,8 @@ test('대본: 본문을 문장 단위로 읽고 문단 번호를 단다', () => 
 
 test('더미 음성: 줄 시각이 겹치지 않고 길이와 PCM 크기가 맞는다', async () => {
   const ai = createDummyAi();
-  const lines = await ai.script({ ...item, persona: 'teacher' });
-  const out = await ai.speak({ model: 'm', persona: 'teacher', voice: 'f', lines });
+  const lines = await ai.script(item);
+  const out = await ai.speak({ model: 'm', persona: 'announcer', voice: 'f', lines });
   assert.equal(out.lineTimesMs.length, lines.length);
   for (let i = 1; i < out.lineTimesMs.length; i++) {
     assert.ok(out.lineTimesMs[i]!.startMs >= out.lineTimesMs[i - 1]!.endMs);
@@ -74,15 +64,12 @@ test('WAV를 이어 붙이면 헤더의 데이터 크기가 조각 합과 같다
   assert.equal(new DataView(wav.buffer).getUint32(40, true), 16);
 });
 
-test('TTS 글: 말투 지시문 없이 대본 줄만, 대담은 화자 이름을 붙인다', async () => {
+test('TTS 글: 말투 지시문 없이 대본 줄만', async () => {
   const { ttsText } = await import('../ai/gemini');
-  const lines = templateScript({ ...item, persona: 'teacher' });
-  const text = ttsText(lines, false);
+  const lines = templateScript(item);
+  const text = ttsText(lines);
   assert.ok(!/처럼|읽어 주세요/.test(text));
-  assert.equal(text.split('\n')[0], lines[0]!.text);
-  const pair = ttsText(templateScript({ ...item, persona: 'dialogue' }), true);
-  assert.match(pair.split('\n')[0]!, /^진행자: /);
-  assert.match(pair.split('\n')[1]!, /^해설자: /);
+  assert.deepEqual(text.split('\n'), lines.map((l) => l.text));
 });
 
 test('요약 언어 검사: 원어 이름이 섞인 한국어는 통과, 영어 요약은 막는다', () => {
@@ -92,12 +79,10 @@ test('요약 언어 검사: 원어 이름이 섞인 한국어는 통과, 영어 
 });
 
 test('듣기 마지막 줄(아나운서): 정리하면, 제목이라는 소식이었습니다', () => {
-  assert.equal(templateScript({ ...item, persona: 'announcer' }).at(-1)!.text, '정리하면, 에이전트 평가, 정답셋 없이 시작하는 법이라는 소식이었습니다.');
+  assert.equal(templateScript(item).at(-1)!.text, '정리하면, 에이전트 평가, 정답셋 없이 시작하는 법이라는 소식이었습니다.');
   assert.equal(closingLine('앤트로픽 2분기 매출 115억 달러 달성, 오픈AI 추월'), '정리하면, 앤트로픽 2분기 매출 115억 달러 달성, 오픈AI 추월이라는 소식이었습니다.');
   assert.equal(closingLine('Next.js, 의존성 보안 취약점 패치 예고'), '정리하면, Next.js, 의존성 보안 취약점 패치 예고라는 소식이었습니다.');
   assert.equal(closingLine('코스피 3.73% 급락…'), '정리하면, 코스피 3.73% 급락이라는 소식이었습니다.');
-  // 관심사별 why가 달라도 대본이 같다(음성을 관심사마다 따로 만들지 않는다)
-  assert.deepEqual(templateScript({ ...item, persona: 'announcer' }), templateScript({ ...item, persona: 'announcer', why: '보안에 관심 있다면: 다른 문장.' }));
 });
 
 test('소식 음성 끝 무음 1초: 24kHz 16비트면 48,000바이트가 0으로 붙는다', () => {
@@ -107,6 +92,6 @@ test('소식 음성 끝 무음 1초: 24kHz 16비트면 48,000바이트가 0으�
   assert.deepEqual([...out.subarray(0, 4)], [1, 2, 3, 4]);
   assert.ok(out.subarray(4).every((b) => b === 0));
   // 어림 길이에도 무음을 넣는다(음성을 만들기 전 챕터 길이)
-  const est = estimateTimeline([{ text: '안녕하세요.' }], 'announcer');
+  const est = estimateTimeline([{ text: '안녕하세요.' }]);
   assert.ok(est.durationMs - est.lineTimesMs[0]!.endMs >= SEGMENT_TAIL_MS);
 });

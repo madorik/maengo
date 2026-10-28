@@ -1,6 +1,6 @@
 import type { CategoryId } from '../categories';
 import type { Impact } from '../feed/impact';
-import type { Persona, ScriptLine, Topic, VoiceKey } from '../types';
+import type { Persona, ScriptLine, Topic, Voice } from '../types';
 
 export interface WhyInput {
   model: string;
@@ -16,13 +16,10 @@ export interface WhyInput {
 
 export interface ScriptInput {
   model: string;
-  persona: Persona;
-  topicName: string;
   title: string;
   short: string;
   /** 전체 글(문단 단위). 듣기는 이 본문을 읽는다 */
   body: string[];
-  why: string;
 }
 
 export interface ClassifyInput {
@@ -67,7 +64,7 @@ export interface MapTopicsInput {
 export interface SpeakInput {
   model: string;
   persona: Persona;
-  voice: VoiceKey;
+  voice: Voice;
   lines: ScriptLine[];
 }
 

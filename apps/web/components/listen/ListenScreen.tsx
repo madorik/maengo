@@ -208,8 +208,8 @@ function TodayListenScreen() {
   );
 }
 
-/** 지금까지 읽은 문장을 말풍선으로 쌓는다. 대담이면 진행자는 왼쪽, 해설자는 오른쪽 */
-function Script({ lines, current, playing, intro }: { lines: { who?: string; text: string }[]; current: number; playing: boolean; intro: string }) {
+/** 지금까지 읽은 문장을 말풍선으로 쌓는다. 맹고는 첫 말풍선 옆에만 */
+function Script({ lines, current, playing, intro }: { lines: { text: string }[]; current: number; playing: boolean; intro: string }) {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -231,18 +231,11 @@ function Script({ lines, current, playing, intro }: { lines: { who?: string; tex
   return (
     <section aria-label="지금 읽는 대본" className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-5">
       {shown.map((line, i) => {
-        const right = line.who === "해설자";
         const isCurrent = i === current;
-        const firstOfRun = i === 0 || shown[i - 1]!.who !== line.who;
         return (
-          <div key={i} className={`flex items-end gap-2 ${right ? "flex-row-reverse" : ""}`}>
-            <span className="w-12 shrink-0">
-              {firstOfRun && (
-                <Mascot mood={right ? "happy" : "listen"} className={`size-12 ${right ? "-scale-x-100" : ""} ${isCurrent && playing ? "bob" : ""}`} />
-              )}
-            </span>
-            <div className={`max-w-[80%] ${right ? "items-end" : ""} flex flex-col`}>
-              {line.who && firstOfRun && <span className="mb-1 px-1 text-[12px] font-extrabold text-sub">{line.who}</span>}
+          <div key={i} className="flex items-end gap-2">
+            <span className="w-12 shrink-0">{i === 0 && <Mascot mood="listen" className={`size-12 ${isCurrent && playing ? "bob" : ""}`} />}</span>
+            <div className="flex max-w-[80%] flex-col">
               <div
                 className={`rounded-2xl border-2 px-4 py-2.5 text-[17px] leading-[1.6] ${
                   isCurrent ? "border-sky bg-sky-tint font-bold text-ink" : "border-line bg-paper font-medium text-sub"

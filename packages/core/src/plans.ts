@@ -80,6 +80,13 @@ export const krwLabel = (krw: number) => `${krw.toLocaleString('ko-KR')}원`;
 /** 가입하면 한 번 지갑에 넣어 주는 맹고(플랜과 상관없음). 2026-10-17 100 → 10(가입 이벤트 팝업으로 알린다) */
 export const SIGNUP_BONUS = 10;
 
+/**
+ * 하루에 새로 만들 수 있는 내 관심 링크 소식 음성 수(2026-10-28 사용자 결정). 링크 소식은 그 링크를 넣은 사람만 받아 음성을 나눠 쓰지 못해
+ * 비용이 사람마다 쌓인다(하루 5개 × 30일 × 23원 = 월 3,450원으로 Premium 실수입 2,936원보다 크다. 3개면 2,070원).
+ * 이미 만든 음성은 몇 번이든 듣는다
+ */
+export const DAILY_LINK_VOICES = 3;
+
 /** 'YYYY-MM-DD'에서 n일 전(날짜 계산만, 시간대 무관) */
 export function daysBefore(date: string, n: number): string {
   const t = Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))) - n * 86_400_000;

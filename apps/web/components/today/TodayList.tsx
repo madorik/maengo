@@ -13,6 +13,7 @@ import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { useItemAudio } from "@/components/article/useItemAudio";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
+import { ttsErrorLabel } from "@/lib/player/tts-error";
 import { useArrivalHighlight, useMoreArrival, type Arrival } from "./arrival";
 import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
@@ -143,7 +144,7 @@ function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | nul
         {item.coverage && item.kind === "article" && <span className="hidden truncate font-bold text-sub sm:inline">{item.coverage}</span>}
         <span className="ml-auto shrink-0">
           {!viaPlayer && single.ctl.error ? (
-            <span className="text-cherry">음성을 못 만들었어요</span>
+            <span className="text-cherry">{ttsErrorLabel(single.ctl.error)}</span>
           ) : preparing ? (
             <span className="text-sky">음성 만드는 중</span>
           ) : playing ? (

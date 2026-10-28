@@ -2,7 +2,7 @@ import 'server-only';
 import { createDummyAi, GEMINI_MODELS, type AiClient, type UsageEvent } from '@maengo/core/ai';
 import { createGeminiAi } from '@maengo/core/gemini';
 import { db } from './db';
-import type { Persona, VoiceKey } from '@maengo/core/types';
+import type { Voice } from '@maengo/core/types';
 import { chirpVoiceId, createGoogleTts, type TtsClient } from './google-tts';
 
 // 웹은 요약·why를 만들지 않는다(파이프라인이 만든다). 문장→토픽은 키워드 매칭(더미, 비용 0).
@@ -44,8 +44,8 @@ export function screenModel(): string {
 }
 
 /** 실제 목소리 이름(Chirp 3 HD일 때만). 음성 캐시 키에 들어가서, 목소리를 바꾸면 새로 만든다 */
-export function ttsVoiceId(persona: Persona, vk: VoiceKey): string | undefined {
-  return googleTtsKey ? chirpVoiceId(persona, vk) : undefined;
+export function ttsVoiceId(voice: Voice): string | undefined {
+  return googleTtsKey ? chirpVoiceId(voice) : undefined;
 }
 
 /** 음성 모델 이름. 음성 캐시 키에 들어가서, 모델을 바꾸면 새로 만든다 */

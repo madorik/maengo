@@ -7,7 +7,7 @@ import { parseEpisodeParams } from "../params";
 
 
 /**
- * GET ?id=203&persona=teacher&voice=f → 소식 하나짜리 에피소드의 대본 시각표(문단 표시용).
+ * GET ?id=203&voice=f → 소식 하나짜리 에피소드의 대본 시각표(문단 표시용).
  * 음성은 만들지 않는다(만드는 건 파일 요청 하나만. 둘 다 만들면 서버가 달라 같은 음성을 두 번 만든다).
  * 파일이 열린 뒤(loadedmetadata) 부르면 실제 시각표, 그 전이면 어림값이다.
  */

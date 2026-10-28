@@ -28,15 +28,12 @@ export function isKoreanSummary(text: string): boolean {
   return hangul > 0 && hangul >= (hangul + latin) * 0.2;
 }
 
-/** TTS 목소리(Gemini 기본 목소리 이름). 대담은 진행자 = 여성, 해설자 = 남성 */
+/** TTS 목소리(Gemini 기본 목소리 이름) */
 const TTS_VOICES = { f: 'Kore', m: 'Charon' } as const;
 
-/**
- * TTS에 보낼 글. 대본 줄만 그대로 보낸다(말투 지시문을 앞에 붙이면 그 문장까지 소리로 읽는 경우가 있었다, 2026-10-10).
- * 대담은 '진행자: …' / '해설자: …' 줄로 두 목소리를 나눈다.
- */
-export function ttsText(lines: { who?: string; text: string }[], pair: boolean): string {
-  return lines.map((l) => (pair ? `${l.who ?? '해설자'}: ${l.text}` : l.text)).join('\n');
+/** TTS에 보낼 글. 대본 줄만 그대로 보낸다(말투 지시문을 앞에 붙이면 그 문장까지 소리로 읽는 경우가 있었다, 2026-10-10) */
+export function ttsText(lines: { text: string }[]): string {
+  return lines.map((l) => l.text).join('\n');
 }
 
 /** 하루 할당량이 없거나 다 썼다. 같은 실행 안에서 다시 불러도 소용없다(무료 등급의 Pro 모델은 할당량이 0) */
@@ -517,24 +514,13 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
     },
 
     async speak(input: SpeakInput): Promise<SpeakOutput> {
-      const voice = input.voice;
-      const pair = voice === 'pair';
-      const speechConfig: SpeechConfig = pair
-        ? {
-            multiSpeakerVoiceConfig: {
-              speakerVoiceConfigs: [
-                { speaker: '진행자', voiceConfig: { prebuiltVoiceConfig: { voiceName: TTS_VOICES.f } } },
-                { speaker: '해설자', voiceConfig: { prebuiltVoiceConfig: { voiceName: TTS_VOICES.m } } },
-              ],
-            },
-          }
-        : { voiceConfig: { prebuiltVoiceConfig: { voiceName: TTS_VOICES[voice] } } };
+      const speechConfig: SpeechConfig = { voiceConfig: { prebuiltVoiceConfig: { voiceName: TTS_VOICES[input.voice] } } };
       const res = await withRetry(
         input.model,
         (abortSignal) =>
           client.models.generateContent({
             model: input.model,
-            contents: [{ role: 'user', parts: [{ text: ttsText(input.lines, pair) }] }],
+            contents: [{ role: 'user', parts: [{ text: ttsText(input.lines) }] }],
             config: { responseModalities: [Modality.AUDIO], speechConfig, abortSignal },
           }),
         limitFor(GEMINI_TTS_TIMEOUT_MS),

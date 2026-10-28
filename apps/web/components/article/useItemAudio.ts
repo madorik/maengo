@@ -72,7 +72,7 @@ export function useItemAudio(clusterId: number, enabled: boolean): { ctl: Listen
       setStatus("idle");
       a.removeAttribute("src");
       delete a.dataset.query;
-      void ttsErrorMessage().then(setError);
+      void ttsErrorMessage(clusterId).then(setError);
     };
     a.addEventListener("loadedmetadata", onMeta);
     // 다른 글 하나짜리 재생이나 오늘 브리핑 플레이어(-1)가 시작되면 이 글은 멈춘다

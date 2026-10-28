@@ -1,7 +1,7 @@
 import 'server-only';
 import type { SpeakInput, SpeakOutput } from '@maengo/core/ai';
 import { alignLines, parseWav } from '@maengo/core/audio';
-import type { Persona } from '@maengo/core/types';
+import type { Voice } from '@maengo/core/types';
 
 // Google Cloud Text-to-Speech, Chirp 3: HD 한국어 목소리. 2026-10-10 Gemini TTS(무료 등급 하루 10번)에서 바꿨다.
 // 과금은 글자 수(공백 포함, 한글도 1자). 매월 100만 자 무료, 그 뒤 100만 자당 $30. 요청 하나에 5,000바이트(한글 약 1,600자)까지.
@@ -9,30 +9,19 @@ import type { Persona } from '@maengo/core/types';
 // 뚝뚝 끊겨 들렸다(2026-10-26). 문단 안 줄별 시각은 음성의 쉼으로 찾는다(core/audio/align.ts).
 
 const ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
-/**
- * 말투별 목소리(ko-KR-Chirp3-HD-이름). 아나운서·대담은 Gemini 때와 같은 Kore(여)·Charon(남),
- * 선생님은 Achernar(여)·Achird(남)(2026-10-10 사용자 지정). 대담은 진행자 = f, 해설자 = m
- */
-const VOICES: Record<Persona, { f: string; m: string }> = {
-  announcer: { f: 'Kore', m: 'Charon' },
-  teacher: { f: 'Achernar', m: 'Achird' },
-  dialogue: { f: 'Kore', m: 'Charon' },
-};
+/** 목소리(ko-KR-Chirp3-HD-이름). Gemini 때와 같은 Kore(여)·Charon(남) */
+const VOICES: Record<Voice, string> = { f: 'Kore', m: 'Charon' };
 
 /** 음성 캐시 키에 넣을 실제 목소리 이름(목소리를 바꾸면 새로 만들게) */
-export function chirpVoiceId(persona: Persona, vk: 'f' | 'm' | 'pair'): string {
-  const v = VOICES[persona];
-  return vk === 'pair' ? `${v.f}+${v.m}` : v[vk];
+export function chirpVoiceId(voice: Voice): string {
+  return VOICES[voice];
 }
 const SAMPLE_RATE = 24000;
-/** 문단 사이 쉼. 문단이 바뀌거나 말하는 사람이 바뀌면 조금 더 쉰다(제목 다음은 짧게) */
+/** 줄 묶음 사이 쉼. 문단이 바뀌면 조금 더 쉰다(제목 다음은 짧게) */
 const GAP_MS = 300;
-const TURN_GAP_MS = 550;
-/**
- * 말투별 빠르기(1이 기본). 선생님은 조금 천천히. 아나운서는 1.05였다가 1로(2026-10-26: 플레이어 속도 1.0x가 원래 빠르기가 되게,
- * 빠르게 듣고 싶으면 플레이어에서 올린다)
- */
-const RATE: Record<Persona, number> = { announcer: 1, teacher: 0.95, dialogue: 1 };
+const PARA_GAP_MS = 550;
+/** 빠르기(1이 기본). 1.05였다가 1로(2026-10-26: 플레이어 속도 1.0x가 원래 빠르기가 되게, 빠르게 듣고 싶으면 플레이어에서 올린다) */
+const RATE = 1;
 /** 한 소식의 문단을 동시에 몇 개까지 만들지 */
 const PARALLEL = 4;
 /** 한 번에 보낼 글 크기. 요청 한도 5,000바이트보다 넉넉히 작게, 넘으면 문단을 나눠 보낸다 */
@@ -85,16 +74,13 @@ export function createGoogleTts(opts: { apiKey: string; onChars?: (chars: number
   return {
     provider: 'google',
     async speak(input) {
-      const pair = input.voice === 'pair';
-      const rate = RATE[input.persona];
-      const voiceOf = (who?: string): 'f' | 'm' => (pair ? (who === '진행자' ? 'f' : 'm') : (input.voice as 'f' | 'm'));
       const textOf = (run: number[]) => run.map((i) => input.lines[i]!.text).join(' ');
-      // 같은 사람의 같은 문단 줄을 하나로 묶는다(줄 번호 목록). 제목·마무리처럼 문단 번호가 없는 줄은 혼자
+      // 같은 문단 줄을 하나로 묶는다(줄 번호 목록). 제목·마무리처럼 문단 번호가 없는 줄은 혼자
       const runs: number[][] = [];
       input.lines.forEach((line, i) => {
         const run = runs.at(-1);
         const prev = run && input.lines[run.at(-1)!]!;
-        const same = prev?.para !== undefined && prev.para === line.para && prev.who === line.who;
+        const same = prev?.para !== undefined && prev.para === line.para;
         if (run && same && Buffer.byteLength(textOf(run)) + 1 + Buffer.byteLength(line.text) <= MAX_BYTES) run.push(i);
         else runs.push([i]);
       });
@@ -105,7 +91,7 @@ export function createGoogleTts(opts: { apiKey: string; onChars?: (chars: number
           while (next < runs.length) {
             const r = next++;
             const run = runs[r]!;
-            pcms[r] = await synth(textOf(run), VOICES[input.persona][voiceOf(input.lines[run[0]!]!.who)], rate);
+            pcms[r] = await synth(textOf(run), VOICES[input.voice], RATE);
           }
         }),
       );
@@ -121,8 +107,8 @@ export function createGoogleTts(opts: { apiKey: string; onChars?: (chars: number
         if (r > 0) {
           const prev = input.lines[runs[r - 1]!.at(-1)!]!;
           const line = input.lines[run[0]!]!;
-          const turn = prev.who !== line.who || (prev.para !== undefined && prev.para !== line.para);
-          const gap = silence(turn ? TURN_GAP_MS : GAP_MS);
+          const newPara = prev.para !== undefined && prev.para !== line.para;
+          const gap = silence(newPara ? PARA_GAP_MS : GAP_MS);
           parts.push(gap);
           at += gap.length;
         }

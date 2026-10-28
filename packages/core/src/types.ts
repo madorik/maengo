@@ -7,10 +7,12 @@ export type Plan = 'free' | 'plus';
 /** AI 모델 등급. Free는 basic(Gemini Flash), Premium은 pro(상위 모델). */
 export type Tier = 'basic' | 'pro';
 
-export type Persona = 'announcer' | 'teacher' | 'dialogue';
+/**
+ * 듣기 말투. 2026-10-10부터 아나운서 하나만 쓰고, 선생님·대담은 2026-10-28에 지웠다(제공하지 않기로, 사용자 결정).
+ * 음성 캐시 키(apps/web lib/server/episode.ts segmentKey)에 들어가서 이름은 그대로 둔다. DB 체크 제약(profiles·audio_segments)엔 예전 값이 남아 있다
+ */
+export type Persona = 'announcer';
 export type Voice = 'f' | 'm';
-/** 대담은 두 목소리를 같이 쓰므로 목소리 대신 pair로 캐시한다. */
-export type VoiceKey = Voice | 'pair';
 
 export type FeedbackKind = 'more' | 'known' | 'skip';
 
@@ -23,8 +25,6 @@ export interface Topic {
 }
 
 export interface ScriptLine {
-  /** 대담일 때만 '진행자' | '해설자' */
-  who?: string;
   text: string;
   /** 본문 몇 번째 문단을 읽는 줄인지. 상세 화면에서 그 문단을 짚어 준다 */
   para?: number;

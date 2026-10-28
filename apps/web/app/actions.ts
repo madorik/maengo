@@ -1,6 +1,6 @@
 "use server";
 
-import type { Persona, Voice } from "@maengo/core/types";
+import type { Voice } from "@maengo/core/types";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -253,11 +253,10 @@ export async function playlistRestore(back: number[], order: number[]) {
 
 const VOICES: Voice[] = ["f", "m"];
 
-export async function savePlayerPrefs(prefs: { persona?: Persona; voice?: Voice; autoNext?: boolean; skipRead?: boolean; rate?: number }) {
+export async function savePlayerPrefs(prefs: { voice?: Voice; autoNext?: boolean; skipRead?: boolean; rate?: number }) {
   const profile = await currentProfile();
   if (!profile) return;
   const patch: Record<string, unknown> = {};
-  // 말투는 아나운서 하나로 고정이라 받지 않는다(core/audio의 PERSONA)
   if (prefs.voice && VOICES.includes(prefs.voice)) patch.voice = prefs.voice;
   if (typeof prefs.autoNext === "boolean") patch.auto_next = prefs.autoNext;
   if (typeof prefs.skipRead === "boolean") patch.skip_read = prefs.skipRead;

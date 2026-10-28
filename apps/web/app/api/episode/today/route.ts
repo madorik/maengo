@@ -8,7 +8,7 @@ import type { EpisodeData } from "@/lib/types";
 import { parseEpisodeParams, parseTodayIds } from "../params";
 
 /**
- * GET ?persona=teacher&voice=f&ids=3,1,2 → 오늘 에피소드의 파일 주소와 챕터 표. 음성을 만들지 않는다(만드는 건 audioUrl을 열 때).
+ * GET ?voice=f&ids=3,1,2 → 오늘 에피소드의 파일 주소와 챕터 표. 음성을 만들지 않는다(만드는 건 audioUrl을 열 때).
  * ids는 화면에 보이는 오늘 소식이다. 그 소식만 넣어 화면 목록과 플레이어 목록·길이가 같게 한다
  */
 export async function GET(request: NextRequest) {
