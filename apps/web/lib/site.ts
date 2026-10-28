@@ -88,7 +88,7 @@ export const SUPPORT_EMAIL = "watalabs.help@gmail.com";
  * 이용약관·개인정보 처리방침 시행일. 내용을 바꾸면 날짜도 바꾸고 약관 페이지 아래 개정 이력에 한 줄 더한다.
  * 앱 안 팝업 공지는 하지 않는다(2026-10-18 사용자 결정)
  */
-export const LEGAL_EFFECTIVE_ON = "2026-10-29";
+export const LEGAL_EFFECTIVE_ON = "2026-11-01";
 export const LEGAL_EFFECTIVE_DATE = (() => {
   const [y, m, d] = LEGAL_EFFECTIVE_ON.split("-").map(Number);
   return `${y}년 ${m}월 ${d}일`;
