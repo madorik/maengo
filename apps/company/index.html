@@ -74,7 +74,6 @@
       --line: #E4E6EE;
       --paper: #FFFFFF;
       --mark-tile: #1F2340;
-      --bezel: #1F2340;
       color-scheme: light;
     }
     @media (prefers-color-scheme: dark) {
@@ -85,7 +84,6 @@
         --line: #2A2E40;
         --paper: #151722;
         --mark-tile: #2A2E48;
-        --bezel: #2A2E40;
         color-scheme: dark;
       }
     }
@@ -123,23 +121,29 @@
     .sign p { margin: 20px auto 0; max-width: 30ch; font-size: clamp(18px, 2.4vw, 22px); font-weight: 600; color: var(--sub); }
 
     section { padding: 64px 0; border-top: 2px solid var(--line); }
-    h2 { margin: 0 0 24px; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.3; }
+    /* 칸마다 왼쪽에 제목, 오른쪽에 내용. 좁으면 위아래로 */
+    section .wrap { display: grid; gap: 20px; }
+    h2 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.5; }
 
-    /* 맹고: 소개 글 아래에 앱 화면 캡처를 가로로 늘어놓는다(소개 영상은 맹고 페이지에 있다) */
-    .shelf .head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 10px; }
-    .shelf svg { width: 72px; height: 72px; border-radius: 18px; display: block; flex: none; }
-    .shelf h3 { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.2; }
-    .shelf .lede { margin: 6px 0 0; font-size: 18px; font-weight: 600; }
-    .shelf ul { margin: 18px 0 0; padding: 0; list-style: none; color: var(--sub); }
-    .shelf li { padding-left: 22px; position: relative; }
-    .shelf li + li { margin-top: 4px; }
-    .shelf li::before { content: ""; position: absolute; left: 4px; top: 0.66em; width: 8px; height: 8px; border-radius: 50%; background: var(--leaf); }
-    .shelf .platforms { margin: 18px 0 0; max-width: 60ch; }
-    /* 앱 화면: 폰 테두리만 두르고 가로로 늘어놓는다(좁으면 옆으로 넘긴다) */
-    .shots { display: flex; gap: 16px; margin-top: 32px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
-    .shots::-webkit-scrollbar { display: none; }
-    .shots img { flex: 0 0 auto; width: 210px; height: auto; border: 7px solid var(--bezel); border-radius: 30px; background: var(--bezel); scroll-snap-align: start; }
-    /* 앱 이름 옆의 열기 버튼 */
+    /* 하는 일: 목표 한 문장, 어디서 시작하는지, 만드는 원칙 */
+    .about .lead { margin: 0; max-width: 22em; font-size: clamp(23px, 3vw, 29px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.42; }
+    .about .origin { margin: 14px 0 0; max-width: 34em; color: var(--sub); }
+    .about dl { margin: 40px 0 0; }
+    .about dl div { padding: 20px 0; border-top: 2px solid var(--line); }
+    .about dl div:last-child { padding-bottom: 0; }
+    .about dt { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+    .about dd { margin: 4px 0 0; max-width: 34em; color: var(--sub); }
+
+    /* 만든 앱: 아이콘·이름·열기, 핵심 한 줄과 끌리는 점(맹고 핵심 가치에서 고른 다섯) */
+    .app .head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+    .app svg { width: 72px; height: 72px; border-radius: 18px; display: block; flex: none; }
+    .app h3 { margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.2; }
+    .app .lede { margin: 18px 0 0; font-size: clamp(21px, 2.6vw, 24px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.4; }
+    .app ul { margin: 14px 0 0; padding: 0; list-style: none; color: var(--sub); max-width: 40em; }
+    .app strong { color: var(--ink); font-weight: 800; }
+    .app li { padding-left: 22px; position: relative; }
+    .app li + li { margin-top: 6px; }
+    .app li::before { content: ""; position: absolute; left: 4px; top: 0.66em; width: 8px; height: 8px; border-radius: 50%; background: var(--leaf); }
     .btn {
       display: inline-flex; align-items: center; justify-content: center; flex: none;
       min-height: 44px; padding: 0 20px;
@@ -151,21 +155,25 @@
     .btn:hover { background: var(--mango-dark); color: #1F2340; }
     .btn:active { transform: scale(0.97); }
 
-    .about p { margin: 0; max-width: 62ch; }
-    .about p + p { margin-top: 12px; }
+    .contact p { margin: 0; }
     .contact a { font-size: 20px; font-weight: 800; text-decoration-thickness: 2px; text-underline-offset: 4px; }
 
     footer { padding: 32px 0 calc(40px + env(safe-area-inset-bottom)); border-top: 2px solid var(--line); color: var(--sub); font-size: 14px; }
     footer .row { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; }
 
+    @media (min-width: 760px) {
+      section .wrap { grid-template-columns: 150px minmax(0, 1fr); gap: 0 48px; }
+      /* 제목을 오른쪽 첫 줄과 맞춘다 */
+      .about h2 { padding-top: 0.35em; }
+      .app h2 { padding-top: 1.3em; }
+    }
     @media (max-width: 560px) {
       .sign { padding: calc(48px + env(safe-area-inset-top)) 0 56px; }
       .sign .mark { margin-bottom: 20px; }
       section { padding: 48px 0; }
-      .shelf svg { width: 60px; height: 60px; border-radius: 16px; }
-      .shelf h3 { font-size: 30px; }
-      .shots { margin-top: 24px; }
-      .shots img { width: 180px; border-width: 6px; border-radius: 26px; }
+      .about dl { margin-top: 32px; }
+      .app svg { width: 60px; height: 60px; border-radius: 16px; }
+      .app h3 { font-size: 28px; }
     }
   </style>
 </head>
@@ -180,46 +188,63 @@
   </header>
 
   <main>
-    <section aria-labelledby="apps-title">
+    <section class="about" aria-labelledby="about-title">
       <div class="wrap">
-        <h2 id="apps-title">지금 있는 앱</h2>
-        <article class="shelf">
-          <div class="intro">
+        <h2 id="about-title">하는 일</h2>
+        <div>
+          <p class="lead">정보를 찾고, 읽고, 챙기느라 드는 시간과 주의를 줄여요.</p>
+          <p class="origin">사람들이 매일 겪지만 그냥 참고 넘기는 불편에서 시작해요.</p>
+          <dl>
+            <div>
+              <dt>필요한 만큼만 드려요</dt>
+              <dd>앱에 오래 붙잡아 두는 대신, 할 일을 끝내면 닫을 수 있게 만들어요.</dd>
+            </div>
+            <div>
+              <dt>출처를 숨기지 않아요</dt>
+              <dd>AI가 만든 결과에는 근거가 되는 원문을 함께 보여 줘요.</dd>
+            </div>
+            <div>
+              <dt>손과 눈이 바쁠 때도 쓸 수 있게 만들어요</dt>
+              <dd>읽을 수 없는 순간엔 들을 수 있게요.</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="app" aria-labelledby="apps-title">
+      <div class="wrap">
+        <h2 id="apps-title">만든 앱</h2>
+        <article>
           <div class="head">
-          <svg viewBox="0 0 200 200" role="img" aria-label="맹고 아이콘">
-            <rect width="200" height="200" fill="#FFC23D"/>
-            <path d="M200 105 L200 200 L80 200 C140 196 190 160 200 105 Z" fill="#FF9F2E"/>
-            <ellipse cx="44" cy="58" rx="11" ry="22" transform="rotate(-35 44 58)" fill="#FFE08A"/>
-            <rect x="110" y="28" width="9" height="17" rx="3" transform="rotate(20 114 36)" fill="#7A4A2A"/>
-            <path d="M118 40 C130 14 164 6 184 14 C174 38 144 50 118 40 Z" fill="#34B36A"/>
-            <path d="M123 38 C140 30 160 22 178 16" fill="none" stroke="#23914F" stroke-width="3.5" stroke-linecap="round"/>
-            <circle cx="70" cy="110" r="22" fill="#FFFFFF"/>
-            <circle cx="130" cy="110" r="22" fill="#FFFFFF"/>
-            <circle cx="74" cy="114" r="11" fill="#191C32"/>
-            <circle cx="126" cy="114" r="11" fill="#191C32"/>
-            <circle cx="78" cy="108" r="3.5" fill="#FFFFFF"/>
-            <circle cx="130" cy="108" r="3.5" fill="#FFFFFF"/>
-            <ellipse cx="50" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
-            <ellipse cx="150" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
-            <path d="M86 142 Q100 156 114 142" fill="none" stroke="#191C32" stroke-width="6" stroke-linecap="round"/>
-          </svg>
+        <svg viewBox="0 0 200 200" role="img" aria-label="맹고 아이콘">
+          <rect width="200" height="200" fill="#FFC23D"/>
+          <path d="M200 105 L200 200 L80 200 C140 196 190 160 200 105 Z" fill="#FF9F2E"/>
+          <ellipse cx="44" cy="58" rx="11" ry="22" transform="rotate(-35 44 58)" fill="#FFE08A"/>
+          <rect x="110" y="28" width="9" height="17" rx="3" transform="rotate(20 114 36)" fill="#7A4A2A"/>
+          <path d="M118 40 C130 14 164 6 184 14 C174 38 144 50 118 40 Z" fill="#34B36A"/>
+          <path d="M123 38 C140 30 160 22 178 16" fill="none" stroke="#23914F" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="70" cy="110" r="22" fill="#FFFFFF"/>
+          <circle cx="130" cy="110" r="22" fill="#FFFFFF"/>
+          <circle cx="74" cy="114" r="11" fill="#191C32"/>
+          <circle cx="126" cy="114" r="11" fill="#191C32"/>
+          <circle cx="78" cy="108" r="3.5" fill="#FFFFFF"/>
+          <circle cx="130" cy="108" r="3.5" fill="#FFFFFF"/>
+          <ellipse cx="50" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
+          <ellipse cx="150" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
+          <path d="M86 142 Q100 156 114 142" fill="none" stroke="#191C32" stroke-width="6" stroke-linecap="round"/>
+        </svg>
             <h3>맹고</h3>
             <a class="btn" href="/maengo" aria-label="맹고 소개 페이지 열기">열기</a>
           </div>
-            <p class="lede">관심 분야의 소식을 AI로 요약해서 음성 지원해줘요.</p>
-            <ul>
-              <li>AI, 주식, 코인, 반도체처럼 관심 있는 분야만 골라요.</li>
-              <li>국내외 매체와 공식 블로그를 AI가 훑어 그 분야 소식만 요약해요.</li>
-              <li>읽기 바쁠 땐 오디오로 들어요.</li>
-            </ul>
-            <p class="platforms">웹과 Android, iPhone 앱에서 써요. 앱에서는 정한 시간에 소식 알림을 받고, 화면을 꺼도 끝까지 이어서 들어요. Android와 iPhone 앱은 지금 테스트 중이에요.</p>
-          </div>
-          <div class="shots">
-            <img src="/shots/maengo-today.webp" width="480" height="1041" loading="lazy" alt="오늘의 소식 화면. 고른 분야에서 골라 온 오늘 소식과 요약이 보여요" />
-            <img src="/shots/maengo-player.webp" width="480" height="1041" loading="lazy" alt="플레이어 화면. 오늘 소식을 이어서 읽어 주고, 대본에서 지금 읽는 문장을 보여줘요" />
-            <img src="/shots/maengo-article.webp" width="480" height="1041" loading="lazy" alt="소식 화면. 핵심 요약과 원문 보기, 이 글 듣기 버튼이 있어요" />
-            <img src="/shots/maengo-playlist.webp" width="480" height="1041" loading="lazy" alt="플레이리스트 화면. 들을 소식을 모아 두고 전체 듣기를 눌러요" />
-          </div>
+          <p class="lede">관심 분야 소식만, 귀로 들어요.</p>
+          <ul>
+            <li><strong>관심 분야만 콕.</strong> 여기저기 흩어진 소식 중 고른 분야 소식만 골라 와요.</li>
+            <li><strong>핵심만 요약.</strong> 긴 글은 AI가 중요한 부분만 추려 짧게 정리해요.</li>
+            <li><strong>원문은 바로.</strong> 더 궁금하면 함께 붙은 원문 링크로 확인해요.</li>
+            <li><strong>내 관심 링크.</strong> 자주 보는 블로그·뉴스레터는 링크만 넣어 두면 새 글을 매일 챙겨 와요.</li>
+            <li><strong>귀로 들어요.</strong> 운전하는 출퇴근길, 만원 지하철, 손 시린 한겨울에도 휴대폰을 꺼내 읽지 않고 들어요.</li>
+          </ul>
         </article>
       </div>
     </section>
@@ -227,7 +252,7 @@
     <section class="contact" aria-labelledby="contact-title">
       <div class="wrap">
         <h2 id="contact-title">문의</h2>
-        <a href="mailto:watalabs.help@gmail.com">watalabs.help@gmail.com</a>
+        <p><a href="mailto:watalabs.help@gmail.com">watalabs.help@gmail.com</a></p>
       </div>
     </section>
   </main>
