@@ -64,15 +64,31 @@ export function organizationJsonLd() {
 
 
 // ---- 약관·개인정보 처리방침 ----
-/** 운영자이자 개인정보 보호책임자. 사업자등록 전이라 개인 이름으로 적는다 */
-export const OPERATOR_NAME = "정민균";
+/** 약관·처리방침의 운영자(개인사업자 와타랩스, 2026-10-28 등록) */
+export const OPERATOR_NAME = COMPANY_NAME;
+/** 대표자이자 개인정보 보호책임자 */
+export const CEO_NAME = "정민균";
+
+/**
+ * 사업자 정보(전자상거래법 표시 의무). 맹고 바닥·약관 페이지·설정 > 앱 정보·회사 사이트(apps/company/index.html) 바닥에 나온다.
+ * 빈 값은 그 줄을 숨긴다: 통신판매업 신고번호(신고 전), 전화(번호 마련 전). 회사 사이트는 정적 HTML이라 바꾸면 거기도 고친다.
+ */
+export const BUSINESS = {
+  regNo: "422-17-02792",
+  mailOrderNo: "",
+  address: "서울특별시 서초구 방배로 141, 4층 415-47호(방배동, 텔콤빌딩 내방)",
+  phone: "",
+};
+
+/** 공정위 사업자정보 공개 페이지. 통신판매업 신고가 끝나야 내용이 나온다 */
+export const businessCheckUrl = () => `https://www.ftc.go.kr/bizCommPop.do?wrkr_no=${BUSINESS.regNo.replaceAll("-", "")}`;
 /** 문의·개인정보 요청 메일(문의 전용으로 새로 만든 주소). 문의하기 양식(/contact)도 이 주소로 보낸다. 비어 있으면 운영에서 약관·개인정보 처리방침 페이지를 숨긴다(404) */
 export const SUPPORT_EMAIL = "watalabs.help@gmail.com";
 /**
  * 이용약관·개인정보 처리방침 시행일. 내용을 바꾸면 날짜도 바꾸고 약관 페이지 아래 개정 이력에 한 줄 더한다.
  * 앱 안 팝업 공지는 하지 않는다(2026-10-18 사용자 결정)
  */
-export const LEGAL_EFFECTIVE_ON = "2026-10-26";
+export const LEGAL_EFFECTIVE_ON = "2026-10-29";
 export const LEGAL_EFFECTIVE_DATE = (() => {
   const [y, m, d] = LEGAL_EFFECTIVE_ON.split("-").map(Number);
   return `${y}년 ${m}월 ${d}일`;

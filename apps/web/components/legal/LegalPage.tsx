@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MangoIcon } from "@/components/MangoIcon";
+import { BusinessInfo } from "@/components/public/BusinessInfo";
 import { LEGAL_EFFECTIVE_DATE } from "@/lib/site";
 
 const DOCS = [
@@ -36,6 +37,7 @@ export function LegalPage({ title, path, children }: { title: string; path: (typ
             </Link>
           ))}
         </nav>
+        <BusinessInfo className="mt-6 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] font-medium leading-relaxed text-sub" />
       </main>
     </div>
   );

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LegalPage, Recipient } from "@/components/legal/LegalPage";
-import { OPERATOR_NAME, supportEmail } from "@/lib/site";
+import { CEO_NAME, OPERATOR_NAME, supportEmail } from "@/lib/site";
 
 export const metadata: Metadata = { title: "개인정보 처리방침", alternates: { canonical: "/privacy" } };
 
@@ -18,7 +18,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="개인정보 처리방침" path="/privacy">
       <p>
-        맹고(이하 &lsquo;서비스&rsquo;)는 {OPERATOR_NAME}(이하 &lsquo;운영자&rsquo;)이 운영합니다. 운영자는 「개인정보 보호법」 등 관련 법령을 지키며, 이용자의 개인정보를 아래와 같이
+        맹고(이하 &lsquo;서비스&rsquo;)는 {OPERATOR_NAME}(대표 {CEO_NAME}, 이하 &lsquo;운영자&rsquo;)가 운영합니다. 운영자는 「개인정보 보호법」 등 관련 법령을 지키며, 이용자의 개인정보를 아래와 같이
         처리합니다.
       </p>
 
@@ -185,7 +185,7 @@ export default function PrivacyPage() {
 
       <h2>10. 개인정보 보호책임자</h2>
       <p>
-        개인정보 보호책임자: {OPERATOR_NAME}
+        개인정보 보호책임자: {CEO_NAME}(대표)
         <br />
         연락처: {mail}
       </p>

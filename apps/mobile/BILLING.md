@@ -62,6 +62,7 @@
 7. 라이선스 테스터에 테스트 계정
 
 ### 3. RevenueCat
+> 2026-10-29 API v2로 함: 앱 `맹고 iOS`(app4ed76f981e)·`맹고 Android`(app7485d1d7ea, 배포용 서비스 계정 JSON 그대로), 두 스토어 모두 `pnpm revenuecat:setup app_store`·`play_store`(상품 5·권한·오퍼링), 웹훅 `맹고 서버`(whintgr9eb8d0e591, 운영·샌드박스 모두, 비밀값은 `.env.local`의 `REVENUECAT_WEBHOOK_AUTH`). 남은 것: 앱 내 구입 키(.p8) 올리기, App Store 서버 알림 주소(대시보드에만 보임) → ASC API로 넣기, Play 실시간 알림(Pub/Sub, 판매자 계정 뒤), Vercel 운영 키
 1. 프로젝트 `맹고` → 앱 2개(App Store `kr.maengo.app`, Play Store `kr.maengo.app`)에 1·2의 키 연결
 2. 상품 가져오기 → **Entitlement `premium`**에 두 스토어의 `maengo_premium_monthly`를 붙인다(묶음은 붙이지 않음)
 3. **Offering `default`(Current)**: 패키지 `$rc_monthly` → 구독, 사용자 지정 패키지 `pack_10`·`pack_30`·`pack_50`·`pack_100` → 맹고 추가 구매(두 스토어 상품 모두)

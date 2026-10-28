@@ -26,6 +26,7 @@ import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 import { appInfoOf } from "@/lib/app-client";
 import { WEB_VERSION } from "@/lib/server/web-version";
 import { IconChevronRight } from "@/components/icons";
+import { BusinessInfo } from "@/components/public/BusinessInfo";
 
 export const metadata: Metadata = { title: "설정" };
 
@@ -171,6 +172,14 @@ export default async function SettingsPage() {
               버전
               <span className="font-round text-[15px] text-sub tabular-nums">{version}</span>
             </p>
+            {/* 사업자 정보(전자상거래법 표시). 평소엔 접어 둔다 */}
+            <details className="group">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 font-bold text-ink [&::-webkit-details-marker]:hidden">
+                사업자 정보
+                <IconChevronRight className="size-4 text-sub transition-transform group-open:rotate-90" />
+              </summary>
+              <BusinessInfo className="flex flex-col gap-0.5 pb-4 text-[13px] font-semibold leading-relaxed text-sub" />
+            </details>
           </div>
         </Section>
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MangoIcon } from "@/components/MangoIcon";
+import { BusinessInfo } from "@/components/public/BusinessInfo";
 import { COMPANY_NAME, companyUrl } from "@/lib/site";
 import { topicsPath } from "@/lib/public-topics";
 
@@ -9,7 +10,7 @@ const LINK = "text-sub no-underline hover:text-ink hover:underline";
 export function SiteFooter() {
   return (
     <footer className="border-t-2 border-line">
-      <div className="mx-auto flex max-w-[1100px] flex-col gap-2 px-5 pb-[calc(32px+env(safe-area-inset-bottom))] pt-8 text-[13px] font-semibold text-sub sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex max-w-[1100px] flex-col gap-2 px-5 pb-4 pt-8 text-[13px] font-semibold text-sub sm:flex-row sm:items-center sm:justify-between">
         <span className="flex items-center gap-2">
           <MangoIcon className="size-6" />
           관심사에 맞춘 오늘의 소식, 맹고
@@ -32,6 +33,9 @@ export function SiteFooter() {
             </a>
           </span>
         </span>
+      </div>
+      <div className="mx-auto max-w-[1100px] px-5 pb-[calc(32px+env(safe-area-inset-bottom))]">
+        <BusinessInfo className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] font-medium leading-relaxed text-sub" />
       </div>
     </footer>
   );
