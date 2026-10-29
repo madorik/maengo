@@ -226,6 +226,11 @@
       --btn-text: var(--color-paper);
     }
   }
+  /* 로그인 버튼(구글·Apple): 아래 띠를 회색으로 둬 입체감이 보이게. 라이트 모드의 #000 띠는 #111 바탕에 묻혀 평평해 보였다(2026-10-29).
+     다크 모드 btn-ink 띠와 같은 색이다. 다른 검정 버튼은 그대로 둔다(사용자 결정) */
+  .btn-ink.btn-login:not(:disabled) {
+    --btn-edge: var(--color-faint);
+  }
   .btn-ghost {
     --btn-face: var(--color-paper);
     --btn-edge: var(--color-line);
