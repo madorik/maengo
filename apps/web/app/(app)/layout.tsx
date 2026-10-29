@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { AnalyticsSession } from "@/components/AnalyticsSession";
 import { AppPushSync } from "@/components/app/AppPushSync";
 import { AppWidgetSync } from "@/components/app/AppWidgetSync";
+import { ItemAudioHost } from "@/components/app/ItemAudioHost";
 import { ListenWidget } from "@/components/listen/ListenWidget";
 import { PlayerProvider } from "@/components/providers/PlayerProvider";
 import { ProfileProvider } from "@/components/providers/ProfileProvider";
@@ -40,6 +41,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <PlayerProvider profile={view}>
             {children}
             <ListenWidget initialCollapsed={listenCollapsed} inApp={inApp} />
+            {/* 글 하나 듣기의 잠금 화면 버튼·속도·목소리(화면을 옮겨도 이어지는 소리, lib/player/item-audio.ts) */}
+            <ItemAudioHost />
           </PlayerProvider>
         </ToastProvider>
         <AppPushSync enabled={profile.pushEnabled} />
