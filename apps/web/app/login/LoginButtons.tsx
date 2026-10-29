@@ -48,7 +48,9 @@ export function LoginButtons({ demo }: { demo: boolean }) {
         name="provider"
         value="google"
         disabled={pending || appBusy !== null}
-        className="btn btn-ghost w-full"
+        // Apple 버튼과 같은 색(라이트는 검정, 다크는 밝은 바탕). 흰 바탕 버튼은 화면에 묻혀 잘 안 보였다(2026-10-29).
+        // 구글 브랜드 가이드의 어두운 버튼(#131314 + 컬러 G)·밝은 버튼과 같은 꼴이다
+        className="btn btn-ink w-full"
       >
         <svg viewBox="0 0 48 48" aria-hidden="true" className="size-5">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
