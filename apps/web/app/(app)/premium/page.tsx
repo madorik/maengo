@@ -18,7 +18,8 @@ export const metadata: Metadata = { title: "맹고 Premium" };
 
 /**
  * Free·Premium 비교(2026-10-22 사용자 지정, 10-26 가입 선물 줄 빼고 Premium 음성은 '무제한',
- * 10-27 '하루 무료 소식' → '하루 소식'·내 관심 링크 줄 추가, 관심사 개수는 넣지 않음). 숫자는 plans 표(하루 소식·음성·링크·추가 구매·보관 기간)
+ * 10-27 '하루 무료 소식' → '하루 소식'·내 관심 링크 줄 추가, 관심사 개수는 넣지 않음, 10-29 목소리 줄 추가: Premium은 Gemini라 더 자연스럽다).
+ * 숫자는 plans 표(하루 소식·음성·링크·추가 구매·보관 기간)
  */
 function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string; plus: string }[] {
   const can = (ok: boolean) => (ok ? "가능" : "불가");
@@ -27,6 +28,8 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
     { label: "하루 소식", ...both((l) => `${l.dailyItems}개`) },
     // 음성이 없는 플랜도 하루 몇 개는 '이 글 듣기'로 들어 본다(2026-10-23, plans.daily_listens)
     { label: "소식 플레이어 + 음성 듣기(TTS)", ...both((l) => (l.audio ? "무제한" : l.dailyListens > 0 ? `하루 ${l.dailyListens}개` : "불가")) },
+    // 음성 엔진: 음성 듣기 플랜은 Gemini, 그 밖은 기본 음성(Chirp, lib/server/ai.ts ttsEngineFor)
+    { label: "목소리", ...both((l) => (l.audio ? "더 자연스러운 AI 목소리" : l.dailyListens > 0 ? "기본" : "불가")) },
     { label: "내 관심 링크", ...both((l) => (l.linkLimit > 0 ? `${l.linkLimit}곳` : "불가")) },
     { label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) },
     { label: "받은 소식 보관", ...both((l) => archiveLabel(l.archiveDays)) },

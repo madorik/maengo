@@ -28,11 +28,12 @@ const OPEN = { href: "/today", label: "오늘의 소식 열기" };
  * 요금 카드의 기능 목록(2026-10-22 사용자 지정, /premium 비교표와 같은 내용). 숫자는 plans 표.
  * 2026-10-26 사용자: 가입 선물 맹고 줄은 빼고(자주 묻는 질문에만), Premium 음성은 '무제한'으로
  * 2026-10-27 사용자: '하루 무료 소식' → '하루 소식', 내 관심 링크 n곳을 넣는다(관심사 개수는 넣지 않는다)
+ * 2026-10-29 사용자: Premium 음성은 더 자연스러운 AI 목소리(Gemini)라는 걸 밝힌다(/premium 비교표는 '목소리' 줄)
  */
 function planItems(l: PlanLimits): string[] {
   return [
     `하루 소식 ${l.dailyItems}개`,
-    ...(l.audio ? ["소식 플레이어 + 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
+    ...(l.audio ? ["자연스러운 AI 목소리로 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
     ...(l.linkLimit > 0 ? [`내 관심 링크 ${l.linkLimit}곳`] : []),
     ...(l.canBuyMaengo ? ["맹고 추가 구매"] : []),
     l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관`,
@@ -54,7 +55,7 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["소식은 언제 와요?", "매일 아침 6시에 새 소식을 모아 요약하고, 설정에서 고른 시각에 오늘의 소식이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
   [
     "음성으로 들을 수 있나요?",
-    `네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.${free.dailyListens > 0 && !free.audio ? ` Free도 하루 ${free.dailyListens}개는 '이 글 듣기'로 들을 수 있어요.` : ""}`,
+    `네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 문장이 자연스럽게 이어지는 AI 목소리로 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.${free.dailyListens > 0 && !free.audio ? ` Free도 하루 ${free.dailyListens}개는 기본 목소리로 '이 글 듣기'를 들을 수 있어요.` : ""}`,
   ],
   ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", "네. Premium에서 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요."],
   ["자주 보는 블로그의 새 글도 받을 수 있나요?", `네. Premium에서 '내 관심 링크'에 블로그나 사이트 주소를 넣으면 새 글을 요약해서 하루 소식에 같이 보내 드려요. ${plus.linkLimit}곳까지 넣을 수 있고, 유튜브와 브런치는 아직 넣을 수 없어요.`],
