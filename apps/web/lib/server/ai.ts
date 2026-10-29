@@ -51,8 +51,8 @@ const chirpTts: TtsEngine | null = googleTtsKey
   ? { id: 'chirp', model: 'chirp3-hd', voiceId: chirpVoiceId, client: createGoogleTts({ apiKey: googleTtsKey, onChars: logTtsChars }) }
   : null;
 /**
- * Gemini 음성의 캐시 키용 목소리: 말투가 붙은 목소리(여성 Fola, 2026-10-29)는 이름·말투를 넣어 바꾸면 새로 만들게 한다.
- * 말투 없는 목소리(남성 Charon)는 예전처럼 빼서 이미 만든 음성을 그대로 쓴다
+ * Gemini 음성의 캐시 키용 목소리: 말투가 붙은 목소리(2026-10-29 여성 Fola, 남성 ko-kr-podcaster-9)는 이름·말투를 넣어 바꾸면 새로 만들게 한다.
+ * 말투 없는 목소리는 예전처럼 빼서(그때 Kore·Charon) 이미 만든 음성을 그대로 쓴다
  */
 const geminiVoiceId = (voice: Voice) => {
   const v = GEMINI_TTS_VOICES[voice];
