@@ -6,7 +6,7 @@ import { replyInquiry, setInquiryStatus, type ReplyResult } from "@/lib/server/i
 import { draftInquiryReply } from "@/lib/server/inquiry-draft";
 import { requireProfile } from "@/lib/server/session";
 
-// 관리자 > 문의 탭: 답장 보내기, AI로 다시 쓰기, 닫기·다시 열기. 관리자만(ADMIN_EMAILS)
+// 관리자 > 문의 탭: 답장 보내기, AI로 다시 쓰기, 답장 안 함·다시 열기. 관리자만(ADMIN_EMAILS)
 
 async function adminOnly() {
   const profile = await requireProfile();

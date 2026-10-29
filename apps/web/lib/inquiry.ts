@@ -44,7 +44,7 @@ export function inquirySubject(category: string, body: string): string {
 export const INQUIRY_REPLY_MAX = 5000;
 
 export type InquiryStatus = 'open' | 'replied' | 'closed';
-export const STATUS_LABEL: Record<InquiryStatus, string> = { open: '답장 대기', replied: '답장 완료', closed: '닫음' };
+export const STATUS_LABEL: Record<InquiryStatus, string> = { open: '답장 대기', replied: '답장 완료', closed: '답장 안 함' };
 
 /** '10월 24일'(한국 시간) */
 const kstDay = (iso: string) => {

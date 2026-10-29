@@ -73,17 +73,16 @@ function Item({ q }: { q: InquiryView }) {
             ))}
           </ol>
         )}
-        <InquiryReplyForm key={`${sent}:${q.aiDraftAt ?? ""}`} id={q.id} to={q.replyTo} draft={q.aiDraft} check={q.aiCheck} />
-        <form action={closeInquiryAction} className="mt-2">
-          <input type="hidden" name="id" value={q.id} />
-          {q.status === "closed" ? (
+        <InquiryReplyForm key={`${sent}:${q.aiDraftAt ?? ""}`} id={q.id} to={q.replyTo} draft={q.aiDraft} check={q.aiCheck} canSkip={q.status === "open"} />
+        {/* 답장 안 함(보내기 옆, InquiryReplyForm)으로 둔 문의를 답장 대기로 되돌린다 */}
+        {q.status === "closed" && (
+          <form action={closeInquiryAction} className="mt-2">
+            <input type="hidden" name="id" value={q.id} />
             <button name="reopen" value="1" className="min-h-10 text-[13px] font-bold text-sub underline">
               다시 열기
             </button>
-          ) : q.status === "open" ? (
-            <button className="min-h-10 text-[13px] font-bold text-sub underline">답장 없이 닫기</button>
-          ) : null}
-        </form>
+          </form>
+        )}
       </div>
     </details>
   );
