@@ -53,6 +53,8 @@ function scan(pcm: Uint8Array, sampleRate: number): { pauses: Span[]; speech: Sp
 function pickPauses(pauses: Span[], guesses: number[]): Span[] | null {
   const n = guesses.length;
   const m = pauses.length;
+  // 한 줄이면 경계가 없다(미리 듣기 인사처럼 한 줄짜리 대본)
+  if (!n) return [];
   if (m < n) return null;
   const gain = (i: number, k: number) => {
     const p = pauses[k]!;

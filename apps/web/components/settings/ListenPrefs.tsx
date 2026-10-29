@@ -5,15 +5,18 @@ import type { Voice } from "@maengo/core/types";
 import { useEffect, useRef, useState } from "react";
 import { IconPause, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
-import { sampleUrl } from "@/lib/voice-samples";
+import { useProfile } from "@/components/providers/ProfileProvider";
+import { engineOf, sampleUrl } from "@/lib/voice-samples";
 
 /**
  * 설정 > 목소리: 여성·남성. 말투는 아나운서 하나다. 고르면 바로 저장되고(profiles.voice),
  * 오늘 전체 듣기와 글 하나 듣기가 모두 이 목소리로 시작한다. 듣는 중에 듣기 창에서 바꾼 것도 같은 값이다.
  * 목소리 버튼마다 재생 버튼이 겹쳐 있어 고르기 전에 들어 볼 수 있다. 미리 만들어 둔 짧은 인사(public/voice-samples)라 Free도 들을 수 있다.
+ * 미리 듣기는 이 사람이 실제로 듣게 될 음성 엔진의 것(Free는 기본 음성, Premium은 Gemini)
  */
 export function ListenPrefs() {
   const p = usePlayer();
+  const engine = engineOf(useProfile().audio);
   // 샘플은 audio 하나로 튼다(다른 목소리를 누르면 듣던 것은 멈춘다)
   const ref = useRef<HTMLAudioElement>(null);
   const current = useRef<Voice | null>(null);
@@ -31,7 +34,7 @@ export function ListenPrefs() {
     if (!a) return;
     if (playing === v) return a.pause();
     p.pause(); // 오늘 브리핑이 돌고 있었다면 멈춘다
-    const src = sampleUrl(p.persona, v);
+    const src = sampleUrl(p.persona, v, engine);
     if (current.current !== v || failed === v) {
       a.src = src;
       a.load();

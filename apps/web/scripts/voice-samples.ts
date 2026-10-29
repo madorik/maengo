@@ -1,27 +1,29 @@
-// 설정 > 듣기 미리 듣기 샘플과 음성을 만드는 동안 트는 안내(MP3)를 만든다. Gemini TTS 무료 한도가 서비스 전체 하루 10번이라 이미 있는 파일은 건너뛴다.
+// 설정 > 듣기 미리 듣기 샘플과 음성을 만드는 동안 트는 안내(MP3)를 기본 음성(Chirp, Free)과 Premium 음성(Gemini)으로 하나씩 만든다. 이미 있는 파일은 건너뛴다.
 // 실행(apps/web에서): node --conditions=react-server --env-file=.env.local --import tsx scripts/voice-samples.ts [--force]
 // react-server 조건은 server-only 모듈(mp3·ai)을 스크립트에서 불러오려고 붙인다.
 import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { tts, ttsModel } from "../lib/server/ai";
+import { basicTts, premiumTts } from "../lib/server/ai";
 import { encodeMp3 } from "../lib/server/mp3";
 import { SAMPLE_LINES, SAMPLES, samplePath, WAIT_LINES, waitPath } from "../lib/voice-samples";
 
 const force = process.argv.includes("--force");
 const pub = path.join(import.meta.dirname, "..", "public");
 
-const jobs = SAMPLES.flatMap(({ persona, voice }) => [
-  { persona, voice, file: samplePath(persona, voice), lines: SAMPLE_LINES },
-  { persona, voice, file: waitPath(voice), lines: WAIT_LINES },
-]);
+const jobs = [basicTts, premiumTts].flatMap((engine) =>
+  SAMPLES.flatMap(({ persona, voice }) => [
+    { engine, persona, voice, file: samplePath(persona, voice, engine.id), lines: SAMPLE_LINES },
+    { engine, persona, voice, file: waitPath(voice, engine.id), lines: WAIT_LINES },
+  ]),
+);
 
-for (const { persona, voice, file: rel, lines } of jobs) {
+for (const { engine, persona, voice, file: rel, lines } of jobs) {
   const file = path.join(pub, rel);
   if (existsSync(file) && !force) {
     console.log(`건너뜀 ${path.basename(file)}(이미 있음)`);
     continue;
   }
-  const speech = await tts.speak({ model: ttsModel(), persona, voice, lines });
+  const speech = await engine.client.speak({ model: engine.model, persona, voice, lines });
   const mp3 = encodeMp3(speech.pcm, speech.sampleRate);
   writeFileSync(file, mp3);
   console.log(`만듦 ${path.basename(file)} ${(speech.durationMs / 1000).toFixed(1)}초 ${(mp3.length / 1024).toFixed(0)}KB`);

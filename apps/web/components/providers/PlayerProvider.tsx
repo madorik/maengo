@@ -15,7 +15,7 @@ import { track } from "@/lib/analytics";
 import { withBase } from "@/lib/base-path";
 import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
 import { PLAYLIST_MAX, playlistAudioUrl, playlistQuery } from "@/lib/playlist";
-import { waitUrl } from "@/lib/voice-samples";
+import { engineOf, waitUrl } from "@/lib/voice-samples";
 import type { EpisodeData, ProfileView } from "@/lib/types";
 import { reinsert } from "@/lib/undo";
 import { useToast } from "@/components/ui/Toast";
@@ -1365,7 +1365,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       />
       <audio
         ref={waitRef}
-        src={waitUrl(voice)}
+        src={waitUrl(voice, engineOf(profile.audio))}
         // 듣기를 쓸 수 있는 사람만 미리 받아 둔다(탭하자마자 나오게)
         preload={profile.audio ? "auto" : "none"}
         // 안내를 다 들었는데 본 소리가 멈춰 있으면(iOS가 안내를 틀며 멈춘 경우) 다시 건다. 사용자가 멈췄으면 stopWait가 꺼 둔다

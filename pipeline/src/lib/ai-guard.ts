@@ -17,10 +17,13 @@ const CACHE_MS = 60_000;
 /** 할당량·크레딧·상한 때문에 AI를 못 부른 오류인지 */
 export const isAiBlocked = (e: unknown): boolean => e instanceof GeminiQuotaError;
 
-/** 오늘(KST) Gemini 추정 지출(usage_log, 호출마다 쌓인 값. lib/usage.ts) */
+/**
+ * 오늘(KST) Gemini 추정 지출(usage_log, 호출마다 쌓인 값. lib/usage.ts). Premium 듣기 음성(kind 'tts', 웹)은 빼고 센다:
+ * 음성이 많이 나가도 소식 요약이 멈추지 않게, 음성은 웹이 따로 상한을 둔다(apps/web lib/server/ai.ts, 2026-10-29)
+ */
 export async function geminiSpentToday(now = new Date()): Promise<number> {
   const since = `${kstDate(now)}T00:00:00+09:00`;
-  const rows = check(await db.from('usage_log').select('est_usd').eq('provider', 'gemini').gte('at', since), 'usage_log today') as { est_usd: number | string }[];
+  const rows = check(await db.from('usage_log').select('est_usd').eq('provider', 'gemini').neq('kind', 'tts').gte('at', since), 'usage_log today') as { est_usd: number | string }[];
   return rows.reduce((n, r) => n + Number(r.est_usd), 0);
 }
 

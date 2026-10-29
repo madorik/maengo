@@ -46,7 +46,7 @@ export async function adminAlerts(now = new Date()): Promise<AdminAlert[]> {
     });
   }
   const cap = Number(process.env.GEMINI_DAILY_USD_CAP?.trim() || 1);
-  const rows = must(await db.from('usage_log').select('est_usd').eq('provider', 'gemini').gte('at', `${kstDate(now)}T00:00:00+09:00`), 'usage_log today') as { est_usd: number | string }[];
+  const rows = must(await db.from('usage_log').select('est_usd').eq('provider', 'gemini').neq('kind', 'tts').gte('at', `${kstDate(now)}T00:00:00+09:00`), 'usage_log today') as { est_usd: number | string }[];
   const spent = rows.reduce((n, r) => n + Number(r.est_usd), 0);
   if (spent >= cap) {
     out.push({

@@ -72,3 +72,17 @@ test('alignLines: 바이트 위치가 홀수인 PCM도 읽는다', () => {
   near(t[0]!.endMs, 1000);
   near(t[1]!.startMs, 1500);
 });
+
+test('alignLines: 한 줄이면 말소리 처음부터 끝까지(경계가 없어도 멈추지 않는다)', () => {
+  const pcm = pcmOf([
+    ['rest', 200],
+    ['tone', 1000],
+    ['rest', 300],
+    ['tone', 500],
+    ['rest', 200],
+  ]);
+  const [only, ...rest] = alignLines(pcm, RATE, ['안녕하세요, 맹고 아나운서예요.']);
+  assert.equal(rest.length, 0);
+  near(only!.startMs, 200);
+  near(only!.endMs, 2000);
+});

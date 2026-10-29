@@ -156,4 +156,4 @@ pnpm setup:auth     # 구글·애플 로그인을 Supabase에 켠다(애플 시�
 | 임베딩 | `gemini-embedding-001` | $0.15 |
 | 음성(Google Cloud TTS 키가 없을 때만) | `gemini-3.8-flash-lite-tts` | $0.50 / 오디오 $6(2027-01-01부터 $1 / $12) |
 
-운영 음성은 Google Cloud TTS Chirp 3 HD(`GOOGLE_TTS_API_KEY`)라 Gemini TTS는 대체로만 쓴다. 더 싼 `gemini-2.5-flash-lite`($0.10 / $0.40)는 2026-10-14 "새 사용자는 쓸 수 없음"(404)이라 못 쓴다.
+듣기 음성은 Free가 Google Cloud TTS Chirp 3 HD(`GOOGLE_TTS_API_KEY`), Premium이 Gemini TTS(2026-10-29)다. Premium Gemini 음성의 하루 지출 상한은 `GEMINI_TTS_DAILY_USD_CAP`(기본 $2, 넘으면 그날 Premium도 Chirp)이고, 요약 상한 `GEMINI_DAILY_USD_CAP`에는 음성 지출이 들어가지 않는다. 더 싼 `gemini-2.5-flash-lite`($0.10 / $0.40)는 2026-10-14 "새 사용자는 쓸 수 없음"(404)이라 못 쓴다.

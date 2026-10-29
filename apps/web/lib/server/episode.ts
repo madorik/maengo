@@ -9,14 +9,14 @@ import { DAILY_LINK_VOICES } from '@maengo/core/plans';
 import { isLinkTopicId } from '@maengo/core/topics';
 import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
 import type { FeedItem } from '../types';
-import { tts, ttsModel, ttsVoiceId } from './ai';
+import { basicTts, ttsEngineFor, type TtsEngine } from './ai';
 import { TtsQuotaError } from './google-tts';
 import { audioStore } from './audio-store';
 import { db, must } from './db';
 import { feedItems, findFeedItem, playlistItems } from './feed';
 import { concatBytes, encodeMp3, mp3DurationMs } from './mp3';
 import { blockTts, LinkVoiceLimitError, recordUse, TtsBusyError, ttsBlockedUntil, usesToday } from './limits';
-import type { Profile } from './profile';
+import { entitlements, type Profile } from './profile';
 
 // 듣기(PLAN.md 8장). 음성은 사용자가 재생을 누를 때만 만든다. 페이지를 열 때는 이미 만든 음성이 있는지만 본다.
 // 세그먼트 = 소식 하나 × 말투 × 목소리. 대본 내용 해시로 키를 만들어 같은 대본이면 누가 듣든 다시 만들지 않는다.
@@ -73,10 +73,10 @@ function scriptOf(item: FeedItem): ScriptLine[] {
   return templateScript({ model: '', title: item.title, short: item.short, body: item.body });
 }
 
-function segmentKey(lines: ScriptLine[], persona: Persona, voice: Voice): string {
-  // 목소리 이름(Chirp 3 HD)도 넣어 목소리를 바꾸면 새로 만든다. Gemini일 때는 undefined라 키에서 빠진다.
+function segmentKey(lines: ScriptLine[], persona: Persona, voice: Voice, engine: TtsEngine): string {
+  // 모델과 목소리 이름(Chirp 3 HD)도 넣어 엔진·목소리를 바꾸면 새로 만든다(Free는 Chirp, Premium은 Gemini라 같은 소식도 따로). Gemini는 voiceId가 undefined라 키에서 빠진다.
   // persona와 vk(예전 대담의 'pair' 자리)는 이미 만든 음성의 키와 같게 이름·순서를 그대로 둔다(바꾸면 해시가 달라져 모든 음성을 다시 만든다)
-  return `${persona}-${voice}-${sha(JSON.stringify({ v: SCRIPT_VERSION, model: ttsModel(), voiceId: ttsVoiceId(voice), persona, vk: voice, lines }))}`;
+  return `${persona}-${voice}-${sha(JSON.stringify({ v: SCRIPT_VERSION, model: engine.model, voiceId: engine.voiceId(voice), persona, vk: voice, lines }))}`;
 }
 
 async function findSegments(keys: string[]): Promise<Map<string, SegmentRow>> {
@@ -143,15 +143,31 @@ async function waitForSegment(key: string): Promise<SegmentRow | null> {
   return null;
 }
 
-function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: string, lines: ScriptLine[], who: Requester): Promise<SegmentRow> {
+function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: string, lines: ScriptLine[], who: Requester, engine: TtsEngine): Promise<SegmentRow> {
   const running = inflight.get(key);
   if (running) return running;
+  // 음성을 만든다. 기본 음성이 한도에 걸리면 알려 준 시각까지(모르면 Google은 5분, Gemini는 하루 한도라 한 시간) TTS를 부르지 않는다
+  const speak = async (e: TtsEngine) => {
+    try {
+      return await withTtsSlot(() => e.client.speak({ model: e.model, persona, voice, lines }));
+    } catch (err) {
+      if (e === basicTts && (err instanceof GeminiQuotaError || err instanceof TtsQuotaError)) {
+        const minutes = err.retryMs ? Math.min(24 * 60, Math.ceil(err.retryMs / 60_000)) : err instanceof TtsQuotaError ? 5 : 60;
+        await blockTts(minutes);
+        throw new TtsBusyError(new Date(Date.now() + minutes * 60_000));
+      }
+      throw err;
+    }
+  };
   const job = (async () => {
     const t0 = Date.now();
     let pcm: Uint8Array;
     let sampleRate: number;
     let timed: SegmentLine[];
     let source: string;
+    /** 실제로 만든 엔진과 저장할 키(Premium Gemini가 실패해 기본 음성으로 만들면 기본 음성 키) */
+    let used = engine;
+    let rowKey = key;
     // 잠금을 얻었으면 MP3 변환·업로드·행 저장까지 어디서 실패해도 풀어 준다(안 풀면 다른 요청이 3분 동안 기다린다)
     let locked = false;
     try {
@@ -161,8 +177,8 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
         timed = legacy.lines;
         source = '예전 캐시에서 옮김';
       } else {
-        // 서비스 한도(Gemini 무료 등급 하루 요청 수)가 찼으면 부르지 않는다
-        const busy = await ttsBlockedUntil();
+        // 기본 음성의 서비스 한도가 찼으면 부르지 않는다(Premium Gemini는 따로라 막지 않는다)
+        const busy = engine === basicTts ? await ttsBlockedUntil() : null;
         if (busy) throw new TtsBusyError(busy);
         // 다른 서버가 같은 음성을 만들고 있으면 기다렸다가 그것을 쓴다(같은 음성을 두 번 만들지 않게)
         if (!(await acquireLock(key))) {
@@ -176,15 +192,17 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
         if (again) return again;
         let speech;
         try {
-          speech = await withTtsSlot(() => tts.speak({ model: ttsModel(), persona, voice, lines }));
+          speech = await speak(engine);
         } catch (e) {
-          if (e instanceof GeminiQuotaError || e instanceof TtsQuotaError) {
-            // 알려 준 시각까지 TTS를 부르지 않는다. 모르면 Gemini(하루 한도)는 한 시간, Google(분당 한도)은 5분
-            const minutes = e.retryMs ? Math.min(24 * 60, Math.ceil(e.retryMs / 60_000)) : e instanceof TtsQuotaError ? 5 : 60;
-            await blockTts(minutes);
-            throw new TtsBusyError(new Date(Date.now() + minutes * 60_000));
-          }
-          throw e;
+          if (engine === basicTts) throw e;
+          // Premium(Gemini)이 실패하면 그 소식은 기본 음성으로 들려준다. 기본 음성이 이미 있으면 그것을 쓰고, 없으면 만들어 기본 음성 키로 둔다.
+          // Gemini 키 자리는 비워 두어 다음에 들을 때 다시 해 본다
+          console.warn(`[tts] #${item.clusterId} Gemini 실패, 기본 음성으로: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
+          used = basicTts;
+          rowKey = segmentKey(lines, persona, voice, basicTts);
+          const basic = (await findSegments([rowKey])).get(rowKey);
+          if (basic) return basic;
+          speech = await speak(basicTts);
         }
         if (speech.bitsPerSample !== 16) throw new Error('16비트 PCM만 MP3로 바꿀 수 있어요');
         pcm = speech.pcm;
@@ -196,17 +214,17 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
       }
       // 끝에 무음을 붙여 저장한다. 줄 시각은 그대로라 마지막 줄 뒤가 쉼이 된다
       const mp3 = encodeMp3(withTrailingSilence(pcm, sampleRate, 16, SEGMENT_TAIL_MS), sampleRate);
-      const r2Key = `audio/seg/${key}.mp3`;
+      const r2Key = `audio/seg/${rowKey}.mp3`;
       await audioStore.put(r2Key, mp3, 'audio/mpeg');
-      const row: SegmentRow = { key, r2_key: r2Key, duration_ms: mp3DurationMs(mp3.length), lines: timed };
+      const row: SegmentRow = { key: rowKey, r2_key: r2Key, duration_ms: mp3DurationMs(mp3.length), lines: timed };
       must(
         await db.from('audio_segments').upsert(
-          { ...row, cluster_id: item.clusterId, persona, voice, model: ttsModel(), bytes: mp3.length },
+          { ...row, cluster_id: item.clusterId, persona, voice, model: used.model, bytes: mp3.length },
           { onConflict: 'key' },
         ),
         'audio_segments upsert',
       );
-      console.log(`[tts] #${item.clusterId} ${persona}/${voice} ${(row.duration_ms / 1000).toFixed(1)}초 · ${Math.round(mp3.length / 1024)}KB · ${source} · ${((Date.now() - t0) / 1000).toFixed(1)}초 걸림`);
+      console.log(`[tts] #${item.clusterId} ${persona}/${voice} ${used.id} ${(row.duration_ms / 1000).toFixed(1)}초 · ${Math.round(mp3.length / 1024)}KB · ${source} · ${((Date.now() - t0) / 1000).toFixed(1)}초 걸림`);
       return row;
     } finally {
       if (locked) await releaseLock(key).catch((e) => console.error('[tts] 잠금 풀기 실패', String((e as Error)?.message ?? e).slice(0, 200)));
@@ -216,14 +234,14 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
   return job;
 }
 
-async function assemble(items: FeedItem[], persona: Persona, voice: Voice, generate: Requester | null): Promise<Episode> {
+async function assemble(items: FeedItem[], persona: Persona, voice: Voice, engine: TtsEngine, generate: Requester | null): Promise<Episode> {
   const scripts = items.map((item) => {
     const lines = scriptOf(item);
-    return { item, lines, key: segmentKey(lines, persona, voice) };
+    return { item, lines, key: segmentKey(lines, persona, voice, engine) };
   });
   const found = await findSegments(scripts.map((s) => s.key));
   const segs = await Promise.all(
-    scripts.map(async (s) => found.get(s.key) ?? (generate ? generateSegment(s.item, persona, voice, s.key, s.lines, generate) : null)),
+    scripts.map(async (s) => found.get(s.key) ?? (generate ? generateSegment(s.item, persona, voice, s.key, s.lines, generate, engine) : null)),
   );
   const parts = scripts.map((s, i) => {
     const seg = segs[i];
@@ -266,8 +284,8 @@ const requester = (p: Profile): Requester => ({ userId: p.id });
  * 이미 만든 음성은 늘 넣고, 아직 없는 링크 소식은 남은 몫만큼 앞에서부터 넣고 나머지는 뺀다. 페이지를 열 때(만들지 않음)와 들을 때(만듦)
  * 같은 소식이 남아야 플레이어 목록과 음성 길이가 맞는다: 만들면 그만큼 '이미 있음'으로 옮겨 가고 몫도 같이 줄어 남는 소식이 같다
  */
-async function withinLinkVoices(profile: Profile, items: FeedItem[], persona: Persona, voice: Voice): Promise<FeedItem[]> {
-  const links = items.filter((i) => isLinkTopicId(i.topicId)).map((item) => ({ item, key: segmentKey(scriptOf(item), persona, voice) }));
+async function withinLinkVoices(profile: Profile, items: FeedItem[], persona: Persona, voice: Voice, engine: TtsEngine): Promise<FeedItem[]> {
+  const links = items.filter((i) => isLinkTopicId(i.topicId)).map((item) => ({ item, key: segmentKey(scriptOf(item), persona, voice, engine) }));
   if (!links.length) return items;
   const found = await findSegments(links.map((l) => l.key));
   const missing = links.filter((l) => !found.has(l.key));
@@ -300,8 +318,9 @@ export async function getEpisode(
     const want = new Set(ids);
     items = items.filter((i) => want.has(i.clusterId));
   }
-  items = await withinLinkVoices(profile, items, persona, voice);
-  return assemble(items, persona, voice, generate ? requester(profile) : null);
+  const engine = await ttsEngineFor(entitlements(profile).audio);
+  items = await withinLinkVoices(profile, items, persona, voice, engine);
+  return assemble(items, persona, voice, engine, generate ? requester(profile) : null);
 }
 
 /** 음성 파일 주소(없는 소식은 만든 뒤). R2면 서명 URL */
@@ -314,9 +333,10 @@ export async function episodeFileUrl(ep: Episode): Promise<string | null> {
 export async function getItemEpisode(profile: Profile, clusterId: number, persona: Persona, voice: Voice, { generate }: { generate: boolean }): Promise<Episode | null> {
   const found = await findFeedItem(profile, clusterId);
   if (!found) return null;
+  const engine = await ttsEngineFor(entitlements(profile).audio);
   // 들을 때만 링크 음성 몫을 본다(대본 시각표만 볼 때는 만들지 않으니 상관없다)
-  if (generate && !(await withinLinkVoices(profile, [found.item], persona, voice)).length) throw new LinkVoiceLimitError();
-  return assemble([found.item], persona, voice, generate ? requester(profile) : null);
+  if (generate && !(await withinLinkVoices(profile, [found.item], persona, voice, engine)).length) throw new LinkVoiceLimitError();
+  return assemble([found.item], persona, voice, engine, generate ? requester(profile) : null);
 }
 
 /**
@@ -330,7 +350,8 @@ export async function getPlaylistEpisode(
   voice: Voice,
   { generate }: { generate: boolean },
 ): Promise<{ items: FeedItem[]; episode: Episode }> {
-  const kept = await withinLinkVoices(profile, await playlistItems(profile, ids), persona, voice);
+  const engine = await ttsEngineFor(entitlements(profile).audio);
+  const kept = await withinLinkVoices(profile, await playlistItems(profile, ids), persona, voice, engine);
   const items = kept.map((item, i) => ({ ...item, rank: i + 1 }));
-  return { items, episode: await assemble(items, persona, voice, generate ? requester(profile) : null) };
+  return { items, episode: await assemble(items, persona, voice, engine, generate ? requester(profile) : null) };
 }
