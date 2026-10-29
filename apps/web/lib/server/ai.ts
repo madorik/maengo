@@ -1,6 +1,6 @@
 import 'server-only';
 import { createDummyAi, GEMINI_MODELS, type AiClient, type UsageEvent } from '@maengo/core/ai';
-import { createGeminiAi } from '@maengo/core/gemini';
+import { createGeminiAi, GEMINI_TTS_VOICES } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
 import { db } from './db';
 import type { Voice } from '@maengo/core/types';
@@ -50,7 +50,15 @@ export interface TtsEngine {
 const chirpTts: TtsEngine | null = googleTtsKey
   ? { id: 'chirp', model: 'chirp3-hd', voiceId: chirpVoiceId, client: createGoogleTts({ apiKey: googleTtsKey, onChars: logTtsChars }) }
   : null;
-const geminiTts: TtsEngine | null = gemini ? { id: 'gemini', model: GEMINI_MODELS.tts, voiceId: () => undefined, client: gemini } : null;
+/**
+ * Gemini 음성의 캐시 키용 목소리: 말투가 붙은 목소리(여성 Fola, 2026-10-29)는 이름·말투를 넣어 바꾸면 새로 만들게 한다.
+ * 말투 없는 목소리(남성 Charon)는 예전처럼 빼서 이미 만든 음성을 그대로 쓴다
+ */
+const geminiVoiceId = (voice: Voice) => {
+  const v = GEMINI_TTS_VOICES[voice];
+  return v.style ? `${v.name}|${v.style}` : undefined;
+};
+const geminiTts: TtsEngine | null = gemini ? { id: 'gemini', model: GEMINI_MODELS.tts, voiceId: geminiVoiceId, client: gemini } : null;
 
 /** 기본 음성(Free, 그리고 Premium이 Gemini를 못 쓸 때): Chirp 3 HD, 키가 없으면 Gemini, 그것도 없으면 더미 신호음 */
 export const basicTts: TtsEngine = chirpTts ?? geminiTts ?? { id: 'gemini', model: GEMINI_MODELS.tts, voiceId: () => undefined, client: ai };

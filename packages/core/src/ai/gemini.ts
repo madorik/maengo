@@ -2,6 +2,7 @@ import { GoogleGenAI, MediaResolution, Modality, ThinkingLevel, type Part, type 
 import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
 import { IMPACTS, isImpact } from '../feed/impact';
 import { alignLines } from '../audio/align';
+import { estimateTimeline } from '../audio/personas';
 import { parseWav } from '../audio/wav';
 import { GEMINI_MODELS } from './models';
 import { templateScript } from './script';
@@ -28,13 +29,30 @@ export function isKoreanSummary(text: string): boolean {
   return hangul > 0 && hangul >= (hangul + latin) * 0.2;
 }
 
-/** TTS 목소리(Gemini 기본 목소리 이름) */
-const TTS_VOICES = { f: 'Kore', m: 'Charon' } as const;
+/**
+ * TTS 목소리(Gemini). name은 기본 목소리 이름이나 목소리 라이브러리 id, style은 말투 지시(소리로 읽지 않는다).
+ * 여성은 라이브러리 목소리 Fola(en-us-fola, 37세 고객 상담원·또렷하고 친근함)에 밝은 아침 인사 말투(2026-10-29 사용자 확정, AI Studio에서 고름).
+ * 남성은 Charon 그대로. 목소리·말투를 바꾸면 음성 캐시 키도 바뀌게 한다(apps/web lib/server/ai.ts geminiTts.voiceId)
+ */
+export const GEMINI_TTS_VOICES: Record<'f' | 'm', { name: string; style?: string }> = {
+  f: { name: 'en-us-fola', style: 'Bright, sunny, welcoming morning greeting with a subtle vocal smile and crisp pacing.' },
+  m: { name: 'Charon' },
+};
 
-/** TTS에 보낼 글. 대본 줄만 그대로 보낸다(말투 지시문을 앞에 붙이면 그 문장까지 소리로 읽는 경우가 있었다, 2026-10-10) */
+/**
+ * TTS에 보낼 글: 대본 줄 그대로. 말투는 글에 섞지 않고 Part.speechMetadata.style로 따로 보낸다(speak).
+ * 대본 앞에 붙이면 예전 모델은 지시문까지 소리로 읽었고(2026-10-10), 3.8에 AI Studio처럼 '# Director's note'로 붙였더니
+ * 짧은 대본에서 대본을 버리고 영어로 '아침 인사'를 27초 지어냈다(2026-10-29)
+ */
 export function ttsText(lines: { text: string }[]): string {
   return lines.map((l) => l.text).join('\n');
 }
+
+/**
+ * 만든 음성이 대본에 비해 너무 길거나 짧으면 대본대로 읽지 않은 것으로 본다(지어낸 말·중간에 끊김). 대본 길이로 어림한 시간의
+ * 이 배수 밖이면 오류로 던져 부르는 쪽이 다른 음성으로 만들게 한다(apps/web episode.ts: Premium은 기본 음성으로)
+ */
+const TTS_LENGTH_RANGE = { min: 0.3, max: 2.5, slackMs: 8_000 };
 
 /** 하루 할당량이 없거나 다 썼다. 같은 실행 안에서 다시 불러도 소용없다(무료 등급의 Pro 모델은 할당량이 0) */
 export class GeminiQuotaError extends Error {
@@ -514,13 +532,15 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
     },
 
     async speak(input: SpeakInput): Promise<SpeakOutput> {
-      const speechConfig: SpeechConfig = { voiceConfig: { prebuiltVoiceConfig: { voiceName: TTS_VOICES[input.voice] } } };
+      const voice = GEMINI_TTS_VOICES[input.voice];
+      // 한국어로 고정한다: 영어 목소리(Fola)가 영어로 읽거나 지어내지 않게
+      const speechConfig: SpeechConfig = { languageCode: 'ko', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice.name } } };
       const res = await withRetry(
         input.model,
         (abortSignal) =>
           client.models.generateContent({
             model: input.model,
-            contents: [{ role: 'user', parts: [{ text: ttsText(input.lines) }] }],
+            contents: [{ role: 'user', parts: [{ text: ttsText(input.lines), ...(voice.style ? { speechMetadata: { style: voice.style } } : {}) }] }],
             config: { responseModalities: [Modality.AUDIO], speechConfig, abortSignal },
           }),
         limitFor(GEMINI_TTS_TIMEOUT_MS),
@@ -536,6 +556,10 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       const sampleRate = wav?.sampleRate ?? Number(data.mimeType?.match(/rate=(\d+)/)?.[1] ?? 24000);
       const bitsPerSample = wav?.bitsPerSample ?? 16;
       const durationMs = Math.round((pcm.length / (sampleRate * (bitsPerSample / 8))) * 1000);
+      const expectedMs = estimateTimeline(input.lines).durationMs;
+      if (durationMs > expectedMs * TTS_LENGTH_RANGE.max + TTS_LENGTH_RANGE.slackMs || durationMs < expectedMs * TTS_LENGTH_RANGE.min) {
+        throw new Error(`음성 길이가 대본과 맞지 않아요(${Math.round(durationMs / 1000)}초, 어림 ${Math.round(expectedMs / 1000)}초)`);
+      }
       return { pcm, sampleRate, bitsPerSample, durationMs, lineTimesMs: alignLines(pcm, sampleRate, input.lines.map((l) => l.text)) };
     },
   };
