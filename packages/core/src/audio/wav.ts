@@ -45,6 +45,23 @@ export function withTrailingSilence(pcm: Uint8Array, sampleRate: number, bitsPer
   return out;
 }
 
+/**
+ * 16비트 모노 PCM의 앞뒤 무음을 keepMs만 남기고 잘라 낸다. 진폭이 amp보다 작으면 무음으로 본다(500 ≈ -36dBFS).
+ * 다 무음이면 그대로 돌려준다. TTS가 요청마다 앞뒤에 붙이는 무음을 걷어 이어 붙일 때 쓴다(apps/web lib/server/google-tts.ts)
+ */
+export function trimSilence(pcm: Uint8Array, sampleRate: number, keepMs: number, amp = 500): Uint8Array {
+  const view = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+  const samples = pcm.byteLength >> 1;
+  const loud = (i: number) => Math.abs(view.getInt16(i * 2, true)) >= amp;
+  let start = 0;
+  while (start < samples && !loud(start)) start++;
+  if (start === samples) return pcm;
+  let end = samples;
+  while (end > start && !loud(end - 1)) end--;
+  const keep = Math.round((sampleRate * keepMs) / 1000);
+  return pcm.subarray(Math.max(0, start - keep) * 2, Math.min(samples, end + keep) * 2);
+}
+
 /** WAV에서 PCM과 형식을 꺼낸다. 헤더가 없으면(raw PCM) null */
 export function parseWav(bytes: Uint8Array): { pcm: Uint8Array; sampleRate: number; bitsPerSample: 8 | 16; channels: number } | null {
   const ascii = (at: number) => String.fromCharCode(bytes[at]!, bytes[at + 1]!, bytes[at + 2]!, bytes[at + 3]!);

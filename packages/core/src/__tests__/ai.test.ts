@@ -5,7 +5,7 @@ import { GEMINI_MODELS } from '../ai/models';
 import { createDummyAi } from '../ai/dummy';
 import { closingLine, templateScript } from '../ai/script';
 import { layoutChapters } from '../audio/chapters';
-import { concatWav, withTrailingSilence } from '../audio/wav';
+import { concatWav, trimSilence, withTrailingSilence } from '../audio/wav';
 import { estimateTimeline, SEGMENT_TAIL_MS } from '../audio/personas';
 
 test('Gemini 모델은 고정 버전만(-latest 별칭·Pro 금지)', () => {
@@ -94,4 +94,17 @@ test('소식 음성 끝 무음 1초: 24kHz 16비트면 48,000바이트가 0으�
   // 어림 길이에도 무음을 넣는다(음성을 만들기 전 챕터 길이)
   const est = estimateTimeline([{ text: '안녕하세요.' }]);
   assert.ok(est.durationMs - est.lineTimesMs[0]!.endMs >= SEGMENT_TAIL_MS);
+});
+
+test('앞뒤 무음 자르기: 소리 앞뒤로 keepMs만 남기고, 다 무음이면 그대로', () => {
+  // 1kHz에서 무음 100ms + 소리 50ms + 무음 200ms
+  const rate = 1000;
+  const pcm = new Uint8Array((100 + 50 + 200) * 2);
+  const view = new DataView(pcm.buffer);
+  for (let i = 100; i < 150; i++) view.setInt16(i * 2, i % 2 ? 8000 : -8000, true);
+  const out = trimSilence(pcm, rate, 20);
+  assert.equal(out.length, (20 + 50 + 20) * 2);
+  assert.equal(new DataView(out.buffer, out.byteOffset).getInt16(20 * 2, true), 8000 * (100 % 2 ? 1 : -1));
+  const quiet = new Uint8Array(200);
+  assert.equal(trimSilence(quiet, rate, 20), quiet);
 });

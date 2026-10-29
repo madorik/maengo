@@ -1,12 +1,14 @@
 import 'server-only';
 import type { SpeakInput, SpeakOutput } from '@maengo/core/ai';
-import { alignLines, parseWav } from '@maengo/core/audio';
+import { alignLines, parseWav, trimSilence } from '@maengo/core/audio';
 import type { Voice } from '@maengo/core/types';
 
 // Google Cloud Text-to-Speech, Chirp 3: HD 한국어 목소리. 2026-10-10 Gemini TTS(무료 등급 하루 10번)에서 바꿨다.
 // 과금은 글자 수(공백 포함, 한글도 1자). 매월 100만 자 무료, 그 뒤 100만 자당 $30. 요청 하나에 5,000바이트(한글 약 1,600자)까지.
 // 같은 사람이 말하는 한 문단을 한 번에 만들어 이어 붙인다. 처음엔 줄(문장)마다 따로 만들었는데 문장마다 억양이 처음부터 다시 시작해
 // 뚝뚝 끊겨 들렸다(2026-10-26). 문단 안 줄별 시각은 음성의 쉼으로 찾는다(core/audio/align.ts).
+// Chirp는 요청마다 음성 앞뒤에 무음(0.2~0.4초)을 붙여서, 문단을 그대로 이어 붙이면 이음매마다 1초 가까이 비어 다시 끊겨 들렸다(2026-10-29).
+// 그래서 앞뒤 무음을 조금만 남기고 잘라 낸 뒤 정한 쉼만 넣는다(문장 사이 쉼 0.2~0.4초와 비슷하게, 문단 사이는 조금 더).
 
 const ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 /** 목소리(ko-KR-Chirp3-HD-이름). Gemini 때와 같은 Kore(여)·Charon(남) */
@@ -17,9 +19,11 @@ export function chirpVoiceId(voice: Voice): string {
   return VOICES[voice];
 }
 const SAMPLE_RATE = 24000;
-/** 줄 묶음 사이 쉼. 문단이 바뀌면 조금 더 쉰다(제목 다음은 짧게) */
-const GAP_MS = 300;
-const PARA_GAP_MS = 550;
+/** 줄 묶음 사이 쉼(앞뒤 무음을 잘라 낸 뒤 넣는다). 문단이 바뀌면 조금 더 쉰다(제목 다음은 짧게) */
+const GAP_MS = 280;
+const PARA_GAP_MS = 380;
+/** 잘라 낼 때 음성 앞뒤에 남기는 무음(말끝이 잘리지 않게) */
+const EDGE_KEEP_MS = 60;
 /** 빠르기(1이 기본). 1.05였다가 1로(2026-10-26: 플레이어 속도 1.0x가 원래 빠르기가 되게, 빠르게 듣고 싶으면 플레이어에서 올린다) */
 const RATE = 1;
 /** 한 소식의 문단을 동시에 몇 개까지 만들지 */
@@ -68,7 +72,7 @@ export function createGoogleTts(opts: { apiKey: string; onChars?: (chars: number
     // LINEAR16은 WAV 머리말이 붙어 온다
     const wav = parseWav(new Uint8Array(Buffer.from(audioContent, 'base64')));
     if (!wav || wav.bitsPerSample !== 16 || wav.channels !== 1 || wav.sampleRate !== SAMPLE_RATE) throw new Error('Google TTS 음성 형식이 예상(24kHz 16비트 모노)과 달라요');
-    return wav.pcm;
+    return trimSilence(wav.pcm, SAMPLE_RATE, EDGE_KEEP_MS);
   }
 
   return {
