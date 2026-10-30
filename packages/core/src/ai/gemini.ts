@@ -31,14 +31,18 @@ export function isKoreanSummary(text: string): boolean {
 
 /**
  * TTS 목소리(Gemini). name은 기본 목소리 이름이나 목소리 라이브러리 id, style은 말투 지시(소리로 읽지 않는다),
- * languageCode는 읽을 언어 고정(영어 목소리가 한국어 대본을 영어로 읽거나 지어내지 않게). 2026-10-29 사용자 확정:
- * - 여성: 라이브러리 Fola(en-us-fola, 37세 고객 상담원·또렷하고 친근함) + 밝은 아침 인사 말투(AI Studio에서 고름). 영어 목소리라 'ko'로 고정
- * - 남성: 라이브러리 ko-kr-podcaster-9(41세 서울 라디오·뉴스 진행자, 한국어 원어민) + 아나운서 말투. 한국어 목소리는 'ko'를 주면
- *   거절한다(No matching speaker voice ... language: ko)라 고정하지 않는다
+ * languageCode는 읽을 언어 고정(영어 목소리가 한국어 대본을 영어로 읽거나 지어내지 않게). 사용자 확정:
+ * - 여성(2026-10-30): 라이브러리 ko-kr-podcaster-6(31세 서울 기자, 높은 톤) + 젊은 기상캐스터 말투. 후보 3개 중 고름.
+ *   전에 쓰던 Fola(en-us-fola, 37세)는 나이 들어 들린다고 바꿈
+ * - 남성(2026-10-29): 라이브러리 ko-kr-podcaster-9(41세 서울 라디오·뉴스 진행자, 한국어 원어민) + 아나운서 말투
+ * 한국어 목소리는 'ko'를 주면 거절한다(No matching speaker voice ... language: ko)라 고정하지 않는다
  * 목소리·말투를 바꾸면 음성 캐시 키도 바뀐다(apps/web lib/server/ai.ts geminiVoiceId)
  */
 export const GEMINI_TTS_VOICES: Record<'f' | 'm', { name: string; style?: string; languageCode?: string }> = {
-  f: { name: 'en-us-fola', style: 'Bright, sunny, welcoming morning greeting with a subtle vocal smile and crisp pacing.', languageCode: 'ko' },
+  f: {
+    name: 'ko-kr-podcaster-6',
+    style: 'Young Korean TV weather forecaster in her mid-20s: bright, clear and friendly, a light smile in the voice, crisp diction, steady upbeat pace.',
+  },
   m: { name: 'ko-kr-podcaster-9', style: 'Polished news anchor delivery: clear, confident and measured, with crisp articulation and a steady, trustworthy tone.' },
 };
 
