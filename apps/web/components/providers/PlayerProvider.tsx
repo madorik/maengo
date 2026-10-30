@@ -262,7 +262,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   }, []);
 
   /**
-   * 음성을 만드는 동안 트는 안내(public/voice-samples/wait-*.mp3, 2026-10-25 사용자 결정). 본 소리와 다른 <audio>라 탭 안에서 같이 play를 건다.
+   * 음성을 만드는 동안 트는 안내(public/voice-samples/wait-*.mp3, 2026-10-25 사용자 결정). 말 뒤로 띵 소리가 30초 이어진다(2026-10-30).
+   * 본 소리와 다른 <audio>라 탭 안에서 같이 play를 건다.
    * 소리가 나오면(preparing이 풀리면)·멈춤·취소·실패 때 끈다
    */
   const waitRef = useRef<HTMLAudioElement>(null);
