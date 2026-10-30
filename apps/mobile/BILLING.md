@@ -61,7 +61,7 @@
 6. 실시간 개발자 알림(Pub/Sub)은 RevenueCat 안내대로 연결
 7. 라이선스 테스터에 테스트 계정
 
-> 2026-10-30 판매자 계정(결제 프로필: 비즈니스, 와타랩스, 명세서 이름 MAENGO)을 만든 뒤 3·4는 `scripts/store/play-products.mjs`로 만듦(구글 환산 가격 174개 나라, 혜택 `free-trial-7d`, 묶음은 이전 버전 호환 구매 옵션 `buy`). 남은 것: 6(서비스 계정에 Pub/Sub 권한이 없어 RevenueCat이 주제를 못 만듦), 15% 수수료 계정 그룹 등록
+> 2026-10-30 판매자 계정(결제 프로필: 비즈니스, 와타랩스, 명세서 이름 MAENGO)을 만든 뒤 3·4는 `scripts/store/play-products.mjs`로 만듦(구글 환산 가격 174개 나라, 혜택 `free-trial-7d`, 묶음은 이전 버전 호환 구매 옵션 `buy`). 6은 서비스 계정에 '게시/구독 관리자' 역할을 준 뒤 RevenueCat이 주제 `projects/maengo-adfc4/topics/Play-Store-Notifications`와 푸시 구독을 만듦(Play Console 실시간 개발자 알림에 이 주제 이름). 15% 수수료 계정 그룹 와타랩스 등록
 
 ### 3. RevenueCat
 > 2026-10-29 API v2로 함: 앱 `맹고 iOS`(app4ed76f981e)·`맹고 Android`(app7485d1d7ea, 배포용 서비스 계정 JSON 그대로), 두 스토어 모두 `pnpm revenuecat:setup app_store`·`play_store`(상품 5·권한·오퍼링), 웹훅 `맹고 서버`(whintgr9eb8d0e591, 운영·샌드박스 모두, 비밀값은 `.env.local`의 `REVENUECAT_WEBHOOK_AUTH`). 남은 것: 앱 내 구입 키(.p8) 올리기, App Store 서버 알림 주소(대시보드에만 보임) → ASC API로 넣기, Play 실시간 알림(Pub/Sub, 판매자 계정 뒤), Vercel 운영 키
