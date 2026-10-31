@@ -49,7 +49,7 @@ async function uploadAsc() {
       attributes: {
         description: fullFor("App Store"),
         keywords: KEYWORDS,
-        promotionalText: "관심 있는 분야만 고르면, 매일 그 분야 소식만 골라 요약하고 읽어 드려요.",
+        promotionalText: "관심 분야만 고르면, 이슈도가 높은 소식만 골라 요약하고 읽어 드려요. 영어 소식도 한국어로.",
         supportUrl: "https://watalabs.com",
         marketingUrl: "https://watalabs.com/maengo",
       },

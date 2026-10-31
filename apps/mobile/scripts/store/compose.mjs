@@ -7,10 +7,10 @@ const img = (p) => `data:image/png;base64,${readFileSync(p).toString("base64")}`
 const icon = `data:image/svg+xml;base64,${readFileSync(iconPath).toString("base64")}`;
 
 const SLIDES = [
-  { raw: "today", lines: ["관심 분야 소식만", "매일 골라 드려요"] },
+  { raw: "today", lines: ["관심 분야에서", "이슈도가 높은 소식만"] },
   { raw: "article", lines: ["핵심만 짧게 요약하고", "원문은 바로 확인해요"] },
-  { raw: "playlist", lines: ["듣기 목록을 만들어", "출퇴근길에 들어요"] },
-  { raw: "settings", lines: ["관심사는", "언제든 바꿔요"] },
+  { raw: "listen", lines: ["읽기 힘들 땐", "귀로 들어요"] },
+  { raw: "links", lines: ["자주 보는 블로그는", "링크만 넣어 두세요"] },
   { raw: "library", lines: ["지난 소식은", "보관함에서 찾아요"] },
   { raw: "article-dark", lines: ["밤에는 다크 모드로", "눈 편하게 읽어요"], dark: true },
 ];
