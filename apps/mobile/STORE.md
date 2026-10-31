@@ -131,7 +131,6 @@ Native features beyond the web content:
 - In-App Purchase: Premium monthly auto-renewable subscription (7-day free trial) and consumable "맹고" packs, with Restore Purchases and Manage Subscription in Settings > 플랜.
 - Sign in with Apple, and account deletion inside the app (Settings > 계정 삭제).
 - Native share sheet on each article (top-right share button).
-- Home Screen and Lock Screen widgets (1.3): today's news titles; tapping a title opens that article in the app.
 
 Content: summaries of public news articles and official blogs, each linking to the original source.
 ```

@@ -16,7 +16,12 @@ const section = (title) => {
 const SHORT = section("짧은 설명(Play, 80자 이내)");
 const FULL = section("전체 설명(Play 전체 설명 / App Store 설명)");
 const KEYWORDS = md.match(/\| 키워드\(App Store, 100자\) \| ([^|]+) \|/)[1].trim();
-const fullFor = (store) => FULL.replace("App Store·Google Play의 구독 관리", `${store}의 구독 관리`);
+// iOS 1.3은 위젯을 뺐다(2026-10-31, App.entitlements). 다시 넣으면 이 줄 빼기도 지운다
+const fullFor = (store) =>
+  FULL.replace("App Store·Google Play의 구독 관리", `${store}의 구독 관리`)
+    .split("\n")
+    .filter((line) => store !== "App Store" || !line.startsWith("• 위젯"))
+    .join("\n");
 if (fullFor("App Store").includes("Google Play") || fullFor("Google Play").includes("App Store·")) throw new Error("플랫폼 문구 치환 실패");
 const shots = (prefix) => readdirSync(dir).filter((f) => f.startsWith(prefix)).sort().map((f) => join(dir, f));
 

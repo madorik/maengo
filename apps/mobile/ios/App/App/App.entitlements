@@ -5,10 +5,7 @@
 	<!-- 앱 알림(APNs). 개발 빌드는 development, 스토어로 내보낼 때 배포 프로필이 production으로 바꾼다 -->
 	<key>aps-environment</key>
 	<string>development</string>
-	<!-- 홈 화면 위젯(MaengoWidget 확장)과 토큰을 나눠 쓰는 앱 그룹(NativeWidget.swift) -->
-	<key>com.apple.security.application-groups</key>
-	<array>
-		<string>group.kr.maengo.app</string>
-	</array>
+	<!-- 홈 화면 위젯은 1.3 iOS에서 뺐다(2026-10-31, 앱 그룹·위젯 앱 ID 등록 전). 다시 넣을 때 App 대상에 'Embed Foundation Extensions'와
+	     MaengoWidget 의존을 되돌리고 앱 그룹(com.apple.security.application-groups: group.kr.maengo.app)을 여기 다시 넣는다(NativeWidget.swift) -->
 </dict>
 </plist>
