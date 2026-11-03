@@ -10,7 +10,8 @@ export const metadata: Metadata = { title: "개인정보 처리방침", alternat
 // 처리 항목·위탁처가 바뀌면(결제, 분석 도구, 새 외부 API 등) 이 문서와 lib/site.ts의 시행일을 같이 고친다.
 // 위탁은 실제로 개인정보를 맡기는 곳만 적는다: Supabase·Vercel(2026-10-10 사용자 결정), 알림을 켜면 Google(FCM)(2026-10-11 알림 켜고 끄기 출시),
 // 이용 통계 Google 애널리틱스(2026-10-11, GTM으로 싣는다. components/Analytics.tsx·lib/analytics.ts), 앱 안 결제 RevenueCat(2026-10-14 베타 종료),
-// 문의하기 양식의 메일 발송 Resend(2026-10-26, lib/server/inquiry.ts·mailer.ts), 문의 답장 초안 Google Gemini API(2026-10-26, lib/server/inquiry-draft.ts).
+// 문의하기 양식의 메일 발송 Resend(2026-10-26, lib/server/inquiry.ts·mailer.ts), 문의 답장 초안 Google Gemini API(2026-10-26, lib/server/inquiry-draft.ts),
+// 소식 화면의 맹고 AI 답 Google Gemini API(2026-11-03, lib/server/ask.ts. 질문은 저장하지 않고 하루 횟수만 남긴다).
 export default function PrivacyPage() {
   const email = supportEmail();
   if (!email) notFound();
@@ -38,6 +39,9 @@ export default function PrivacyPage() {
         <li>
           <b>문의하기를 쓴 경우</b>: 문의 종류와 내용, 답장 받을 메일 주소, 앱 버전·기기 종류. 로그인했으면 회원 번호 앞자리, 플랜, 최근 결제 3건, 지갑 맹고 수. 로그인하지 않았으면 같은 곳에서 너무
           많이 보내지 않게 접속 IP를 바꾼 값(원래 IP는 남기지 않음)
+        </li>
+        <li>
+          <b>맹고 AI에게 소식에 대해 물어본 경우</b>: 물어본 내용과 그 소식에서 앞서 주고받은 대화. 답을 만드는 데만 쓰고 저장하지 않으며, 하루에 물어본 횟수만 남깁니다.
         </li>
         <li>
           <b>알림을 켠 경우</b>: 알림을 받을 브라우저·기기를 구분하는 알림 토큰(Firebase 클라우드 메시징이 발급), 기기 종류(웹·안드로이드·iOS)와 앱 버전
@@ -132,10 +136,13 @@ export default function PrivacyPage() {
       <Recipient
         name="Google LLC (Gemini API)"
         rows={[
-          ["맡기는 일", "문의하기로 받은 문의의 답장 초안 쓰기(운영자가 읽고 보낸다)"],
-          ["항목", "문의 종류와 내용, 플랜·최근 결제·지갑 맹고 수, 앱 버전·기기 종류. 답장 받을 메일 주소와 회원 번호는 보내지 않음"],
+          ["맡기는 일", "문의하기로 받은 문의의 답장 초안 쓰기(운영자가 읽고 보낸다), 소식 화면의 맹고 AI 질문에 답하기"],
+          [
+            "항목",
+            "문의 종류와 내용, 플랜·최근 결제·지갑 맹고 수, 앱 버전·기기 종류(답장 받을 메일 주소와 회원 번호는 보내지 않음). 맹고 AI는 물어본 내용, 앞서 주고받은 대화와 그 소식의 글(회원 정보는 보내지 않음)",
+          ],
           ["국가", "미국"],
-          ["시기·방법", "문의를 받을 때와 운영자가 초안을 다시 쓸 때 네트워크로 전송"],
+          ["시기·방법", "문의를 받을 때, 운영자가 초안을 다시 쓸 때, 맹고 AI에게 물어볼 때 네트워크로 전송"],
           ["보유 기간", "Google의 보관 기간(유료 API라 Google 서비스 학습에 쓰지 않음)"],
         ]}
       />

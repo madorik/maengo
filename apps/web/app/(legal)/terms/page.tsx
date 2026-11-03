@@ -7,7 +7,8 @@ import { CEO_NAME, OPERATOR_NAME, supportEmail } from "@/lib/site";
 export const metadata: Metadata = { title: "이용약관", alternates: { canonical: "/terms" } };
 
 // 약관(2026-10-14 베타 종료, 앱 안 결제·맹고 조항. 2026-10-18 맹고 추가 구매 환불·환불 회수·구매 복원 문의.
-// 2026-10-26 청약철회 기준: 남은 맹고는 환불(공정위 2019-160), Premium은 결제 뒤 Premium 기능 사용 기준(lib/support/refund-policy.ts), 문의하기 양식). 바꾸면 lib/site.ts의 시행일도 고친다.
+// 2026-10-26 청약철회 기준: 남은 맹고는 환불(공정위 2019-160), Premium은 결제 뒤 Premium 기능 사용 기준(lib/support/refund-policy.ts), 문의하기 양식.
+// 2026-11-03 맹고 AI). 바꾸면 lib/site.ts의 시행일도 고친다.
 // 면책 조항은 약관규제법상 지나치게 넓으면 무효라 '고의·중과실이 없는 한'으로 좁혀 쓴다.
 export default function TermsPage() {
   const email = supportEmail();
@@ -42,7 +43,7 @@ export default function TermsPage() {
       <h2>제5조 서비스 내용</h2>
       <ul>
         <li>회원이 고른 관심사에 맞는 소식을 국내외 매체·공식 블로그에서 모아, AI로 요약해 매일 제공합니다.</li>
-        <li>요약을 음성으로 듣는 기능(Premium), 정한 시각의 알림, 지난 소식을 모아 보는 보관함을 제공합니다.</li>
+        <li>요약을 음성으로 듣는 기능(Premium), 소식에 대해 AI에게 묻는 기능(플랜마다 하루 횟수가 다름), 정한 시각의 알림, 지난 소식을 모아 보는 보관함을 제공합니다.</li>
         <li>운영자는 서비스를 고치거나 기능을 더하고 뺄 수 있습니다. 회원에게 중요한 변경은 미리 알립니다.</li>
       </ul>
 
@@ -101,7 +102,7 @@ export default function TermsPage() {
 
       <h2>제9조 정보의 정확성과 투자 판단</h2>
       <ul>
-        <li>요약은 AI가 만들어 원문과 다르거나 틀린 내용이 있을 수 있습니다. 중요한 내용은 원문으로 확인해 주세요.</li>
+        <li>요약과 맹고 AI의 답은 AI가 만들어 원문과 다르거나 틀린 내용이 있을 수 있습니다. 중요한 내용은 원문으로 확인해 주세요.</li>
         <li>주식·코인 등 투자와 관련된 소식은 정보 제공일 뿐 투자 권유가 아닙니다. 투자 판단과 그 결과의 책임은 회원에게 있습니다.</li>
       </ul>
 
@@ -136,6 +137,7 @@ export default function TermsPage() {
 
       <h2>개정 이력</h2>
       <ul>
+        <li>2026년 11월 3일: 소식에 대해 AI에게 묻는 기능(제5조, 제9조), 개인정보 처리방침에 물어본 내용과 답 만들기 위탁(Google Gemini) 추가</li>
         <li>2026년 11월 1일: 운영자를 개인사업자 와타랩스(대표 {CEO_NAME})로 적고 사업자 정보를 표시</li>
         <li>2026년 10월 26일: 청약철회 기준을 구체적으로(Premium 기능을 쓴 결제, 남은 맹고 환불, 제6조), 문의하기 양식(제13조), 개인정보 처리방침에 문의 항목·메일 발송 위탁(Resend)·답장 초안 위탁(Google Gemini) 추가, 받은 피드 목록은 6개월 뒤 삭제(보관함 Free 최근 1개월, Premium 최근 6개월)</li>
         <li>2026년 10월 18일: 맹고 추가 구매 환불·환불 회수·구매 복원 문의(제6조), 하루 소식 먼저 받기(제6조의2)</li>

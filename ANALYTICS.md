@@ -21,7 +21,7 @@
   - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice`·`charged`·`product` ← 같은 이름의 변수
   - 사용자 속성: `plan` ← `{{dlv - plan}}`, `platform` ← `{{dlv - platform}}`
   - 트리거: 맞춤 이벤트, 이벤트 이름 정규식 일치
-    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|purchase_start|purchase_complete)$`
+    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|ask|purchase_start|purchase_complete)$`
 - 이벤트를 새로 넣으면 `lib/analytics.ts`의 `AnalyticsEvent`, 이 문서, `gtm-import.json`의 정규식을 같이 고치고 GTM에 다시 게시한다
 
 ## 이벤트
@@ -46,6 +46,7 @@
 | `voice_change` | 목소리 바꾸기(설정) | `voice`(f·m) |
 | `more_receive` | 하나 더 받기로 소식을 받음 | `charged`(지갑 맹고를 썼는지) |
 | `share` | 글 화면 '공유'(1.2 앱·웹) | `category`, `action`(shared: 공유 시트를 띄움, copied: 공유 시트가 없어 복사), `place`(header: 머리말 아이콘, body: 본문 '공유하기' 버튼, 2026-10-31부터) |
+| `ask` | 글 화면 맹고 AI(2026-11-03부터) | `category`, `action`(open: 맹고 AI 버튼을 눌러 창을 엶, answered: 답함, off_topic: 소식과 관계없어 막음, limit: 하루 횟수를 다 씀, error: 답을 못 받음) |
 | `purchase_start` | 구독·맹고 추가 구매 결제 시작(앱) | `product`(스토어 상품 ID) |
 | `purchase_complete` | 결제 끝남 | `product` |
 

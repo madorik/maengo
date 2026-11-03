@@ -2,6 +2,7 @@ import 'server-only';
 import { GEMINI_MODELS } from '@maengo/core/ai';
 import { geminiChatJson } from '@maengo/core/gemini';
 import { archiveLabel } from '@maengo/core/plans';
+import { ASK_DAILY } from '../ask';
 import { categoryLabel, lineBreakSentences, stripReplyFrame } from '../inquiry';
 import { appUrl } from '../site';
 import { logUsage } from './ai';
@@ -63,6 +64,7 @@ async function guide(): Promise<string> {
   return [
     `- 맹고: 고른 관심 분야(AI·주식·코인·반도체·로봇·Tech 등)의 소식을 매일 모아 핵심을 요약하고 음성으로도 들려주는 서비스. 웹(${appUrl('/')})과 iOS·Android 앱.`,
     `- 플랜: Free(무료, 하루 소식 ${free.dailyItems}개, 음성 하루 ${free.dailyListens}개, 관심사 ${free.topicLimit}개, 보관함 ${archiveLabel(free.archiveDays)}) / Premium(월 ${plus.priceKrw.toLocaleString('ko-KR')}원, 하루 소식 ${plus.dailyItems}개, 음성 전부와 플레이리스트, 관심사 ${plus.topicLimit}개, 직접 적는 관심사 ${plus.customLimit}개, 내 관심 링크 ${plus.linkLimit}개, 보관함 ${archiveLabel(plus.archiveDays)}). 처음 구독하면 7일 무료 체험.`,
+    `- 맹고 AI: 소식 화면 오른쪽 아래 버튼을 눌러 그 소식에 대해 묻는다. 하루 Free ${ASK_DAILY.free}번, Premium ${ASK_DAILY.plus}번(한국 시간 자정에 다시 채워짐). 그 소식과 관계없는 질문에는 답하지 않는다.`,
     '- 맹고(재화): 하루 소식보다 더 받고 싶을 때 1맹고로 그날 소식 하나를 더 받는다. 가입하면 맹고 10개를 준다. 앱에서 10·30·50·100개 묶음으로 추가 구매할 수 있다.',
     '- 결제: 앱 안에서 App Store·Google Play로만 한다. 웹에서는 결제하지 않는다.',
     '- 구독 해지: 아이폰은 설정 > 맨 위 이름 > 구독, 안드로이드는 Play 스토어 > 프로필 > 결제 및 정기 결제 > 정기 결제. 앱의 설정 > 플랜 > 구독 관리로도 열린다. 맹고가 대신 해지할 수는 없다.',

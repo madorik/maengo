@@ -45,8 +45,9 @@ export async function adminAlerts(now = new Date()): Promise<AdminAlert[]> {
       detail: `요약·임베딩이 멈춰 새 소식이 안 만들어져요. AI Studio에서 충전하세요. ${until}에 다시 해 봐요.`,
     });
   }
+  // 파이프라인 지킴이와 같은 셈(음성·소식 물어보기는 웹이 따로 상한을 둔다, pipeline/src/lib/ai-guard.ts)
   const cap = Number(process.env.GEMINI_DAILY_USD_CAP?.trim() || 1);
-  const rows = must(await db.from('usage_log').select('est_usd').eq('provider', 'gemini').neq('kind', 'tts').gte('at', `${kstDate(now)}T00:00:00+09:00`), 'usage_log today') as { est_usd: number | string }[];
+  const rows = must(await db.from('usage_log').select('est_usd').eq('provider', 'gemini').not('kind', 'in', '(tts,ask)').gte('at', `${kstDate(now)}T00:00:00+09:00`), 'usage_log today') as { est_usd: number | string }[];
   const spent = rows.reduce((n, r) => n + Number(r.est_usd), 0);
   if (spent >= cap) {
     out.push({

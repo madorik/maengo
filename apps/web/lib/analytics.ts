@@ -22,6 +22,7 @@ export type AnalyticsEvent =
   | "voice_change"
   | "more_receive"
   | "share"
+  | "ask"
   | "purchase_start"
   | "purchase_complete";
 

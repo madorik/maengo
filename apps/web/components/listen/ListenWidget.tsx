@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Sheet } from "@/components/ui/Sheet";
 import { minutesLabel, PREPARING_SHORT, PREPARING_TEXT } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
+import { claimDock, releaseDock, setPlayerDocked, useDock } from "@/lib/float-dock";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { Queue, Switch } from "./controls";
 import { Script } from "./Script";
@@ -25,7 +26,8 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
  * 재생·멈춤은 펼치지 않고 버튼에서 바로 할 수 있다. 플레이어는 (app) 레이아웃에 있어 화면을 옮겨도 이어진다.
  * 플레이리스트를 듣는 동안은 "플레이리스트"로 바뀌고, 맨 아래 버튼으로 오늘 소식 듣기로 돌아온다.
  * ✕로 작은 망고 버튼으로 접고, 그 버튼을 누르면 다시 편다. 접어 둔 상태는 쿠키에 두어 다음에 열어도 그대로다.
- * 글 화면은 아래 '이 글 듣기' 막대가 있어서, 플레이어가 돌고 있지 않으면 작은 망고 버튼으로만 둔다(누르면 그 글에서는 편다).
+ * 글 화면은 아래 '이 글 듣기' 막대가 있어서 플레이어가 돌고 있을 때만 띄운다. 그 밖에는 그 자리를 맹고 AI 버튼(components/article/AskDock.tsx)에 준다
+ * (2026-11-03 사용자 결정). 띄웠는지는 lib/float-dock.ts로 알려 맹고 AI 버튼이 그 위로 올라가게 하고, 두 창은 한 번에 하나만 편다.
  * 앱(inApp)에서는 창 대신 화면을 꽉 채우는 시트(components/ui/Sheet.tsx full)로 연다(2026-10-19 사용자 결정): 끌어 내리기·안드로이드 뒤로 가기로 닫힌다.
  */
 export function ListenWidget({ initialCollapsed, inApp = false }: { initialCollapsed: boolean; /** 앱(Capacitor)인지. 서버가 User-Agent로 정한다 */ inApp?: boolean }) {
@@ -36,8 +38,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
   const [tab, setTab] = useState<"queue" | "script">("queue");
   const [collapsed, setCollapsed] = useState(initialCollapsed);
-  /** 글 화면에서 망고 버튼을 눌러 편 화면 주소(그 글에서만 펴 둔다) */
-  const [peek, setPeek] = useState<string | null>(null);
+  const floating = useDock();
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const foldRef = useRef<HTMLButtonElement>(null);
@@ -62,15 +63,23 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  if (pathname.startsWith("/listen") || (!game.total && !p.playlist)) return null;
+  const playing = p.status === "playing";
+  // 글 화면에서는 플레이어가 돌고 있을 때(재생·멈춤·음성 기다림)만 띄운다
+  const live = playing || p.status === "paused" || p.preparing;
+  const hidden = pathname.startsWith("/listen") || (!game.total && !p.playlist) || (onArticle && !live);
+  useEffect(() => {
+    setPlayerDocked(!hidden);
+  }, [hidden]);
+  useEffect(() => () => setPlayerDocked(false), []);
+  useEffect(() => {
+    if (!open) releaseDock("player");
+  }, [open]);
+
+  // 숨었거나 접혀 있는 동안, 맹고 AI 창을 편 동안은 창을 닫아 둔다(다시 나타나거나 펴질 때 창이 갑자기 열리지 않게)
+  if (open && (hidden || collapsed || floating.open === "ask")) setOpen(false);
+  if (hidden) return null;
 
   const locked = !profile.audio;
-  const playing = p.status === "playing";
-  // 글 화면에서는 플레이어가 돌고 있을 때(재생·멈춤·음성 기다림)만 펴 둔다. 그 밖에는 막대와 겹치지 않게 망고 버튼으로
-  const live = playing || p.status === "paused" || p.preparing;
-  const folded = collapsed || (onArticle && !live && peek !== pathname);
-  // 접혀 있는 동안 창은 닫아 둔다(글 화면에서 플레이어가 돌기 시작해 펴질 때 창이 갑자기 열리지 않게)
-  if (folded && open) setOpen(false);
   // 이름은 늘 "플레이어". 무엇을 듣는지(플레이리스트·오늘 소식)는 소제목에 쓴다
   const heading = "플레이어";
   const source = p.playlist ? "플레이리스트" : "오늘 소식";
@@ -84,13 +93,11 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
     flushSync(() => {
       setOpen(false);
       setCollapsed(v);
-      // 글 화면에서 펴면 그 글에서는 편 채로 둔다
-      setPeek(v ? null : pathname);
     });
     if (e.detail === 0) (v ? bubbleRef.current : (launcherRef.current ?? foldRef.current))?.focus();
   };
 
-  if (folded) {
+  if (collapsed) {
     return (
       <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
         <button
@@ -302,7 +309,10 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         aria-haspopup={inApp ? "dialog" : undefined}
         aria-controls={open && !inApp ? "listen-widget" : undefined}
         aria-label={`플레이어 창 ${open ? "닫기" : "열기"}`}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (!open) claimDock("player");
+          setOpen(!open);
+        }}
         className="flex min-w-0 items-center gap-2.5 rounded-full py-0.5 pl-0.5 pr-2 text-left hover:bg-snow"
       >
         <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-mango-tint">

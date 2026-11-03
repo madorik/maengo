@@ -14,6 +14,8 @@ import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { FeedItem } from "@/lib/types";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
+import { useDock } from "@/lib/float-dock";
+import { AskDock } from "./AskDock";
 import { ListenBar } from "./ListenBar";
 import { ShareButton } from "./ShareButton";
 import { useItemAudio } from "./useItemAudio";
@@ -29,7 +31,7 @@ const CHOICES: { kind: FeedbackKind; label: string; Icon: typeof IconThumbUp }[]
 ];
 
 /**
- * 상세: 전체 글, 출처 링크, 영상이면 썸네일. 듣는 동안 지금 읽는 문단을 짚어 준다.
+ * 상세: 전체 글, 출처 링크, 영상이면 썸네일, 오른쪽 아래 맹고 AI 버튼(이 소식에 대해 묻기). 듣는 동안 지금 읽는 문단을 짚어 준다.
  * 오늘 글은 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 오늘 플레이어로 듣는다.
  * 그 밖(지난 글, 아직 전체 음성이 없는 오늘 글)은 그 글 하나짜리 파일로 듣는다. 글 하나 들으려고 오늘 소식 전부의 음성을 만들지 않게.
  */
@@ -88,6 +90,8 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
   const swipeRef = useSwipeSurface();
 
   const fb = feedback[item.clusterId];
+  // 오른쪽 아래 떠 있는 버튼이 둘(플레이어 위에 맹고 AI)이면 끝 내용이 가리지 않게 아래 여백을 더 둔다
+  const stacked = useDock().player;
   const sourceLink = item.kind === "video" ? "유튜브에서 보기" : "원문 보기";
 
   return (
@@ -109,8 +113,11 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
         </div>
       </header>
 
-      {/* 아래 여백: '이 글 듣기' 막대(높이는 ListenBar가 --listen-bar-h로 남긴다) + 그 위 플레이어 버튼만큼 */}
-      <main ref={swipeRef} className="mx-auto max-w-[680px] px-5 pb-[calc(var(--listen-bar-h,104px)+88px)] pt-6">
+      {/* 아래 여백: '이 글 듣기' 막대(높이는 ListenBar가 --listen-bar-h로 남긴다) + 그 위 떠 있는 버튼(맹고 AI, 플레이어가 돌면 하나 더)만큼 */}
+      <main
+        ref={swipeRef}
+        className={`mx-auto max-w-[680px] px-5 pt-6 ${stacked ? "pb-[calc(var(--listen-bar-h,104px)+164px)]" : "pb-[calc(var(--listen-bar-h,104px)+88px)]"}`}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <CategoryChip category={item.category} />
           <SourceChip item={item} />
@@ -224,6 +231,8 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
           </Link>
         )}
       </main>
+
+      <AskDock item={item} />
 
       {/* 오늘 몫을 쓰게 되는 처음 듣는 글이면 버튼에 '오늘 무료'를 붙인다 */}
       <ListenBar ctl={audio.ctl} free={access === "free" && !listened.has(item.clusterId)} />

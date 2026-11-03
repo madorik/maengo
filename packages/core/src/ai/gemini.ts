@@ -579,11 +579,13 @@ export interface ChatJsonInput {
   turns: { role: 'user' | 'model'; text: string }[];
   schema: unknown;
   timeoutMs?: number;
+  /** usage_log에 남길 종류. 기본 'support' */
+  kind?: UsageKind;
   onUsage?: (e: UsageEvent) => void;
 }
 
 /**
- * 대화 한 번으로 JSON 하나를 받는다(문의 답장 초안 apps/web/lib/server/inquiry-draft.ts): 시스템 지시와 대화로 JSON 하나.
+ * 대화 한 번으로 JSON 하나를 받는다(문의 답장 초안 apps/web/lib/server/inquiry-draft.ts, 소식 물어보기 lib/server/ask.ts): 시스템 지시와 대화로 JSON 하나.
  * 화면에서 기다리는 답이라 재시도·대체 모델 없이 한 번만 짧게 묻는다(실패하면 부른 쪽이 정해 둔 답을 쓴다)
  */
 export async function geminiChatJson<T>(input: ChatJsonInput): Promise<T> {
@@ -600,7 +602,7 @@ export async function geminiChatJson<T>(input: ChatJsonInput): Promise<T> {
     },
   });
   const u = res.usageMetadata;
-  input.onUsage?.({ model: res.modelVersion ?? input.model, kind: 'support', inputTokens: u?.promptTokenCount ?? 0, outputTokens: u?.candidatesTokenCount ?? 0, thinkingTokens: u?.thoughtsTokenCount ?? 0 });
+  input.onUsage?.({ model: res.modelVersion ?? input.model, kind: input.kind ?? 'support', inputTokens: u?.promptTokenCount ?? 0, outputTokens: u?.candidatesTokenCount ?? 0, thinkingTokens: u?.thoughtsTokenCount ?? 0 });
   const text = res.text;
   if (!text) throw new GeminiOutputError(input.model, `빈 응답(${res.candidates?.[0]?.finishReason ?? res.promptFeedback?.blockReason ?? 'unknown'})`);
   return JSON.parse(text) as T;

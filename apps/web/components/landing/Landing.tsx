@@ -10,6 +10,7 @@ import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
+import { ASK_DAILY } from "@/lib/ask";
 import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
 import { SITE_DEFINITION, SITE_DESCRIPTION, SITE_NAME, SITE_NAME_EN, SUPPORT_EMAIL, appUrl, organizationId, organizationJsonLd } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
@@ -29,11 +30,13 @@ const OPEN = { href: "/today", label: "오늘의 소식 열기" };
  * 2026-10-26 사용자: 가입 선물 맹고 줄은 빼고(자주 묻는 질문에만), Premium 음성은 '무제한'으로
  * 2026-10-27 사용자: '하루 무료 소식' → '하루 소식', 내 관심 링크 n곳을 넣는다(관심사 개수는 넣지 않는다)
  * 2026-10-29 사용자: Premium 음성은 더 자연스러운 AI 목소리(Gemini)라는 걸 밝힌다(/premium 비교표는 '목소리' 줄)
+ * 2026-11-03 사용자: 맹고 AI 질문 하루 횟수를 넣는다(코드 상수 lib/ask.ts ASK_DAILY)
  */
-function planItems(l: PlanLimits): string[] {
+function planItems(l: PlanLimits, askDaily: number): string[] {
   return [
     `하루 소식 ${l.dailyItems}개`,
     ...(l.audio ? ["자연스러운 AI 목소리로 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
+    `맹고 AI 질문 하루 ${askDaily}번`,
     ...(l.linkLimit > 0 ? [`내 관심 링크 ${l.linkLimit}곳`] : []),
     ...(l.canBuyMaengo ? ["맹고 추가 구매"] : []),
     l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관`,
@@ -61,6 +64,10 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["자주 보는 블로그의 새 글도 받을 수 있나요?", `네. Premium에서 '내 관심 링크'에 블로그나 사이트 주소를 넣으면 새 글을 요약해서 하루 소식에 같이 보내 드려요. ${plus.linkLimit}곳까지 넣을 수 있고, 유튜브와 브런치는 아직 넣을 수 없어요.`],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
+  [
+    "소식에 대해 더 물어볼 수 있나요?",
+    `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 그 소식에 대해 물어볼 수 있어요. 어려운 용어나 왜 중요한지 같은 질문에 소식을 바탕으로 답하고, 그 소식과 관계없는 질문에는 답하지 않아요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
+  ],
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 전체 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
   ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
@@ -372,7 +379,7 @@ export async function Landing() {
               <Plan
                 name="Free"
                 price="0원"
-                items={planItems(free)}
+                items={planItems(free, ASK_DAILY.free)}
                 cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
               />
               <Plan
@@ -381,7 +388,7 @@ export async function Landing() {
                 price={monthlyPrice(plus)}
                 listPrice={discountPct(plus) > 0 ? `${plus.listPriceKrw!.toLocaleString("ko-KR")}원` : undefined}
                 discount={discountPct(plus)}
-                items={planItems(plus)}
+                items={planItems(plus, ASK_DAILY.plus)}
                 // 로그인 전 버튼: 할인 중이면 '할인가로 시작하기'(2026-10-22 사용자 결정), 아니면 다른 시작 버튼과 같게
                 cta={{ signedOut: discountPct(plus) > 0 ? { ...START, label: "할인가로 시작하기" } : START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
               />

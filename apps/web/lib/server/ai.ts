@@ -70,23 +70,36 @@ export const premiumTts: TtsEngine = geminiTts ?? basicTts;
  * 요약 쪽 상한(파이프라인 GEMINI_DAILY_USD_CAP)과는 따로 센다: 음성이 많이 나가도 소식 요약이 멈추지 않게
  */
 const TTS_DAILY_USD_CAP = Number(process.env.GEMINI_TTS_DAILY_USD_CAP) || 2;
-let ttsSpend: { at: number; usd: number } | null = null;
+const spend = new Map<UsageEvent['kind'], { at: number; usd: number }>();
 
-async function geminiTtsSpentToday(): Promise<number> {
-  if (ttsSpend && Date.now() - ttsSpend.at < 60_000) return ttsSpend.usd;
-  const { data, error } = await db.from('usage_log').select('est_usd').eq('provider', 'gemini').eq('kind', 'tts').gte('at', `${kstDate()}T00:00:00+09:00`);
+/** 오늘(KST) 이 종류의 Gemini 추정 지출(usage_log). 1분 동안은 읽은 값을 다시 쓴다 */
+async function geminiSpentToday(kind: 'tts' | 'ask'): Promise<number> {
+  const hit = spend.get(kind);
+  if (hit && Date.now() - hit.at < 60_000) return hit.usd;
+  const { data, error } = await db.from('usage_log').select('est_usd').eq('provider', 'gemini').eq('kind', kind).gte('at', `${kstDate()}T00:00:00+09:00`);
   if (error) {
-    console.error('usage_log tts today', error.message);
+    console.error(`usage_log ${kind} today`, error.message);
     return 0;
   }
-  ttsSpend = { at: Date.now(), usd: (data as { est_usd: number | string }[]).reduce((n, r) => n + Number(r.est_usd), 0) };
-  return ttsSpend.usd;
+  const usd = (data as { est_usd: number | string }[]).reduce((n, r) => n + Number(r.est_usd), 0);
+  spend.set(kind, { at: Date.now(), usd });
+  return usd;
 }
 
 /** 이 사람의 음성을 만들 엔진: 음성 듣기 플랜(Premium)이면 Gemini(오늘 상한 안에서), 아니면 기본 음성 */
 export async function ttsEngineFor(audioPlan: boolean): Promise<TtsEngine> {
   if (!audioPlan || premiumTts === basicTts) return basicTts;
-  return (await geminiTtsSpentToday()) < TTS_DAILY_USD_CAP ? premiumTts : basicTts;
+  return (await geminiSpentToday('tts')) < TTS_DAILY_USD_CAP ? premiumTts : basicTts;
+}
+
+/**
+ * 소식 물어보기(lib/server/ask.ts)의 하루(KST) 지출 상한(달러). 사람마다 하루 횟수가 있고, 이건 서비스 전체 안전장치다.
+ * 질문 하나 약 $0.0012라 $1이면 하루 800번쯤. 넘으면 그날은 답하지 않는다(요약·음성 상한과 따로 센다)
+ */
+const ASK_DAILY_USD_CAP = Number(process.env.GEMINI_ASK_DAILY_USD_CAP) || 1;
+
+export async function askBudgetLeft(): Promise<boolean> {
+  return (await geminiSpentToday('ask')) < ASK_DAILY_USD_CAP;
 }
 
 export const screener: Pick<AiClient, 'provider' | 'screenInterest' | 'screenSite'> = gemini ?? ai;
