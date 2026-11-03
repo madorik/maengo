@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArticleView } from "@/components/article/ArticleView";
-import { findFeedItem, isInPlaylist } from "@/lib/server/feed";
-import { entitlements } from "@/lib/server/profile";
+import { findFeedItem } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 
 type Props = { params: Promise<{ id: string }> };
@@ -20,6 +19,5 @@ export default async function ArticlePage({ params }: Props) {
   const profile = await requireProfile();
   const found = await findFeedItem(profile, id);
   if (!found) notFound();
-  const inPlaylist = entitlements(profile).audio ? await isInPlaylist(profile, id) : false;
-  return <ArticleView key={id} item={found.item} isToday={found.isToday} inPlaylist={inPlaylist} />;
+  return <ArticleView key={id} item={found.item} isToday={found.isToday} />;
 }

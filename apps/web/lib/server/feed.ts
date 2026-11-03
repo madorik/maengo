@@ -792,11 +792,6 @@ export async function addToPlaylist(profile: Profile, ids: number[], max = Infin
   return have.size + fresh.length;
 }
 
-export async function isInPlaylist(profile: Profile, clusterId: number): Promise<boolean> {
-  const { count } = await db.from('playlist_items').select('cluster_id', { count: 'exact', head: true }).eq('user_id', profile.id).eq('cluster_id', clusterId);
-  return (count ?? 0) > 0;
-}
-
 export async function removeFromPlaylist(profile: Profile, clusterId: number): Promise<void> {
   must(await db.from('playlist_items').delete().eq('user_id', profile.id).eq('cluster_id', clusterId), 'playlist_items delete');
 }

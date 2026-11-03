@@ -45,7 +45,7 @@
 | `widget_open` | 홈 화면 위젯을 눌러 들어옴(`?from=widget`, 앱 1.3부터) | — |
 | `voice_change` | 목소리 바꾸기(설정) | `voice`(f·m) |
 | `more_receive` | 하나 더 받기로 소식을 받음 | `charged`(지갑 맹고를 썼는지) |
-| `share` | 글 화면 '공유'(1.2 앱·웹) | `category`, `action`(shared: 공유 시트를 띄움, copied: 공유 시트가 없어 복사) |
+| `share` | 글 화면 '공유'(1.2 앱·웹) | `category`, `action`(shared: 공유 시트를 띄움, copied: 공유 시트가 없어 복사), `place`(header: 머리말 아이콘, body: 본문 '공유하기' 버튼, 2026-10-31부터) |
 | `purchase_start` | 구독·맹고 추가 구매 결제 시작(앱) | `product`(스토어 상품 ID) |
 | `purchase_complete` | 결제 끝남 | `product` |
 
