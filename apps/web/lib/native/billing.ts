@@ -70,6 +70,7 @@ export async function loadStore(userId: string): Promise<{ premium: StoreItem | 
   await ready(userId);
   const offerings = await Purchases.getOfferings();
   const pkgs = offerings.current?.availablePackages ?? [];
+  if (!pkgs.length) throw new Error("empty_offering");
   const items = pkgs.map((pkg): StoreItem => {
     const productId = baseId(pkg.product.identifier);
     return { pkg, productId, price: pkg.product.priceString, maengo: MAENGO_PACKS[productId] ?? null, trialDays: null };
@@ -84,6 +85,20 @@ export async function loadStore(userId: string): Promise<{ premium: StoreItem | 
     premium,
     packs: items.filter((i) => i.maengo !== null).sort((a, b) => a.maengo! - b.maengo!),
   };
+}
+
+/**
+ * 스토어를 못 불러온 까닭을 짧은 글로(화면의 '스토어를 불러오지 못했어요' 옆과 Sentry에 남긴다).
+ * 2026-11-04 iOS 1.3.0 심사 반려(2.1(b), 구독 화면 오류)를 기기에서 바로 짚으려고 넣었다.
+ * no_store_key: 앱 키 없음(운영에 test_ 키 포함), empty_offering: 오퍼링에 상품 없음,
+ * CONFIGURATION_ERROR(23) 등: RevenueCat SDK 오류(애플이 상품을 하나도 안 줌 → 유료 앱 계약·상품 상태 확인)
+ */
+export function storeErrorCode(e: unknown): string {
+  const err = e as { code?: string | number; message?: string; readableErrorCode?: string; userInfo?: { readableErrorCode?: string } } | null;
+  const readable = err?.userInfo?.readableErrorCode ?? err?.readableErrorCode;
+  if (readable) return `${readable}${err?.code != null ? `(${err.code})` : ""}`;
+  if (err?.code != null) return `code ${err.code}`;
+  return (err?.message ?? "unknown").slice(0, 60);
 }
 
 /** 사용자가 결제 창을 닫은 것(오류로 보이지 않는다) */

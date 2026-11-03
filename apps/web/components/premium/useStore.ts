@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { isAppUserAgent } from "@/lib/app-client";
@@ -34,7 +35,8 @@ export function useStore(uid: string) {
   const router = useRouter();
   const inApp = useInApp();
   const [store, setStore] = useState<Store | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  /** 못 불러왔으면 그 까닭(오류 글, lib/native/billing.ts storeErrorCode) */
+  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,11 @@ export function useStore(uid: string) {
     let live = true;
     loadOnce(uid).then(
       (s) => live && setStore(s),
-      () => live && setLoadFailed(true),
+      async (e) => {
+        const code = (await billing()).storeErrorCode(e);
+        Sentry.captureException(e, { tags: { where: "store_load", store_error: code } });
+        if (live) setLoadFailed(code);
+      },
     );
     return () => {
       live = false;
@@ -52,7 +58,7 @@ export function useStore(uid: string) {
   }, [inApp, uid, attempt]);
 
   const retry = () => {
-    setLoadFailed(false);
+    setLoadFailed(null);
     setAttempt((n) => n + 1);
   };
 

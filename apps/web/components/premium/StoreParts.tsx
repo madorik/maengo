@@ -13,13 +13,15 @@ import { TRIAL_AGREE_TEXT, TrialConsent, trialChargeDay, trialNotice } from "./T
 
 // /premium 페이지의 앱 안 결제 조각. 웹 브라우저에서는 앱에서 살 수 있다는 것만 알린다(웹 결제는 없다).
 
-function LoadFailed({ retry }: { retry: () => void }) {
+/** 못 불러온 까닭(code)을 작게 붙인다. 문의·심사 반려 때 기기 화면만 보고 원인을 짚게(2026-11-04) */
+function LoadFailed({ retry, code }: { retry: () => void; code?: string | null }) {
   return (
     <p role="alert" className="text-[14px] font-bold text-cherry">
       스토어를 불러오지 못했어요.
       <button type="button" onClick={retry} className="ml-2 underline">
         다시 불러오기
       </button>
+      {code && <span className="mt-1 block text-[12px] font-semibold text-sub">{code}</span>}
     </p>
   );
 }
@@ -114,10 +116,10 @@ export function PremiumBuy({ uid, plan, firstSub, sub }: { uid: string; plan: Pl
       </div>
     );
   }
-  if (s.loadFailed) return <LoadFailed retry={s.retry} />;
+  if (s.loadFailed) return <LoadFailed retry={s.retry} code={s.loadFailed} />;
   if (!s.store) return <div aria-hidden="true" className="h-14 animate-pulse rounded-2xl bg-snow" />;
   const premium = s.store.premium;
-  if (!premium) return <LoadFailed retry={s.retry} />;
+  if (!premium) return <LoadFailed retry={s.retry} code="no_premium_product" />;
   // 스토어가 체험을 줄 수 있고(0원 첫 기간, iOS는 자격 확인) 우리 회원이 처음 구독할 때만
   const trialDays = firstSub ? premium.trialDays : null;
 
@@ -233,7 +235,7 @@ export function MaengoShop({ uid, canBuy, wallet, onBought }: { uid: string; can
       <>
         {walletLine}
         <div className="mt-3">
-          <LoadFailed retry={s.retry} />
+          <LoadFailed retry={s.retry} code={s.loadFailed} />
         </div>
       </>
     );
