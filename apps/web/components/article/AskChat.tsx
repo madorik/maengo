@@ -16,12 +16,16 @@ import type { FeedItem } from "@/lib/types";
 // 무엇이든 묻는다. 읽고 있는 소식은 서버가 맥락으로 붙인다(lib/server/ask.ts). 하루 횟수가 있다.
 // 대화는 이 탭에서만 기억한다(sessionStorage, 창을 닫거나 옆 글로 넘겼다 돌아와도 남게). 서버는 저장하지 않는다.
 // 이어서 물을 때 앞선 대화를 같이 보낸다(최근 6줄, 서버도 자른다).
+// 처음엔 그 소식에 맞춘 추천 질문 3개를 보인다(서버가 소식마다 한 번 만들어 둔다, lib/server/ask-suggest.ts).
 // 마이크로 말하면 알아들은 글이 입력칸에 채워지고, 보내기는 사람이 누른다(잘못 알아들은 걸 고칠 수 있게, lib/native/voice.ts).
 
 type Message = AskTurn & { id: number };
 type Problem = "daily_limit" | "failed" | "mic_denied" | "mic_failed";
 
 const noSubscribe = () => () => {};
+
+/** 이 탭에서 받아 둔 추천 질문(창을 다시 열 때 또 묻지 않게) */
+const suggested = new Map<number, string[]>();
 
 // 글마다 대화(JSON 글). 메모리가 먼저고, sessionStorage는 새로 불러왔을 때를 위해 같이 쓴다(막힌 브라우저는 메모리에만)
 const memory = new Map<number, string>();
@@ -86,6 +90,27 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
   const voice = useSyncExternalStore(noSubscribe, voiceKind, () => null);
   const [listening, setListening] = useState(false);
   const stopVoice = useRef<(() => void) | null>(null);
+  const [chips, setChips] = useState<string[] | null>(() => suggested.get(id) ?? null);
+
+  // 추천 질문: 대화가 비어 있을 때만 받는다. 못 받으면 늘 쓰는 질문
+  const empty = messages.length === 0 && !waiting;
+  useEffect(() => {
+    if (!empty || chips) return;
+    let live = true;
+    fetch(withBase(`/api/ask/suggest?clusterId=${id}`))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { questions?: unknown } | null) => {
+        const list = Array.isArray(data?.questions) && data.questions.every((q) => typeof q === "string") ? (data.questions as string[]) : ASK_CHIPS;
+        suggested.set(id, list);
+        if (live) setChips(list);
+      })
+      .catch(() => {
+        if (live) setChips(ASK_CHIPS);
+      });
+    return () => {
+      live = false;
+    };
+  }, [empty, chips, id]);
 
   // 글이 바뀌면(적기·음성) 입력칸 높이를 맞춘다(최대 120px)
   useEffect(() => {
@@ -170,7 +195,6 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
     }
   }
 
-  const empty = messages.length === 0 && !waiting;
   const sheet = variant === "sheet";
 
   return (
@@ -181,17 +205,20 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
         className={`overflow-y-auto overscroll-contain ${sheet ? "max-h-[calc(85dvh-190px)]" : "min-h-0 flex-1 px-4 py-4"}`}
       >
         {empty ? (
-          <div className="flex flex-wrap gap-2">
-            {ASK_CHIPS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => ask(c)}
-                className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-[14px] font-bold hover:border-mango hover:bg-mango-tint"
-              >
-                {c}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-2" aria-busy={!chips}>
+            {chips
+              ? chips.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => ask(c)}
+                    className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-left text-[14px] font-bold hover:border-mango hover:bg-mango-tint"
+                  >
+                    {c}
+                  </button>
+                ))
+              : // 추천 질문을 받는 동안 같은 자리에 빈 칸(받으면 그대로 바뀌어 자리가 덜 흔들린다)
+                [128, 152, 112].map((w) => <span key={w} aria-hidden="true" className="h-11 rounded-full bg-snow motion-safe:animate-pulse" style={{ width: w }} />)}
           </div>
         ) : (
           <ol aria-live="polite" className="flex flex-col gap-3">

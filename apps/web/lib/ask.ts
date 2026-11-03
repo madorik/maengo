@@ -10,7 +10,7 @@ export const ASK_DAILY: Record<"free" | "plus", number> = { free: 3, plus: 20 };
 /** 이어서 묻기 위해 서버에 다시 보내는 앞선 대화 수(질문·답 합쳐서) */
 export const ASK_HISTORY_TURNS = 6;
 
-/** 처음에 눌러 바로 물어보는 질문 */
+/** 처음에 눌러 바로 물어보는 질문. 소식에 맞춘 추천 질문(lib/server/ask-suggest.ts)을 못 만들 때 쓴다 */
 export const ASK_CHIPS = ["더 쉽게 설명해 줘", "왜 중요한 소식이야?", "어려운 용어 풀어 줘"];
 
 export type AskTurn = { role: "user" | "model"; text: string };

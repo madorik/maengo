@@ -45,7 +45,8 @@ const SCHEMA = {
 /** 앞선 대화 한 줄의 최대 글자 수(긴 답을 그대로 다시 보내 입력 토큰이 늘지 않게) */
 const TURN_MAX = 1500;
 
-function article(item: FeedItem): string {
+/** Gemini에 주는 소식 글(추천 질문 ask-suggest.ts도 쓴다) */
+export function article(item: FeedItem): string {
   return [
     `제목: ${item.title}`,
     `출처: ${[item.sourceLabel, item.author, item.publishedLabel].filter(Boolean).join(' · ')}`,
