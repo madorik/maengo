@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "개인정보 처리방침", alternat
 // 위탁은 실제로 개인정보를 맡기는 곳만 적는다: Supabase·Vercel(2026-10-10 사용자 결정), 알림을 켜면 Google(FCM)(2026-10-11 알림 켜고 끄기 출시),
 // 이용 통계 Google 애널리틱스(2026-10-11, GTM으로 싣는다. components/Analytics.tsx·lib/analytics.ts), 앱 안 결제 RevenueCat(2026-10-14 베타 종료),
 // 문의하기 양식의 메일 발송 Resend(2026-10-26, lib/server/inquiry.ts·mailer.ts), 문의 답장 초안 Google Gemini API(2026-10-26, lib/server/inquiry-draft.ts),
-// 소식 화면의 맹고 AI 답 Google Gemini API(2026-11-03, lib/server/ask.ts. 질문은 저장하지 않고 하루 횟수만 남긴다).
+// 소식 화면의 맹고 AI 답 Google Gemini API(2026-11-03, lib/server/ask.ts. 질문은 저장하지 않고 하루 횟수만 남긴다. 말로 묻기는 기기·브라우저 음성 인식이라 위탁 아님).
 export default function PrivacyPage() {
   const email = supportEmail();
   if (!email) notFound();
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
           많이 보내지 않게 접속 IP를 바꾼 값(원래 IP는 남기지 않음)
         </li>
         <li>
-          <b>맹고 AI에게 소식에 대해 물어본 경우</b>: 물어본 내용과 그 소식에서 앞서 주고받은 대화. 답을 만드는 데만 쓰고 저장하지 않으며, 하루에 물어본 횟수만 남깁니다.
+          <b>맹고 AI에게 물어본 경우</b>: 물어본 내용, 앞서 주고받은 대화, 그때 읽던 소식. 답을 만드는 데만 쓰고 저장하지 않으며, 하루에 물어본 횟수만 남깁니다. 말로 물어보면 기기·브라우저의 음성 인식(Apple·Google 등 제공자가 처리)이 글자로 바꾸며, 운영자는 음성을 받지 않습니다.
         </li>
         <li>
           <b>알림을 켠 경우</b>: 알림을 받을 브라우저·기기를 구분하는 알림 토큰(Firebase 클라우드 메시징이 발급), 기기 종류(웹·안드로이드·iOS)와 앱 버전

@@ -2,21 +2,26 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { IconMic } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { track } from "@/lib/analytics";
 import { ASK_CHIPS, ASK_DAILY, ASK_TEXT_MAX, type AskTurn } from "@/lib/ask";
 import { withBase } from "@/lib/base-path";
+import { startVoice, voiceKind } from "@/lib/native/voice";
 import type { FeedItem } from "@/lib/types";
 
 // 맹고 AI 대화(2026-11-03). 글 화면 오른쪽 아래 맹고 AI 버튼(AskDock.tsx)이 웹은 창, 앱은 시트로 연다.
-// 이 소식에 대해서만 묻고 답한다(관계없는 질문은 서버가 정해 둔 답으로 막는다, lib/server/ask.ts).
+// 무엇이든 묻는다. 읽고 있는 소식은 서버가 맥락으로 붙인다(lib/server/ask.ts). 하루 횟수가 있다.
 // 대화는 이 탭에서만 기억한다(sessionStorage, 창을 닫거나 옆 글로 넘겼다 돌아와도 남게). 서버는 저장하지 않는다.
-// 이어서 물을 때 앞선 대화를 같이 보내되, 소식과 관계없어 막힌 질문·답은 빼고 보낸다.
+// 이어서 물을 때 앞선 대화를 같이 보낸다(최근 6줄, 서버도 자른다).
+// 마이크로 말하면 알아들은 글이 입력칸에 채워지고, 보내기는 사람이 누른다(잘못 알아들은 걸 고칠 수 있게, lib/native/voice.ts).
 
-type Message = AskTurn & { id: number; offTopic?: boolean };
-type Problem = "daily_limit" | "failed";
+type Message = AskTurn & { id: number };
+type Problem = "daily_limit" | "failed" | "mic_denied" | "mic_failed";
+
+const noSubscribe = () => () => {};
 
 // 글마다 대화(JSON 글). 메모리가 먼저고, sessionStorage는 새로 불러왔을 때를 위해 같이 쓴다(막힌 브라우저는 메모리에만)
 const memory = new Map<number, string>();
@@ -77,6 +82,42 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
   const listRef = useRef<HTMLDivElement>(null);
   /** 열 때는 바로, 이번에 물은 뒤로는 부드럽게 맨 아래로 */
   const smooth = useRef(false);
+  // 음성 입력: 이 기기에서 쓸 수 있을 때만 마이크 버튼을 둔다
+  const voice = useSyncExternalStore(noSubscribe, voiceKind, () => null);
+  const [listening, setListening] = useState(false);
+  const stopVoice = useRef<(() => void) | null>(null);
+
+  // 글이 바뀌면(적기·음성) 입력칸 높이를 맞춘다(최대 120px)
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [text]);
+
+  // 창·시트를 닫으면 듣기도 멈춘다
+  useEffect(() => () => stopVoice.current?.(), []);
+
+  async function toggleVoice() {
+    if (!voice) return;
+    if (listening) {
+      stopVoice.current?.();
+      return;
+    }
+    setProblem(null);
+    setListening(true);
+    track("ask", { category: item.category, action: "voice" });
+    // 이미 적어 둔 글 뒤에 이어 붙인다
+    const before = text.trim() ? `${text.trim()} ` : "";
+    stopVoice.current = await startVoice(voice, {
+      onText: (heard) => setText(`${before}${heard}`.slice(0, ASK_TEXT_MAX)),
+      onEnd: () => {
+        stopVoice.current = null;
+        setListening(false);
+      },
+      onError: (e) => setProblem(e === "denied" ? "mic_denied" : "mic_failed"),
+    });
+  }
 
   useEffect(() => {
     const el = listRef.current;
@@ -98,18 +139,13 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
   async function ask(raw: string) {
     const question = raw.trim();
     if (!question || waiting) return;
+    stopVoice.current?.();
     setProblem(null);
     setWaiting(true);
     smooth.current = true;
-    const history: AskTurn[] = [];
-    // 막힌 질문은 그 질문과 바로 뒤 정해 둔 답을 함께 뺀다
-    messages.forEach((m, i) => {
-      if (m.offTopic || messages[i + 1]?.offTopic) return;
-      history.push({ role: m.role, text: m.text });
-    });
+    const history: AskTurn[] = messages.map((m) => ({ role: m.role, text: m.text }));
     push({ role: "user", text: question });
     setText("");
-    if (inputRef.current) inputRef.current.style.height = "";
     // 휴대폰은 자판을 내려 답이 보이게
     if (!window.matchMedia("(hover: hover)").matches) inputRef.current?.blur();
     try {
@@ -118,10 +154,10 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ clusterId: id, question, history }),
       });
-      const data = (await res.json().catch(() => ({}))) as { answer?: string; related?: boolean; error?: string };
+      const data = (await res.json().catch(() => ({}))) as { answer?: string; error?: string };
       if (!res.ok || typeof data.answer !== "string") throw new Error(data.error ?? "failed");
-      push({ role: "model", text: data.answer, offTopic: data.related === false });
-      track("ask", { category: item.category, action: data.related === false ? "off_topic" : "answered" });
+      push({ role: "model", text: data.answer });
+      track("ask", { category: item.category, action: "answered" });
     } catch (e) {
       // 답을 못 받은 질문은 지우고 입력칸에 돌려놓는다
       write(id, parse(readRaw(id)).slice(0, -1));
@@ -169,9 +205,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
               ) : (
                 <li key={m.id} className="flex items-start gap-2">
                   <Mascot className="size-9 shrink-0" />
-                  <p
-                    className={`min-w-0 max-w-[88%] whitespace-pre-wrap break-words rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-2.5 text-[15px] font-medium leading-[1.7] ${m.offTopic ? "text-sub" : ""}`}
-                  >
+                  <p className="min-w-0 max-w-[88%] whitespace-pre-wrap break-words rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-2.5 text-[15px] font-medium leading-[1.7]">
                     {m.text}
                   </p>
                 </li>
@@ -196,6 +230,10 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
           <p role="alert" className="mb-2 text-[14px] font-bold text-cherry">
             {problem === "failed" ? (
               "답하지 못했어요. 잠시 뒤 다시 물어봐 주세요."
+            ) : problem === "mic_denied" ? (
+              "마이크를 쓸 수 있게 허용해 주세요."
+            ) : problem === "mic_failed" ? (
+              "말을 알아듣지 못했어요. 다시 말해 주세요."
             ) : profile.plan === "free" ? (
               <>
                 오늘은 다 물어봤어요.{" "}
@@ -216,7 +254,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
           className="flex items-end gap-2"
         >
           <label htmlFor="ask-text" className="sr-only">
-            이 소식에 대해 물어볼 말
+            맹고 AI에게 물어볼 말
           </label>
           <textarea
             id="ask-text"
@@ -225,11 +263,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
             value={text}
             maxLength={ASK_TEXT_MAX}
             enterKeyHint="send"
-            onChange={(e) => {
-              setText(e.target.value);
-              e.currentTarget.style.height = "auto";
-              e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 120)}px`;
-            }}
+            onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               // 데스크톱: 엔터로 보내고 Shift+엔터로 줄바꿈. 한글 조합 중 엔터는 보내지 않는다
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && window.matchMedia("(hover: hover)").matches) {
@@ -237,9 +271,21 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
                 void ask(text);
               }
             }}
-            placeholder="이 소식에 대해 물어보세요"
+            placeholder={listening ? "듣고 있어요" : "궁금한 걸 물어보세요"}
             className="tile max-h-[120px] min-h-12 flex-1 resize-none px-4 py-3 text-[16px] font-semibold leading-snug placeholder:text-faint"
           />
+          {voice && (
+            <button
+              type="button"
+              onClick={() => void toggleVoice()}
+              disabled={waiting}
+              aria-pressed={listening}
+              aria-label={listening ? "말하기 멈추기" : "말로 물어보기"}
+              className={`tile flex size-12 shrink-0 items-center justify-center ${listening ? "border-cherry text-cherry" : "text-sub hover:bg-snow"}`}
+            >
+              <IconMic className={`size-6 ${listening ? "motion-safe:animate-pulse" : ""}`} />
+            </button>
+          )}
           <button type="submit" disabled={waiting || !text.trim()} aria-label={waiting ? "답을 기다리는 중" : undefined} className="btn min-h-12 shrink-0 px-5 text-[15px]">
             {waiting ? <Spinner /> : "보내기"}
           </button>

@@ -66,7 +66,7 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   [
     "소식에 대해 더 물어볼 수 있나요?",
-    `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 그 소식에 대해 물어볼 수 있어요. 어려운 용어나 왜 중요한지 같은 질문에 소식을 바탕으로 답하고, 그 소식과 관계없는 질문에는 답하지 않아요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
+    `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 궁금한 걸 글이나 말로 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
   ],
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 전체 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],

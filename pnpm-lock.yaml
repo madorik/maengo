@@ -41,6 +41,9 @@ importers:
       '@capacitor/splash-screen':
         specifier: 8.0.2
         version: 8.0.2(@capacitor/core@8.5.3)
+      '@capgo/capacitor-speech-recognition':
+        specifier: 8.4.6
+        version: 8.4.6(@capacitor/core@8.5.3)
       '@revenuecat/purchases-capacitor':
         specifier: 13.6.1
         version: 13.6.1(@capacitor/core@8.5.3)
@@ -81,6 +84,9 @@ importers:
       '@capacitor/splash-screen':
         specifier: 8.0.2
         version: 8.0.2(@capacitor/core@8.5.3)
+      '@capgo/capacitor-speech-recognition':
+        specifier: 8.4.6
+        version: 8.4.6(@capacitor/core@8.5.3)
       '@dnd-kit/core':
         specifier: 6.3.1
         version: 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -321,6 +327,11 @@ packages:
 
   '@capacitor/splash-screen@8.0.2':
     resolution: {integrity: sha512-0C6rYScr13WfAE9nPl4ScOQynmjFv9NT3Th+RZkD4ezYHmER6mcl1/lDYsv7jg3Rj3FOvLrlTlmNkUrr83kZzQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
+  '@capgo/capacitor-speech-recognition@8.4.6':
+    resolution: {integrity: sha512-GbRrjCipn/nNUwv9Vc+t15s6GMXDQvdociz7DgsEsVdO6YwDKrxNdOUD+zS8xJJVUZYpMUMB9BTZHA7YJx2CXw==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -4046,6 +4057,10 @@ snapshots:
       '@capacitor/core': 8.5.3
 
   '@capacitor/splash-screen@8.0.2(@capacitor/core@8.5.3)':
+    dependencies:
+      '@capacitor/core': 8.5.3
+
+  '@capgo/capacitor-speech-recognition@8.4.6(@capacitor/core@8.5.3)':
     dependencies:
       '@capacitor/core': 8.5.3
 

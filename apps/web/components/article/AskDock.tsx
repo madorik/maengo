@@ -68,7 +68,7 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
       aria-expanded={open}
       aria-haspopup={inApp ? "dialog" : undefined}
       aria-controls={open && !inApp ? "ask-window" : undefined}
-      aria-label={open && !inApp ? "맹고 AI 창 닫기" : "맹고 AI에게 이 소식 물어보기"}
+      aria-label={open && !inApp ? "맹고 AI 창 닫기" : "맹고 AI에게 물어보기"}
       className={`pop tile pointer-events-auto relative flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${open ? "border-mango" : ""}`}
     >
       <span className="flex size-12 items-center justify-center rounded-full bg-mango-tint">

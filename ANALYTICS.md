@@ -46,7 +46,7 @@
 | `voice_change` | 목소리 바꾸기(설정) | `voice`(f·m) |
 | `more_receive` | 하나 더 받기로 소식을 받음 | `charged`(지갑 맹고를 썼는지) |
 | `share` | 글 화면 '공유'(1.2 앱·웹) | `category`, `action`(shared: 공유 시트를 띄움, copied: 공유 시트가 없어 복사), `place`(header: 머리말 아이콘, body: 본문 '공유하기' 버튼, 2026-10-31부터) |
-| `ask` | 글 화면 맹고 AI(2026-11-03부터) | `category`, `action`(open: 맹고 AI 버튼을 눌러 창을 엶, answered: 답함, off_topic: 소식과 관계없어 막음, limit: 하루 횟수를 다 씀, error: 답을 못 받음) |
+| `ask` | 글 화면 맹고 AI(2026-11-03부터) | `category`, `action`(open: 맹고 AI 버튼을 눌러 창을 엶, voice: 마이크로 말하기 시작, answered: 답함, limit: 하루 횟수를 다 씀, error: 답을 못 받음) |
 | `purchase_start` | 구독·맹고 추가 구매 결제 시작(앱) | `product`(스토어 상품 ID) |
 | `purchase_complete` | 결제 끝남 | `product` |
 

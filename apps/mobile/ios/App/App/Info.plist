@@ -8,6 +8,10 @@
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>맹고</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>맹고 AI에게 말로 물어볼 때 마이크를 써요.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>말한 질문을 글자로 바꿀 때 음성 인식을 써요.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
