@@ -20,6 +20,7 @@ export const metadata: Metadata = { title: "관리자", robots: { index: false, 
 // (components/admin/*Tab.tsx, supabase/migrations/20261022100000_admin_tabs.sql). 날짜는 한국 시간.
 // 기간(?from=&to=, 기본 오늘까지 14일)은 탭을 옮겨도 그대로. 운영 경고는 위 막대의 알림 종에 모은다(어느 탭에서나, 안 읽은 게 있으면 빨간 점).
 // 개인을 알아볼 수 있는 값(이메일·이름)은 보여 주지 않는다.
+// 앱·홈 화면 웹앱은 화면 끝까지 그리므로(viewportFit cover) 위는 노치·상태 표시줄, 아래는 홈 막대·내비게이션 바만큼 비운다.
 
 type Props = { searchParams: Promise<{ tab?: string | string[]; from?: string | string[]; to?: string | string[] }> };
 
@@ -33,7 +34,7 @@ export default async function AdminPage({ searchParams }: Props) {
 
   return (
     <div className="min-h-dvh bg-snow">
-      <header className="border-b-2 border-line bg-paper">
+      <header className="border-b-2 border-line bg-paper pt-[env(safe-area-inset-top)]">
         <div className="mx-auto max-w-[1100px] px-5 pt-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -56,7 +57,7 @@ export default async function AdminPage({ searchParams }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-[1100px] flex-col gap-6 px-5 py-6">
+      <main className="mx-auto flex max-w-[1100px] flex-col gap-6 px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-6">
         <RangeBar tab={tab} range={range} today={today} />
         {tab === "growth" && <GrowthTab range={range} today={today} />}
         {tab === "revenue" && <RevenueTab range={range} />}
