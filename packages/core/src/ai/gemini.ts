@@ -1,4 +1,4 @@
-import { GoogleGenAI, MediaResolution, Modality, ThinkingLevel, type Part, type SpeechConfig } from '@google/genai';
+import { GoogleGenAI, MediaResolution, Modality, ThinkingLevel, type GenerateContentResponse, type Part, type SpeechConfig } from '@google/genai';
 import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
 import { IMPACTS, isImpact } from '../feed/impact';
 import { alignLines } from '../audio/align';
@@ -590,7 +590,7 @@ export interface ChatJsonInput {
 }
 
 /**
- * 대화 한 번으로 JSON 하나를 받는다(문의 답장 초안 apps/web/lib/server/inquiry-draft.ts, 소식 물어보기 lib/server/ask.ts): 시스템 지시와 대화로 JSON 하나.
+ * 대화 한 번으로 JSON 하나를 받는다(문의 답장 초안 apps/web/lib/server/inquiry-draft.ts, 추천 질문 lib/server/ask-suggest.ts): 시스템 지시와 대화로 JSON 하나.
  * 화면에서 기다리는 답이라 재시도·대체 모델 없이 한 번만 짧게 묻는다(실패하면 부른 쪽이 정해 둔 답을 쓴다)
  */
 export async function geminiChatJson<T>(input: ChatJsonInput): Promise<T> {
@@ -611,4 +611,42 @@ export async function geminiChatJson<T>(input: ChatJsonInput): Promise<T> {
   const text = res.text;
   if (!text) throw new GeminiOutputError(input.model, `빈 응답(${res.candidates?.[0]?.finishReason ?? res.promptFeedback?.blockReason ?? 'unknown'})`);
   return JSON.parse(text) as T;
+}
+
+export interface ChatStreamInput extends Omit<ChatJsonInput, 'schema'> {
+  /** 받는 쪽이 떠나면 Gemini 호출도 끊는다 */
+  signal?: AbortSignal;
+}
+
+/**
+ * 대화 한 번의 답을 평문 조각으로 흘려 받는다(소식 물어보기 apps/web lib/server/ask.ts → 화면에 SSE로 바로 넘긴다).
+ * geminiChatJson처럼 재시도·대체 모델 없이 한 번만. timeoutMs는 답 전체에 걸린다. 끊겨도 그때까지 쓴 토큰은 기록한다
+ */
+export async function* geminiChatStream(input: ChatStreamInput): AsyncGenerator<string> {
+  const client = new GoogleGenAI({ apiKey: input.apiKey });
+  const timeout = AbortSignal.timeout(input.timeoutMs ?? 15_000);
+  const stream = await client.models.generateContentStream({
+    model: input.model,
+    contents: input.turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
+    config: {
+      systemInstruction: input.system,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      abortSignal: input.signal ? AbortSignal.any([timeout, input.signal]) : timeout,
+    },
+  });
+  let last: GenerateContentResponse | undefined;
+  let wrote = false;
+  try {
+    for await (const chunk of stream) {
+      last = chunk;
+      const text = chunk.text;
+      if (!text) continue;
+      wrote = true;
+      yield text;
+    }
+  } finally {
+    const u = last?.usageMetadata;
+    if (u) input.onUsage?.({ model: last?.modelVersion ?? input.model, kind: input.kind ?? 'support', inputTokens: u.promptTokenCount ?? 0, outputTokens: u.candidatesTokenCount ?? 0, thinkingTokens: u.thoughtsTokenCount ?? 0 });
+  }
+  if (!wrote) throw new GeminiOutputError(input.model, `빈 응답(${last?.candidates?.[0]?.finishReason ?? last?.promptFeedback?.blockReason ?? 'unknown'})`);
 }

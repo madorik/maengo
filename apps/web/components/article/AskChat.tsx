@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { IconMic } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { track } from "@/lib/analytics";
-import { ASK_CHIPS, ASK_DAILY, ASK_TEXT_MAX, type AskTurn } from "@/lib/ask";
+import { ASK_CHIPS, ASK_DAILY, ASK_TEXT_MAX, parseAskFrames, plainAnswer, type AskTurn } from "@/lib/ask";
 import { withBase } from "@/lib/base-path";
 import { startVoice, voiceKind } from "@/lib/native/voice";
 import type { FeedItem } from "@/lib/types";
@@ -16,6 +17,7 @@ import type { FeedItem } from "@/lib/types";
 // 무엇이든 묻는다. 읽고 있는 소식은 서버가 맥락으로 붙인다(lib/server/ask.ts). 하루 횟수가 있다.
 // 대화는 이 탭에서만 기억한다(sessionStorage, 창을 닫거나 옆 글로 넘겼다 돌아와도 남게). 서버는 저장하지 않는다.
 // 이어서 물을 때 앞선 대화를 같이 보낸다(최근 6줄, 서버도 자른다).
+// 답은 서버가 SSE로 조각조각 보내고(2026-11-04), 받는 대로 말풍선에 써 나간다. 다 받은 답만 대화에 남긴다.
 // 처음엔 그 소식에 맞춘 추천 질문 3개를 보인다(서버가 소식마다 한 번 만들어 둔다, lib/server/ask-suggest.ts).
 // 마이크로 말하면 알아들은 글이 입력칸에 채워지고, 보내기는 사람이 누른다(잘못 알아들은 걸 고칠 수 있게, lib/native/voice.ts).
 
@@ -62,6 +64,30 @@ function write(clusterId: number, messages: Message[]) {
   listeners.forEach((l) => l());
 }
 
+/** /api/ask의 SSE를 읽어 답 전체(평문 정리 전)를 돌려준다. 받는 동안 지금까지의 글을 onText로 넘긴다 */
+async function readAnswer(res: Response, onText: (raw: string) => void): Promise<string> {
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("failed");
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let raw = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const { events, rest } = parseAskFrames(buffer + decoder.decode(value, { stream: true }));
+    buffer = rest;
+    for (const e of events) {
+      if (e.event === "delta") {
+        raw += e.text;
+        onText(raw);
+      } else if (e.event === "done") return raw;
+      else throw new Error(e.error);
+    }
+  }
+  // 끝 표시 없이 끊겼다
+  throw new Error("failed");
+}
+
 function subscribe(l: () => void) {
   listeners.add(l);
   return () => {
@@ -81,11 +107,16 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
   const messages = useMemo(() => parse(raw), [raw]);
   const [text, setText] = useState("");
   const [waiting, setWaiting] = useState(false);
+  /** 지금 받고 있는 답(평문 정리 전). 받기 전엔 빈 글 */
+  const [streaming, setStreaming] = useState("");
   const [problem, setProblem] = useState<Problem | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   /** 열 때는 바로, 이번에 물은 뒤로는 부드럽게 맨 아래로 */
   const smooth = useRef(false);
+  /** 맨 아래를 따라갈지. 답이 써지는 동안 위로 올려 읽고 있으면 끌어내리지 않는다(다시 맨 아래로 오면 따라간다) */
+  const stick = useRef(true);
+  const lastTop = useRef(0);
   // 음성 입력: 이 기기에서 쓸 수 있을 때만 마이크 버튼을 둔다
   const voice = useSyncExternalStore(noSubscribe, voiceKind, () => null);
   const [listening, setListening] = useState(false);
@@ -146,10 +177,11 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
 
   useEffect(() => {
     const el = listRef.current;
-    if (!el) return;
+    if (!el || !stick.current) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollTo({ top: el.scrollHeight, behavior: smooth.current && !reduce ? "smooth" : "auto" });
-  }, [messages.length, waiting]);
+    // 답이 써지는 동안은 글이 늘 때마다 바로 붙는다(부드럽게 하면 따라가다 밀린다)
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth.current && !reduce && !streaming ? "smooth" : "auto" });
+  }, [messages.length, waiting, streaming]);
 
   // 데스크톱은 열자마자 적을 수 있게. 휴대폰은 자판이 화면을 가리지 않게 누를 때까지 둔다
   useEffect(() => {
@@ -168,6 +200,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
     setProblem(null);
     setWaiting(true);
     smooth.current = true;
+    stick.current = true;
     const history: AskTurn[] = messages.map((m) => ({ role: m.role, text: m.text }));
     push({ role: "user", text: question });
     setText("");
@@ -179,9 +212,18 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ clusterId: id, question, history }),
       });
-      const data = (await res.json().catch(() => ({}))) as { answer?: string; error?: string };
-      if (!res.ok || typeof data.answer !== "string") throw new Error(data.error ?? "failed");
-      push({ role: "model", text: data.answer });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? "failed");
+      }
+      const answer = plainAnswer(await readAnswer(res, setStreaming));
+      if (!answer) throw new Error("failed");
+      // 받던 말풍선이 대화의 답으로 한 번에 바뀌게(둘이 잠깐 겹쳐 보이지 않게)
+      flushSync(() => {
+        push({ role: "model", text: answer });
+        setStreaming("");
+        setWaiting(false);
+      });
       track("ask", { category: item.category, action: "answered" });
     } catch (e) {
       // 답을 못 받은 질문은 지우고 입력칸에 돌려놓는다
@@ -191,6 +233,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
       setProblem(limit ? "daily_limit" : "failed");
       track("ask", { category: item.category, action: limit ? "limit" : "error" });
     } finally {
+      setStreaming("");
       setWaiting(false);
     }
   }
@@ -201,6 +244,12 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
     <div className={`flex flex-col ${sheet ? "" : "min-h-0 flex-1"}`}>
       <div
         ref={listRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          if (el.scrollTop < lastTop.current - 2) stick.current = false;
+          else if (el.scrollHeight - el.scrollTop - el.clientHeight < 48) stick.current = true;
+          lastTop.current = el.scrollTop;
+        }}
         data-no-sheet-drag={sheet || undefined}
         className={`overflow-y-auto overscroll-contain ${sheet ? "max-h-[calc(85dvh-190px)]" : "min-h-0 flex-1 px-4 py-4"}`}
       >
@@ -241,11 +290,26 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
             {waiting && (
               <li className="flex items-start gap-2">
                 <Mascot className="size-9 shrink-0" />
-                <span role="status" aria-label="답을 쓰는 중" className="flex gap-1 rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-4">
-                  {[0, 150, 300].map((d) => (
-                    <span key={d} className="size-1.5 rounded-full bg-faint motion-safe:animate-bounce" style={{ animationDelay: `${d}ms` }} />
-                  ))}
-                </span>
+                {streaming ? (
+                  <>
+                    {/* 써지는 동안은 읽어 주지 않고, 다 받으면 대화에 들어간 답을 한 번 읽는다 */}
+                    <span role="status" className="sr-only">
+                      답을 쓰는 중
+                    </span>
+                    <p
+                      aria-hidden="true"
+                      className="min-w-0 max-w-[88%] whitespace-pre-wrap break-words rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-2.5 text-[15px] font-medium leading-[1.7]"
+                    >
+                      {plainAnswer(streaming)}
+                    </p>
+                  </>
+                ) : (
+                  <span role="status" aria-label="답을 쓰는 중" className="flex gap-1 rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-4">
+                    {[0, 150, 300].map((d) => (
+                      <span key={d} className="size-1.5 rounded-full bg-faint motion-safe:animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                    ))}
+                  </span>
+                )}
               </li>
             )}
           </ol>
