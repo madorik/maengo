@@ -3,6 +3,7 @@
   "regions": ["icn1"],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/maengo/api/:path*" },
-    { "source": "/push-sw.js", "destination": "/maengo/push-sw.js" }
+    { "source": "/push-sw.js", "destination": "/maengo/push-sw.js" },
+    { "source": "/maengo/_vercel/insights/:path*", "destination": "https://maengo.vercel.app/_vercel/insights/:path*" }
   ]
 }
