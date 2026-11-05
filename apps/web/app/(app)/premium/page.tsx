@@ -39,8 +39,9 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
   ];
 }
 
-export default async function PremiumPage() {
-  const profile = await requireProfile();
+// ?trial=1: 가입 선물 팝업의 '무료로 시작해보기'에서 왔다 → 체험 안내 팝업을 바로 띄운다
+export default async function PremiumPage({ searchParams }: { searchParams: Promise<{ trial?: string }> }) {
+  const [profile, sp] = await Promise.all([requireProfile(), searchParams]);
   const [wallet, plans, hadSub, sub] = await Promise.all([syncWallet(profile.id), getPlans(), hadSubscription(profile.id), subscriptionView(profile.id)]);
   const free = plans.get("free")!;
   const plus = plans.get("plus")!;
@@ -105,7 +106,7 @@ export default async function PremiumPage() {
         </table>
 
         <div id="premium-buy" className="mt-6 scroll-mt-20">
-          <PremiumBuy uid={profile.id} plan={profile.plan} firstSub={!hadSub} sub={sub} />
+          <PremiumBuy uid={profile.id} plan={profile.plan} firstSub={!hadSub} sub={sub} autoTrial={sp.trial === "1"} />
           <PlanSync plan={profile.plan} />
           <PurchaseDoneHost />
         </div>

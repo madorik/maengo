@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Mascot } from "@/components/Mascot";
 import { Confetti } from "@/components/ui/Confetti";
@@ -19,13 +20,15 @@ const seenHere = () => {
 /**
  * 가입 축하 이벤트 팝업: 가입 선물 맹고를 지갑에 넣었다고 한 번 알린다
  * (오늘 화면, 최근 7일 안에 가입한 회원. lib/server/wallet.ts recentSignupGift).
- * 금액은 실제로 들어간 값이다. 닫으면 이 기기에서는 다시 안 뜬다
+ * 금액은 실제로 들어간 값이다. 닫으면 이 기기에서는 다시 안 뜬다.
+ * 버튼 '무료로 시작해보기'는 요금제(/premium?trial=1)로 보내 7일 무료 체험 안내를 띄운다. 바깥을 누르면 그냥 닫힌다
  */
 export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
   // 서버에서는 그리지 않는다(봤는지는 이 기기만 안다)
   const seen = useSyncExternalStore(subscribe, seenHere, () => gift.at);
   const [closed, setClosed] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
+  const router = useRouter();
   const show = seen !== gift.at && !closed;
 
   useEffect(() => {
@@ -73,8 +76,17 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
             <br />
             {gift.amount}맹고를 지갑에 넣어드렸어요~!
           </h2>
-          <button type="button" autoFocus onClick={() => ref.current?.close()} className="btn mt-6 min-h-[52px] w-full text-[17px]">
-            고마워요!
+          {/* Premium 유도(2026-11-06): 요금제로 가서 무료 체험 안내 팝업을 바로 띄운다(PremiumBuy autoTrial) */}
+          <button
+            type="button"
+            autoFocus
+            onClick={() => {
+              ref.current?.close();
+              router.push("/premium?trial=1");
+            }}
+            className="btn mt-6 min-h-[52px] w-full text-[17px]"
+          >
+            무료로 시작해보기
           </button>
         </div>
       </div>

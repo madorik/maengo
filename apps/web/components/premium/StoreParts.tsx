@@ -95,16 +95,43 @@ export function PremiumPrice({ uid, priceKrw, listPriceKrw }: { uid: string; pri
   );
 }
 
+/** 체험 안내 팝업 내용: 안내 줄과 첫 결제일 */
+function consentFor(trialDays: number, price: string): { lines: string[]; chargeLabel: string } {
+  const day = trialChargeDay(trialDays);
+  return { lines: trialNotice(trialDays, price, day.label), chargeLabel: day.label };
+}
+
 /**
  * Premium 시작(구독). 쓰고 있으면 그렇다고만(구독 관리는 설정 > 플랜).
  * 무료 체험은 처음 구독하는 회원만(firstSub, 서버가 구독 기록으로 판단): 결제 창 전에 안내 팝업(TrialConsent)을 띄우고,
  * 확인 체크박스에 체크해야 결제한다(동의 기록은 남기지 않는다, 2026-10-18 사용자 결정).
  * 전에 구독한 적 있으면 체험 없이 바로 결제(안드로이드는 체험 없는 기본 요금제로, iOS는 애플이 체험을 한 번만 준다)
  */
-export function PremiumBuy({ uid, plan, firstSub, sub }: { uid: string; plan: Plan; firstSub: boolean; sub: SubscriptionInfo | null }) {
+export function PremiumBuy({
+  uid,
+  plan,
+  firstSub,
+  sub,
+  autoTrial = false,
+}: {
+  uid: string;
+  plan: Plan;
+  firstSub: boolean;
+  sub: SubscriptionInfo | null;
+  /** 가입 선물 팝업의 '무료로 시작해보기'로 왔다(?trial=1): 스토어를 불러오면 체험 안내 팝업을 바로 띄운다(한 번만) */
+  autoTrial?: boolean;
+}) {
   const s = useStore(uid);
   const [consent, setConsent] = useState<{ lines: string[]; chargeLabel: string } | null>(null);
   const [checked, setChecked] = useState(false);
+  const [autoDone, setAutoDone] = useState(!autoTrial);
+  // 새로 고침·뒤로 가기로 다시 뜨지 않게 주소에서 ?trial을 지운다
+  useEffect(() => {
+    if (autoTrial) window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+  }, [autoTrial]);
+  // 체험을 줄 수 있을 때만(앱 안·Free·처음 구독·스토어가 체험을 줌). 아니면 요금제 화면만 보인다
+  const autoPremium = !autoDone && s.inApp && plan === "free" && firstSub ? s.store?.premium : undefined;
+  const shown = consent ?? (autoPremium?.trialDays ? consentFor(autoPremium.trialDays, autoPremium.price) : null);
   if (s.inApp === null) return <div aria-hidden="true" className="h-14" />;
   if (!s.inApp) return <AppOnlyNotice />;
   // 구독 관리는 설정 > 플랜에만 둔다(ManageSubscription)
@@ -138,16 +165,20 @@ export function PremiumBuy({ uid, plan, firstSub, sub }: { uid: string; plan: Pl
 
   const start = () => {
     if (!trialDays) return void purchase(null);
-    const day = trialChargeDay(trialDays);
     setChecked(false);
-    setConsent({ lines: trialNotice(trialDays, premium.price, day.label), chargeLabel: day.label });
+    setConsent(consentFor(trialDays, premium.price));
+  };
+
+  const closeConsent = () => {
+    setConsent(null);
+    setAutoDone(true);
   };
 
   // 확인에 체크한 뒤에만 결제 창을 띄운다
   const startTrial = async () => {
-    if (!consent || !checked) return;
-    const chargeLabel = consent.chargeLabel;
-    setConsent(null);
+    if (!shown || !checked) return;
+    const chargeLabel = shown.chargeLabel;
+    closeConsent();
     await purchase({ chargeLabel });
   };
 
@@ -171,14 +202,14 @@ export function PremiumBuy({ uid, plan, firstSub, sub }: { uid: string; plan: Pl
       <ErrorText text={s.error} />
       {trialDays && (
         <TrialConsent
-          open={consent !== null}
+          open={shown !== null}
           trialDays={trialDays}
-          lines={consent?.lines ?? []}
+          lines={shown?.lines ?? []}
           agreeText={TRIAL_AGREE_TEXT}
           checked={checked}
           onCheck={setChecked}
           onStart={startTrial}
-          onCancel={() => setConsent(null)}
+          onCancel={closeConsent}
         />
       )}
     </div>
