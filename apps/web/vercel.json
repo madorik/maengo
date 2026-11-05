@@ -4,6 +4,7 @@
   "rewrites": [
     { "source": "/api/:path*", "destination": "/maengo/api/:path*" },
     { "source": "/push-sw.js", "destination": "/maengo/push-sw.js" },
-    { "source": "/maengo/_vercel/insights/:path*", "destination": "https://maengo.vercel.app/_vercel/insights/:path*" }
+    { "source": "/maengo/_vercel/insights/:path*", "destination": "https://maengo.vercel.app/_vercel/insights/:path*" },
+    { "source": "/maengo/:id([0-9a-f]{16})/:file(script\\.js|view|event|session)", "destination": "https://maengo.vercel.app/:id/:file" }
   ]
 }
