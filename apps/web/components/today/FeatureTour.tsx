@@ -3,11 +3,10 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Mascot } from "@/components/Mascot";
 import { useProfile } from "@/components/providers/ProfileProvider";
-import { giftSeenHere } from "./SignupGift";
 
 /**
- * 처음 온 회원에게 오늘 화면의 기능을 한 단계씩 짚어 준다(2026-11-06 사용자 결정).
- * 가입 축하 팝업(SignupGift)을 닫은 뒤에(요금제로 갔다 돌아온 뒤 포함) 한 번만 뜬다. 본 것은 이 기기에만 남긴다.
+ * 처음 온 회원(가입 선물이 있는 7일)에게 오늘 화면의 기능을 한 단계씩 짚어 준다(2026-11-06 사용자 결정).
+ * 이게 먼저고, 끝나면(건너뛰어도) 가입 축하 팝업(SignupGift, '무료로 시작해보기')이 뜬다. 한 번만, 본 것은 이 기기에만 남긴다.
  * 짚을 곳은 data-tour 속성으로 찾는다: 전체 듣기(TodayList ListenAll), 첫 소식 카드, 플레이어(ListenWidget), 계정 메뉴(AccountMenu).
  * 맹고 AI는 소식 화면에만 있어서 첫 카드를 짚고 버튼 모양을 카드 안에 그려 보인다.
  * 화면에서 못 찾은 곳은 짚지 않고 안내 카드만 아래에 띄운다
@@ -89,22 +88,22 @@ type Rect = { top: number; left: number; width: number; height: number };
 const PAD = 8;
 const EDGE = 6;
 
-export function FeatureTour({ giftAt, giftClosed }: { giftAt: string | null; giftClosed: boolean }) {
+/** 이 기기에서 기능 안내를 이미 봤는지(가입 축하 팝업은 그 뒤에 뜬다). 서버에서는 아직 안 본 것으로 */
+export function useTourSeen(): boolean {
+  return useSyncExternalStore(subscribe, tourSeenHere, () => false);
+}
+
+export function FeatureTour({ onDone }: { /** 끝났을 때(건너뛰어도). 가입 축하 팝업을 이어 띄운다 */ onDone: () => void }) {
   const { audio } = useProfile();
   // 서버에서는 그리지 않는다(봤는지는 이 기기만 안다)
   const seen = useSyncExternalStore(subscribe, tourSeenHere, () => true);
-  const giftSeen = useSyncExternalStore(
-    subscribe,
-    () => (giftAt ? giftSeenHere(giftAt) : false),
-    () => false,
-  );
   const [done, setDone] = useState(false);
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const ref = useRef<HTMLDialogElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const list = useMemo(() => steps(audio), [audio]);
-  const show = giftAt !== null && (giftClosed || giftSeen) && !seen && !done;
+  const show = !seen && !done;
   const s = list[step];
   const target = s.target;
 
@@ -160,6 +159,7 @@ export function FeatureTour({ giftAt, giftClosed }: { giftAt: string | null; gif
       localStorage.setItem(TOUR_KEY, "1");
     } catch {}
     setDone(true);
+    onDone();
   };
   const last = step === list.length - 1;
   const next = () => (last ? ref.current?.close() : setStep(step + 1));
