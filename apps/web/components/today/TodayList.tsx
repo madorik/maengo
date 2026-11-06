@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { IconCheck, IconClose, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
@@ -19,7 +19,7 @@ import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
 import { MoreToday } from "./MoreToday";
 import { SignupGift } from "./SignupGift";
-import { FeatureTour, useTourSeen } from "./FeatureTour";
+import { startTour, useTourSeen } from "./FeatureTour";
 import type { FeedItem } from "@/lib/types";
 
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로. notice는 맨 위 결제 안내 띠(서버가 그린다, today/page.tsx) */
@@ -31,16 +31,18 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
   const received = Math.min(data.items.length, data.dailyLimit);
   // 하루 소식에서 아직 못 받은 수. 있으면 '남은 소식 N개 받기'(맹고 없이), 다 받았으면 목록 아래 '하나 더 받기'(1맹고)
   const remaining = data.dailyLimit - received;
-  // 처음 온 회원: 기능 안내(FeatureTour)가 먼저, 끝나면 가입 축하 팝업('무료로 시작해보기', 2026-11-06 사용자 결정)
+  // 처음 온 회원(가입 선물이 있는 7일): 기능 안내(화면을 옮겨 가며, FeatureTour)가 먼저, 끝나면 가입 축하 팝업('무료로 시작해보기', 2026-11-06 사용자 결정).
+  // 짚을 소식 카드가 있을 때만 시작한다
   const tourSeen = useTourSeen();
-  const [tourDone, setTourDone] = useState(false);
+  const newMember = !!data.signupGift;
+  useEffect(() => {
+    if (newMember && game.total > 0 && !tourSeen) startTour();
+  }, [newMember, game.total, tourSeen]);
   return (
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
         {notice}
-        {/* 짚을 소식 카드가 있을 때만. 가입 축하 팝업은 기능 안내를 본 뒤에 */}
-        {data.signupGift && game.total > 0 && <FeatureTour onDone={() => setTourDone(true)} />}
-        {data.signupGift && (tourSeen || tourDone) && <SignupGift gift={data.signupGift} />}
+        {data.signupGift && tourSeen && <SignupGift gift={data.signupGift} />}
         <section aria-labelledby="today-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

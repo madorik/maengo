@@ -22,7 +22,7 @@ const seenHere = () => {
  * (오늘 화면, 최근 7일 안에 가입한 회원. lib/server/wallet.ts recentSignupGift).
  * 금액은 실제로 들어간 값이다. 닫으면 이 기기에서는 다시 안 뜬다.
  * 버튼 '무료로 시작해보기'는 요금제(/premium?trial=1)로 보내 7일 무료 체험 안내를 띄운다. 바깥을 누르면 그냥 닫힌다.
- * 기능 안내(FeatureTour)를 본 뒤에 뜬다(TodayList)
+ * 기능 안내(FeatureTour)를 본 뒤에 오늘 화면에서 뜬다(TodayList)
  */
 export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
   // 서버에서는 그리지 않는다(봤는지는 이 기기만 안다)

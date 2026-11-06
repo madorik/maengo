@@ -64,6 +64,7 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
     <button
       ref={launcherRef}
       type="button"
+      data-tour="ask"
       onClick={toggle}
       aria-expanded={open}
       aria-haspopup={inApp ? "dialog" : undefined}
