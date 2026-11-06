@@ -54,7 +54,7 @@ export async function POST() {
         } catch {}
       };
       try {
-        // 하루 맹고만큼 새로 요약한다(Free 3, Premium은 시간 때문에 5까지. 모자란 건 오늘 화면을 열 때 채운다)
+        // 하루 맹고만큼 새로 요약한다(Free 5, Premium은 시간 때문에 5까지. 모자란 건 오늘 화면을 열 때 채운다)
         await buildTodayFeedNow(profile.id, send, { maxSummaries: Math.min(5, entitlements(profile).dailyItems) });
       } catch (e) {
         console.error("[instant] 실패", String((e as Error)?.message ?? e).slice(0, 300));

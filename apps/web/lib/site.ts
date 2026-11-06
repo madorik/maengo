@@ -86,10 +86,10 @@ export const businessCheckUrl = () => `https://www.ftc.go.kr/bizCommPop.do?wrkr_
 /** 문의·개인정보 요청 메일(문의 전용으로 새로 만든 주소). 문의하기 양식(/contact)도 이 주소로 보낸다. 비어 있으면 운영에서 약관·개인정보 처리방침 페이지를 숨긴다(404) */
 export const SUPPORT_EMAIL = "watalabs.help@gmail.com";
 /**
- * 이용약관·개인정보 처리방침 시행일. 내용을 바꾸면 날짜도 바꾸고 약관 페이지 아래 개정 이력에 한 줄 더한다.
- * 앱 안 팝업 공지는 하지 않는다(2026-10-18 사용자 결정)
+ * 이용약관·개인정보 처리방침 시행일. 2026-11-06 영업 시작에 맞춰 이 날로 하고 그 전 개정 이력은 지웠다(사용자 결정).
+ * 이 뒤로 내용을 바꾸면 날짜도 바꾸고 약관 페이지 부칙 아래에 개정 이력을 다시 단다. 앱 안 팝업 공지는 하지 않는다(2026-10-18 사용자 결정)
  */
-export const LEGAL_EFFECTIVE_ON = "2026-11-03";
+export const LEGAL_EFFECTIVE_ON = "2026-11-06";
 export const LEGAL_EFFECTIVE_DATE = (() => {
   const [y, m, d] = LEGAL_EFFECTIVE_ON.split("-").map(Number);
   return `${y}년 ${m}월 ${d}일`;

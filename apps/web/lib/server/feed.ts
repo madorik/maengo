@@ -252,7 +252,7 @@ const MORE_DAYS = 30;
 
 /**
  * 오늘 맹고 하나 더 받기. 준 적 없는 소식만, 이 순서로 찾는다(2026-10-14 사용자 결정):
- *   1. 오늘 골라 두고 안 보여 준 소식(Free는 10개를 골라 3개만 보여 준다)
+ *   1. 오늘 골라 두고 안 보여 준 소식(Free는 10개를 골라 5개만 보여 준다)
  *   2. 최근 한 달 안에 요약이 끝났지만 이 사람에게 준 적 없는 소식
  *   3. 그래도 없으면 최근 한 달 안에 모아 둔 묶음을 지금 요약해서(pipeline makeOneMore, AI를 부른다)
  * 하루 맹고(플랜의 하루 소식 수)를 다 채웠으면 지갑에서 1맹고를 쓴다(못 붙이면 돌려준다). 잔액은 AI를 부르기 전에 본다.
@@ -356,7 +356,7 @@ export async function rebuildFeed(profile: Profile) {
 
 /**
  * 하루 맹고(설정 > 플랜): 오늘 하루 맹고에서 지급한 수 / 플랜의 하루 맹고. 맹고 = 소식(2026-10-14 사용자 정책).
- * Free 3개 중 2개를 받았으면 2/3. 지갑으로 더 받은 건 세지 않는다. 오늘 피드가 아직 없으면 0/3
+ * Free 5개 중 2개를 받았으면 2/5. 지갑으로 더 받은 건 세지 않는다. 오늘 피드가 아직 없으면 0/5
  */
 export async function dailyMaengoUsage(profile: Profile): Promise<{ given: number; daily: number }> {
   const daily = entitlements(profile).dailyItems;
