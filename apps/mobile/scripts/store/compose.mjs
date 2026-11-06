@@ -1,13 +1,15 @@
-// 스토어 스크린샷·그래픽 만들기. node compose.mjs <rawDir> <outDir> <iconSvgPath>
+// 스토어 스크린샷·그래픽 만들기. node compose.mjs <rawDir> <outDir> <iconSvgPath> [--en]
+// --en: Play 맞춤 등록정보(해외 30개국)용 영어 캡션판, 안드로이드만(2026-11-06). 앱 화면은 한국어 그대로
 import { chromium } from "playwright-core";
 import { readFileSync } from "node:fs";
 
-const [rawDir, outDir, iconPath] = process.argv.slice(2);
+const [rawDir, outDir, iconPath] = process.argv.slice(2).filter((a) => a !== "--en");
+const EN = process.argv.includes("--en");
 const img = (p) => `data:image/png;base64,${readFileSync(p).toString("base64")}`;
 const icon = `data:image/svg+xml;base64,${readFileSync(iconPath).toString("base64")}`;
 
 // 핵심부터(2026-11-06 사용자: 플레이리스트와 소식마다 AI에게 묻기가 맨 앞). Play 휴대전화 스크린샷은 8장까지
-const SLIDES = [
+const SLIDES_KO = [
   { raw: "playlist", lines: ["나만의 플레이리스트로", "소식을 이어 들어요"] },
   { raw: "ask", lines: ["소식에서 궁금한 건", "맹고 AI에게 물어요"] },
   { raw: "today", lines: ["관심 분야에서", "이슈도가 높은 소식만"] },
@@ -17,6 +19,18 @@ const SLIDES = [
   { raw: "library", lines: ["지난 소식은", "보관함에서 찾아요"] },
   { raw: "article-dark", lines: ["밤에는 다크 모드로", "눈 편하게 읽어요"], dark: true },
 ];
+
+const SLIDES_EN = [
+  { raw: "playlist", lines: ["Your own playlist,", "played in a row"] },
+  { raw: "ask", lines: ["Got a question?", "Ask Maengo AI"] },
+  { raw: "today", lines: ["Only your topics,", "top stories first"] },
+  { raw: "article", lines: ["Key points first,", "plus the source"] },
+  { raw: "listen", lines: ["No time to read?", "Listen in Korean"] },
+  { raw: "links", lines: ["Follow any blog", "with just a link"] },
+  { raw: "library", lines: ["Past stories,", "all in one place"] },
+  { raw: "article-dark", lines: ["Dark mode", "for night reading"], dark: true },
+];
+const SLIDES = EN ? SLIDES_EN : SLIDES_KO;
 
 const FONT = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">`;
 
@@ -31,7 +45,7 @@ function slideHtml({ src, lines, dark }, W, H) {
     *{box-sizing:border-box;margin:0}
     html,body{width:${W}px;height:${H}px;overflow:hidden}
     body{background:${dark ? "#151722" : "#FFC23D"};font-family:"Pretendard Variable",Pretendard,sans-serif;position:relative}
-    h1{position:absolute;left:${pad}px;right:${pad}px;top:${Math.round(H * 0.075)}px;font-size:${cap}px;line-height:1.28;font-weight:900;letter-spacing:-0.045em;color:${dark ? "#FFC23D" : "#1F2340"};word-break:keep-all}
+    h1{position:absolute;left:${pad}px;right:${pad}px;top:${Math.round(H * 0.075)}px;font-size:${cap}px;line-height:1.28;font-weight:900;letter-spacing:${EN ? "-0.02em;white-space:nowrap" : "-0.045em"};color:${dark ? "#FFC23D" : "#1F2340"};word-break:keep-all}
     .phone{position:absolute;left:50%;transform:translateX(-50%);top:${Math.round(H * 0.075 + cap * 1.28 * 2 + H * 0.045)}px;width:${phoneW}px;padding:${bezel}px;border-radius:${radius}px;background:${dark ? "#2A2E40" : "#1F2340"};box-shadow:0 ${Math.round(W * 0.04)}px ${Math.round(W * 0.09)}px rgba(31,35,64,${dark ? 0.6 : 0.28})}
     .phone img{display:block;width:100%;border-radius:${radius - bezel}px}
   </style></head><body><h1>${lines.join("<br>")}</h1><div class="phone"><img src="${src}"></div></body></html>`;
@@ -47,7 +61,7 @@ function featureHtml(shot) {
     p{position:absolute;left:72px;top:330px;width:470px;font-size:30px;font-weight:700;letter-spacing:-0.03em;line-height:1.35;word-break:keep-all}
     .phone{position:absolute;right:84px;top:58px;width:300px;padding:9px;border-radius:38px;background:#1F2340;transform:rotate(4deg);box-shadow:0 22px 48px rgba(31,35,64,.3)}
     .phone img{display:block;width:100%;border-radius:30px}
-  </style></head><body><img class="icon" src="${icon}"><h1>맹고</h1><p>관심 분야 소식, 요약하고 읽어 드려요</p><div class="phone"><img src="${shot}"></div></body></html>`;
+  </style></head><body><img class="icon" src="${icon}">${EN ? "<h1>Maengo</h1><p>Korean news on your topics, summarized and read aloud</p>" : "<h1>맹고</h1><p>관심 분야 소식, 요약하고 읽어 드려요</p>"}<div class="phone"><img src="${shot}"></div></body></html>`;
 }
 
 const browser = await chromium.launch({ channel: "chrome" });
@@ -61,7 +75,7 @@ async function render(html, w, h, scale, path) {
   console.log("made", path);
 }
 
-for (const [platform, W, H] of [["ios", 430, 932], ["android", 360, 640]]) {
+for (const [platform, W, H] of EN ? [["android", 360, 640]] : [["ios", 430, 932], ["android", 360, 640]]) {
   for (const [i, s] of SLIDES.entries()) {
     await render(slideHtml({ ...s, src: img(`${rawDir}/${platform}-${s.raw}.png`) }, W, H), W, H, 3, `${outDir}/${platform}-${i + 1}-${s.raw}.png`);
   }

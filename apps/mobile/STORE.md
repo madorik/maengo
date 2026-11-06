@@ -175,3 +175,54 @@ Content: summaries of public news articles and official blogs, each linking to t
 - 2026-11-04 **Android 1.3.0(versionCode 7)**: 맹고 AI 말로 묻기 플러그인·RECORD_AUDIO 포함. 내부 테스트·비공개 테스트(alpha) 출시(출시 노트는 위 1.3.0, 맹고 AI 줄 더함). Play 등록정보는 글만 다시 올림(맹고 AI 줄, Free·Premium 질문 횟수), 이미지는 10-31 판 그대로
 - 2026-11-04 Play 계정 세부정보(한국 법)에 전자상거래 라이선스 번호 `제2026-서울서초-3688호`(통신판매업 신고번호)·대행사 `서울특별시 서초구청`을 넣음(사용자)
 - 2026-10-31 계정 세부정보(한국 법) 채운 뒤 **Play 등록정보** 커밋 완료(설명·스크린샷 6장·그래픽 이미지·아이콘). 프로덕션 트랙에 1.3.0(vc6)을 넣으면 400 FAILED_PRECONDITION: 프로덕션 액세스 권한 전(개인 계정은 비공개 테스트 조건을 채우고 신청)
+
+## Play 맞춤 등록정보: 해외 30개국(2026-11-06)
+
+참조 이름 `해외 30개국 - 한국 관심(영어)`. 대상은 프로덕션 31개국에서 대한민국을 뺀 30개국, 공개 100%, 종료일 없음. 기본 언어는 앱 기본값(ko-KR)으로 고정이라 한국어 칸엔 교민용 문구, 영어 6종(en-US·GB·AU·CA·IN·SG)엔 아래 영어 문구. 그래픽은 기본 언어 하나(영어 캡션판, `node scripts/store/compose.mjs <raw> <out> <icon> --en`, `~/Desktop/maengo-store/2026-11-06-en/`)를 모든 언어가 같이 쓴다. 앱 화면은 한국어라 영어 설명에 그 사실을 밝힌다. 가격은 나라마다 환산가라 금액을 적지 않는다.
+
+### 한국어(기본, 교민용)
+
+앱 이름: 맹고
+
+짧은 설명: 해외에서도 한국 소식과 관심 분야 소식을 AI가 한국어로 요약하고 읽어 드려요.
+
+전체 설명: 위 전체 설명에서 첫 줄을 "해외에 살아도 한국 소식과 내 관심 분야 소식을 한국어로 챙기고 싶다면, 맹고."로, "만원 지하철에서도"를 "이동 중에도"로, Premium 가격을 "월 구독"으로, 구독 관리를 "Google Play의 구독 관리"로 바꾼 것.
+
+### 영어(en-US·en-GB·en-AU·en-CA·en-IN·en-SG)
+
+App name: Maengo: Korean News Audio
+
+Short description: News on topics you pick, summarized and read aloud in natural Korean every day.
+
+Full description:
+
+```
+Maengo picks the news on topics you care about, summarizes it in Korean, and reads it aloud. It's an easy way to keep up with Korea and to hear real, everyday Korean every day.
+
+Please note: Maengo's screens, summaries, and audio are all in Korean.
+
+[Who it's for]
+• Korean learners (intermediate and up) who want daily reading and listening practice with real news
+• Fans of Korea who want to follow what's happening there
+• Koreans living abroad who want news from home in a few minutes
+
+[What you get]
+• Only your topics: AI, stocks, crypto, chips and robots, tech, plus Korean headlines in politics, economy, society, life and culture, IT and science, and world. Add detailed topics like LLMs, US stocks, Bitcoin, or security
+• Short summaries in Korean: the key points first, with a link to the original source on every story
+• Global news in Korean: stories from global media and official blogs are summarized in Korean too, so you can read about things you already know in Korean
+• No repeats: one story per event, the most talked-about first
+• Listen: hear stories read aloud by an AI voice, even with the screen off, while the sentence being read is shown on screen
+• Ask Maengo AI: curious about a story? Ask by text or voice and get answers based on that story
+• Your links: add blogs and newsletters you follow, and new posts arrive as stories (Premium)
+• Library: find past stories and play them again
+• Notifications: get a heads-up when today's stories are ready at the time you choose
+
+[Free and Premium]
+• Free: 5 stories a day, 3 listens a day, 3 questions to Maengo AI a day, 1 month of past stories
+• Premium (monthly subscription, 7-day free trial for first-time subscribers): 10 stories a day, unlimited listening with a more natural AI voice and playlists, 20 questions to Maengo AI a day, up to 20 topics including your own, 3 personal links, 6 months of past stories
+
+Premium renews automatically every month. Cancel in Google Play subscriptions at least 24 hours before renewal to avoid the next charge. If you cancel during the free trial, you won't be charged.
+
+Terms of use: https://watalabs.com/maengo/terms
+Privacy policy: https://watalabs.com/maengo/privacy
+```
