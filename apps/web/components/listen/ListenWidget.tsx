@@ -103,6 +103,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         <button
           ref={bubbleRef}
           type="button"
+          data-tour="player"
           onClick={(e) => fold(false, e)}
           aria-label={`플레이어 펼치기${playing ? ", 듣는 중" : ""}`}
           className={`pop tile pointer-events-auto flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${playing ? "border-sky" : ""}`}
@@ -131,7 +132,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   if (locked) {
     return (
       <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
-        <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
+        <div data-tour="player" className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
           <Link href="/premium" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow">
               <Mascot mood="listen" className="size-10 opacity-60" />
@@ -301,7 +302,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   );
 
   const launcher = (
-    <div className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)]">
+    <div data-tour="player" className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)]">
       <button
         ref={launcherRef}
         type="button"

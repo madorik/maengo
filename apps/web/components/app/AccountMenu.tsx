@@ -80,6 +80,7 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls="account-menu"
+        data-tour="account"
         aria-label={`계정 메뉴, ${name}${premium ? ", Premium" : ""}`}
         onClick={() => setOpen((o) => !o)}
         className={

@@ -254,20 +254,34 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
         className={`overflow-y-auto overscroll-contain ${sheet ? "max-h-[calc(85dvh-190px)]" : "min-h-0 flex-1 px-4 py-4"}`}
       >
         {empty ? (
-          <div className="flex flex-wrap gap-2" aria-busy={!chips}>
-            {chips
-              ? chips.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => ask(c)}
-                    className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-left text-[14px] font-bold hover:border-mango hover:bg-mango-tint"
-                  >
-                    {c}
-                  </button>
-                ))
-              : // 추천 질문을 받는 동안 같은 자리에 빈 칸(받으면 그대로 바뀌어 자리가 덜 흔들린다)
-                [128, 152, 112].map((w) => <span key={w} aria-hidden="true" className="h-11 rounded-full bg-snow motion-safe:animate-pulse" style={{ width: w }} />)}
+          <div>
+            {/* 추천 질문을 만드는 동안 무엇을 기다리는지 알린다(2026-11-06 사용자 결정) */}
+            {!chips && (
+              <p role="status" className="mb-3 flex items-center gap-2 text-[14px] font-bold text-sub">
+                <Mascot className="size-7 shrink-0" />
+                AI가 예상 질문을 생각하고 있어요
+                <span aria-hidden="true" className="flex gap-1">
+                  {[0, 150, 300].map((d) => (
+                    <span key={d} className="size-1.5 rounded-full bg-faint motion-safe:animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                  ))}
+                </span>
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2" aria-busy={!chips}>
+              {chips
+                ? chips.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => ask(c)}
+                      className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-left text-[14px] font-bold hover:border-mango hover:bg-mango-tint"
+                    >
+                      {c}
+                    </button>
+                  ))
+                : // 추천 질문을 받는 동안 같은 자리에 빈 칸(받으면 그대로 바뀌어 자리가 덜 흔들린다)
+                  [128, 152, 112].map((w) => <span key={w} aria-hidden="true" className="h-11 rounded-full bg-snow motion-safe:animate-pulse" style={{ width: w }} />)}
+            </div>
           </div>
         ) : (
           <ol aria-live="polite" className="flex flex-col gap-3">

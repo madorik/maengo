@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconCheck, IconClose, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
@@ -19,6 +19,7 @@ import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
 import { MoreToday } from "./MoreToday";
 import { SignupGift } from "./SignupGift";
+import { FeatureTour } from "./FeatureTour";
 import type { FeedItem } from "@/lib/types";
 
 /** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로. notice는 맨 위 결제 안내 띠(서버가 그린다, today/page.tsx) */
@@ -30,11 +31,15 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
   const received = Math.min(data.items.length, data.dailyLimit);
   // 하루 소식에서 아직 못 받은 수. 있으면 '남은 소식 N개 받기'(맹고 없이), 다 받았으면 목록 아래 '하나 더 받기'(1맹고)
   const remaining = data.dailyLimit - received;
+  // 가입 축하 팝업을 방금 닫았으면 기능 안내를 이어 띄운다(전에 닫았으면 FeatureTour가 기기 기록으로 안다)
+  const [giftClosed, setGiftClosed] = useState(false);
   return (
     <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
       <div className="min-w-0">
         {notice}
-        {data.signupGift && <SignupGift gift={data.signupGift} />}
+        {data.signupGift && <SignupGift gift={data.signupGift} onDone={() => setGiftClosed(true)} />}
+        {/* 처음 온 회원(가입 선물이 있는 7일)에게 한 번: 짚을 소식 카드가 있을 때만 */}
+        {game.total > 0 && <FeatureTour giftAt={data.signupGift?.at ?? null} giftClosed={giftClosed} />}
         <section aria-labelledby="today-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -63,8 +68,8 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
 
         {game.total > 0 ? (
           <ol className="mt-6 flex flex-col gap-4" aria-label="오늘의 소식">
-            {data.items.map((item) => (
-              <ArticleCard key={item.clusterId} item={item} arrival={arrival?.id === item.clusterId ? arrival : null} />
+            {data.items.map((item, i) => (
+              <ArticleCard key={item.clusterId} item={item} arrival={arrival?.id === item.clusterId ? arrival : null} first={i === 0} />
             ))}
           </ol>
         ) : (
@@ -97,7 +102,7 @@ function AllDone({ notifyLabel }: { notifyLabel: string }) {
   );
 }
 
-function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | null }) {
+function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival: Arrival | null; /** 기능 안내(FeatureTour)가 짚는 첫 카드 */ first?: boolean }) {
   const { consumed, listenAccess, listened } = useToday();
   const p = usePlayer();
   const done = consumed(item.clusterId);
@@ -137,7 +142,7 @@ function ArticleCard({ item, arrival }: { item: FeedItem; arrival: Arrival | nul
   };
 
   return (
-    <li ref={cardRef} className={`tile relative p-4 transition-colors hover:bg-snow sm:p-5 ${current ? "border-sky" : ""}`}>
+    <li ref={cardRef} data-tour={first ? "card" : undefined} className={`tile relative p-4 transition-colors hover:bg-snow sm:p-5 ${current ? "border-sky" : ""}`}>
       <div className="flex items-center gap-2 text-[13px] font-extrabold">
         <CategoryChip category={item.category} />
         <SourceChip item={item} />
@@ -220,7 +225,7 @@ function ListenAll() {
   const cls = "btn btn-ink mt-1 inline-flex min-h-11 shrink-0 items-center gap-1.5 px-4 text-[14px] no-underline";
   if (!audio) {
     return (
-      <Link href="/premium" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className={cls}>
+      <Link href="/premium" data-tour="listen-all" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className={cls}>
         <IconPlay className="size-4" />
         전체 듣기
         <PremiumBadge />
@@ -232,6 +237,7 @@ function ListenAll() {
   return (
     <button
       type="button"
+      data-tour="listen-all"
       onClick={() => (playingToday ? p.pause() : p.playToday())}
       aria-busy={p.starting || undefined}
       aria-label={playingToday ? "오늘 소식 듣기 일시정지" : "오늘 소식 전체 듣기"}

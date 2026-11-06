@@ -8,6 +8,15 @@ import { Confetti } from "@/components/ui/Confetti";
 /** 이 기기에서 본 가입 선물(받은 시각). 같은 선물은 한 번만 띄운다 */
 const SEEN_KEY = "maengo_signup_gift_seen";
 
+/** 이 기기에서 이 가입 선물 팝업을 이미 봤는지(기능 안내 FeatureTour가 그 뒤에 뜬다) */
+export function giftSeenHere(at: string): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) === at;
+  } catch {
+    return false;
+  }
+}
+
 const subscribe = () => () => {};
 const seenHere = () => {
   try {
@@ -23,12 +32,14 @@ const seenHere = () => {
  * 금액은 실제로 들어간 값이다. 닫으면 이 기기에서는 다시 안 뜬다.
  * 버튼 '무료로 시작해보기'는 요금제(/premium?trial=1)로 보내 7일 무료 체험 안내를 띄운다. 바깥을 누르면 그냥 닫힌다
  */
-export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
+export function SignupGift({ gift, onDone }: { gift: { amount: number; at: string }; /** 닫힌 뒤(기능 안내를 이어 띄운다) */ onDone?: () => void }) {
   // 서버에서는 그리지 않는다(봤는지는 이 기기만 안다)
   const seen = useSyncExternalStore(subscribe, seenHere, () => gift.at);
   const [closed, setClosed] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   const router = useRouter();
+  // 요금제로 떠나며 닫히면 기능 안내는 돌아온 뒤에(FeatureTour가 기기 기록으로 안다)
+  const leaving = useRef(false);
   const show = seen !== gift.at && !closed;
 
   useEffect(() => {
@@ -42,6 +53,7 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
       localStorage.setItem(SEEN_KEY, gift.at);
     } catch {}
     setClosed(true);
+    if (!leaving.current) onDone?.();
   };
 
   return (
@@ -81,6 +93,7 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
             type="button"
             autoFocus
             onClick={() => {
+              leaving.current = true;
               ref.current?.close();
               router.push("/premium?trial=1");
             }}
