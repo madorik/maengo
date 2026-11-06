@@ -27,13 +27,14 @@ import { useToday } from "./TodayProvider";
 // 음성은 재생을 누를 때 만든다(Gemini TTS, 소식당 수십 초). 페이지를 열 때는 이미 만든 음성만 미리 받는다.
 // 플레이리스트(playPlaylist)도 같은 <audio>로 튼다: 그동안은 오늘 피드 대신 고른 소식이 챕터가 되고, exitPlaylist로 오늘로 돌아온다.
 // 아직 없으면 탭하는 순간 파일 주소를 걸고 play()를 불러 두고(iOS 자동 재생 정책), 서버가 음성을 다 만들면 그대로 재생이 시작된다.
-// 오늘 전체 음성이 아직 없을 때는 기다리지 않게 첫 소식만 먼저 그 소식 하나짜리 파일로 틀고(Lead), 그동안 서버가 나머지를 만든다.
-// 첫 소식이 끝나면 같은 <audio>에 전체 파일을 걸어 다음 소식 자리부터 이어 간다. 전체 파일이 아직이면 다 될 때까지 기다린다.
+// 전체 음성(오늘·플레이리스트 묶음)이 아직 없으면 소식 하나짜리 파일로 차례로 튼다(Lead, 2026-11-06 사용자: 전체 듣기에서 한꺼번에 만들지 않게).
+// 지금 소식 파일이 열리면 바로 다음 소식 하나만 미리 만들어 두고, 지금 소식이 끝나면 같은 <audio>에 다음 소식 파일을 건다.
+// 듣지 않은 소식의 음성은 만들지 않는다. 전체 음성이 이미 있으면(모두 들어 본 소식) 예전처럼 전체 파일 하나로 튼다.
 
 type Status = "idle" | "playing" | "paused" | "done";
 
 /**
- * 첫 소식만 먼저 듣는 동안의 상태. 그 소식 하나짜리 파일을 걸어 두고, 파일 안 시각에 그 챕터 시작 시각을 더해 에피소드 시각으로 쓴다.
+ * 소식 하나짜리 파일로 듣는 동안의 상태. 그 소식 파일을 걸어 두고, 파일 안 시각에 그 챕터 시작 시각을 더해 에피소드 시각으로 쓴다.
  * chapter는 파일이 열린 뒤 받은 실제 대본 시각표(0부터). 그 전에는 어림값 챕터로 보여 준다
  */
 interface Lead {
@@ -204,10 +205,13 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   /** 플레이어에 추가했지만 음성을 만드는 중이라 아직 목록에 붙지 않은 소식 */
   const addingRef = useRef<{ clusterId: number; title: string }[]>([]);
   const [pending, setPending] = useState<{ clusterId: number; title: string }[]>([]);
-  /** 다음 묶음 음성을 미리 만들어 달라고 한 주소(묶음마다 한 번) */
-  const warmedRef = useRef<string | null>(null);
-  /** 첫 소식을 먼저 듣는 동안 나머지 음성을 만들어 달라고 한 오늘 파일 주소(주소마다 한 번) */
-  const fullWarmRef = useRef<string | null>(null);
+  /**
+   * 미리 만들어 달라고 한 소식 음성(itemQuery → 만드는 중·다 됨·건너뜀). 같은 소식을 두 번 부르지 않고, 다 된 소식은 넘어갈 때 안내 소리를 틀지 않는다.
+   * 건너뜀: 내 관심 링크 소식인데 오늘 새로 만들 몫(하루 3개)을 다 써서 만들 수 없다. 이어 들을 때 빼고 다음 소식으로 간다(예전 전체 파일과 같은 규칙)
+   */
+  const warmedItemsRef = useRef(new Map<string, "pending" | "done" | "skip">());
+  /** 건너뛸 소식이 생기면 늘려서 그다음 소식을 미리 만들게 한다 */
+  const [warmTick, setWarmTick] = useState(0);
   /** 이번에 '들음'으로 기록한 소식(같은 소식을 여러 번 보내지 않게) */
   const heardRef = useRef(new Set<number>());
   /** 마지막으로 저장한 듣던 자리 */
@@ -324,57 +328,53 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   );
 
   /**
-   * 첫 소식을 먼저 듣는 동안 오늘 전체 파일을 만들어 달라고 한다(파일은 받지 않는다. 서버는 다 만들면 저장소 주소로 넘기기만 한다).
-   * 다 되면 실제 길이의 챕터 표로 바꿔 둔다. 첫 소식이 끝날 때 이 파일로 바로 이어진다
+   * 이 소식 음성을 미리 만들어 달라고 한다(파일은 받지 않는다. 서버는 다 만들면 저장소 주소로 넘기기만 한다).
+   * 지금 소식을 듣는 동안 다음 소식 하나만 부른다(한꺼번에 만들지 않는다)
    */
-  const warmFull = useCallback(
-    (ep: EpisodeData) => {
-      if (ep.ready || fullWarmRef.current === ep.audioUrl) return;
-      fullWarmRef.current = ep.audioUrl;
-      const seq = loadSeq.current;
-      const ids = ep.chapters.map((c) => c.clusterId);
-      fetch(ep.audioUrl, { redirect: "manual", cache: "no-store" })
-        .then((res) => {
+  const warmItem = useCallback(
+    (clusterId: number) => {
+      const query = itemQuery(clusterId, persona, voice);
+      if (warmedItemsRef.current.has(query)) return;
+      warmedItemsRef.current.set(query, "pending");
+      fetch(itemAudioUrl(query), { redirect: "manual", cache: "no-store" })
+        .then(async (res) => {
+          if (res.status === 429 && (await res.json().catch(() => null))?.error === "link_voice_limit") {
+            warmedItemsRef.current.set(query, "skip");
+            setWarmTick((t) => t + 1);
+            return;
+          }
           if (res.type !== "opaqueredirect" && !res.ok) throw new Error(String(res.status));
-          return fetchEpisode(ep.persona, ep.voice, ids);
+          warmedItemsRef.current.set(query, "done");
         })
-        .then((full) => {
-          // 그사이 목록·목소리를 바꿨으면 버린다
-          if (seq !== loadSeq.current || !full.ready || full.audioUrl !== ep.audioUrl) return;
-          setEpisode(full);
-        })
-        .catch(() => {
-          // 첫 소식이 끝날 때 전체 파일을 걸어 기다린다(그때 서버가 다시 만든다)
-          if (fullWarmRef.current === ep.audioUrl) fullWarmRef.current = null;
-        });
+        // 넘어갈 때 그 파일을 걸면 서버가 다시 만든다
+        .catch(() => warmedItemsRef.current.delete(query));
     },
-    [fetchEpisode],
+    [persona, voice],
   );
 
   /**
-   * 오늘 전체 음성이 아직 없을 때: 이 소식 하나짜리 파일을 걸어 먼저 듣는다(그 소식 음성만 만들면 바로 나온다).
-   * 탭 안에서 불러야 한다(iOS). warm이면 그동안 서버가 나머지 소식도 만들게 한다(같은 음성은 서버가 한 번만 만든다)
+   * 이 소식 하나짜리 파일을 걸어 듣는다(그 소식 음성만 만들면 바로 나온다). 탭 안이나 앞 소식이 끝난 순간(ended)에 불러야 한다(iOS).
+   * startMs: 에피소드 안에서 이 소식이 시작하는 시각(위치 표시용)
    */
   const startLead = useCallback(
-    (ep: EpisodeData, index: number, offsetMs: number, warm: boolean) => {
+    (index: number, clusterId: number, startMs: number, offsetMs: number) => {
       const audio = audioRef.current;
-      const ch = ep.chapters[index];
-      if (!audio || !ch) return;
-      const query = itemQuery(ch.clusterId, ep.persona, ep.voice);
+      if (!audio) return;
+      const query = itemQuery(clusterId, persona, voice);
       fileRef.current++;
       pendingRef.current = null;
       refreshRef.current = null;
-      setLead({ index, clusterId: ch.clusterId, query, offsetMs, chapter: null });
+      setLead({ index, clusterId, query, offsetMs, chapter: null });
       setPreparing(true);
-      setPosMs(ch.startMs + offsetMs);
+      setPosMs(startMs + offsetMs);
       audio.muted = false;
       audio.src = itemAudioUrl(query);
       audio.load();
       audio.play().catch(() => {});
-      startWait();
-      if (warm) warmFull(ep);
+      // 미리 만들어 둔 소식이면 바로 열리니 기다림 안내를 틀지 않는다(화면을 끈 채 넘어갈 때 다른 소리를 걸지 않게)
+      if (warmedItemsRef.current.get(query) !== "done") startWait();
     },
-    [setLead, startWait, warmFull],
+    [persona, voice, setLead, startWait],
   );
 
   const load = useCallback(
@@ -414,8 +414,11 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           setCur(-1);
           setPosMs(0);
         } else setCur(index);
-        // 듣던 중이고 오늘 전체 음성이 아직 없으면 그 소식부터 먼저 듣는다
-        if (keep.resume && index >= 0 && !ep.ready && !playlistRef.current) return startLead(ep, index, offsetMs, true);
+        // 듣던 중이고 전체 음성이 아직 없으면 그 소식부터 하나씩 듣는다
+        if (keep.resume && index >= 0 && !ep.ready) {
+          const ch = ep.chapters[index]!;
+          return startLead(index, ch.clusterId, ch.startMs, offsetMs);
+        }
         if (ep.ready || keep.resume) {
           openFile(ep, index, keep.resume, offsetMs);
         } else {
@@ -527,17 +530,12 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   };
 
   /**
-   * 플레이리스트 묶음의 마지막 소식에 들어서면 다음 묶음 음성을 미리 만들어 둔다. 화면을 끈 채 묶음이 바뀔 때
-   * 서버가 음성을 만드는 동안 소리가 끊기면 iOS가 앱을 재울 수 있어서, 넘어가는 순간엔 파일이 바로 오게 한다.
-   * 파일은 받지 않는다(서버는 다 만들면 저장소 주소로 넘기기만 한다)
+   * 플레이리스트 묶음을 전체 파일로 듣다가 마지막 소식에 들어서면 다음 묶음의 첫 소식 음성만 미리 만들어 둔다.
+   * 화면을 끈 채 묶음이 바뀔 때 서버가 음성을 만드는 동안 소리가 끊기면 iOS가 앱을 재울 수 있어서, 넘어가는 순간엔 파일이 바로 오게 한다
    */
   const warmNextBatch = () => {
-    const next = queueRef.current.slice(0, PLAYLIST_MAX);
-    if (!playlistRef.current || !next.length) return;
-    const url = playlistAudioUrl(next, voice);
-    if (warmedRef.current === url) return;
-    warmedRef.current = url;
-    fetch(url, { redirect: "manual", cache: "no-store" }).catch(() => {});
+    const first = queueRef.current[0];
+    if (playlistRef.current && first !== undefined) warmItem(first);
   };
 
   /** 먼저 듣는 첫 소식 파일 안에서 옮긴다. 파일이 아직 안 열렸으면 열릴 때(onLoadedMetadata) 옮겨 갈 자리로 남긴다 */
@@ -566,8 +564,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       if (audio.paused) startPlayback();
       return;
     }
-    // 오늘 전체 음성이 아직 없으면 이 소식 하나만 먼저 만들어 바로 듣는다(이 소식 하나만 들을 때는 나머지를 만들지 않는다)
-    if (!episode.ready && !playlistRef.current && !fileOpen()) return startLead(episode, index, offsetMs, !once);
+    // 전체 음성이 아직 없으면 이 소식 하나짜리 파일로 듣는다(다음 소식은 이 소식을 듣는 동안 하나만 미리 만든다)
+    if (!episode.ready && !fileOpen()) return startLead(index, ch.clusterId, ch.startMs, offsetMs);
     if (needsFile()) return openFile(episode, index, true, offsetMs);
     if (preparing || audio.readyState < 1) {
       // 음성을 만드는 중이면 다 받은 뒤 이 항목으로 간다
@@ -816,10 +814,10 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     if (!continued) setStatus("idle");
     setCur(0);
     setPosMs(0);
-    // 주소는 고른 소식·목소리로 정해진다. 탭 안에서 걸고 play()를 불러 둔다(음성이 없으면 서버가 만든 뒤 시작된다).
-    // 파일을 다 받으면 실제 길이로 챕터 표를 다시 받는다(onLoadedMetadata)
-    openFile({ audioUrl: playlistAudioUrl(list, voice), ready: false, persona, voice }, 0, true);
-    // 음성을 만드는 동안에도 제목·목록이 보이게 어림값 챕터 표를 먼저 받아 둔다
+    // 첫 소식 하나짜리 파일을 탭 안에서 걸고 play()를 불러 둔다(iOS). 묶음 전체를 한꺼번에 만들지 않고,
+    // 이 소식을 듣는 동안 다음 소식 하나만 미리 만든다(2026-11-06). 묶음 음성이 이미 다 있으면 첫 소식이 끝날 때 전체 파일로 넘어간다
+    startLead(0, list[0]!, 0, 0);
+    // 제목·목록이 보이게 어림값 챕터 표를 받아 둔다
     fetchEpisode(persona, voice)
       .then((ep) => {
         if (seq === loadSeq.current) setEpisode((now) => now ?? ep);
@@ -898,6 +896,25 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     fetchEpisode(persona, voice, list ? undefined : ids)
       .then((ep) => {
         if (seq !== loadSeq.current) return;
+        const l = leadRef.current;
+        if (l) {
+          // 소식 하나씩 듣는 중: 지금 소식 파일은 그대로 두고 목록만 바꾼다. 듣던 소식을 뺐으면 그 자리에 온 소식으로
+          const curId = chapters[cur]?.clusterId;
+          const find = (id: number | undefined) => (id === undefined ? -1 : ep.chapters.findIndex((c) => c.clusterId === id));
+          const leadAt = find(l.clusterId);
+          const curAt = find(curId);
+          const index = curAt >= 0 ? curAt : Math.min(Math.max(cur, 0), ep.chapters.length - 1);
+          setEpisode(ep);
+          setCur(index);
+          if (leadAt >= 0) return setLead({ ...l, index: leadAt });
+          const ch = ep.chapters[index]!;
+          if (!audio.paused) return startLead(index, ch.clusterId, ch.startMs, 0);
+          setLead(null);
+          audio.removeAttribute("src");
+          audio.load();
+          setPosMs(ch.startMs);
+          return;
+        }
         // 받는 동안에도 듣던 소리는 이어지므로 듣던 소식·자리·재생 여부는 지금 값으로 본다(그사이 다음 소식으로 넘어갔거나 멈췄을 수 있다).
         // 파일은 아직 예전 것이라 예전 챕터 표로 본다. 옮길 자리가 걸려 있으면 그 자리, 파일을 떼어 냈으면(취소·오류 뒤) 화면의 자리로
         const pending = pendingRef.current;
@@ -914,7 +931,11 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         if (index < 0) return setCur(-1);
         setCur(index);
         const ch = ep.chapters[index]!;
-        openFile(ep, index, resume, kept >= 0 ? Math.min(offsetMs, Math.max(0, ch.endMs - ch.startMs - 500)) : 0);
+        const from = kept >= 0 ? Math.min(offsetMs, Math.max(0, ch.endMs - ch.startMs - 500)) : 0;
+        if (ep.ready) return openFile(ep, index, resume, from);
+        // 새 목록의 음성이 다 있지 않으면 전체 파일을 만들지 않고 하나씩 듣는다(멈춰 있었으면 재생을 누를 때)
+        if (resume) return startLead(index, ch.clusterId, ch.startMs, from);
+        setPosMs(ch.startMs + from);
       })
       .catch(() => {
         if (seq === loadSeq.current) setError(LOAD_ERROR);
@@ -926,10 +947,10 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     swapRef.current = swap;
   });
 
-  /** 음성 조각이 다 있고 만드는 중이 아닐 때만 목록을 바로 바꿀 수 있다 */
-  const canEdit = !!playlist && !!episode?.ready && !preparing;
-  // 오늘 목록은 듣기 전이면 언제든(다시 받기만 하면 된다), 듣는 중이면 음성 조각이 다 있을 때만(이어 붙이기만 하면 된다)
-  const canRemove = playlist ? canEdit : !!episode && (idle || (!!episode.ready && !preparing && !lead));
+  /** 음성을 만드는 중이 아니면 목록을 바로 바꿀 수 있다: 전체 파일로 듣는 중이면 이어 붙이기만, 소식 하나씩 듣는 중이면 목록만 바꾼다 */
+  const canEdit = !!playlist && !!episode && !preparing && (!!episode.ready || !!lead);
+  // 오늘 목록은 듣기 전이면 언제든(다시 받기만 하면 된다), 듣는 중이면 위와 같다
+  const canRemove = playlist ? canEdit : !!episode && (idle || (!preparing && (!!episode.ready || !!lead)));
 
   /**
    * 오늘 목록에서 뺀 소식을 바꾼다. 듣기 전이면 저장만 하고(목록이 바뀌어 다시 받는다), 듣는 중이면 바로 갈아 끼운다.
@@ -1036,6 +1057,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     const have = new Set([...list, ...addingRef.current.map((x) => x.clusterId)]);
     const fresh = items.filter((i) => !have.has(i.clusterId)).slice(0, Math.max(0, PLAYLIST_MAX - have.size));
     if (!fresh.length) return;
+    // 소식 하나씩 듣는 중이면 음성을 기다리지 않고 바로 목록 끝에 붙인다(들을 차례가 오면 만든다)
+    if (leadRef.current) return swapRef.current([...list, ...fresh.map((f) => f.clusterId)]);
     addingRef.current = [...addingRef.current, ...fresh];
     setPending(addingRef.current);
     // 지금 듣는 파일은 그대로 두고 새 소식 음성을 미리 만든다(서버는 다 만들면 저장소 주소로 넘기기만 한다). 다 되면 목록 끝에 붙여 갈아 끼운다
@@ -1065,13 +1088,27 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     void savePlayerPrefs({ rate: r });
   };
 
-  /** 먼저 듣던 첫 소식이 끝났을 때: 다음 소식부터는 오늘 전체 파일로 이어 간다 */
+  /** from부터 이어 들을 다음 소식(읽은 소식 건너뛰기 + 오늘 몫을 넘어 음성을 못 만드는 링크 소식 빼기) */
+  const nextChained = (from: number): number | null => {
+    const skipped = (i: number) => warmedItemsRef.current.get(itemQuery(chapters[i]!.clusterId, persona, voice)) === "skip";
+    let n = nextPlayable(chapters, from, readSet, skip);
+    while (n !== null && skipped(n)) n = nextPlayable(chapters, n + 1, readSet, skip);
+    return n;
+  };
+
+  /**
+   * 소식 하나짜리 파일이 끝났을 때: 다음 소식 파일을 건다(듣는 동안 미리 만들어 두어 바로 열린다).
+   * 전체 음성이 이미 있으면 전체 파일로 이어 간다. 플레이리스트 묶음이 끝났으면 다음 묶음으로
+   */
   const leadEnded = (l: Lead) => {
     setLead(null);
     const once = onceRef.current !== null;
     onceRef.current = null;
-    const n = nextPlayable(chapters, l.index + 1, readSet, skip);
-    if (n === null || !episode) return finish(true);
+    const n = nextChained(l.index + 1);
+    if (n === null || !episode) {
+      if (!once && autoNext && continueQueue()) return;
+      return finish(true);
+    }
     const ch = chapters[n]!;
     if (once || !autoNext) {
       // 이 소식 하나만 들었거나 자동 재생이 꺼져 있으면 다음 소식 시작점에서 멈춘다(재생을 누르면 그때 파일을 건다)
@@ -1082,9 +1119,20 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     }
     enter(n);
     setPosMs(ch.startMs);
-    // 전체 파일이 다 됐으면 바로 이어지고, 아직이면 다 만들어질 때까지 기다렸다가 시작된다(서버는 같은 음성을 두 번 만들지 않는다)
-    openFile(episode, n, true);
+    if (episode.ready) return openFile(episode, n, true);
+    startLead(n, ch.clusterId, ch.startMs, 0);
   };
+
+  // 소식 하나씩 듣는 동안 바로 다음 소식 하나만 미리 만든다(지금 소식 파일이 열린 뒤에, 한꺼번에 만들지 않게).
+  // 이 소식 하나만 듣거나 자동 재생이 꺼져 있으면 만들지 않는다. 플레이리스트 묶음의 마지막이면 다음 묶음의 첫 소식
+  useEffect(() => {
+    if (!lead || preparing || onceRef.current !== null || !autoNext) return;
+    const n = nextChained(lead.index + 1);
+    const id = n !== null ? chapters[n]?.clusterId : playlistRef.current ? queueRef.current[0] : undefined;
+    if (id !== undefined) warmItem(id);
+    // nextChained는 매 렌더 새로 만든다. 건너뛸 소식이 생기면 warmTick으로 다시 돈다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead, preparing, chapters, readSet, skip, autoNext, warmItem, warmTick]);
 
   const onTimeUpdate = (e: React.SyntheticEvent<HTMLAudioElement>) => {
     const audio = e.currentTarget;
@@ -1349,6 +1397,12 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           const audio = e.currentTarget;
           if (!audio.getAttribute("src")) return;
           stopWait();
+          // 이어 듣다 걸린 소식이 몫을 넘은 링크 소식이면(미리 만들 때 알았다) 멈추지 않고 다음 소식으로
+          const failed = leadRef.current;
+          if (failed && warmedItemsRef.current.get(failed.query) === "skip" && onceRef.current === null && autoNext) {
+            setPreparing(false);
+            return leadEnded(failed);
+          }
           if (preparing) void ttsErrorMessage().then(setError);
           else setError(FILE_ERROR);
           setPreparing(false);
