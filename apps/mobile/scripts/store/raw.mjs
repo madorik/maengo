@@ -1,5 +1,6 @@
 // 맹고 화면 원본 캡처(데모 계정, 앱 UA, 운영 빌드). node raw.mjs <outDir> <width> <height> <scale> <ios|android>
-// 데모 계정이 Premium이어야 한다(하루 소식 10개·내 관심 링크 칸). 듣기는 누르지 않는다(음성을 새로 만들면 TTS 비용)
+// 데모 계정이 Premium이어야 한다(하루 소식 10개·내 관심 링크 칸·플레이리스트). 듣기는 누르지 않는다(음성을 새로 만들면 TTS 비용).
+// 맹고 AI 화면은 추천 질문 하나를 실제로 묻는다(플랫폼마다 Gemini 1번)
 import { chromium } from "playwright-core";
 
 const [outDir, w, h, scale, platform] = process.argv.slice(2);
@@ -64,6 +65,20 @@ async function links(page) {
   await page.waitForTimeout(500);
 }
 
+/**
+ * 맹고 AI 창을 열고 첫 추천 질문을 눌러 답이 다 써질 때까지 기다린다(Gemini를 한 번 부른다, 플랫폼마다 1번)
+ */
+async function ask(page) {
+  await page.getByRole("button", { name: "맹고 AI에게 물어보기" }).click();
+  const sheet = page.getByRole("dialog").last();
+  const chip = sheet.locator("button.rounded-full").first();
+  await chip.waitFor({ timeout: 20000 });
+  await chip.click();
+  await sheet.locator("ol > li").nth(1).waitFor({ timeout: 30000 });
+  await page.getByRole("status", { name: "답을 쓰는 중" }).waitFor({ state: "detached", timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+}
+
 const light = await session(false);
 await shoot(light, "/today", "today");
 const href = (await light.locator('a[href*="/article/"]').first().getAttribute("href")).replace(/^\/maengo/, "");
@@ -71,6 +86,9 @@ await shoot(light, href, "article");
 await shoot(light, "/listen", "listen");
 await shoot(light, "/settings", "links", links);
 await shoot(light, "/library", "library");
+// 핵심 두 가지(2026-11-06): 플레이리스트(담아 둔 소식을 이어 듣기), 소식마다 맹고 AI에게 묻기
+await shoot(light, "/playlist", "playlist");
+await shoot(light, href, "ask", ask);
 
 const dark = await session(true);
 await shoot(dark, href, "article-dark");

@@ -6,7 +6,10 @@ const [rawDir, outDir, iconPath] = process.argv.slice(2);
 const img = (p) => `data:image/png;base64,${readFileSync(p).toString("base64")}`;
 const icon = `data:image/svg+xml;base64,${readFileSync(iconPath).toString("base64")}`;
 
+// 핵심부터(2026-11-06 사용자: 플레이리스트와 소식마다 AI에게 묻기가 맨 앞). Play 휴대전화 스크린샷은 8장까지
 const SLIDES = [
+  { raw: "playlist", lines: ["나만의 플레이리스트로", "소식을 이어 들어요"] },
+  { raw: "ask", lines: ["소식에서 궁금한 건", "맹고 AI에게 물어요"] },
   { raw: "today", lines: ["관심 분야에서", "이슈도가 높은 소식만"] },
   { raw: "article", lines: ["핵심만 짧게 요약하고", "원문은 바로 확인해요"] },
   { raw: "listen", lines: ["읽기 힘들 땐", "귀로 들어요"] },
