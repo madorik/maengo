@@ -19,6 +19,7 @@ import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
 import { MoreToday } from "./MoreToday";
 import { SignupGift } from "./SignupGift";
+import { VoiceMaking } from "./VoiceMaking";
 import { startTour, useTourSeen } from "./FeatureTour";
 import type { FeedItem } from "@/lib/types";
 
@@ -151,11 +152,10 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
         <SourceChip item={item} />
         {item.coverage && item.kind === "article" && <span className="hidden truncate font-bold text-sub sm:inline">{item.coverage}</span>}
         <span className="ml-auto shrink-0">
+          {/* 음성을 만드는 동안은 머리 대신 카드 안 진행 카드(VoiceMaking)로 알린다 */}
           {!viaPlayer && single.ctl.error ? (
             <span className="text-cherry">{ttsErrorLabel(single.ctl.error)}</span>
-          ) : preparing ? (
-            <span className="text-sky">음성 만드는 중</span>
-          ) : playing ? (
+          ) : preparing ? null : playing ? (
             <span className="text-sky">듣는 중</span>
           ) : done ? (
             <span className="inline-flex items-center gap-1 text-leaf">
@@ -206,6 +206,7 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
           </button>
         )}
       </div>
+      {preparing && <VoiceMaking />}
     </li>
   );
 }
