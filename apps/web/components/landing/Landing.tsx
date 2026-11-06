@@ -12,7 +12,23 @@ import { CategoryChip } from "@/components/ui/CategoryChip";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { ASK_DAILY } from "@/lib/ask";
 import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
-import { SITE_DEFINITION, SITE_DESCRIPTION, SITE_NAME, SITE_NAME_EN, SUPPORT_EMAIL, appUrl, organizationId, organizationJsonLd } from "@/lib/site";
+import {
+  APP_OPERATING_SYSTEMS,
+  APP_STORE_URL,
+  COMPANY_NAME,
+  COMPANY_NAME_EN,
+  PLAY_STORE_URL,
+  SITE_ALT_NAMES,
+  SITE_DEFINITION,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_NAME_EN,
+  STORE_URLS,
+  SUPPORT_EMAIL,
+  appUrl,
+  organizationId,
+  organizationJsonLd,
+} from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AuthLink } from "./AuthLink";
 import { PromoVideo } from "./PromoVideo";
@@ -48,7 +64,13 @@ function planItems(l: PlanLimits, askDaily: number): string[] {
  * 분야 이름은 토픽 사전(PUBLIC_TOPICS·NEWS_SECTION_NAMES)에서 읽는다
  */
 const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
-  ["맹고는 어떤 앱인가요?", `${SITE_DEFINITION} AI, 주식, 코인처럼 관심 있는 분야를 고르면 매일 아침 그 분야 소식만 골라 출처와 함께 요약해요. 웹에서 바로 쓰고, Android·iPhone 앱은 지금 테스트 중이에요.`],
+  // 영문 이름·만든 회사를 같이 적어 '망고'·비슷한 이름의 다른 서비스와 헷갈리지 않게 한다(2026-11-06)
+  [
+    "맹고는 어떤 앱인가요?",
+    `${SITE_DEFINITION} 영문 이름은 ${SITE_NAME_EN}이고, ${COMPANY_NAME}(${COMPANY_NAME_EN})가 만들어요. AI, 주식, 코인처럼 관심 있는 분야를 고르면 매일 아침 그 분야 소식만 골라 출처와 함께 요약해요. 웹에서 바로 쓰고, ${
+      PLAY_STORE_URL ? "Android·iPhone 앱은 Google Play·App Store에서 받아요." : "iPhone 앱은 App Store에서 받아요. Android 앱은 곧 Google Play에 나와요."
+    }`,
+  ],
   [
     "고를 수 있는 관심 분야는 뭐예요?",
     `관심 분야 ${PUBLIC_TOPICS.length}개(${PUBLIC_TOPICS.map((t) => t.name).join(", ")})와 뉴스 분야 ${NEWS_SECTION_NAMES.length}개(${NEWS_SECTION_NAMES.join(", ")})에서 골라요. AI 안의 바이브코딩, 주식 안의 미국 주식처럼 세부 관심사를 고르면 더 좁혀 받고, 목록에 없는 관심사는 Premium에서 직접 적을 수 있어요.`,
@@ -147,6 +169,11 @@ export async function Landing() {
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
               <AuthLink signedOut={{ href: "/login", label: "이미 계정이 있어요" }} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
+            {/* 스토어 링크(앱은 이 페이지 대신 로그인·오늘로 가므로 앱 안에는 안 보인다, proxy.ts). Play는 심사 통과 뒤 PLAY_STORE_URL을 채우면 나온다 */}
+            <p className="mt-5 flex flex-wrap gap-x-5 gap-y-1">
+              <StoreLink href={APP_STORE_URL} label="App Store에서 iPhone 앱 받기" />
+              {PLAY_STORE_URL && <StoreLink href={PLAY_STORE_URL} label="Google Play에서 Android 앱 받기" />}
+            </p>
           </div>
 
           <div className="mx-auto w-full max-w-[420px] md:order-1">
@@ -511,6 +538,15 @@ function Plan({
   );
 }
 
+function StoreLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-1 text-[15px] font-extrabold text-sky-dark no-underline hover:underline">
+      {label}
+      <IconExternal className="size-3.5" />
+    </a>
+  );
+}
+
 /** 검색엔진용 구조화 데이터: 운영사, 사이트, 서비스(웹앱과 월 요금), 자주 묻는 질문. 서로 @id로 잇는다 */
 function LandingJsonLd({ faq, premiumKrw }: { faq: [string, string][]; premiumKrw: number }) {
   const url = appUrl("/");
@@ -524,13 +560,16 @@ function LandingJsonLd({ faq, premiumKrw }: { faq: [string, string][]; premiumKr
           organizationJsonLd(),
           { "@type": "WebSite", "@id": `${url}#website`, name: SITE_NAME, alternateName: SITE_NAME_EN, url, inLanguage: "ko-KR", description: SITE_DESCRIPTION, publisher },
           {
-            "@type": "WebApplication",
+            // 웹·iOS(·Android) 앱 하나. 스토어 주소를 sameAs로 이어 같은 앱임을 알린다(2026-11-06 iOS 출시)
+            "@type": "SoftwareApplication",
             "@id": `${url}#app`,
             name: SITE_NAME,
-            alternateName: SITE_NAME_EN,
+            alternateName: SITE_ALT_NAMES,
             url,
+            sameAs: STORE_URLS,
+            installUrl: PLAY_STORE_URL ?? APP_STORE_URL,
             applicationCategory: "NewsApplication",
-            operatingSystem: "Web",
+            operatingSystem: APP_OPERATING_SYSTEMS,
             inLanguage: "ko-KR",
             description: SITE_DESCRIPTION,
             publisher,

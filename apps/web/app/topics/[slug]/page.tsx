@@ -5,8 +5,9 @@ import { IconDoc, IconExternal, IconPlay } from "@/components/icons";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { detailsLine, PUBLIC_TOPICS, publicTopicBySlug, topicsPath, type PublicTopic } from "@/lib/public-topics";
+import { getPlans } from "@/lib/server/plans";
 import { publicTopicDigest, type PublicTopicItem } from "@/lib/server/public-topics";
-import { SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
+import { APP_STORE_ID, SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
 
 // 공개 분야 페이지. 지난 7일 이 분야 소식(제목·한 줄 요약·원문 링크)과 출처를 보여 준다.
 // 수집은 하루 한 번(06시)이지만 요약은 그 뒤로도 이어지므로 한 시간마다 새로 그린다.
@@ -32,9 +33,37 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: title(topic),
     description: description(topic),
     alternates: { canonical: url },
+    itunes: { appId: APP_STORE_ID },
     openGraph: { type: "website", locale: "ko_KR", siteName: SITE_NAME, title: `${title(topic)} | ${SITE_NAME}`, description: description(topic), url, images: ogImages() },
     twitter: { card: "summary_large_image", title: `${title(topic)} | ${SITE_NAME}`, description: description(topic), images: ogImages() },
   };
+}
+
+/**
+ * 분야마다 묻고 답하기(2026-11-06, AI 답변·검색이 그대로 옮겨 가기 좋게 첫 문장에 결론). 출처·세부 관심사·플랜 값이 분야마다 달라
+ * 같은 문장을 다섯 페이지에 찍어 내지 않는다. 화면과 구조화 데이터(FAQPage)가 같은 글을 쓴다
+ */
+function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number; dailyListens: number }, plusItems: number): [string, string][] {
+  return [
+    [
+      `맹고의 ${t.name} 분야는 어떤 소식을 다뤄요?`,
+      t.details.length
+        ? `${detailsLine(t)} 소식을 다뤄요. ${t.name} 분야 전체를 고르거나, 이 중 원하는 세부 관심사만 골라 받을 수 있어요.`
+        : `${t.name} 분야의 새 소식을 다뤄요.`,
+    ],
+    [
+      `${t.name} 소식은 어디서 모아요?`,
+      `${sources.length ? `${sources.slice(0, 6).join(", ")} 같은 ` : ""}국내외 매체와 공식 블로그에서 모아요. 영어로 나온 소식도 한국어로 요약하고, 모든 소식에 원문 링크가 있어 바로 확인할 수 있어요.`,
+    ],
+    [
+      `${t.name} 소식은 언제, 몇 개 받아요?`,
+      `매일 아침 6시에 새 글을 모아 내가 정한 시각에 그날 소식을 보내 드려요. 하루 소식은 Free ${free.dailyItems}개, Premium ${plusItems}개이고, 여러 곳에서 다룬 같은 소식은 하나로 묶어 이슈도가 높은 소식부터 골라요.`,
+    ],
+    [
+      `${t.name} 소식을 음성으로 들을 수 있나요?`,
+      `네. Premium이면 ${t.name} 소식을 플레이리스트에 담아 끝까지 이어서 들을 수 있어요.${free.dailyListens > 0 ? ` Free도 하루 ${free.dailyListens}개는 '이 글 듣기'로 들어요.` : ""}`,
+    ],
+  ];
 }
 
 const dayLabel = (iso: string) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" }).format(new Date(iso));
@@ -42,12 +71,13 @@ const dayLabel = (iso: string) => new Intl.DateTimeFormat("ko-KR", { timeZone: "
 export default async function TopicPage({ params }: Props) {
   const topic = publicTopicBySlug((await params).slug);
   if (!topic) notFound();
-  const { items, sources, updatedAt } = await publicTopicDigest(topic);
+  const [{ items, sources, updatedAt }, plans] = await Promise.all([publicTopicDigest(topic), getPlans()]);
   const others = PUBLIC_TOPICS.filter((t) => t.slug !== topic.slug);
+  const faq = topicFaq(topic, sources, plans.get("free")!, plans.get("plus")!.dailyItems);
 
   return (
     <PublicPage>
-      <TopicJsonLd topic={topic} items={items} />
+      <TopicJsonLd topic={topic} items={items} faq={faq} />
       <div className="mx-auto max-w-[760px] px-5 pt-6">
         <nav aria-label="현재 위치" className="text-[13px] font-bold text-sub">
           <ol className="flex flex-wrap items-center gap-1.5">
@@ -119,6 +149,25 @@ export default async function TopicPage({ params }: Props) {
           </section>
         )}
 
+        <section aria-labelledby="faq-title" className="mt-14">
+          <h2 id="faq-title" className="text-[24px] font-black tracking-[-0.03em] md:text-[28px]">
+            {topic.name} 소식, 자주 묻는 질문
+          </h2>
+          <div className="mt-5 flex flex-col gap-3">
+            {faq.map(([q, a]) => (
+              <details key={q} className="tile group p-5 [&_summary::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[17px] font-black">
+                  {q}
+                  <span aria-hidden="true" className="text-[22px] font-black text-sky transition-transform group-open:rotate-45">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-[15px] font-medium leading-relaxed text-sub">{a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
         <nav aria-labelledby="others-title" className="mt-14">
           <h2 id="others-title" className="text-[20px] font-black tracking-[-0.03em]">
             다른 관심 분야
@@ -167,8 +216,8 @@ function TopicItem({ item: it }: { item: PublicTopicItem }) {
   );
 }
 
-/** 검색엔진용: 이 페이지(모음), 위치(맹고 > 관심 분야 > 분야), 소식 목록(원문 주소) */
-function TopicJsonLd({ topic, items }: { topic: PublicTopic; items: PublicTopicItem[] }) {
+/** 검색엔진용: 이 페이지(모음), 위치(맹고 > 관심 분야 > 분야), 소식 목록(원문 주소), 자주 묻는 질문 */
+function TopicJsonLd({ topic, items, faq }: { topic: PublicTopic; items: PublicTopicItem[]; faq: [string, string][] }) {
   const url = appUrl(topicsPath(topic.slug));
   return (
     <JsonLd
@@ -198,6 +247,12 @@ function TopicJsonLd({ topic, items }: { topic: PublicTopic; items: PublicTopicI
             { "@type": "ListItem", position: 2, name: "관심 분야", item: appUrl(topicsPath()) },
             { "@type": "ListItem", position: 3, name: topic.name, item: url },
           ],
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "@id": `${url}#faq`,
+          mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
         },
       ]}
     />

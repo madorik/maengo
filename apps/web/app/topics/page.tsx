@@ -3,7 +3,7 @@ import Link from "next/link";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
-import { SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
+import { APP_STORE_ID, SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
 
 // 관심 분야 목록. 분야 페이지로 들어가는 길이고, '맹고에서 무엇을 고를 수 있나'에 답한다. 사전 값만 쓰는 정적 페이지다.
 
@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: appUrl(topicsPath()) },
+  itunes: { appId: APP_STORE_ID },
   openGraph: { type: "website", locale: "ko_KR", siteName: SITE_NAME, title: `${TITLE} | ${SITE_NAME}`, description: DESCRIPTION, url: appUrl(topicsPath()), images: ogImages() },
   twitter: { card: "summary_large_image", title: `${TITLE} | ${SITE_NAME}`, description: DESCRIPTION, images: ogImages() },
 };

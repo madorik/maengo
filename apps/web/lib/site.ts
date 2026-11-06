@@ -13,6 +13,8 @@ export const SITE_DESCRIPTION =
   "관심 분야의 소식을 AI로 요약해서 음성 지원해줘요. AI, 주식, 코인, 반도체·로봇, Tech, 정치·경제 같은 분야를 고르면 매일 아침 국내외 매체와 공식 블로그에서 그 분야 소식만 골라 출처와 함께 요약하고 읽어 드려요.";
 export const SITE_KEYWORDS = [
   "맹고",
+  "맹고 앱",
+  "Maengo",
   "관심 분야 소식",
   "AI 소식",
   "주식 소식",
@@ -33,7 +35,26 @@ export function ogImages() {
   return [{ url: appUrl("/opengraph-image"), width: 1200, height: 630, alt: `${SITE_NAME} - 관심 분야의 소식을 AI로 요약해서 음성 지원해줘요` }];
 }
 /** 소개 페이지 문구를 바꾼 날. 사이트맵 lastmod로 나간다(빌드 시각을 쓰면 배포마다 모두 '바뀜'이 돼 검색엔진이 믿지 않는다) */
-export const LANDING_UPDATED_ON = "2026-10-27";
+export const LANDING_UPDATED_ON = "2026-11-06";
+
+/**
+ * 다른 이름. 검색·AI가 과일 '망고'(Mango)나 비슷한 이름의 다른 서비스와 헷갈리지 않게 구조화 데이터에 같이 적는다
+ * (2026-11-06 검색해 보니 '맹고'로 Mango AI·마고가 먼저 나왔다)
+ */
+export const SITE_ALT_NAMES = [SITE_NAME_EN, "맹고 앱", "Maengo app"];
+
+// ---- 앱 스토어 ----
+/** App Store 앱 id(iOS 1.3.0, 2026-11-06 한국 출시). 사파리 '앱 열기' 배너·구조화 데이터·소개 페이지 링크에 쓴다 */
+export const APP_STORE_ID = "6821451147";
+export const APP_STORE_URL = `https://apps.apple.com/kr/app/id${APP_STORE_ID}`;
+/**
+ * Google Play 주소. 프로덕션 심사를 통과하기 전엔 공개 주소가 404라 비워 둔다.
+ * 통과하면 "https://play.google.com/store/apps/details?id=kr.maengo.app"을 넣고 apps/company(index.html JSON-LD·llms.txt)도 같이 고친다
+ */
+export const PLAY_STORE_URL: string | null = null;
+/** 구조화 데이터 sameAs·운영체제 */
+export const STORE_URLS = [APP_STORE_URL, PLAY_STORE_URL].filter((u): u is string => !!u);
+export const APP_OPERATING_SYSTEMS = ["Web", "iOS", ...(PLAY_STORE_URL ? ["Android"] : [])].join(", ");
 
 // ---- 운영사(와타랩스) ----
 export const COMPANY_NAME = "와타랩스";
