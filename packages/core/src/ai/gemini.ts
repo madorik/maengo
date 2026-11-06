@@ -3,7 +3,7 @@ import { CATEGORY_IDS, isCategory, type CategoryId } from '../categories';
 import { IMPACTS, isImpact } from '../feed/impact';
 import { alignLines } from '../audio/align';
 import { estimateTimeline } from '../audio/personas';
-import { parseWav } from '../audio/wav';
+import { parseWav, trimSilence } from '../audio/wav';
 import { GEMINI_MODELS } from './models';
 import { templateScript } from './script';
 import { CLASSIFY_SYSTEM, MAP_TOPICS_SYSTEM, SCREEN_INTEREST_SYSTEM, SCREEN_SITE_SYSTEM, SUMMARIZE_SYSTEM, WHY_SYSTEM } from './prompts';
@@ -65,6 +65,33 @@ export function ttsText(lines: { text: string }[]): string {
  * 이 배수 밖이면 오류로 던져 부르는 쪽이 다른 음성으로 만들게 한다(apps/web episode.ts: Premium은 기본 음성으로)
  */
 const TTS_LENGTH_RANGE = { min: 0.3, max: 2.5, slackMs: 8_000 };
+
+/*
+ * 듣기 음성은 문단마다 따로 만들어 동시에 받고 이어 붙인다(2026-11-06). 대본 전체를 한 번에 보내면 85초짜리 음성에 12초쯤 걸렸는데
+ * 문단 4개를 동시에 보내니 5초쯤(같은 소식 #20320으로 비교, 사용자가 들어 보고 고름). 문단 사이 쉼은 Chirp와 같게 둔다(apps/web google-tts.ts)
+ */
+/** 문단 사이 쉼 */
+const TTS_PARA_GAP_MS = 380;
+/** 이어 붙일 때 문단 음성 앞뒤에 남기는 무음(말끝이 잘리지 않게) */
+const TTS_EDGE_KEEP_MS = 60;
+/** 한 소식에서 동시에 부르는 수. 소식 하나가 보통 문단 3~5개라 한 번에 다 간다 */
+const TTS_PARALLEL = 6;
+
+/**
+ * 대본 줄을 문단별로 묶는다(줄 번호). 제목·마무리처럼 문단 번호가 없는 줄은 혼자 보내지 않고 앞 문단에(맨 앞이면 첫 문단에) 붙인다.
+ * 짧은 글만 따로 보내면 대본을 버리고 지어낼 수 있어서다(2026-10-29 '아침 인사' 27초)
+ */
+export function ttsRuns(lines: { para?: number }[]): number[][] {
+  const runs: number[][] = [];
+  let para: number | undefined;
+  lines.forEach((line, i) => {
+    const run = runs.at(-1);
+    if (run && (line.para === undefined || para === undefined || line.para === para)) run.push(i);
+    else runs.push([i]);
+    if (line.para !== undefined) para = line.para;
+  });
+  return runs;
+}
 
 /** 하루 할당량이 없거나 다 썼다. 같은 실행 안에서 다시 불러도 소용없다(무료 등급의 Pro 모델은 할당량이 0) */
 export class GeminiQuotaError extends Error {
@@ -546,32 +573,75 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
     async speak(input: SpeakInput): Promise<SpeakOutput> {
       const voice = GEMINI_TTS_VOICES[input.voice];
       const speechConfig: SpeechConfig = { ...(voice.languageCode ? { languageCode: voice.languageCode } : {}), voiceConfig: { prebuiltVoiceConfig: { voiceName: voice.name } } };
-      const res = await withRetry(
-        input.model,
-        (abortSignal) =>
-          client.models.generateContent({
-            model: input.model,
-            contents: [{ role: 'user', parts: [{ text: ttsText(input.lines), ...(voice.style ? { speechMetadata: { style: voice.style } } : {}) }] }],
-            config: { responseModalities: [Modality.AUDIO], speechConfig, abortSignal },
-          }),
-        limitFor(GEMINI_TTS_TIMEOUT_MS),
+      /** 줄 묶음 하나를 음성(16비트 PCM)으로. 대본보다 너무 길거나 짧으면 대본대로 읽지 않은 것으로 보고 던진다 */
+      const speakRun = async (lines: SpeakInput['lines']) => {
+        const res = await withRetry(
+          input.model,
+          (abortSignal) =>
+            client.models.generateContent({
+              model: input.model,
+              contents: [{ role: 'user', parts: [{ text: ttsText(lines), ...(voice.style ? { speechMetadata: { style: voice.style } } : {}) }] }],
+              config: { responseModalities: [Modality.AUDIO], speechConfig, abortSignal },
+            }),
+          limitFor(GEMINI_TTS_TIMEOUT_MS),
+        );
+        const u = res.usageMetadata;
+        opts.onUsage?.({ model: res.modelVersion ?? input.model, kind: 'tts', inputTokens: u?.promptTokenCount ?? 0, outputTokens: u?.candidatesTokenCount ?? 0, thinkingTokens: 0 });
+        const data = res.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData;
+        if (!data?.data) throw new Error(`음성이 비어 있어요(${res.candidates?.[0]?.finishReason ?? 'unknown'})`);
+        const bytes = new Uint8Array(Buffer.from(data.data, 'base64'));
+        // audio/wav(헤더 포함) 또는 audio/L16;rate=24000(raw PCM)으로 온다
+        const wav = parseWav(bytes);
+        const pcm = wav?.pcm ?? bytes;
+        const sampleRate = wav?.sampleRate ?? Number(data.mimeType?.match(/rate=(\d+)/)?.[1] ?? 24000);
+        if ((wav?.bitsPerSample ?? 16) !== 16) throw new Error('Gemini 음성이 16비트 PCM이 아니에요');
+        const durationMs = Math.round((pcm.length / (sampleRate * 2)) * 1000);
+        const expectedMs = estimateTimeline(lines).durationMs;
+        if (durationMs > expectedMs * TTS_LENGTH_RANGE.max + TTS_LENGTH_RANGE.slackMs || durationMs < expectedMs * TTS_LENGTH_RANGE.min) {
+          throw new Error(`음성 길이가 대본과 맞지 않아요(${Math.round(durationMs / 1000)}초, 어림 ${Math.round(expectedMs / 1000)}초)`);
+        }
+        return { pcm, sampleRate };
+      };
+
+      const runs = ttsRuns(input.lines);
+      const parts: { pcm: Uint8Array; sampleRate: number }[] = new Array(runs.length);
+      let next = 0;
+      await Promise.all(
+        Array.from({ length: Math.min(TTS_PARALLEL, runs.length) }, async () => {
+          while (next < runs.length) {
+            const r = next++;
+            parts[r] = await speakRun(runs[r]!.map((i) => input.lines[i]!));
+          }
+        }),
       );
-      const u = res.usageMetadata;
-      opts.onUsage?.({ model: res.modelVersion ?? input.model, kind: 'tts', inputTokens: u?.promptTokenCount ?? 0, outputTokens: u?.candidatesTokenCount ?? 0, thinkingTokens: 0 });
-      const data = res.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData;
-      if (!data?.data) throw new Error(`음성이 비어 있어요(${res.candidates?.[0]?.finishReason ?? 'unknown'})`);
-      const bytes = new Uint8Array(Buffer.from(data.data, 'base64'));
-      // audio/wav(헤더 포함) 또는 audio/L16;rate=24000(raw PCM)으로 온다
-      const wav = parseWav(bytes);
-      const pcm = wav?.pcm ?? bytes;
-      const sampleRate = wav?.sampleRate ?? Number(data.mimeType?.match(/rate=(\d+)/)?.[1] ?? 24000);
-      const bitsPerSample = wav?.bitsPerSample ?? 16;
-      const durationMs = Math.round((pcm.length / (sampleRate * (bitsPerSample / 8))) * 1000);
-      const expectedMs = estimateTimeline(input.lines).durationMs;
-      if (durationMs > expectedMs * TTS_LENGTH_RANGE.max + TTS_LENGTH_RANGE.slackMs || durationMs < expectedMs * TTS_LENGTH_RANGE.min) {
-        throw new Error(`음성 길이가 대본과 맞지 않아요(${Math.round(durationMs / 1000)}초, 어림 ${Math.round(expectedMs / 1000)}초)`);
+      const sampleRate = parts[0]!.sampleRate;
+      if (parts.some((p) => p.sampleRate !== sampleRate)) throw new Error('문단 음성의 샘플레이트가 서로 달라요');
+
+      // 문단 앞뒤 무음을 걷어 내고 정한 쉼을 넣어 이어 붙인다(묶음이 하나면 그대로). 줄 시각은 묶음마다 쉼으로 찾아 그 묶음 시작만큼 민다
+      const bytesPerMs = (sampleRate * 2) / 1000;
+      const gap = new Uint8Array(Math.round((TTS_PARA_GAP_MS * bytesPerMs) / 2) * 2);
+      const pieces: Uint8Array[] = [];
+      const lineTimesMs: SpeakOutput['lineTimesMs'] = new Array(input.lines.length);
+      let at = 0;
+      runs.forEach((run, r) => {
+        const pcm = runs.length > 1 ? trimSilence(parts[r]!.pcm, sampleRate, TTS_EDGE_KEEP_MS) : parts[r]!.pcm;
+        if (r > 0) {
+          pieces.push(gap);
+          at += gap.length;
+        }
+        const base = at / bytesPerMs;
+        const times = alignLines(pcm, sampleRate, run.map((i) => input.lines[i]!.text));
+        run.forEach((i, j) => (lineTimesMs[i] = { startMs: Math.round(base + times[j]!.startMs), endMs: Math.round(base + times[j]!.endMs) }));
+        pieces.push(pcm);
+        at += pcm.length;
+      });
+      const pcm = new Uint8Array(at);
+      let offset = 0;
+      for (const p of pieces) {
+        pcm.set(p, offset);
+        offset += p.length;
       }
-      return { pcm, sampleRate, bitsPerSample, durationMs, lineTimesMs: alignLines(pcm, sampleRate, input.lines.map((l) => l.text)) };
+      return { pcm, sampleRate, bitsPerSample: 16, durationMs: Math.round(at / bytesPerMs), lineTimesMs };
     },
   };
 }

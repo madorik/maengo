@@ -72,6 +72,15 @@ test('TTS 글: 말투 지시문 없이 대본 줄만', async () => {
   assert.deepEqual(text.split('\n'), lines.map((l) => l.text));
 });
 
+test('Gemini 음성 묶음: 문단별로 나누고 제목은 첫 문단에, 마무리는 끝 문단에 붙인다', async () => {
+  const { ttsRuns } = await import('../ai/gemini');
+  // 제목, 문단0 두 줄, 문단1 한 줄, 마무리
+  assert.deepEqual(ttsRuns(templateScript(item)), [[0, 1, 2], [3, 4]]);
+  // 문단 번호가 하나도 없으면 한 번에
+  assert.deepEqual(ttsRuns([{}, {}, {}]), [[0, 1, 2]]);
+  assert.deepEqual(ttsRuns([{ para: 0 }, { para: 1 }, { para: 1 }, { para: 2 }, {}]), [[0], [1, 2], [3, 4]]);
+});
+
 test('요약 언어 검사: 원어 이름이 섞인 한국어는 통과, 영어 요약은 막는다', () => {
   assert.equal(isKoreanSummary('OpenAI, ChatGPT 음성 모델 GPT-Live-1.1 배포 PostgreSQL 19 출시가 11월로 미뤄졌어요.'), true);
   assert.equal(isKoreanSummary('Import AI 477: In which I tell the IMF the Singularity has begun. Jack Clark writes about RSI.'), false);
