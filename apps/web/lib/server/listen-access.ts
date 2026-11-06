@@ -4,7 +4,7 @@ import { db, must } from './db';
 import { findFeedItem, markRead } from './feed';
 import { entitlements, type Profile } from './profile';
 
-// '이 글 듣기'(소식 하나짜리 음성)를 들을 수 있는지(2026-10-23 사용자 결정: Free도 하루 1개).
+// '이 글 듣기'(소식 하나짜리 음성)를 들을 수 있는지(2026-10-23 사용자 결정: Free도 하루 1개, 11-06 하루 3개로).
 // 음성 듣기 플랜(Premium)은 늘 된다. 아니면 plans.daily_listens만큼, 오늘(KST) 처음 듣는 소식을 센다.
 // 전에 들은 소식(reads.listened_at이 있음)을 다시 듣는 건 세지 않는다. 음성 파일이 이미 있어서 비용이 없다.
 // 세는 기록은 음성 파일을 요청할 때 남긴다(화면이 '들음'을 보내기 전에 다른 소식을 또 열어도 서버가 막게).

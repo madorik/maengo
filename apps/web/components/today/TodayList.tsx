@@ -109,7 +109,7 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
   const { consumed, listenAccess, listened } = useToday();
   const p = usePlayer();
   const done = consumed(item.clusterId);
-  // Premium이거나 Free의 오늘 듣기 몫(하루 1개, 2026-10-23)이면 들을 수 있다. 몫을 다 쓴 Free는 잠금(결제 페이지로)
+  // Premium이거나 Free의 오늘 듣기 몫(plans.daily_listens, 11-06부터 하루 3개)이면 들을 수 있다. 몫을 다 쓴 Free는 잠금(결제 페이지로)
   const access = listenAccess(item.clusterId);
   const free = access === "free";
   // '하나 더 받기'로 막 붙은 소식이면 이 카드로 스크롤하고 잠깐 짚는다

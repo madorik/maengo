@@ -19,13 +19,13 @@ const STATE_KEY = "maengo_feature_tour_state";
 type Page = "today" | "article" | "settings";
 type Step = { page: Page; target: string; title: string; body: string };
 
-function steps(audio: boolean): Step[] {
+function steps(audio: boolean, dailyListens: number): Step[] {
   return [
     {
       page: "today",
       target: '[data-tour="listen-all"]',
       title: "오늘 소식을 귀로 들어요",
-      body: audio ? "전체 듣기를 누르면 오늘 소식을 처음부터 차례로 읽어 드려요. 출퇴근길이나 손이 바쁠 때 좋아요." : "전체 듣기는 Premium에서 돼요. Free도 하루 1개는 무료로 들을 수 있어요.",
+      body: audio ? "전체 듣기를 누르면 오늘 소식을 처음부터 차례로 읽어 드려요. 출퇴근길이나 손이 바쁠 때 좋아요." : `전체 듣기는 Premium에서 돼요. Free도 하루 ${dailyListens}개는 무료로 들을 수 있어요.`,
     },
     {
       page: "today",
@@ -134,7 +134,7 @@ const EDGE = 6;
 
 /** (app) 레이아웃에 하나. 진행 중인 기능 안내를 어느 화면에서든 그린다 */
 export function TourHost() {
-  const { audio } = useProfile();
+  const { audio, dailyListens } = useProfile();
   const tour = useSyncExternalStore(
     subscribe,
     () => state,
@@ -142,7 +142,7 @@ export function TourHost() {
   );
   const router = useRouter();
   const pathname = usePathname();
-  const list = useMemo(() => steps(audio), [audio]);
+  const list = useMemo(() => steps(audio, dailyListens), [audio, dailyListens]);
   const [rect, setRect] = useState<Rect | null>(null);
   // 짚을 곳을 찾고 자리를 잡은 단계(그 전에는 카드를 숨기고 화면만 어둡게)
   const [readyFor, setReadyFor] = useState<string | null>(null);

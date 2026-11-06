@@ -47,7 +47,7 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
   // 에피소드 정보를 받기 전에 누른 글 하나 듣기는 정보가 와도 끊지 않는다(lib/player/route.ts)
   const inPlayer = index >= 0 && p.chapters.some((c) => c.clusterId === item.clusterId);
   const today = useTodayAudio(index >= 0 ? item.clusterId : -1, next);
-  // Premium이거나 Free의 오늘 듣기 몫(하루 1개, 2026-10-23)이면 이 글 하나를 듣는다
+  // Premium이거나 Free의 오늘 듣기 몫(plans.daily_listens, 11-06부터 하루 3개)이면 이 글 하나를 듣는다
   const access = listenAccess(item.clusterId);
   const single = useItemAudio(item.clusterId, access !== null);
   const singleBusy = singleStarted(single.ctl);
