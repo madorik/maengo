@@ -11,14 +11,14 @@
    - 관리 → 데이터 수집 및 수정 → 데이터 보관 → **14개월**(처리방침과 같게)
 2. **GTM 컨테이너**: https://tagmanager.google.com → 계정 만들기 `맹고` → 컨테이너 `watalabs.com`, 대상 '웹' → 컨테이너 ID(`GTM-…`)를 Claude에게 알려 준다(Vercel 환경 변수 `NEXT_PUBLIC_GTM_ID`에 넣고 배포)
 3. **GTM 안 설정**: 관리 → 컨테이너 가져오기 → [`gtm-import.json`](gtm-import.json)(작업공간 Default, 병합·충돌하면 덮어쓰기) → 변수 `GA4 측정 ID`의 값을 `G-…`로 바꾸기 → 제출 → 게시. 가져오기가 안 되면 아래 '태그 설정'대로 손으로 만든다
-4. **GA4 맞춤 정의**: 관리 → 맞춤 정의 → 이벤트 범위 `mode`·`category`·`kind`·`action`·`reason`·`topic`·`voice`·`provider`·`product`·`charged`, 사용자 범위 `plan`·`platform`
+4. **GA4 맞춤 정의**: 관리 → 맞춤 정의 → 이벤트 범위 `mode`·`category`·`kind`·`action`·`reason`·`topic`·`voice`·`provider`·`product`·`charged`·`items`·`heard`·`where`·`signed_in`, 사용자 범위 `plan`·`platform`
 
 ## 태그 설정(GTM, `gtm-import.json`에 든 것)
 
-- **변수**: 상수 `GA4 측정 ID`(`G-…`), 데이터 영역 변수(버전 2) `user_id`, `plan`, `platform`, `provider`, `mode`, `count`, `category`, `kind`, `today`, `topics`, `reason`, `action`, `group`, `picks`, `topic`, `on`, `voice`, `charged`, `product` — 이름을 각각 `dlv - 이름`으로
+- **변수**: 상수 `GA4 측정 ID`(`G-…`), 데이터 영역 변수(버전 2) `user_id`, `plan`, `platform`, `provider`, `mode`, `count`, `category`, `kind`, `today`, `topics`, `reason`, `action`, `group`, `picks`, `topic`, `on`, `voice`, `charged`, `product`, `items`, `heard`, `where`, `signed_in` — 이름을 각각 `dlv - 이름`으로
 - **Google 태그**: 태그 ID `{{GA4 측정 ID}}`, 트리거 'Initialization - All Pages'. 페이지 이동은 GA4 향상된 측정의 '브라우저 기록 이벤트 기반 페이지 변경'(기본 켜짐)이 잡는다
 - **GA4 이벤트 태그 하나**: 측정 ID `{{GA4 측정 ID}}`, 이벤트 이름 `{{Event}}`
-  - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice`·`charged`·`product` ← 같은 이름의 변수
+  - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice`·`charged`·`product`·`items`·`heard`·`where`·`signed_in` ← 같은 이름의 변수(뒤의 넷은 둘러보기, 2026-11-07)
   - 사용자 속성: `plan` ← `{{dlv - plan}}`, `platform` ← `{{dlv - platform}}`
   - 트리거: 맞춤 이벤트, 이벤트 이름 정규식 일치
     `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|ask|purchase_start|purchase_complete|try_start|try_complete|try_trial_click|try_ask)$`
