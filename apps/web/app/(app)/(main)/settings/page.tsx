@@ -24,6 +24,7 @@ import { userLinks } from "@/lib/server/links";
 import { entitlements, webPushTokens } from "@/lib/server/profile";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
 import { appInfoOf } from "@/lib/app-client";
+import { storeReviewUrl } from "@/lib/site";
 import { WEB_VERSION } from "@/lib/server/web-version";
 import { IconChevronRight } from "@/components/icons";
 import { BusinessInfo } from "@/components/public/BusinessInfo";
@@ -66,6 +67,7 @@ export default async function SettingsPage() {
   const ua = (await headers()).get("user-agent");
   const app = appInfoOf(ua);
   const version = app ? `앱 ${app.version} · 웹 ${WEB_VERSION}` : `웹 ${WEB_VERSION}`;
+  const rateUrl = storeReviewUrl(app?.platform ?? null);
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
@@ -168,6 +170,13 @@ export default async function SettingsPage() {
               문의하기
               <IconChevronRight className="size-4 text-sub" />
             </Link>
+            {/* 스토어 리뷰 쓰기(2026-11-06). 대가 없이 부탁만 한다(애플·구글 정책). Play는 출시 뒤 PLAY_STORE_URL을 채우면 안드로이드 앱에도 나온다 */}
+            {rateUrl && (
+              <a href={rateUrl} target="_blank" rel="noopener" className="flex min-h-12 items-center justify-between gap-3 font-bold text-ink no-underline hover:underline">
+                맹고 평가하기
+                <IconChevronRight className="size-4 text-sub" />
+              </a>
+            )}
             <p className="flex min-h-12 items-center justify-between gap-3 font-bold">
               버전
               <span className="font-round text-[15px] text-sub tabular-nums">{version}</span>

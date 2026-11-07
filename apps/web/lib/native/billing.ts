@@ -28,6 +28,17 @@ async function ready(userId: string) {
   configuredFor = userId;
 }
 
+/**
+ * Apple 검색 광고 출처(AdServices 토큰)를 RevenueCat에 넘긴다(iOS만, 2026-11-06). RevenueCat 대시보드에서 Apple Search Ads 연동을 켜 두면
+ * 광고 캠페인·키워드별로 설치 뒤 체험·결제가 나뉘어 보인다. 설치 직후 처음 열 때 넘겨야 잡혀서 결제 화면을 열 때가 아니라 앱을 열 때 부른다
+ * (SDK가 기기마다 한 번만 보낸다). 앱 1.3의 플러그인(13.6.1)에 이미 있는 기능이라 새 빌드가 필요 없다
+ */
+export async function collectAdAttribution(userId: string): Promise<void> {
+  if (Capacitor.getPlatform() !== "ios" || !apiKey()) return;
+  await ready(userId);
+  await Purchases.enableAdServicesAttributionTokenCollection();
+}
+
 export interface StoreItem {
   pkg: PurchasesPackage;
   productId: string;

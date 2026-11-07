@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { NaverAnalytics } from "@/components/NaverAnalytics";
 import { VercelWebAnalytics } from "@/components/VercelWebAnalytics";
 
 // Google 태그 관리자(TODO.md 2번). 운영에서 NEXT_PUBLIC_GTM_ID(GTM-로 시작)가 있을 때만 싣는다. 이벤트는 lib/analytics.ts의 track()
@@ -8,6 +9,7 @@ export function Analytics() {
   return (
     <>
       <VercelWebAnalytics />
+      <NaverAnalytics />
       {GTM_ID && process.env.NODE_ENV === "production" ? (
         <Script id="gtm" strategy="afterInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_ID}');`}

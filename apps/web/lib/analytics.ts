@@ -28,10 +28,19 @@ export type AnalyticsEvent =
 
 type Params = Record<string, string | number | boolean | null | undefined>;
 
+/** 네이버 검색광고 전환으로도 보내는 이벤트(components/NaverAnalytics.tsx가 공통 스크립트를 실었을 때만 간다) */
+const NAVER_CONVERSIONS: Partial<Record<AnalyticsEvent, string>> = { onboarding_complete: "sign_up" };
+
 export function track(event: AnalyticsEvent, params: Params = {}): void {
   if (typeof window === "undefined") return;
-  const w = window as Window & { dataLayer?: unknown[] };
+  const w = window as Window & { dataLayer?: unknown[]; wcs?: { trans?: (conv: { type: string }) => void } };
   (w.dataLayer ??= []).push({ event, ...params });
+  const naver = NAVER_CONVERSIONS[event];
+  if (naver && w.wcs?.trans) {
+    try {
+      w.wcs.trans({ type: naver });
+    } catch {}
+  }
 }
 
 /** web · ios · android(앱은 User-Agent 끝의 "MaengoApp/<버전> (ios|android)") */

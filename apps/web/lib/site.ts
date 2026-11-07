@@ -52,6 +52,15 @@ export const APP_STORE_URL = `https://apps.apple.com/kr/app/id${APP_STORE_ID}`;
  * 통과하면 "https://play.google.com/store/apps/details?id=kr.maengo.app"을 넣고 apps/company(index.html JSON-LD·llms.txt)도 같이 고친다
  */
 export const PLAY_STORE_URL: string | null = null;
+/**
+ * 스토어 리뷰 쓰기 주소(설정 > 앱 정보 '맹고 평가하기'). iOS 앱은 App Store 앱의 리뷰 쓰기 화면을 바로 연다(itms-apps는 웹뷰가 시스템으로 넘긴다).
+ * 안드로이드 앱은 Play가 공개된 뒤에만. 웹은 App Store 리뷰 쓰기 페이지
+ */
+export function storeReviewUrl(platform: "ios" | "android" | null): string | null {
+  if (platform === "android") return PLAY_STORE_URL ? `${PLAY_STORE_URL}&showAllReviews=true` : null;
+  if (platform === "ios") return `itms-apps://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
+  return `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
+}
 /** 구조화 데이터 sameAs·운영체제 */
 export const STORE_URLS = [APP_STORE_URL, PLAY_STORE_URL].filter((u): u is string => !!u);
 export const APP_OPERATING_SYSTEMS = ["Web", "iOS", ...(PLAY_STORE_URL ? ["Android"] : [])].join(", ");
