@@ -27,7 +27,8 @@ export type AnalyticsEvent =
   | "purchase_complete"
   | "try_start"
   | "try_complete"
-  | "try_trial_click";
+  | "try_trial_click"
+  | "try_ask";
 
 type Params = Record<string, string | number | boolean | null | undefined>;
 

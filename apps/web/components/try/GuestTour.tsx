@@ -1,20 +1,22 @@
 "use client";
 
 import { CATEGORY_LABEL } from "@maengo/core/categories";
-import { publishedLabel } from "@maengo/core/kst";
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Crown, IconCheck, IconExternal, IconNext, IconPause, IconPlay, IconPrev, IconSpeaker } from "@/components/icons";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Crown, IconCheck, IconChevronDown, IconExternal, IconNext, IconPause, IconPlay, IconPrev, IconSpeaker } from "@/components/icons";
 import { AuthLink, useSignedIn } from "@/components/landing/AuthLink";
 import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot } from "@/components/Mascot";
 import { SeekBar } from "@/components/listen/SeekBar";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { Confetti } from "@/components/ui/Confetti";
+import { Sheet } from "@/components/ui/Sheet";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SourceChip } from "@/components/ui/SourceChip";
 import { Spinner } from "@/components/ui/Spinner";
 import { track } from "@/lib/analytics";
+import { isAppUserAgent } from "@/lib/app-client";
+import { ASK_CHIPS, ASK_DAILY, ASK_TEXT_MAX } from "@/lib/ask";
 import { withBase } from "@/lib/base-path";
 import { formatClock } from "@/lib/player/machine";
 import { AFTER_LOGIN_COOKIE } from "@/lib/session-cookie";
@@ -23,6 +25,8 @@ import type { GuestItem } from "@/lib/types";
 // 로그인 없이 둘러보기(/try, 2026-11-07 사용자 결정). 오늘 화면(components/today/TodayList.tsx)과 같은 목록으로 보여 준다.
 // 듣기를 누르면 그 소식부터 목록 끝까지 이어서 듣고(전체 듣기는 처음부터), 마지막 소식을 다 들으면 Premium 무료 체험 팝업이 뜬다.
 // 목록 아래에도 같은 권유 카드를 둔다. 소리는 화면에 하나 있는 오디오에서 난다(iOS는 처음 누를 때 play()를 걸어 둔 오디오만 이어서 틀 수 있다).
+// 처음 열면 전체 듣기를 짚어 주고(Spotlight), 오른쪽 아래 맹고 AI 버튼은 대화 창까지 열리지만 물으면 가입을 권한다(GuestAsk).
+// 소식은 고정 목록이라(lib/try-items.ts) 날짜는 보이지 않는다(오래돼 보이지 않게).
 
 /** 끝 화면에 늘어놓는 Premium 장점(app/try/page.tsx가 plans 표 숫자로 만든다) */
 export interface TourPerk {
@@ -35,7 +39,8 @@ type Offer = { perks: TourPerk[]; priceLabel: string; trialDays: number };
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
 
 const noSubscribe = () => () => {};
-const dayLabel = (iso: string) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" }).format(new Date(iso));
+/** 처음 열면 전체 듣기를 짚어 준다. 이 탭에서 한 번(닫거나 들으면 다시 안 띄움) */
+const SPOT_KEY = "maengo_try_spot";
 
 /** 지금 읽는 줄(시작 시각이 지난 마지막 줄). 시작 전이면 -1 */
 function lineAt(lines: GuestItem["lines"], ms: number): number {
@@ -148,6 +153,26 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
   const offer: Offer = { perks, priceLabel, trialDays };
   const playing = p.status === "playing" || p.status === "loading";
   const categories = [...new Set(items.map((i) => CATEGORY_LABEL[i.category]))];
+  const listenAllRef = useRef<HTMLButtonElement>(null);
+  const [spot, setSpot] = useState(false);
+  // 처음 열면 전체 듣기를 짚는다(맨 위에 있을 때만, 이 탭에서 한 번)
+  useEffect(() => {
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem(SPOT_KEY) === "1";
+    } catch {}
+    if (seen) return;
+    const t = setTimeout(() => {
+      if (window.scrollY < 40) setSpot(true);
+    }, 400);
+    return () => clearTimeout(t);
+  }, []);
+  const closeSpot = useCallback(() => {
+    setSpot(false);
+    try {
+      sessionStorage.setItem(SPOT_KEY, "1");
+    } catch {}
+  }, []);
 
   const start = (i: number, mode: "all" | "item") => {
     if (!started.current) {
@@ -157,6 +182,7 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
     p.play(i);
   };
   const listenAll = () => {
+    closeSpot();
     if (playing) return p.pause();
     if (p.cur >= 0) return p.play(p.cur);
     start(0, "all");
@@ -181,17 +207,19 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
         </div>
       </header>
 
-      <main className={`mx-auto max-w-[640px] px-4 pt-5 lg:pt-8 ${curItem ? "pb-[calc(var(--tour-bar-h,140px)+24px)]" : "pb-[calc(40px+env(safe-area-inset-bottom))]"}`}>
+      {/* 아래는 맹고 AI 버튼(플레이어가 있으면 그 위)이 마지막 버튼을 가리지 않게 비운다 */}
+      <main className={`mx-auto max-w-[640px] px-4 pt-5 lg:pt-8 ${curItem ? "pb-[calc(var(--tour-bar-h,140px)+96px)]" : "pb-[calc(96px+env(safe-area-inset-bottom))]"}`}>
         {/* 오늘 화면의 머리 카드와 같은 모양 */}
         <section aria-labelledby="try-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[13px] font-extrabold text-ink/70">로그인 없이 둘러보기</p>
               <h1 id="try-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
-                최근 소식 {n}개
+                소식 {n}개 들어 보기
               </h1>
             </div>
             <button
+              ref={listenAllRef}
               type="button"
               onClick={listenAll}
               aria-label={playing ? "듣기 일시정지" : "소식 전체 듣기"}
@@ -208,7 +236,7 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
           </div>
         </section>
 
-        <ol className="mt-6 flex flex-col gap-4" aria-label="최근 소식">
+        <ol className="mt-6 flex flex-col gap-4" aria-label="둘러볼 소식">
           {items.map((item, i) => (
             <GuestCard
               key={item.clusterId}
@@ -241,6 +269,10 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
         />
       )}
 
+      <GuestAsk item={curItem ?? items[0]!} raised={!!curItem} />
+
+      {spot && <Spotlight target={listenAllRef} total={n} onStart={listenAll} onClose={closeSpot} />}
+
       {finished && <FinishDialog offer={offer} heard={p.heard.size} total={n} onClose={() => setFinished(false)} />}
     </div>
   );
@@ -265,9 +297,6 @@ function GuestCard({
   onLine: (ms: number) => void;
 }) {
   const [open, setOpen] = useState(false);
-  // '오늘 오전 9시' 같은 말은 브라우저에서(페이지는 10분마다 새로 만들어 서버에서 만들면 늦는다). 서버에서는 날짜만
-  const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
-  const when = mounted ? publishedLabel(item.date) : dayLabel(item.date);
   const preparing = current && status === "loading";
   const playing = current && status === "playing";
   const active = current ? lineAt(item.lines, posMs) : -1;
@@ -334,10 +363,7 @@ function GuestCard({
       )}
 
       <div className="mt-3 flex items-center gap-3">
-        <p className="min-w-0 truncate text-[13px]">
-          <span className="font-extrabold">{item.author}</span>
-          <span className="ml-2 font-semibold text-faint">{when}</span>
-        </p>
+        <p className="min-w-0 truncate text-[13px] font-extrabold">{item.author}</p>
         <button
           type="button"
           onClick={onListen}
@@ -557,5 +583,328 @@ function FinishDialog({ offer, heard, total, onClose }: { offer: Offer; heard: n
         </div>
       </div>
     </dialog>
+  );
+}
+
+type Rect = { top: number; left: number; width: number; height: number };
+/** 짚은 버튼 둘레 여백 */
+const SPOT_PAD = 8;
+
+/**
+ * 처음 열면 전체 듣기만 밝게 짚고 나머지를 어둡게 덮는다(기능 안내 FeatureTour와 같은 모양).
+ * 밝은 자리나 안내의 '전체 듣기'를 누르면 바로 듣기 시작하고(누르는 순간이라 iOS도 소리가 난다), 다른 곳을 누르거나 스크롤·Esc면 닫는다
+ */
+function Spotlight({ target, total, onStart, onClose }: { target: React.RefObject<HTMLElement | null>; total: number; onStart: () => void; onClose: () => void }) {
+  const [rect, setRect] = useState<Rect | null>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let raf = 0;
+    const measure = () => {
+      const r = target.current?.getBoundingClientRect();
+      if (r) setRect({ top: r.top - SPOT_PAD, left: r.left - SPOT_PAD, width: r.width + SPOT_PAD * 2, height: r.height + SPOT_PAD * 2 });
+    };
+    raf = requestAnimationFrame(measure);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", onClose, { passive: true });
+    window.addEventListener("keydown", onKey);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", onClose);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [target, onClose]);
+
+  // 안내가 뜨면 '전체 듣기'로 포커스(키보드로 바로 누르게)
+  useEffect(() => {
+    if (rect) startRef.current?.focus({ preventScroll: true });
+  }, [rect]);
+
+  if (!rect) return null;
+  const inside = (x: number, y: number) => x >= rect.left && x <= rect.left + rect.width && y >= rect.top && y <= rect.top + rect.height;
+
+  return (
+    <div role="dialog" aria-labelledby="try-spot-title" aria-describedby="try-spot-body" className="fixed inset-0 z-50">
+      {/* 어두운 곳을 누르면 닫고, 밝은 자리(전체 듣기)를 누르면 듣기 시작 */}
+      <div aria-hidden="true" className="absolute inset-0" onClick={(e) => (inside(e.clientX, e.clientY) ? onStart() : onClose())} />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed rounded-full shadow-[0_0_0_9999px_rgb(31_35_64/0.62)] ring-4 ring-mango"
+        style={rect}
+      />
+      <div className="fixed inset-x-4 mx-auto max-w-[360px]" style={{ top: rect.top + rect.height + 14 }}>
+        <div className="pop rounded-[24px] bg-paper p-5 text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
+          <div className="flex items-start gap-3">
+            <Mascot mood="listen" className="size-12 shrink-0" />
+            <div className="min-w-0">
+              <h2 id="try-spot-title" className="text-[18px] font-black leading-snug tracking-[-0.03em]">
+                귀로 들어 보세요
+              </h2>
+              <p id="try-spot-body" className="mt-1 text-[15px] font-semibold leading-relaxed text-sub">
+                전체 듣기를 누르면 소식 {total}개를 처음부터 이어서 읽어 드려요.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex items-center justify-end gap-1">
+            <button type="button" onClick={onClose} className="min-h-11 px-3 text-[15px] font-extrabold text-sub hover:underline">
+              둘러볼게요
+            </button>
+            <button ref={startRef} type="button" onClick={onStart} className="btn min-h-11 gap-1.5 px-5 text-[15px]">
+              <IconPlay className="size-4" />
+              전체 듣기
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type AskMessage = { id: number; role: "user" | "model"; text: string };
+
+/** 둘러보기에서 물으면 돌아오는 답. 실제로 묻지 않고 가입을 권한다 */
+const ASK_REPLY = `가입하고 사용해 보세요~! 맹고 AI가 지금 보는 소식에 대해 바로 답해 드려요. 무료로도 하루 ${ASK_DAILY.free}번 물어볼 수 있어요.`;
+
+/**
+ * 오른쪽 아래 맹고 AI 버튼(글 화면의 AskDock과 같은 모양). 웹은 버튼 위 창, 앱은 아래 시트로 대화 화면까지 연다.
+ * 추천 질문을 누르거나 적어서 보내면 답 대신 가입을 권하는 말과 가입 버튼이 온다(서버에 묻지 않는다, 비용 0).
+ * 대화는 이 화면에 있는 동안만 남는다. 맥락은 지금 듣는 소식(안 들으면 첫 소식)
+ */
+function GuestAsk({ item, raised }: { item: GuestItem; raised: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<AskMessage[]>([]);
+  const [waiting, setWaiting] = useState(false);
+  const inApp = useSyncExternalStore(noSubscribe, () => isAppUserAgent(navigator.userAgent), () => false);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+
+  // 웹 창: Esc로 닫고 버튼으로 포커스를 돌린다
+  useEffect(() => {
+    if (!open || inApp) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      launcherRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, inApp]);
+
+  const toggle = () => {
+    if (!open) track("try_ask", { action: "open" });
+    setOpen(!open);
+  };
+  const close = () => {
+    setOpen(false);
+    launcherRef.current?.focus();
+  };
+  const ask = (question: string) => {
+    if (waiting) return;
+    track("try_ask", { action: "send" });
+    setMessages((m) => [...m, { id: m.length + 1, role: "user", text: question }]);
+    setWaiting(true);
+    // 답을 쓰는 것처럼 잠깐 기다렸다가 가입 권유
+    setTimeout(() => {
+      setMessages((m) => [...m, { id: m.length + 1, role: "model", text: ASK_REPLY }]);
+      setWaiting(false);
+    }, 800);
+  };
+
+  // 플레이어가 떠 있으면 그 위로(사이 12px), 아니면 화면 아래
+  const bottom = raised ? "bottom-[calc(var(--tour-bar-h,120px)+12px)]" : "bottom-[calc(16px+env(safe-area-inset-bottom))]";
+  const chat = <GuestAskChat messages={messages} waiting={waiting} onAsk={ask} variant={inApp ? "sheet" : "window"} />;
+
+  const launcher = (
+    <button
+      ref={launcherRef}
+      type="button"
+      onClick={toggle}
+      aria-expanded={open}
+      aria-haspopup={inApp ? "dialog" : undefined}
+      aria-controls={open && !inApp ? "try-ask-window" : undefined}
+      aria-label={open && !inApp ? "맹고 AI 창 닫기" : "맹고 AI에게 물어보기"}
+      className={`pop tile pointer-events-auto relative flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${open ? "border-mango" : ""}`}
+    >
+      <span className="flex size-12 items-center justify-center rounded-full bg-mango-tint">
+        <Mascot className="size-10" />
+      </span>
+      <span aria-hidden="true" className="absolute -left-1 -top-1 rounded-full border-2 border-paper bg-sky px-1.5 py-0.5 font-round text-[11px] font-black leading-none text-white">
+        AI
+      </span>
+    </button>
+  );
+
+  if (inApp) {
+    return (
+      <>
+        <Sheet title="맹고 AI" open={open} onClose={() => setOpen(false)}>
+          {open && (
+            <>
+              <p className="-mt-1 mb-3 truncate text-[13px] font-bold text-sub">{item.title}</p>
+              {chat}
+            </>
+          )}
+        </Sheet>
+        <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${bottom}`}>{launcher}</div>
+      </>
+    );
+  }
+
+  return (
+    <div className={`pointer-events-none fixed right-3 z-40 flex flex-col items-end gap-3 lg:right-6 ${bottom}`}>
+      {open && (
+        <div
+          id="try-ask-window"
+          role="dialog"
+          aria-labelledby="try-ask-title"
+          className="rise tile pointer-events-auto flex max-h-[min(520px,calc(100dvh-220px-env(safe-area-inset-top)))] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden shadow-[0_16px_48px_rgb(31_35_64/0.2)]"
+        >
+          <header className="flex items-center gap-3 border-b-2 border-line px-4 py-3">
+            <Mascot className="size-10 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <h2 id="try-ask-title" className="text-[16px] font-black">
+                맹고 AI
+              </h2>
+              <p className="truncate text-[12px] font-bold text-sub">{item.title}</p>
+            </div>
+            <button type="button" aria-label="맹고 AI 창 닫기" onClick={close} className="flex size-11 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
+              <IconChevronDown className="size-6" />
+            </button>
+          </header>
+          {chat}
+        </div>
+      )}
+      {launcher}
+    </div>
+  );
+}
+
+/** 맹고 AI 대화 화면(글 화면 AskChat과 같은 모양). 답 자리에는 가입 권유와 가입 버튼 */
+function GuestAskChat({ messages, waiting, onAsk, variant }: { messages: AskMessage[]; waiting: boolean; onAsk: (q: string) => void; variant: "window" | "sheet" }) {
+  const [text, setText] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const signedIn = useSignedIn();
+  const sheet = variant === "sheet";
+
+  // 새 말이 오면 맨 아래로
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ top: el.scrollHeight, behavior: reduce ? "auto" : "smooth" });
+  }, [messages.length, waiting]);
+
+  // 글이 바뀌면 입력칸 높이를 맞춘다(최대 120px)
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [text]);
+
+  const send = (raw: string) => {
+    const q = raw.trim();
+    if (!q || waiting) return;
+    onAsk(q);
+    setText("");
+    // 휴대폰은 자판을 내려 답이 보이게
+    if (!window.matchMedia("(hover: hover)").matches) inputRef.current?.blur();
+  };
+
+  return (
+    <div className={`flex flex-col ${sheet ? "" : "min-h-0 flex-1"}`}>
+      <div ref={listRef} data-no-sheet-drag={sheet || undefined} className={`overflow-y-auto overscroll-contain ${sheet ? "max-h-[calc(85dvh-190px)]" : "min-h-0 flex-1 px-4 py-4"}`}>
+        {messages.length === 0 && !waiting ? (
+          <div className="flex flex-wrap gap-2">
+            {ASK_CHIPS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => send(c)}
+                className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-left text-[14px] font-bold hover:border-mango hover:bg-mango-tint"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <ol aria-live="polite" className="flex flex-col gap-3">
+            {messages.map((m) =>
+              m.role === "user" ? (
+                <li key={m.id} className="flex justify-end">
+                  <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-mango-tint px-4 py-2.5 text-[15px] font-semibold leading-relaxed">{m.text}</p>
+                </li>
+              ) : (
+                <li key={m.id} className="flex items-start gap-2">
+                  <Mascot className="size-9 shrink-0" />
+                  <div className="min-w-0 max-w-[88%] rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-3">
+                    <p className="text-[15px] font-medium leading-[1.7]">{m.text}</p>
+                    <Link
+                      href={signedIn ? "/today" : "/login"}
+                      onClick={() => {
+                        if (!signedIn) setAfterLogin(null);
+                        track("try_ask", { action: "signup" });
+                      }}
+                      className="btn mt-3 min-h-11 w-full text-[15px] no-underline"
+                    >
+                      {signedIn ? "오늘의 소식에서 물어보기" : "가입하고 물어보기"}
+                    </Link>
+                  </div>
+                </li>
+              ),
+            )}
+            {waiting && (
+              <li className="flex items-start gap-2">
+                <Mascot className="size-9 shrink-0" />
+                <span role="status" aria-label="답을 쓰는 중" className="flex gap-1 rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-4">
+                  {[0, 150, 300].map((d) => (
+                    <span key={d} className="size-1.5 rounded-full bg-faint motion-safe:animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                  ))}
+                </span>
+              </li>
+            )}
+          </ol>
+        )}
+      </div>
+
+      <div className={sheet ? "pt-3" : "border-t-2 border-line p-3"}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send(text);
+          }}
+          className="flex items-end gap-2"
+        >
+          <label htmlFor="try-ask-text" className="sr-only">
+            맹고 AI에게 물어볼 말
+          </label>
+          <textarea
+            id="try-ask-text"
+            ref={inputRef}
+            rows={1}
+            value={text}
+            maxLength={ASK_TEXT_MAX}
+            enterKeyHint="send"
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              // 데스크톱: 엔터로 보내고 Shift+엔터로 줄바꿈. 한글 조합 중 엔터는 보내지 않는다
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && window.matchMedia("(hover: hover)").matches) {
+                e.preventDefault();
+                send(text);
+              }
+            }}
+            placeholder="궁금한 걸 물어보세요"
+            className="tile max-h-[120px] min-h-12 flex-1 resize-none px-4 py-3 text-[16px] font-semibold leading-snug placeholder:text-faint"
+          />
+          <button type="submit" disabled={waiting || !text.trim()} className="btn min-h-12 shrink-0 px-5 text-[15px]">
+            {waiting ? <Spinner /> : "보내기"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

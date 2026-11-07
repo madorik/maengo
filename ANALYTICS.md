@@ -21,7 +21,7 @@
   - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice`·`charged`·`product` ← 같은 이름의 변수
   - 사용자 속성: `plan` ← `{{dlv - plan}}`, `platform` ← `{{dlv - platform}}`
   - 트리거: 맞춤 이벤트, 이벤트 이름 정규식 일치
-    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|ask|purchase_start|purchase_complete|try_start|try_complete|try_trial_click)$`
+    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|ask|purchase_start|purchase_complete|try_start|try_complete|try_trial_click|try_ask)$`
 - 이벤트를 새로 넣으면 `lib/analytics.ts`의 `AnalyticsEvent`, 이 문서, `gtm-import.json`의 정규식을 같이 고치고 GTM에 다시 게시한다
 
 ## 이벤트
@@ -52,6 +52,7 @@
 | `try_start` | 로그인 없이 둘러보기(/try)에서 처음 듣기를 누름(2026-11-07부터) | `items`(둘러볼 소식 수), `mode`(all: 전체 듣기, item: 카드의 듣기) |
 | `try_complete` | 둘러보기 마지막 소식까지 들어 체험 팝업이 뜸 | `heard`(들어 본 소식 수), `items` |
 | `try_trial_click` | 둘러보기 'Premium 무료로 체험하기' | `where`(list: 목록 아래 카드, finish: 다 들은 뒤 팝업), `heard`, `items`, `signed_in` |
+| `try_ask` | 둘러보기 맹고 AI(물으면 답 대신 가입 권유) | `action`(open: 창을 엶, send: 질문을 보냄, signup: 가입하고 물어보기) |
 
 ## 볼 것(GA4 탐색)
 

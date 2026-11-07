@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 };
 
 // 로그인 없이 둘러보기(2026-11-07 사용자 결정, 맹고-문서/둘러보기.md). 입구: 로그인 화면, 소개 페이지 첫 화면.
-// 누구에게나 같은 화면이라 10분마다 새로 만든다(이미 만든 음성만 쓰고 TTS는 부르지 않는다, lib/server/guest-tour.ts)
-export const revalidate = 600;
+// 고정해 둔 소식(lib/try-items.ts)이라 늘 같은 화면이다. 하루에 한 번만 새로 그린다(요약 문구가 고쳐졌을 때만 달라진다)
+export const revalidate = 86400;
 
 /** 스토어 첫 구독 무료 체험 일수(결정 D3, lib/native/billing.ts). 실제 일수는 앱이 스토어에서 받아 체험 안내 팝업에 쓴다 */
 const TRIAL_DAYS = 7;

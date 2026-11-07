@@ -185,7 +185,7 @@ export interface GuestLine {
   para?: number;
 }
 
-/** 로그인 없이 둘러보기(/try)의 소식 하나: 이미 만든 음성이 있는 공개 소식 */
+/** 로그인 없이 둘러보기(/try)의 소식 하나: 고정해 둔 공개 소식과 그 음성. 날짜는 넣지 않는다(늘 같은 목록이라 오래돼 보이지 않게) */
 export interface GuestItem {
   clusterId: number;
   title: string;
@@ -196,9 +196,7 @@ export interface GuestItem {
   /** 글쓴이 또는 유튜브 채널(없으면 출처 이름) */
   author: string;
   url: string;
-  /** 발행일(없으면 처음 본 날), ISO. '오늘 오전 9시' 같은 말은 화면이 브라우저에서 만든다(페이지를 10분마다 새로 만들어서) */
-  date: string;
-  /** 음성 키(/api/try/audio?key=) */
+  /** 음성 키(/api/try/audio?key=, 고정 목록 lib/try-items.ts) */
   audioKey: string;
   durationMs: number;
   /** 대본 줄과 읽는 시각(첫 줄은 제목) */
