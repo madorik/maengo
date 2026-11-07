@@ -41,11 +41,12 @@ export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면
   return (
     <div className="mx-auto max-w-[680px] px-4 py-6 lg:py-10">
       <PlaylistPicker>
-        <LibraryHeader total={lib.total} pickIds={lib.pickIds} />
+        <LibraryHeader total={lib.total} pickIds={lib.pickIds} bookmark={{ on: lib.bookmark, href: href(1, { ...f, bookmark: !lib.bookmark }) }} />
 
         {lib.total > 0 && <SearchBox lib={lib} />}
 
-        {/* 한 줄 거르기: 전체 · 안 읽음 · 북마크 · 카테고리들. 안 읽음·북마크·카테고리는 같이 걸 수 있고, 켜진 칸을 다시 누르면 풀린다. 검색어는 그대로 둔다 */}
+        {/* 한 줄 거르기: 전체 · 안 읽음 · 카테고리들(북마크는 위 제목 줄). 안 읽음·북마크·카테고리는 같이 걸 수 있고, 켜진 칸을 다시 누르면 풀린다.
+            '전체'는 북마크까지 푼다. 검색어는 그대로 둔다 */}
         {lib.matchedTotal > 0 && (
           <nav aria-label="거르기" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-2">
             <FilterLink
@@ -55,7 +56,6 @@ export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면
               count={lib.matchedTotal}
             />
             <FilterLink href={href(1, { ...f, read: lib.readFilter === "unread" ? null : "unread" })} active={lib.readFilter === "unread"} label="안 읽음" count={lib.readCounts.unread} />
-            <FilterLink href={href(1, { ...f, bookmark: !lib.bookmark })} active={lib.bookmark} label="북마크" count={lib.bookmarkCount} />
             {lib.categories.map((c) => (
               <FilterLink key={c.id} href={href(1, { ...f, category: lib.category === c.id ? null : c.id })} active={lib.category === c.id} label={c.label} count={c.count} />
             ))}
@@ -68,7 +68,7 @@ export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면
             <Bubble className="mb-6 flex-1">
               <p className="text-[16px] font-bold leading-relaxed">{emptyMessage(lib)}</p>
               {lib.bookmark && lib.bookmarkCount === 0 && (
-                <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">글 화면에서 북마크를 누르면 여기에 모여요.</p>
+                <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">소식 카드나 글 화면에서 북마크를 누르면 여기에 모여요.</p>
               )}
             </Bubble>
           </div>

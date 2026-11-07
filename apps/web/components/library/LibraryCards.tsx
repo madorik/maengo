@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { IconDoc, IconPlay } from "@/components/icons";
+import { BookmarkButton } from "@/components/ui/BookmarkButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { LibraryEntry } from "@/lib/types";
 import type { LibraryGroup } from "@/lib/library-pages";
-import { BookmarkMark } from "./BookmarkMark";
 import { PickTarget } from "./Playlist";
 import { ReadBadge } from "./ReadBadge";
 
@@ -35,9 +35,10 @@ function LibraryCard({ entry: e }: { entry: LibraryEntry }) {
           {video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
           {e.sourceLabel}
         </span>
-        <span className="ml-auto inline-flex shrink-0 items-center gap-2 group-has-[[data-pick]]:invisible">
-          <BookmarkMark clusterId={e.clusterId} />
+        {/* 고르는 중에는 고르기 체크가 이 자리에 얹혀서 감춘다 */}
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 group-has-[[data-pick]]:invisible">
           <ReadBadge clusterId={e.clusterId} read={e.read || e.listened} />
+          <BookmarkButton item={e} variant="card" />
         </span>
       </div>
       <h3 className="mt-2 text-[17px] font-black leading-snug tracking-[-0.02em]">

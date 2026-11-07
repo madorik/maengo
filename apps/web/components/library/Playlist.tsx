@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createContext, useContext, useState, useTransition } from "react";
 import { playlistAdd } from "@/app/actions";
-import { IconCheck, IconClose, IconHeadphones, IconPlay } from "@/components/icons";
+import { IconBookmark, IconCheck, IconClose, IconHeadphones, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
@@ -48,8 +48,20 @@ export function PlaylistPicker({ children }: { children: React.ReactNode }) {
   return <PickContext.Provider value={api}>{children}</PickContext.Provider>;
 }
 
-/** 보관함 제목 줄. 고르는 동안은 위에 붙고 ✕ · n개 선택 · ☐ 전체가 된다. Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다 */
-export function LibraryHeader({ total, pickIds }: { total: number; pickIds: number[] }) {
+/**
+ * 보관함 제목 줄: 보관함 n · [북마크] [골라 듣기]. 고르는 동안은 위에 붙고 ✕ · n개 선택 · ☐ 전체가 된다. Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다.
+ * '북마크'는 북마크한 소식만 보는 거르기(?bookmark=1, 안 읽음·카테고리·검색은 그대로). 켜진 것을 다시 누르면 풀린다. 플랜과 상관없이 쓴다
+ */
+export function LibraryHeader({
+  total,
+  pickIds,
+  bookmark,
+}: {
+  total: number;
+  pickIds: number[];
+  /** 북마크 거르기가 켜졌는지와 누르면 갈 주소(켜기·끄기) */
+  bookmark: { on: boolean; href: string };
+}) {
   const profile = useProfile();
   const pick = usePick();
   const n = pick.ids.length;
@@ -83,22 +95,34 @@ export function LibraryHeader({ total, pickIds }: { total: number; pickIds: numb
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 px-1">
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-1">
       <h1 className="text-[28px] font-black tracking-[-0.03em]">
         보관함 <span className="font-round text-[20px] text-faint">{total}</span>
       </h1>
-      {total > 0 && !profile.audio ? (
-        <Link href="/premium" aria-label="골라 듣기, Premium에서 쓸 수 있어요" className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-extrabold text-sub no-underline">
-          <IconHeadphones className="size-4" />
-          골라 듣기
-          <PremiumBadge />
-        </Link>
-      ) : total > 0 ? (
-        <button type="button" onClick={() => pick.setPicking(true)} className="btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-4 text-[14px]">
-          <IconHeadphones className="size-4" />
-          골라 듣기
-        </button>
-      ) : null}
+      {total > 0 && (
+        <div className="ml-auto flex items-center gap-2">
+          <Link
+            href={bookmark.href}
+            aria-current={bookmark.on ? "page" : undefined}
+            className={`btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-3.5 text-[14px] ${bookmark.on ? "border-sky bg-sky-tint text-sky-dark [--btn-edge:var(--color-sky)]" : ""}`}
+          >
+            <IconBookmark filled={bookmark.on} className="size-4" />
+            북마크
+          </Link>
+          {!profile.audio ? (
+            <Link href="/premium" aria-label="골라 듣기, Premium에서 쓸 수 있어요" className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-extrabold text-sub no-underline">
+              <IconHeadphones className="size-4" />
+              골라 듣기
+              <PremiumBadge />
+            </Link>
+          ) : (
+            <button type="button" onClick={() => pick.setPicking(true)} className="btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-3.5 text-[14px]">
+              <IconHeadphones className="size-4" />
+              골라 듣기
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
