@@ -608,13 +608,22 @@ function Spotlight({ target, total, onStart, onClose }: { target: React.RefObjec
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", onClose, { passive: true });
+    // 화면이 저절로 움직이면(글꼴·레이아웃이 자리 잡으며 나는 scroll) 자리만 다시 재고, 사람이 굴리거나 밀면 닫는다
+    const follow = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    };
+    window.addEventListener("resize", follow);
+    window.addEventListener("scroll", follow, { passive: true });
+    window.addEventListener("wheel", onClose, { passive: true });
+    window.addEventListener("touchmove", onClose, { passive: true });
     window.addEventListener("keydown", onKey);
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", onClose);
+      window.removeEventListener("resize", follow);
+      window.removeEventListener("scroll", follow);
+      window.removeEventListener("wheel", onClose);
+      window.removeEventListener("touchmove", onClose);
       window.removeEventListener("keydown", onKey);
     };
   }, [target, onClose]);
