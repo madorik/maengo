@@ -14,6 +14,7 @@ import { addToPlaylist, clearPlaylist, rebuildFeed, receiveMore, removeFromPlayl
 import { demoLoginEnabled, demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
+import { takeTrialIntent, TRIAL_PATH } from "@/lib/server/sign-in";
 import { addLink, releaseLinks, removeLink } from "@/lib/server/links";
 import { addCustomTopics, addTopics, removeTopic, setGroupPicks } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
@@ -122,7 +123,8 @@ export async function completeOnboarding(formData: FormData) {
       .eq("id", profile.id),
     "profiles onboarded",
   );
-  redirect("/today");
+  // 둘러보기 끝에서 'Premium 무료 체험하기'를 누르고 가입했으면 오늘 대신 요금제로 가 체험 안내를 바로 띄운다(lib/server/sign-in.ts)
+  redirect((await takeTrialIntent()) ? TRIAL_PATH : "/today");
 }
 
 /**

@@ -80,6 +80,14 @@ function segmentKey(lines: ScriptLine[], persona: Persona, voice: Voice, engine:
   return `${persona}-${voice}-${sha(JSON.stringify({ v: SCRIPT_VERSION, model: engine.model, voiceId: engine.voiceId(voice), persona, vk: voice, lines }))}`;
 }
 
+/**
+ * 이 요약을 지금 대본·엔진·목소리로 만들면 나올 음성 키(로그인 없이 둘러보기, guest-tour.ts).
+ * 이미 만든 음성과 키가 같으면 그 음성은 지금 대본 그대로다(대본 버전·목소리를 바꾸기 전 음성은 키가 달라 빠진다)
+ */
+export function currentSegmentKey(summary: { title: string; short: string; body: string[] }, voice: Voice, engine: TtsEngine): string {
+  return segmentKey(templateScript({ model: '', title: summary.title, short: summary.short, body: summary.body }), 'announcer', voice, engine);
+}
+
 async function findSegments(keys: string[]): Promise<Map<string, SegmentRow>> {
   if (!keys.length) return new Map();
   const rows = must(await db.from('audio_segments').select('key,r2_key,duration_ms,lines').in('key', keys), 'audio_segments') as SegmentRow[];

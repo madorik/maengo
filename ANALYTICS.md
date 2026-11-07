@@ -21,7 +21,7 @@
   - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice`·`charged`·`product` ← 같은 이름의 변수
   - 사용자 속성: `plan` ← `{{dlv - plan}}`, `platform` ← `{{dlv - platform}}`
   - 트리거: 맞춤 이벤트, 이벤트 이름 정규식 일치
-    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|ask|purchase_start|purchase_complete)$`
+    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|ask|purchase_start|purchase_complete|try_start|try_complete|try_trial_click)$`
 - 이벤트를 새로 넣으면 `lib/analytics.ts`의 `AnalyticsEvent`, 이 문서, `gtm-import.json`의 정규식을 같이 고치고 GTM에 다시 게시한다
 
 ## 이벤트
@@ -49,10 +49,14 @@
 | `ask` | 글 화면 맹고 AI(2026-11-03부터) | `category`, `action`(open: 맹고 AI 버튼을 눌러 창을 엶, voice: 마이크로 말하기 시작, answered: 답함, limit: 하루 횟수를 다 씀, error: 답을 못 받음) |
 | `purchase_start` | 구독·맹고 추가 구매 결제 시작(앱) | `product`(스토어 상품 ID) |
 | `purchase_complete` | 결제 끝남 | `product` |
+| `try_start` | 로그인 없이 둘러보기(/try)에서 처음 듣기를 누름(2026-11-07부터) | `items`(둘러볼 소식 수) |
+| `try_complete` | 둘러보기 끝 화면에 닿음(다 듣거나 '건너뛰기') | `heard`(들어 본 소식 수), `items` |
+| `try_trial_click` | 끝 화면 'Premium 무료로 체험하기' | `heard`, `items`, `signed_in` |
 
 ## 볼 것(GA4 탐색)
 
 - 유입경로: `login_start` → `onboarding_complete` → `today_build` → `item_open` 또는 `listen_start`
+- 둘러보기: `try_start` → `try_complete` → `try_trial_click` → `login_start` → `onboarding_complete` → `purchase_start`
 - 재방문: 코호트(가입 주별 1·7일 재방문)
 - 기능별 사용: `listen_start`의 `mode` 비율, `script_tab_open`, 플레이리스트(`mode=playlist`)
 - 분야별: `item_open`·`feedback`의 `category`

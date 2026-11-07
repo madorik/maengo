@@ -169,6 +169,12 @@ export async function Landing() {
               <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
               <AuthLink signedOut={{ href: "/login", label: "이미 계정이 있어요" }} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
+            {/* 로그인 없이 이미 만든 음성 소식 몇 개를 들어 본다(app/try, 2026-11-07) */}
+            <AuthLink
+              signedOut={{ href: "/try", label: "로그인 없이 먼저 들어 보기 →" }}
+              signedIn={null}
+              className="mt-4 inline-flex min-h-11 items-center text-[16px] font-extrabold text-sky-dark no-underline hover:underline"
+            />
             {/* 스토어 링크(앱은 이 페이지 대신 로그인·오늘로 가므로 앱 안에는 안 보인다, proxy.ts). Play는 심사 통과 뒤 PLAY_STORE_URL을 채우면 나온다 */}
             <p className="mt-5 flex flex-wrap gap-x-5 gap-y-1">
               <StoreLink href={APP_STORE_URL} label="App Store에서 iPhone 앱 받기" />

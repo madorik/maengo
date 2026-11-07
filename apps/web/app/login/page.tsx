@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { signIn } from "../actions";
+import { IconHeadphones } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { demoLoginEnabled } from "@/lib/server/demo";
 import { LoginButtons } from "./LoginButtons";
@@ -35,6 +36,14 @@ export default async function LoginPage({ searchParams }: Props) {
         )}
         <LoginButtons demo={demoLoginEnabled()} />
       </form>
+      {/* 로그인 없이 이미 만든 음성 소식 몇 개를 들어 본다(app/try, 2026-11-07). 앱은 로그인 전이면 이 화면으로 열려서 여기가 입구다 */}
+      <Link
+        href="/try"
+        className="mx-auto mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-[15px] font-extrabold text-sky-dark no-underline hover:bg-snow"
+      >
+        <IconHeadphones className="size-5" />
+        로그인 없이 둘러보기
+      </Link>
       <p className="mt-5 text-center text-[13px] font-medium leading-relaxed text-sub">
         계속하면{" "}
         <Link href="/terms" className="font-bold text-sub underline">

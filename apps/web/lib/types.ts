@@ -176,3 +176,29 @@ export interface TopicGroupView {
   picked: boolean;
   details: { id: string; name: string; picked: boolean }[];
 }
+
+/** 로그인 없이 둘러보기(/try)의 대본 한 줄과 읽는 시각(lib/server/guest-tour.ts) */
+export interface GuestLine {
+  text: string;
+  startMs: number;
+  endMs: number;
+  para?: number;
+}
+
+/** 로그인 없이 둘러보기(/try)의 소식 하나: 이미 만든 음성이 있는 공개 소식 */
+export interface GuestItem {
+  clusterId: number;
+  title: string;
+  short: string;
+  category: CategoryId;
+  kind: 'article' | 'video';
+  sourceLabel: string;
+  url: string;
+  /** 발행일(없으면 처음 본 날), ISO */
+  date: string;
+  /** 음성 키(/api/try/audio?key=) */
+  audioKey: string;
+  durationMs: number;
+  /** 대본 줄과 읽는 시각(첫 줄은 제목) */
+  lines: GuestLine[];
+}

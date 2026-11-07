@@ -24,7 +24,10 @@ export type AnalyticsEvent =
   | "share"
   | "ask"
   | "purchase_start"
-  | "purchase_complete";
+  | "purchase_complete"
+  | "try_start"
+  | "try_complete"
+  | "try_trial_click";
 
 type Params = Record<string, string | number | boolean | null | undefined>;
 
