@@ -13,8 +13,8 @@ android {
         applicationId "kr.maengo.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "1.3.0"
+        versionCode 8
+        versionName "1.3.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -35,8 +35,11 @@ android {
     buildTypes {
         release {
             if (uploadProps.getProperty('storeFile')) signingConfig signingConfigs.release
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8 축소·난독화(2026-11-07, Play 'DEX 코드 최적화 기준점 미만: 난독화 4%' 경고). 플러그인 클래스는 Capacitor·각 라이브러리의 소비자 규칙이 지킨다.
+            // 빌드하면 app/build/outputs/mapping/release/mapping.txt가 생기고, release.mjs가 Play에 같이 올린다(충돌 기록을 원래 이름으로 보이게)
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

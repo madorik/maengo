@@ -2,11 +2,15 @@
 // AAB를 올리고 트랙에 새 출시를 만든다. 이미 올린 빌드를 다른 트랙(예: 내부 → 비공개 테스트 alpha)에 낼 때는 AAB 대신 버전 코드를 준다.
 // 앱이 아직 한 번도 공개되지 않았으면 Play가 'draft' 출시만 받으므로 그때는 초안으로 만든다.
 // iOS 빌드는 xcodebuild -exportArchive(destination upload)로 올리고, 처리 상태는 node release.mjs --ios 로 본다.
-import { readFileSync } from "node:fs";
+// R8 난독화(1.3.1 vc8부터)의 mapping.txt도 같이 올린다(Play 충돌 기록을 원래 이름으로): AAB 옆의 <이름>.mapping.txt, 없으면 gradle 출력 위치
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { asc, APP_ID, play } from "./stores.mjs";
 
 const [build, track = "internal", notes = ""] = process.argv.slice(2);
 const isCode = /^\d+$/.test(build ?? "");
+const GRADLE_MAPPING = fileURLToPath(new URL("../../android/app/build/outputs/mapping/release/mapping.txt", import.meta.url));
+const mappingFor = (aab) => [aab.replace(/\.aab$/, ".mapping.txt"), GRADLE_MAPPING].find((p) => existsSync(p));
 
 /** 새 edit에 번들을 올리고(버전 코드면 건너뜀) 트랙 출시를 넣어 커밋한다 */
 async function commit(status) {
@@ -17,6 +21,11 @@ async function commit(status) {
     const bundle = await play("POST", `${e}/bundles`, readFileSync(build), { upload: true, contentType: "application/octet-stream" });
     console.log("Play bundle", bundle.versionCode, bundle.sha256);
     code = String(bundle.versionCode);
+    const mapping = mappingFor(build);
+    if (mapping) {
+      await play("POST", `${e}/apks/${code}/deobfuscationFiles/proguard`, readFileSync(mapping), { upload: true, contentType: "application/octet-stream" });
+      console.log("Play mapping", mapping);
+    }
   }
   await play("PUT", `${e}/tracks/${track}`, {
     track,
