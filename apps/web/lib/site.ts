@@ -35,7 +35,7 @@ export function ogImages() {
   return [{ url: appUrl("/opengraph-image"), width: 1200, height: 630, alt: `${SITE_NAME} - 관심 분야의 소식을 AI로 요약해서 음성 지원해줘요` }];
 }
 /** 소개 페이지 문구를 바꾼 날. 사이트맵 lastmod로 나간다(빌드 시각을 쓰면 배포마다 모두 '바뀜'이 돼 검색엔진이 믿지 않는다) */
-export const LANDING_UPDATED_ON = "2026-11-06";
+export const LANDING_UPDATED_ON = "2026-11-07";
 
 /**
  * 다른 이름. 검색·AI가 과일 '망고'(Mango)나 비슷한 이름의 다른 서비스와 헷갈리지 않게 구조화 데이터에 같이 적는다
@@ -47,17 +47,15 @@ export const SITE_ALT_NAMES = [SITE_NAME_EN, "맹고 앱", "Maengo app"];
 /** App Store 앱 id(iOS 1.3.0, 2026-11-06 한국 출시). 사파리 '앱 열기' 배너·구조화 데이터·소개 페이지 링크에 쓴다 */
 export const APP_STORE_ID = "6821451147";
 export const APP_STORE_URL = `https://apps.apple.com/kr/app/id${APP_STORE_ID}`;
-/**
- * Google Play 주소. 프로덕션 심사를 통과하기 전엔 공개 주소가 404라 비워 둔다.
- * 통과하면 "https://play.google.com/store/apps/details?id=kr.maengo.app"을 넣고 apps/company(index.html JSON-LD·llms.txt)도 같이 고친다
- */
-export const PLAY_STORE_URL: string | null = null;
+/** Google Play 주소(Android 1.3.0, 2026-11-07 출시. 31개국). 바꾸면 apps/company(index.html JSON-LD·llms.txt)도 같이 고친다 */
+export const PLAY_STORE_URL: string | null = "https://play.google.com/store/apps/details?id=kr.maengo.app";
 /**
  * 스토어 리뷰 쓰기 주소(설정 > 앱 정보 '맹고 평가하기'). iOS 앱은 App Store 앱의 리뷰 쓰기 화면을 바로 연다(itms-apps는 웹뷰가 시스템으로 넘긴다).
  * 안드로이드 앱은 Play가 공개된 뒤에만. 웹은 App Store 리뷰 쓰기 페이지
  */
 export function storeReviewUrl(platform: "ios" | "android" | null): string | null {
-  if (platform === "android") return PLAY_STORE_URL ? `${PLAY_STORE_URL}&showAllReviews=true` : null;
+  // 안드로이드 앱은 Play 스토어 앱으로 연다(market:은 웹뷰가 시스템으로 넘긴다)
+  if (platform === "android") return PLAY_STORE_URL ? "market://details?id=kr.maengo.app" : null;
   if (platform === "ios") return `itms-apps://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
   return `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
 }

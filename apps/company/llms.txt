@@ -14,7 +14,7 @@
 맹고는 관심 분야의 소식을 AI로 요약해서 음성 지원해 주는 앱이에요. 고른 분야의 소식만 매일 골라 요약하고, 읽기 어려울 땐 음성으로 들려줘요.
 
 - 이름: 맹고(영문 Maengo). 과일 망고(Mango)가 아니라 '맹고'예요. 와타랩스(WataLabs)가 만들고 운영해요.
-- 앱: [App Store](https://apps.apple.com/kr/app/id6821451147)(iPhone), Google Play(Android, 곧 출시)
+- 앱: [App Store](https://apps.apple.com/kr/app/id6821451147)(iPhone), [Google Play](https://play.google.com/store/apps/details?id=kr.maengo.app)(Android)
 
 ### 맹고가 풀어 주는 불편
 
@@ -54,7 +54,7 @@ AI, 주식, 코인, 반도체·로봇, Tech, 그리고 뉴스 분야(정치, 경
 ### 어디서 쓰나요
 
 - 웹(https://watalabs.com/maengo)에서 바로 써요.
-- iPhone 앱은 App Store(https://apps.apple.com/kr/app/id6821451147)에서 받아요. Android 앱은 곧 Google Play에 나와요. 앱에서는 정한 시각에 알림을 받고, 화면을 꺼도 끝까지 이어서 들어요.
+- iPhone 앱은 App Store(https://apps.apple.com/kr/app/id6821451147), Android 앱은 Google Play(https://play.google.com/store/apps/details?id=kr.maengo.app)에서 받아요. 앱에서는 정한 시각에 알림을 받고, 화면을 꺼도 끝까지 이어서 들어요.
 
 ## 자주 묻는 질문
 
