@@ -7,6 +7,7 @@ import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
+import { BookmarkButton } from "@/components/ui/BookmarkButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { SourceChip } from "@/components/ui/SourceChip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -152,7 +153,7 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
         <CategoryChip category={item.category} />
         <SourceChip item={item} />
         {item.coverage && item.kind === "article" && <span className="hidden truncate font-bold text-sub sm:inline">{item.coverage}</span>}
-        <span className="ml-auto shrink-0">
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1">
           {/* 음성을 만드는 동안은 머리 대신 카드 안 진행 카드(VoiceMaking)로 알린다 */}
           {!viaPlayer && single.ctl.error ? (
             <span className="text-cherry">{ttsErrorLabel(single.ctl.error)}</span>
@@ -164,6 +165,8 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
               읽음
             </span>
           ) : null}
+          {/* 북마크는 카드 링크 위로 올라와 그 자리에서 켜고 끈다(보관함 카드와 같다) */}
+          <BookmarkButton item={item} variant="card" where="today" />
         </span>
       </div>
       <h2 className="mt-2.5 text-[18px] font-black leading-snug tracking-[-0.02em]">

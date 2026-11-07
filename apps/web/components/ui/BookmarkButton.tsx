@@ -9,21 +9,24 @@ import type { CategoryId } from "@maengo/core/categories";
 /**
  * 소식 북마크 켜고 끄기. 북마크한 소식은 보관함 머리말 '북마크'로 모아 본다.
  * 누른 상태는 채운 아이콘(aria-pressed)으로만 보인다(확인 문장은 두지 않는다). 저장하지 못하면 되돌리고 오류 알림만 띄운다.
- * icon: 글 화면 머리말 오른쪽 아이콘(공유 왼쪽). tile: 글 화면 본문 '공유하기' 옆 버튼. card: 보관함 카드 오른쪽 위(읽음 표시 오른쪽)
+ * icon: 글 화면 머리말 오른쪽 아이콘(공유 왼쪽). tile: 글 화면 본문 '공유하기' 옆 버튼. card: 보관함·오늘 카드 오른쪽 위(읽음 표시 오른쪽)
  */
 export function BookmarkButton({
   item,
   variant = "icon",
+  where,
 }: {
   item: { clusterId: number; category: CategoryId; title: string };
   variant?: "icon" | "tile" | "card";
+  /** 분석 이벤트의 where. 없으면 모양으로 정한다(icon=header, tile=body, card=library) */
+  where?: "today";
 }) {
   const { isBookmarked, setBookmark } = useToday();
   const toast = useToast();
   const on = isBookmarked(item.clusterId);
 
   const toggle = async () => {
-    track("bookmark", { on: !on, category: item.category, where: variant === "tile" ? "body" : variant === "card" ? "library" : "header" });
+    track("bookmark", { on: !on, category: item.category, where: where ?? (variant === "tile" ? "body" : variant === "card" ? "library" : "header") });
     if (!(await setBookmark(item.clusterId, !on))) toast.showError("북마크하지 못했어요");
   };
 
