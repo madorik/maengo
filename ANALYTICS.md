@@ -3,6 +3,7 @@
 > 2026-10-11. 코드는 끝났고(이벤트가 `window.dataLayer`에 쌓인다), GTM 컨테이너 ID를 넣으면 GA4로 가기 시작한다.
 > 2026-10-17 연결: GA4 측정 ID `G-5FYPYJMVQ1`(웹 스트림 https://watalabs.com), GTM 컨테이너 `GTM-MQ7KSJJK`(Vercel `NEXT_PUBLIC_GTM_ID`). `gtm-import.json`에 측정 ID를 넣어 둠(가져온 뒤 변수를 안 고쳐도 됨).
 > 코드: `lib/analytics.ts`(track), `components/Analytics.tsx`(GTM 싣기, 운영 + `NEXT_PUBLIC_GTM_ID`일 때만), `components/AnalyticsSession.tsx`(사용자 ID·플랜·플랫폼).
+> 2026-11-07: GTM 버전 3 게시(둘러보기 try_* 이벤트·값 items·heard·where·signed_in, 이 파일 병합 가져오기). GA4 맞춤 정의 16개 등록(이벤트 14: mode·category·kind·action·reason·topic·voice·provider·product·charged·items·heard·where·signed_in, 사용자 2: plan·platform). GA4 속성은 계정 '정민균'(352006364)의 '맹고(Maengo)'(559406417), GTM은 계정 '와타랩스'(6383117467) 컨테이너 267447389. 같은 GA 계정에 다른 속성(또닥 AI 등)이 있어 기본으로 그쪽이 열린다.
 > 개인정보: 이름·이메일·직접 적은 관심사는 보내지 않는다. 사용자 ID는 회원 id의 SHA-256 앞 24자리. 처리방침에 Google 애널리틱스를 넣었다(2026-10-11).
 
 ## 사용자가 할 일
@@ -11,7 +12,7 @@
    - 관리 → 데이터 수집 및 수정 → 데이터 보관 → **14개월**(처리방침과 같게)
 2. **GTM 컨테이너**: https://tagmanager.google.com → 계정 만들기 `맹고` → 컨테이너 `watalabs.com`, 대상 '웹' → 컨테이너 ID(`GTM-…`)를 Claude에게 알려 준다(Vercel 환경 변수 `NEXT_PUBLIC_GTM_ID`에 넣고 배포)
 3. **GTM 안 설정**: 관리 → 컨테이너 가져오기 → [`gtm-import.json`](gtm-import.json)(작업공간 Default, 병합·충돌하면 덮어쓰기) → 변수 `GA4 측정 ID`의 값을 `G-…`로 바꾸기 → 제출 → 게시. 가져오기가 안 되면 아래 '태그 설정'대로 손으로 만든다
-4. **GA4 맞춤 정의**: 관리 → 맞춤 정의 → 이벤트 범위 `mode`·`category`·`kind`·`action`·`reason`·`topic`·`voice`·`provider`·`product`·`charged`·`items`·`heard`·`where`·`signed_in`, 사용자 범위 `plan`·`platform`
+4. **GA4 맞춤 정의**(2026-11-07 완료): 관리 → 맞춤 정의 → 이벤트 범위 `mode`·`category`·`kind`·`action`·`reason`·`topic`·`voice`·`provider`·`product`·`charged`·`items`·`heard`·`where`·`signed_in`, 사용자 범위 `plan`·`platform`
 
 ## 태그 설정(GTM, `gtm-import.json`에 든 것)
 
