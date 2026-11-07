@@ -1,6 +1,86 @@
 // 관리자 통계(/admin)가 탭마다 DB 함수(supabase/migrations/20261022100000_admin_tabs.sql)에서 받는 숫자와 화면 계산.
 // DB를 읽지 않는 계산만(테스트: __tests__/admin-stats.test.ts).
 
+/** 달러를 원으로 셀 때 환율(운영비와-가격.md 전제와 같다) */
+export const KRW_PER_USD = 1400;
+
+/** 요약 탭(admin_stats_summary, supabase/migrations/20261108120000_admin_summary.sql). 추이 기간의 날마다 값과 그 전까지의 누적 */
+export interface SummaryStats {
+  /** 로그인 안 한 방문자를 세기 시작한 날(guest_visits 첫 날). 아직 없으면 null */
+  firstVisit: string | null;
+  /** 추이 첫날 전까지: 가입한 회원, 매출(원화·그 밖 통화 달러), API 비용(달러) */
+  base: { users: number; krw: number; usd: number; costUsd: number };
+  /** subs = 그날 끝(오늘은 지금)에 유료 구독 기간 안인 사람. 나머지는 그날 생긴 수 */
+  daily: { date: string; visitors: number; signups: number; newSubs: number; trials: number; subs: number; krw: number; usd: number; costUsd: number }[];
+}
+
+/** 요약 탭 하루. 돈은 원(달러는 환율로) */
+export interface SummaryDay {
+  date: string;
+  visitors: number;
+  signups: number;
+  /** 그날 끝 전체 회원 */
+  users: number;
+  newSubs: number;
+  trials: number;
+  subs: number;
+  revenue: number;
+  revenueTotal: number;
+  cost: number;
+  costTotal: number;
+}
+
+/** 날마다 값에 누적(전체 회원·전체 매출·누적 지출)을 붙인다. 돈은 원으로 반올림(누적은 반올림 전 값을 더해서) */
+export function summarySeries(s: SummaryStats, krwPerUsd = KRW_PER_USD): SummaryDay[] {
+  let users = s.base.users;
+  let revenue = s.base.krw + s.base.usd * krwPerUsd;
+  let cost = s.base.costUsd * krwPerUsd;
+  return s.daily.map((d) => {
+    const dayRevenue = d.krw + d.usd * krwPerUsd;
+    const dayCost = d.costUsd * krwPerUsd;
+    users += d.signups;
+    revenue += dayRevenue;
+    cost += dayCost;
+    return {
+      date: d.date,
+      visitors: d.visitors,
+      signups: d.signups,
+      users,
+      newSubs: d.newSubs,
+      trials: d.trials,
+      subs: d.subs,
+      revenue: Math.round(dayRevenue),
+      revenueTotal: Math.round(revenue),
+      cost: Math.round(dayCost),
+      costTotal: Math.round(cost),
+    };
+  });
+}
+
+/** 고른 기간의 요약 숫자. 전환율은 방문자를 센 날(firstVisit부터)의 가입 ÷ 방문자. 전체 값은 기간 마지막 날 */
+export function summaryTotals(days: SummaryDay[], range: { from: string; to: string }, firstVisit: string | null) {
+  const inRange = days.filter((d) => d.date >= range.from && d.date <= range.to);
+  const tracked = firstVisit ? inRange.filter((d) => d.date >= firstVisit) : [];
+  const sum = (list: SummaryDay[], k: 'visitors' | 'signups' | 'newSubs' | 'trials') => list.reduce((n, d) => n + d[k], 0);
+  const last = inRange.at(-1);
+  const visitors = sum(tracked, 'visitors');
+  const trackedSignups = sum(tracked, 'signups');
+  return {
+    visitors,
+    trackedSignups,
+    conversion: tracked.length ? ratio(trackedSignups, visitors) : null,
+    signups: sum(inRange, 'signups'),
+    users: last?.users ?? 0,
+    newSubs: sum(inRange, 'newSubs'),
+    trials: sum(inRange, 'trials'),
+    subs: last?.subs ?? 0,
+    revenue: inRange.reduce((n, d) => n + d.revenue, 0),
+    revenueTotal: last?.revenueTotal ?? 0,
+    cost: inRange.reduce((n, d) => n + d.cost, 0),
+    costTotal: last?.costTotal ?? 0,
+  };
+}
+
 /** 가입·활동 탭(admin_stats_growth) */
 export interface GrowthStats {
   today: string;

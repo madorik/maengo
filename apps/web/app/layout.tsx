@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
 import { Analytics } from "@/components/Analytics";
+import { GuestVisit } from "@/components/GuestVisit";
 import { NativeShell } from "@/components/NativeShell";
 import { NavProgress } from "@/components/NavProgress";
 import { ThemeSync } from "@/components/ThemeSync";
@@ -68,6 +69,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <NativeShell />
         <ThemeSync />
         <Analytics />
+        <GuestVisit />
       </body>
     </html>
   );

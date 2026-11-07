@@ -1,18 +1,15 @@
 import type { AdminRange } from "@/lib/admin-range";
-import { type RevenueStats, ratio, revenueKrw } from "@/lib/admin-stats";
+import { KRW_PER_USD, type RevenueStats, ratio, revenueKrw } from "@/lib/admin-stats";
 import { db, must } from "@/lib/server/db";
-import { Card, Note, Row, Section, Stat, num, pct } from "./parts";
+import { Card, Note, Row, Section, Stat, num, pct, won } from "./parts";
 
 // 관리자 매출·콘텐츠 탭. 숫자는 admin_stats_revenue(supabase/migrations/20261022100000_admin_tabs.sql).
 // 결제는 실제 스토어 결제만(테스트·운영자 권한 뺌). Premium·지갑 잔액·관심사는 지금 값, 나머지는 기간.
 
-const KRW_PER_USD = 1400;
 /** 스토어 수수료(애플·구글 소규모 사업자 15%로 본다) */
 const STORE_FEE = 0.15;
 /** Google TTS Chirp 3 HD 매월 무료 글자 수, 넘으면 100만 자당 $30 */
 const TTS_FREE_CHARS = 1_000_000;
-
-const won = (krw: number) => `${Math.round(krw).toLocaleString("ko-KR")}원`;
 
 export async function RevenueTab({ range }: { range: AdminRange }) {
   const s = must(await db.rpc("admin_stats_revenue", { p_from: range.from, p_to: range.to }), "admin_stats_revenue") as RevenueStats;

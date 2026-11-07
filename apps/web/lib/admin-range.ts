@@ -2,8 +2,10 @@ import { addDays } from '@maengo/core/kst';
 
 // 관리자 통계 기간(/admin?from=YYYY-MM-DD&to=YYYY-MM-DD). 날짜는 한국 시간, 양끝 포함.
 
-/** 기간을 안 주면 오늘까지 14일 */
-export const DEFAULT_DAYS = 14;
+/** 기간을 안 주면 오늘 하루(2026-11-08 사용자 결정, 예전엔 14일) */
+export const DEFAULT_DAYS = 1;
+/** 요약 탭 추이 그래프는 기간이 이보다 짧아도 끝날까지 이만큼(일) 그린다 */
+export const TREND_MIN_DAYS = 30;
 /** 한 번에 볼 수 있는 가장 긴 기간(일) */
 export const MAX_DAYS = 366;
 
@@ -35,8 +37,15 @@ export function parseAdminRange(sp: { from?: string | string[]; to?: string | st
   return { from, to };
 }
 
-/** 관리자 탭(?tab=). 처음 여는 탭은 가입·활동이라 주소에 넣지 않는다 */
+/** 요약 탭 추이 기간: 고른 기간이 TREND_MIN_DAYS보다 짧으면 끝날(to)까지 TREND_MIN_DAYS일 */
+export function trendRange(range: AdminRange): AdminRange {
+  const from = addDays(range.to, -(TREND_MIN_DAYS - 1));
+  return { from: range.from < from ? range.from : from, to: range.to };
+}
+
+/** 관리자 탭(?tab=). 처음 여는 탭은 요약이라 주소에 넣지 않는다 */
 export const ADMIN_TABS = [
+  { id: 'summary', label: '요약' },
   { id: 'growth', label: '가입·활동' },
   { id: 'revenue', label: '매출·콘텐츠' },
   { id: 'ops', label: '운영' },
@@ -46,12 +55,12 @@ export const ADMIN_TABS = [
 export type AdminTab = (typeof ADMIN_TABS)[number]['id'];
 
 export function parseAdminTab(sp: { tab?: string | string[] }): AdminTab {
-  return ADMIN_TABS.find((t) => t.id === sp.tab)?.id ?? 'growth';
+  return ADMIN_TABS.find((t) => t.id === sp.tab)?.id ?? 'summary';
 }
 
-/** 탭·기간을 담은 /admin 주소. 가입·활동 탭은 tab을 빼고 */
+/** 탭·기간을 담은 /admin 주소. 요약 탭은 tab을 빼고 */
 export function adminHref(tab: AdminTab, { from, to }: AdminRange): string {
-  return `/admin?${tab === 'growth' ? '' : `tab=${tab}&`}from=${from}&to=${to}`;
+  return `/admin?${tab === 'summary' ? '' : `tab=${tab}&`}from=${from}&to=${to}`;
 }
 
 export function adminPresets(today: string): AdminPreset[] {

@@ -9,6 +9,7 @@ import { InquiriesCard } from "@/components/admin/InquiriesCard";
 import { OpsTab } from "@/components/admin/OpsTab";
 import { RangeBar, Tabs } from "@/components/admin/parts";
 import { RevenueTab } from "@/components/admin/RevenueTab";
+import { SummaryTab } from "@/components/admin/SummaryTab";
 import { parseAdminRange, parseAdminTab } from "@/lib/admin-range";
 import { isAdmin } from "@/lib/server/admin";
 import { adminAlerts } from "@/lib/server/admin-alerts";
@@ -16,9 +17,9 @@ import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "관리자", robots: { index: false, follow: false } };
 
-// 관리자 통계(TODO.md 1번). 탭 넷(?tab=): 가입·활동(처음), 매출·콘텐츠(revenue), 운영(ops), 문의(inquiries, 문의하기 답장). 연 탭의 숫자만 DB 함수 하나로 센다
-// (components/admin/*Tab.tsx, supabase/migrations/20261022100000_admin_tabs.sql). 날짜는 한국 시간.
-// 기간(?from=&to=, 기본 오늘까지 14일)은 탭을 옮겨도 그대로. 운영 경고는 위 막대의 알림 종에 모은다(어느 탭에서나, 안 읽은 게 있으면 빨간 점).
+// 관리자 통계(TODO.md 1번). 탭 다섯(?tab=): 요약(처음, 2026-11-08), 가입·활동(growth), 매출·콘텐츠(revenue), 운영(ops), 문의(inquiries, 문의하기 답장).
+// 연 탭의 숫자만 DB 함수 하나로 센다(components/admin/*Tab.tsx, supabase/migrations/20261022100000_admin_tabs.sql·20261108120000_admin_summary.sql). 날짜는 한국 시간.
+// 기간(?from=&to=, 기본 오늘 하루)은 탭을 옮겨도 그대로. 운영 경고는 위 막대의 알림 종에 모은다(어느 탭에서나, 안 읽은 게 있으면 빨간 점).
 // 개인을 알아볼 수 있는 값(이메일·이름)은 보여 주지 않는다.
 // 앱·홈 화면 웹앱은 화면 끝까지 그리므로(viewportFit cover) 위는 노치·상태 표시줄, 아래는 홈 막대·내비게이션 바만큼 비운다.
 
@@ -59,6 +60,7 @@ export default async function AdminPage({ searchParams }: Props) {
 
       <main className="mx-auto flex max-w-[1100px] flex-col gap-6 px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-6">
         <RangeBar tab={tab} range={range} today={today} />
+        {tab === "summary" && <SummaryTab range={range} today={today} />}
         {tab === "growth" && <GrowthTab range={range} today={today} />}
         {tab === "revenue" && <RevenueTab range={range} />}
         {tab === "ops" && <OpsTab range={range} />}

@@ -7,6 +7,7 @@ import { withBase } from "@/lib/base-path";
 
 export const num = (n: number) => n.toLocaleString("ko-KR");
 export const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 100)}%`);
+export const won = (krw: number) => `${Math.round(krw).toLocaleString("ko-KR")}원`;
 /** 'YYYY-MM-DD' → 'MM/DD' */
 export const md = (date: string) => date.slice(5).replace("-", "/");
 
@@ -71,7 +72,7 @@ export function Chips({ data, labels }: { data: Record<string, number>; labels: 
   );
 }
 
-/** 탭(가입·활동 / 매출·콘텐츠 / 운영). 탭마다 그 탭의 숫자만 DB에서 센다. 기간은 그대로 넘긴다 */
+/** 탭(요약 / 가입·활동 / 매출·콘텐츠 / 운영 / 문의). 탭마다 그 탭의 숫자만 DB에서 센다. 기간은 그대로 넘긴다 */
 export function Tabs({ tab, range }: { tab: AdminTab; range: AdminRange }) {
   return (
     <nav aria-label="관리자 탭" className="-mb-[2px] flex gap-1 overflow-x-auto">
@@ -114,7 +115,7 @@ export function RangeBar({ tab, range, today }: { tab: AdminTab; range: AdminRan
       {/* 빠른 기간을 눌러도 칸이 새 값으로 바뀌게 기간이 바뀌면 다시 그린다 */}
       {/* 좁은 화면에선 날짜 두 칸이 한 줄을 다 쓰고 보기 버튼은 아래 줄로, 아주 좁으면(360px 미만) 날짜도 한 줄에 하나 */}
       <form key={`${range.from}~${range.to}`} action={withBase("/admin")} className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1.5 max-[359px]:grid-cols-1 sm:ml-auto sm:flex sm:w-auto">
-        {tab !== "growth" && <input type="hidden" name="tab" value={tab} />}
+        {tab !== "summary" && <input type="hidden" name="tab" value={tab} />}
         <label htmlFor="range-from" className="sr-only">
           시작일
         </label>
