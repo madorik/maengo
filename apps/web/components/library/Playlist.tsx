@@ -6,6 +6,7 @@ import { playlistAdd } from "@/app/actions";
 import { IconBookmark, IconCheck, IconClose, IconHeadphones, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
+import { ON_TILE as BOOKMARK_ON } from "@/components/ui/BookmarkButton";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 
 // 보관함 골라 듣기(Premium). '골라 듣기'를 누르고 카드를 고르면 체크가 붙는다. 듣기·담기는 고른 순서대로(2026-10-15 정리: 위는 선택, 아래는 동작).
@@ -104,9 +105,9 @@ export function LibraryHeader({
           <Link
             href={bookmark.href}
             aria-current={bookmark.on ? "page" : undefined}
-            className={`btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-3.5 text-[14px] ${bookmark.on ? "border-sky bg-sky-tint text-sky-dark [--btn-edge:var(--color-sky)]" : ""}`}
+            className={`btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-3.5 text-[14px] ${bookmark.on ? `${BOOKMARK_ON} [--btn-edge:#C85A00]` : ""}`}
           >
-            <IconBookmark filled={bookmark.on} className="size-4" />
+            <IconBookmark filled={bookmark.on} className={`size-4 ${bookmark.on ? "text-orange" : ""}`} />
             북마크
           </Link>
           {!profile.audio ? (

@@ -8,9 +8,12 @@ import type { CategoryId } from "@maengo/core/categories";
 
 /**
  * 소식 북마크 켜고 끄기. 북마크한 소식은 보관함 머리말 '북마크'로 모아 본다.
- * 누른 상태는 채운 아이콘(aria-pressed)으로만 보인다(확인 문장은 두지 않는다). 저장하지 못하면 되돌리고 오류 알림만 띄운다.
+ * 누른 상태는 채운 주황 아이콘(aria-pressed)으로만 보인다(확인 문장은 두지 않는다). 저장하지 못하면 되돌리고 오류 알림만 띄운다.
  * icon: 글 화면 머리말 오른쪽 아이콘(공유 왼쪽). tile: 글 화면 본문 '공유하기' 옆 버튼. card: 보관함·오늘 카드 오른쪽 위(읽음 표시 오른쪽)
  */
+/** 켜진 북마크 버튼(글 화면 본문 버튼·보관함 제목 줄 거르기): 주황 테두리·옅은 주황 바탕, 글자는 그대로. 파랑은 출처 칩·링크와 섞여 잘 안 보였다(2026-11-07 사용자) */
+export const ON_TILE = "border-orange bg-[#FFF1E6] dark:bg-[#3A2414]";
+
 export function BookmarkButton({
   item,
   variant = "icon",
@@ -36,9 +39,9 @@ export function BookmarkButton({
         type="button"
         aria-pressed={on}
         onClick={toggle}
-        className={`tile inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
+        className={`tile inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold ${on ? ON_TILE : "hover:bg-snow"}`}
       >
-        <IconBookmark filled={on} className="size-5" />
+        <IconBookmark filled={on} className={`size-5 ${on ? "text-orange" : ""}`} />
         북마크
       </button>
     );
@@ -52,7 +55,7 @@ export function BookmarkButton({
         aria-pressed={on}
         aria-label={`북마크: ${item.title}`}
         onClick={toggle}
-        className={`relative z-[1] -my-3 -mr-2.5 inline-flex size-11 items-center justify-center rounded-xl ${on ? "text-sky" : "text-faint hover:text-sub"}`}
+        className={`relative z-[1] -my-3 -mr-2.5 inline-flex size-11 items-center justify-center rounded-xl ${on ? "text-orange" : "text-faint hover:text-sub"}`}
       >
         <IconBookmark filled={on} className="size-5" />
       </button>
@@ -65,7 +68,7 @@ export function BookmarkButton({
       aria-pressed={on}
       aria-label="북마크"
       onClick={toggle}
-      className={`inline-flex size-11 items-center justify-center rounded-xl hover:bg-snow ${on ? "text-sky" : "text-sub"}`}
+      className={`inline-flex size-11 items-center justify-center rounded-xl hover:bg-snow ${on ? "text-orange" : "text-sub"}`}
     >
       <IconBookmark filled={on} className="size-5" />
     </button>
