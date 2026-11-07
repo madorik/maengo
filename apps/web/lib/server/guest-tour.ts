@@ -36,6 +36,7 @@ interface SummaryRow {
   short: string;
   body: string[];
   category: string;
+  author: string | null;
   impact: string | null;
   published_at: string | null;
   clusters: { first_seen_at: string; skip_reason: string | null; rep_item_id: number | null };
@@ -46,6 +47,7 @@ interface MemberRow {
   cluster_id: number;
   canonical_url: string;
   kind: 'article' | 'video';
+  author?: string | null;
   sources: { name: string; custom: boolean } | null;
 }
 
@@ -89,7 +91,7 @@ export const guestTour = cache(async (): Promise<GuestItem[]> => {
     must(
       await db
         .from('summaries')
-        .select('cluster_id,title,short,body,category,impact,published_at,clusters!inner(first_seen_at,skip_reason,rep_item_id)')
+        .select('cluster_id,title,short,body,category,author,impact,published_at,clusters!inner(first_seen_at,skip_reason,rep_item_id)')
         .eq('tier', 'basic')
         .in('cluster_id', chunk),
       'guest summaries',
@@ -120,7 +122,7 @@ export const guestTour = cache(async (): Promise<GuestItem[]> => {
     candidates.map((c) => c.s.cluster_id),
     150,
     async (chunk) =>
-      must(await db.from('items').select('id,cluster_id,canonical_url,kind,sources(name,custom)').in('cluster_id', chunk), 'guest items') as unknown as MemberRow[],
+      must(await db.from('items').select('id,cluster_id,canonical_url,kind,author,sources(name,custom)').in('cluster_id', chunk), 'guest items') as unknown as MemberRow[],
   );
   const byCluster = new Map<number, MemberRow[]>();
   for (const m of members) (byCluster.get(m.cluster_id) ?? byCluster.set(m.cluster_id, []).get(m.cluster_id)!).push(m);
@@ -148,6 +150,7 @@ export const guestTour = cache(async (): Promise<GuestItem[]> => {
         category: c.category,
         kind: c.rep.kind,
         sourceLabel: c.rep.sources!.name,
+        author: c.s.author ?? c.rep.author ?? c.rep.sources!.name,
         url: c.rep.canonical_url,
         date: c.date,
         audioKey: c.seg.key,

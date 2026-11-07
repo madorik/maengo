@@ -8,7 +8,7 @@ import { useSwipeSurface } from "@/components/app/SwipePager";
 import { IconBack, IconExternal, IconNext, IconThumbDown, IconThumbUp } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { useToday } from "@/components/providers/TodayProvider";
-import { SourceChip } from "@/components/today/TodayList";
+import { SourceChip } from "@/components/ui/SourceChip";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { FeedItem } from "@/lib/types";

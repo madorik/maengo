@@ -49,9 +49,9 @@
 | `ask` | 글 화면 맹고 AI(2026-11-03부터) | `category`, `action`(open: 맹고 AI 버튼을 눌러 창을 엶, voice: 마이크로 말하기 시작, answered: 답함, limit: 하루 횟수를 다 씀, error: 답을 못 받음) |
 | `purchase_start` | 구독·맹고 추가 구매 결제 시작(앱) | `product`(스토어 상품 ID) |
 | `purchase_complete` | 결제 끝남 | `product` |
-| `try_start` | 로그인 없이 둘러보기(/try)에서 처음 듣기를 누름(2026-11-07부터) | `items`(둘러볼 소식 수) |
-| `try_complete` | 둘러보기 끝 화면에 닿음(다 듣거나 '건너뛰기') | `heard`(들어 본 소식 수), `items` |
-| `try_trial_click` | 끝 화면 'Premium 무료로 체험하기' | `heard`, `items`, `signed_in` |
+| `try_start` | 로그인 없이 둘러보기(/try)에서 처음 듣기를 누름(2026-11-07부터) | `items`(둘러볼 소식 수), `mode`(all: 전체 듣기, item: 카드의 듣기) |
+| `try_complete` | 둘러보기 마지막 소식까지 들어 체험 팝업이 뜸 | `heard`(들어 본 소식 수), `items` |
+| `try_trial_click` | 둘러보기 'Premium 무료로 체험하기' | `where`(list: 목록 아래 카드, finish: 다 들은 뒤 팝업), `heard`, `items`, `signed_in` |
 
 ## 볼 것(GA4 탐색)
 

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { IconCheck, IconClose, IconDoc, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
+import { IconCheck, IconClose, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { CategoryChip } from "@/components/ui/CategoryChip";
+import { SourceChip } from "@/components/ui/SourceChip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
@@ -208,17 +209,6 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
       </div>
       {preparing && <VoiceMaking />}
     </li>
-  );
-}
-
-export function SourceChip({ item }: { item: FeedItem }) {
-  const video = item.kind === "video";
-  return (
-    // 매체 이름이 길면 카드 머리줄을 넘지 않게 줄인다
-    <span className={`inline-flex min-w-0 max-w-full items-center gap-1 rounded-lg px-2 py-0.5 text-[13px] font-extrabold ${video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
-      {video ? <IconPlay className="size-3.5 shrink-0" /> : <IconDoc className="size-3.5 shrink-0" />}
-      <span className="truncate">{item.sourceLabel}</span>
-    </span>
   );
 }
 

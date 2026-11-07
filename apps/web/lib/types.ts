@@ -193,8 +193,10 @@ export interface GuestItem {
   category: CategoryId;
   kind: 'article' | 'video';
   sourceLabel: string;
+  /** 글쓴이 또는 유튜브 채널(없으면 출처 이름) */
+  author: string;
   url: string;
-  /** 발행일(없으면 처음 본 날), ISO */
+  /** 발행일(없으면 처음 본 날), ISO. '오늘 오전 9시' 같은 말은 화면이 브라우저에서 만든다(페이지를 10분마다 새로 만들어서) */
   date: string;
   /** 음성 키(/api/try/audio?key=) */
   audioKey: string;
