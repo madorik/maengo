@@ -77,19 +77,22 @@ test('다음 쪽만 붙이고, 늦게 온 응답은 버리고, 서버가 앞 쪽
 });
 
 test('쪽 받기 주소: 만들고 읽으면 같고, 이상한 값은 null', () => {
-  const f = { category: 'ai' as const, read: 'unread' as const, query: 'AI 해킹' };
+  const f = { category: 'ai' as const, read: 'unread' as const, bookmark: true, query: 'AI 해킹' };
   assert.deepEqual(parseLibraryPageSearch(new URLSearchParams(libraryPageSearch(2, f))), { page: 2, ...f });
-  assert.deepEqual(parseLibraryPageSearch(new URLSearchParams('page=3')), { page: 3, category: null, read: null, query: null });
+  assert.deepEqual(parseLibraryPageSearch(new URLSearchParams('page=3')), { page: 3, category: null, read: null, bookmark: false, query: null });
+  assert.equal(new URLSearchParams(libraryPageSearch(2, { ...f, bookmark: false })).has('bookmark'), false);
   assert.equal(parseLibraryPageSearch(new URLSearchParams('')), null);
   assert.equal(parseLibraryPageSearch(new URLSearchParams('page=0')), null);
   assert.equal(parseLibraryPageSearch(new URLSearchParams('page=1.5')), null);
   assert.equal(parseLibraryPageSearch(new URLSearchParams('page=99999')), null);
   assert.equal(parseLibraryPageSearch(new URLSearchParams('page=2&category=nope')), null);
   assert.equal(parseLibraryPageSearch(new URLSearchParams('page=2&read=read')), null);
+  assert.equal(parseLibraryPageSearch(new URLSearchParams('page=2&bookmark=true')), null);
 });
 
 test('거르기 열쇠·1쪽 확인 값', () => {
-  assert.notEqual(libraryFilterKey({ category: 'ai', read: null, query: null }), libraryFilterKey({ category: null, read: null, query: 'ai' }));
+  assert.notEqual(libraryFilterKey({ category: 'ai', read: null, bookmark: false, query: null }), libraryFilterKey({ category: null, read: null, bookmark: false, query: 'ai' }));
+  assert.notEqual(libraryFilterKey({ category: null, read: null, bookmark: true, query: null }), libraryFilterKey({ category: null, read: null, bookmark: false, query: null }));
   const groups = [group('2026-10-18', [1, 2])];
   assert.equal(librarySignature({ filteredTotal: 12, pageCount: 2, groups }), librarySignature({ filteredTotal: 12, pageCount: 2, groups: [group('2026-10-18', [1, 2])] }));
   assert.notEqual(librarySignature({ filteredTotal: 12, pageCount: 2, groups }), librarySignature({ filteredTotal: 13, pageCount: 2, groups }));

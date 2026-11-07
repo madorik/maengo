@@ -3,6 +3,7 @@ import { IconDoc, IconPlay } from "@/components/icons";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { LibraryEntry } from "@/lib/types";
 import type { LibraryGroup } from "@/lib/library-pages";
+import { BookmarkMark } from "./BookmarkMark";
 import { PickTarget } from "./Playlist";
 import { ReadBadge } from "./ReadBadge";
 
@@ -34,7 +35,8 @@ function LibraryCard({ entry: e }: { entry: LibraryEntry }) {
           {video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
           {e.sourceLabel}
         </span>
-        <span className="ml-auto shrink-0 group-has-[[data-pick]]:invisible">
+        <span className="ml-auto inline-flex shrink-0 items-center gap-2 group-has-[[data-pick]]:invisible">
+          <BookmarkMark clusterId={e.clusterId} />
           <ReadBadge clusterId={e.clusterId} read={e.read || e.listened} />
         </span>
       </div>

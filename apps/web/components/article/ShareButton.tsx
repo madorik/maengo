@@ -12,7 +12,8 @@ import type { FeedItem } from "@/lib/types";
  * 글 화면의 '공유'. 제목·요약과 로그인 없이 보는 소식 주소(/s/[id], 미리보기 카드에 제목이 보인다)를 보낸다.
  * 내 관심 링크(사용자가 넣은 출처)의 글은 공개 주소가 없어서 예전처럼 원문 주소와 맹고 소개 주소를 보낸다.
  * 공유 시트가 없어 복사했으면 아이콘만 잠깐 체크로 바꾼다.
- * icon: 머리말 오른쪽 아이콘. tile: 본문 출처 아래 '공유하기' 버튼(2026-10-31, 아이콘이 눈에 안 띄어 '플레이리스트에 담기' 자리에 넣었다)
+ * icon: 머리말 오른쪽 아이콘. tile: 본문 출처 아래 '공유하기' 버튼(2026-10-31, 아이콘이 눈에 안 띄어 '플레이리스트에 담기' 자리에 넣었다.
+ * 2026-11-07부터 '북마크' 옆, 위 여백은 둘을 감싼 줄이 둔다)
  */
 export function ShareButton({
   item,
@@ -50,7 +51,7 @@ export function ShareButton({
           type="button"
           onClick={share}
           aria-label={copied ? label : undefined}
-          className="tile mt-6 inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold hover:bg-snow"
+          className="tile inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold hover:bg-snow"
         >
           {icon}
           공유하기

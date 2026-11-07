@@ -28,6 +28,10 @@ interface TodayApi {
   markRead: (clusterId: number) => void;
   markListened: (clusterId: number) => void;
   setFeedback: (clusterId: number, kind: FeedbackKind | null) => void;
+  /** 북마크했는지(서버 값에 이 화면에서 바꾼 것을 덮는다) */
+  isBookmarked: (clusterId: number) => boolean;
+  /** 북마크 켜고 끄기. 버튼은 바로 바뀌고, 저장하지 못하면 되돌리고 false */
+  setBookmark: (clusterId: number, on: boolean) => Promise<boolean>;
   /**
    * '이 글 듣기'를 쓸 수 있는지: 'plan'(Premium), 'free'(Free의 오늘 듣기 몫, 2026-10-23), null(잠금).
    * 서버(lib/server/listen-access.ts)와 같은 규칙: 전에 들은 소식은 늘 되고, 처음 듣는 소식은 오늘 들은 수가 하루 몫보다 적을 때
@@ -54,6 +58,12 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
     listenedRef.current = listened;
   }, [listened]);
   const [feedback, setFeedbackState] = useState(initial.feedback);
+  // 북마크는 서버 값(initial.bookmarks)에 이 화면에서 바꾼 것만 덮어 둔다. 피드가 바뀌어 서버 값이 새로 와도 방금 바꾼 게 이긴다
+  const [bookmarkEdits, setBookmarkEdits] = useState<ReadonlyMap<number, boolean>>(() => new Map());
+  const savedBookmarks = useMemo(() => new Set(initial.bookmarks), [initial.bookmarks]);
+  // 같은 소식을 빨리 여러 번 누르면 저장 요청을 차례로 보낸다(나중에 누른 값이 마지막에 저장되게)
+  const bookmarkQueue = useRef(new Map<number, Promise<boolean>>());
+  const bookmarkSeq = useRef(new Map<number, number>());
   // 피드가 바뀌면(하나 더 받기·날짜가 바뀜) 서버 값과 합친다. key로 새로 만들면 안쪽 플레이어(<audio>)까지 새로 만들어져 재생이 끊긴다
   const [signature, setSignature] = useState(initial.signature);
   if (signature !== initial.signature) {
@@ -97,6 +107,29 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
     post("/api/feedback", { clusterId: id, kind });
   }, []);
 
+  const setBookmark = useCallback((id: number, on: boolean): Promise<boolean> => {
+    setBookmarkEdits((prev) => new Map(prev).set(id, on));
+    const seq = (bookmarkSeq.current.get(id) ?? 0) + 1;
+    bookmarkSeq.current.set(id, seq);
+    const save = () =>
+      fetch(withBase("/api/bookmarks"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clusterId: id, on }),
+        keepalive: true,
+      }).then(
+        (r) => r.ok,
+        () => false,
+      );
+    const run = (bookmarkQueue.current.get(id) ?? Promise.resolve(true)).then(save);
+    bookmarkQueue.current.set(id, run);
+    return run.then((ok) => {
+      // 그사이 다시 눌렀으면 그 요청이 정한다
+      if (!ok && bookmarkSeq.current.get(id) === seq) setBookmarkEdits((prev) => new Map(prev).set(id, !on));
+      return ok;
+    });
+  }, []);
+
   const value = useMemo<TodayApi>(() => {
     const consumed = (id: number) => read.has(id) || listened.has(id);
     const ids = initial.items.map((i) => i.clusterId);
@@ -104,6 +137,7 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
     const allDone = ids.length > 0 && done === ids.length;
     const listenAccess = (id: number) =>
       profile.audio ? "plan" : profile.dailyListens > 0 && (listened.has(id) || listenedToday.size < profile.dailyListens) ? "free" : null;
+    const isBookmarked = (id: number) => bookmarkEdits.get(id) ?? savedBookmarks.has(id);
     return {
       // 서버가 다시 렌더링하면(플랜 전환 등) 새 피드 내용을 그대로 쓴다
       data: initial,
@@ -115,9 +149,11 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
       markRead,
       markListened,
       setFeedback,
+      isBookmarked,
+      setBookmark,
       listenAccess,
     };
-  }, [initial, read, listened, listenedToday, feedback, markRead, markListened, setFeedback, profile.audio, profile.dailyListens]);
+  }, [initial, read, listened, listenedToday, feedback, bookmarkEdits, savedBookmarks, markRead, markListened, setFeedback, setBookmark, profile.audio, profile.dailyListens]);
 
   return <TodayContext.Provider value={value}>{children}</TodayContext.Provider>;
 }

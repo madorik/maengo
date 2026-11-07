@@ -13,6 +13,8 @@ export type LibraryPageData = Pick<LibraryData, "page" | "pageCount" | "groups">
 export interface LibraryFilters {
   category: CategoryId | null;
   read: LibraryReadFilter | null;
+  /** 북마크한 소식만 */
+  bookmark: boolean;
   query: string | null;
 }
 
@@ -26,16 +28,17 @@ export interface LoadedPages {
 /** 주소로 받는 쪽 번호 상한 */
 const PAGE_MAX = 10_000;
 
-/** /api/library의 검색 문자열(page=2&category=ai&read=unread&q=…) */
+/** /api/library의 검색 문자열(page=2&category=ai&read=unread&bookmark=1&q=…) */
 export function libraryPageSearch(page: number, f: LibraryFilters): string {
   const q = new URLSearchParams({ page: String(page) });
   if (f.category) q.set("category", f.category);
   if (f.read) q.set("read", f.read);
+  if (f.bookmark) q.set("bookmark", "1");
   if (f.query) q.set("q", f.query);
   return q.toString();
 }
 
-/** /api/library의 검색 문자열을 읽는다. 쪽 번호·카테고리·읽음 값이 이상하면 null */
+/** /api/library의 검색 문자열을 읽는다. 쪽 번호·카테고리·읽음·북마크 값이 이상하면 null */
 export function parseLibraryPageSearch(search: URLSearchParams): ({ page: number } & LibraryFilters) | null {
   const page = Number(search.get("page"));
   if (!Number.isInteger(page) || page < 1 || page > PAGE_MAX) return null;
@@ -43,12 +46,14 @@ export function parseLibraryPageSearch(search: URLSearchParams): ({ page: number
   if (category !== null && !isCategory(category)) return null;
   const read = search.get("read");
   if (read !== null && read !== "unread") return null;
-  return { page, category, read, query: parseLibraryQuery(search.get("q") ?? undefined) };
+  const bookmark = search.get("bookmark");
+  if (bookmark !== null && bookmark !== "1") return null;
+  return { page, category, read, bookmark: bookmark === "1", query: parseLibraryQuery(search.get("q") ?? undefined) };
 }
 
-/** 거르기(카테고리·읽음·검색어)가 같은지 가르는 열쇠 */
+/** 거르기(카테고리·읽음·북마크·검색어)가 같은지 가르는 열쇠 */
 export function libraryFilterKey(f: LibraryFilters): string {
-  return JSON.stringify([f.category, f.read, f.query]);
+  return JSON.stringify([f.category, f.read, f.bookmark, f.query]);
 }
 
 /** 1쪽이 그때와 같은지(되살린 쪽을 붙여도 되는지) 보는 값: 개수와 1쪽 소식 순서 */

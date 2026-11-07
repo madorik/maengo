@@ -9,7 +9,7 @@ import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "보관함" };
 
-type Props = { searchParams: Promise<{ page?: string; category?: string; read?: string; q?: string }> };
+type Props = { searchParams: Promise<{ page?: string; category?: string; read?: string; bookmark?: string; q?: string }> };
 
 export default async function LibraryPage({ searchParams }: Props) {
   const profile = await requireProfile();
@@ -20,6 +20,7 @@ export default async function LibraryPage({ searchParams }: Props) {
     page: infinite ? 1 : Number(sp.page) || 1,
     category: isCategory(sp.category) ? sp.category : null,
     read: sp.read === "unread" ? "unread" : null,
+    bookmark: sp.bookmark === "1",
     query: parseLibraryQuery(sp.q),
   });
   return <LibraryView lib={lib} infinite={infinite} />;

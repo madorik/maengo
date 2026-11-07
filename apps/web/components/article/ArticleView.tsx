@@ -16,6 +16,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
 import { useDock } from "@/lib/float-dock";
 import { AskDock } from "./AskDock";
+import { BookmarkButton } from "./BookmarkButton";
 import { ListenBar } from "./ListenBar";
 import { ShareButton } from "./ShareButton";
 import { useItemAudio } from "./useItemAudio";
@@ -109,6 +110,7 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
           <span className="ml-auto pr-1 font-round text-[15px] font-black text-faint">
             {index >= 0 ? `${index + 1}/${data.items.length}` : ""}
           </span>
+          <BookmarkButton item={item} />
           <ShareButton item={item} />
         </div>
       </header>
@@ -192,7 +194,10 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
           </a>
         </p>
 
-        <ShareButton item={item} variant="tile" />
+        <div className="mt-6 flex flex-wrap items-start gap-2">
+          <BookmarkButton item={item} variant="tile" />
+          <ShareButton item={item} variant="tile" />
+        </div>
 
         <section aria-labelledby="fb-title" className="mt-8">
           <h2 id="fb-title" className="text-[17px] font-black">

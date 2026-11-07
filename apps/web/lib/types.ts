@@ -60,6 +60,8 @@ export interface TodayData {
   /** 오늘(KST) 처음 들은 소식. Free의 하루 듣기 수를 센다 */
   listenedToday: number[];
   feedback: Record<number, FeedbackKind>;
+  /** 북마크한 소식(reads.starred). 보관함 거르기는 DB가 하고, 이건 글 화면 버튼과 보관함 카드 표시에 쓴다 */
+  bookmarks: number[];
 }
 
 export interface ProfileView {
@@ -127,12 +129,16 @@ export interface LibraryData {
   category: CategoryId | null;
   /** 읽음 거르기(주소의 ?read=). null이면 전체 */
   readFilter: LibraryReadFilter | null;
+  /** 북마크한 소식만(주소의 ?bookmark=1). 안 읽음·카테고리와 같이 걸 수 있다 */
+  bookmark: boolean;
   /** 검색어(주소의 ?q=, 제목·요약·출처). null이면 검색 안 함 */
   query: string | null;
   /** 검색어에 맞는 소식 수(검색 안 하면 total과 같다) */
   matchedTotal: number;
   /** 지금 카테고리 안에서 전체·안 읽음 수(들은 것도 읽음) */
   readCounts: { all: number; unread: number };
+  /** 지금 카테고리 안에서 북마크한 소식 수 */
+  bookmarkCount: number;
   /** 골라 듣기 '전체': 지금 거른 소식 전부(모든 쪽, 최신순). 안 읽은 것만 고르려면 '안 읽음'으로 거른 뒤 전체 */
   pickIds: number[];
   /** 받은 소식에 있는 카테고리와 개수 */

@@ -528,11 +528,11 @@ function readMinutes(items: FeedItem[]): number {
 
 async function readsAndFeedback(userId: string) {
   const [reads, feedback] = await Promise.all([
-    db.from('reads').select('cluster_id,read_at,listened_at').eq('user_id', userId),
+    db.from('reads').select('cluster_id,read_at,listened_at,starred').eq('user_id', userId),
     db.from('feedback').select('cluster_id,kind').eq('user_id', userId),
   ]);
   return {
-    reads: must(reads, 'reads') as { cluster_id: number; read_at: string | null; listened_at: string | null }[],
+    reads: must(reads, 'reads') as { cluster_id: number; read_at: string | null; listened_at: string | null; starred: boolean }[],
     feedback: must(feedback, 'feedback') as { cluster_id: number; kind: FeedbackKind }[],
   };
 }
@@ -602,6 +602,7 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     listened: reads.filter((r) => r.listened_at).map((r) => r.cluster_id),
     listenedToday: reads.filter((r) => r.listened_at && kstDate(new Date(r.listened_at)) === kstDate()).map((r) => r.cluster_id),
     feedback: Object.fromEntries(feedback.map((f) => [f.cluster_id, f.kind])),
+    bookmarks: reads.filter((r) => r.starred).map((r) => r.cluster_id),
   };
 }
 
@@ -637,6 +638,7 @@ interface LibraryPageRow {
   category_counts: Record<string, number>;
   in_category: number;
   consumed: number;
+  bookmarked: number;
   filtered_total: number;
   page: number;
   page_count: number;
@@ -655,11 +657,12 @@ interface LibraryPageRow {
     source: string;
     read: boolean;
     listened: boolean;
+    bookmarked: boolean;
   }[];
 }
 
 /**
- * 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리·읽음·검색어로 거르고 쪽으로 나눈다. 들은 것도 읽음으로 친다.
+ * 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리·읽음·북마크·검색어로 거르고 쪽으로 나눈다. 들은 것도 읽음으로 친다.
  * 거르기·개수 세기·쪽 나누기는 DB(library_page, 20261019120000_library_page.sql)가 하고 요청한 쪽만 받는다
  * (2026-10-19 사용자 결정: 전체를 읽어 메모리에서 거르지 않는다)
  */
@@ -669,6 +672,7 @@ export async function getLibrary(
     page,
     category,
     read,
+    bookmark = false,
     query = null,
     overlap = 0,
     syncToday = true,
@@ -676,6 +680,8 @@ export async function getLibrary(
     page: number;
     category: CategoryId | null;
     read: LibraryReadFilter | null;
+    /** 북마크한 소식만 */
+    bookmark?: boolean;
     query?: string | null;
     /** 이 쪽 앞의 소식을 이만큼 겹쳐 준다(앱 이어 붙이기: 받는 사이 목록이 줄어도 건너뛰는 소식이 없게, 겹친 건 화면이 거른다) */
     overlap?: number;
@@ -699,6 +705,7 @@ export async function getLibrary(
       p_page: page,
       p_size: LIBRARY_PAGE_SIZE,
       p_overlap: overlap,
+      p_bookmarked: bookmark,
     }),
     'library_page',
   ) as unknown as LibraryPageRow;
@@ -730,9 +737,11 @@ export async function getLibrary(
     pageCount: r.page_count,
     category,
     readFilter: read,
+    bookmark,
     query,
     matchedTotal: r.matched_total,
     readCounts: { all: r.in_category, unread: r.in_category - r.consumed },
+    bookmarkCount: r.bookmarked,
     pickIds: r.pick_ids,
     categories: CATEGORIES.filter((c) => r.category_counts[c.id]).map((c) => ({ id: c.id, label: c.label, count: r.category_counts[c.id]! })),
     groups,
@@ -865,6 +874,17 @@ export async function setFeedback(profile: Profile, clusterId: number, kind: Fee
   for (const [topicId, weight] of updates) {
     must(await db.from('user_topics').update({ weight }).eq('user_id', profile.id).eq('topic_id', topicId), 'user_topics weight');
   }
+}
+
+/**
+ * 북마크(reads.starred) 켜고 끄기. 읽음·들음 시각은 건드리지 않는다(upsert가 보낸 칸만 고친다).
+ * 보관 기간은 보관함과 같다: 소식이 보관함에서 빠지면(prune_archive가 reads를 지운다) 북마크도 같이 사라진다
+ */
+export async function setBookmark(profile: Profile, clusterId: number, on: boolean) {
+  must(
+    await db.from('reads').upsert({ user_id: profile.id, cluster_id: clusterId, starred: on }, { onConflict: 'user_id,cluster_id' }),
+    'reads bookmark',
+  );
 }
 
 export async function markRead(profile: Profile, clusterId: number, { read, listened }: { read?: boolean; listened?: boolean }) {

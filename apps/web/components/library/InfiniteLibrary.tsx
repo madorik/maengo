@@ -18,7 +18,7 @@ import { DayGroups } from "./LibraryCards";
 
 // 앱(iOS·안드로이드)의 보관함: 쪽 넘기기 대신 목록 끝에 가까워지면 다음 쪽을 받아 이어 붙인다(웹 브라우저는 LibraryView의 쪽 넘기기).
 // 1쪽은 서버가 그린 것(props)을 그대로 쓰고, 2쪽부터 /api/library로 받아 같은 날짜 묶음은 합친다(lib/library-pages.ts).
-// 거르기(카테고리·읽음·검색어)가 바뀌면 LibraryView가 key로 새로 그려 1쪽부터 다시 시작한다.
+// 거르기(카테고리·읽음·북마크·검색어)가 바뀌면 LibraryView가 key로 새로 그려 1쪽부터 다시 시작한다.
 //
 // 뒤로 가기: 글을 열면 이 화면은 내려가고, 돌아오면 서버가 그린 1쪽만 가지고 새로 그려진다.
 // 그래서 받아 둔 쪽과 스크롤 위치를 모듈 변수(saved)에 두고, 같은 기록(bfcacheId가 같음: 뒤로·앞으로 가기)으로 돌아왔을 때만 되살린다.
@@ -51,10 +51,10 @@ type Props = LibraryFilters & {
   filteredTotal: number;
 };
 
-export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, category, read, query }: Props) {
+export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, category, read, bookmark, query }: Props) {
   const router = useRouter();
   const { bfcacheId } = router;
-  const cacheKey = `${bfcacheId}|${libraryFilterKey({ category, read, query })}`;
+  const cacheKey = `${bfcacheId}|${libraryFilterKey({ category, read, bookmark, query })}`;
   const sig = librarySignature({ filteredTotal, pageCount, groups });
   // 첫 화면(하이드레이션)에서는 saved가 늘 비어 있어 서버 HTML과 같게 그린다. 되살리는 건 화면을 옮겨 다시 그릴 때뿐이다
   const [restored] = useState(() => {
@@ -115,7 +115,7 @@ export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, catego
       request.current = ctrl;
       setStatus("loading");
       try {
-        const res = await fetch(withBase(`/api/library?${libraryPageSearch(next, { category, read, query })}`), { cache: "no-store", signal: ctrl.signal });
+        const res = await fetch(withBase(`/api/library?${libraryPageSearch(next, { category, read, bookmark, query })}`), { cache: "no-store", signal: ctrl.signal });
         // 로그인이 풀렸으면 다시 받아도 소용없다: 화면을 새로 그리면 서버가 로그인으로 보낸다
         if (res.status === 401) {
           signedOut.current = true;
@@ -135,7 +135,7 @@ export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, catego
         busy.current = false;
       }
     },
-    [category, read, query, router],
+    [category, read, bookmark, query, router],
   );
 
   const hasMore = loaded.page < loaded.pageCount;
