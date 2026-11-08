@@ -74,7 +74,7 @@ function ensureAudio(): HTMLAudioElement {
     const id = state.clusterId;
     a.removeAttribute("src");
     set({ preparing: false, status: "idle", query: null });
-    void ttsErrorMessage(id ?? undefined).then((error) => state.clusterId === id && set({ error }));
+    void ttsErrorMessage().then((error) => state.clusterId === id && set({ error }));
   });
   // 다른 소리(오늘 브리핑 플레이어 -1)가 시작되면 멈춘다
   window.addEventListener(ITEM_PLAY_EVENT, (e) => {

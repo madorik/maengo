@@ -5,7 +5,6 @@ import path from 'node:path';
 import { templateScript } from '@maengo/core/ai';
 import { GeminiQuotaError } from '@maengo/core/gemini';
 import { estimateTimeline, layoutChapters, SEGMENT_TAIL_MS, withTrailingSilence } from '@maengo/core/audio';
-import { DAILY_LINK_VOICES } from '@maengo/core/plans';
 import { isLinkTopicId } from '@maengo/core/topics';
 import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
 import type { FeedItem } from '../types';
@@ -15,7 +14,7 @@ import { audioStore } from './audio-store';
 import { db, must } from './db';
 import { feedItems, findFeedItem, playlistItems } from './feed';
 import { concatBytes, encodeMp3, mp3DurationMs } from './mp3';
-import { blockTts, LinkVoiceLimitError, recordUse, TtsBusyError, ttsBlockedUntil, usesToday } from './limits';
+import { blockTts, recordUse, TtsBusyError, ttsBlockedUntil } from './limits';
 import { entitlements, type Profile } from './profile';
 
 // 듣기(PLAN.md 8장). 음성은 사용자가 재생을 누를 때만 만든다. 페이지를 열 때는 이미 만든 음성이 있는지만 본다.
@@ -211,6 +210,7 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
         timed = lines.map((l, i) => ({ ...l, ...speech.lineTimesMs[i]! }));
         source = 'TTS';
         await recordUse(who.userId, 'voice');
+        // 내 관심 링크 소식 음성은 따로도 센다(비용 보기용. 2026-11-08부터 하루 몫 제한은 없다)
         if (isLinkTopicId(item.topicId)) await recordUse(who.userId, 'voice_link');
       }
       // 끝에 무음을 붙여 저장한다. 줄 시각은 그대로라 마지막 줄 뒤가 쉼이 된다
@@ -281,29 +281,6 @@ async function ensureObject(ep: Episode): Promise<string> {
 const requester = (p: Profile): Requester => ({ userId: p.id });
 
 /**
- * 내 관심 링크 소식은 그 링크를 넣은 사람만 받아 음성을 나눠 쓰지 못한다. 그래서 하루에 새로 만드는 링크 음성은 DAILY_LINK_VOICES개까지(2026-10-28).
- * 이미 만든 음성은 늘 넣고, 아직 없는 링크 소식은 남은 몫만큼 앞에서부터 넣고 나머지는 뺀다. 페이지를 열 때(만들지 않음)와 들을 때(만듦)
- * 같은 소식이 남아야 플레이어 목록과 음성 길이가 맞는다: 만들면 그만큼 '이미 있음'으로 옮겨 가고 몫도 같이 줄어 남는 소식이 같다
- */
-async function withinLinkVoices(profile: Profile, items: FeedItem[], persona: Persona, voice: Voice, engine: TtsEngine): Promise<FeedItem[]> {
-  const links = items.filter((i) => isLinkTopicId(i.topicId)).map((item) => ({ item, key: segmentKey(scriptOf(item), persona, voice, engine) }));
-  if (!links.length) return items;
-  const found = await findSegments(links.map((l) => l.key));
-  const missing = links.filter((l) => !found.has(l.key));
-  if (!missing.length) return items;
-  const left = Math.max(0, DAILY_LINK_VOICES - (await usesToday(profile.id, 'voice_link')));
-  const drop = new Set(missing.slice(left).map((l) => l.item.clusterId));
-  return items.filter((i) => !drop.has(i.clusterId));
-}
-
-/** 이 소식이 내 관심 링크 소식이고 오늘 새로 만들 수 있는 링크 음성을 다 썼는지(음성 실패 안내, app/api/tts-status) */
-export async function linkVoicesUsedUp(profile: Profile, clusterId: number): Promise<boolean> {
-  const found = await findFeedItem(profile, clusterId);
-  if (!found || !isLinkTopicId(found.item.topicId)) return false;
-  return (await usesToday(profile.id, 'voice_link')) >= DAILY_LINK_VOICES;
-}
-
-/**
  * 오늘 에피소드. generate가 false면 이미 만든 음성만 본다(페이지를 열 때).
  * ids를 주면 그중 오늘 피드에 있는 소식만 넣는다: 화면이 받아 둔 목록과 플레이어 목록·길이가 어긋나지 않게(화면을 연 뒤 피드가 늘어도)
  */
@@ -320,7 +297,6 @@ export async function getEpisode(
     items = items.filter((i) => want.has(i.clusterId));
   }
   const engine = await ttsEngineFor(entitlements(profile).audio);
-  items = await withinLinkVoices(profile, items, persona, voice, engine);
   return assemble(items, persona, voice, engine, generate ? requester(profile) : null);
 }
 
@@ -335,8 +311,6 @@ export async function getItemEpisode(profile: Profile, clusterId: number, person
   const found = await findFeedItem(profile, clusterId);
   if (!found) return null;
   const engine = await ttsEngineFor(entitlements(profile).audio);
-  // 들을 때만 링크 음성 몫을 본다(대본 시각표만 볼 때는 만들지 않으니 상관없다)
-  if (generate && !(await withinLinkVoices(profile, [found.item], persona, voice, engine)).length) throw new LinkVoiceLimitError();
   return assemble([found.item], persona, voice, engine, generate ? requester(profile) : null);
 }
 
@@ -352,7 +326,6 @@ export async function getPlaylistEpisode(
   { generate }: { generate: boolean },
 ): Promise<{ items: FeedItem[]; episode: Episode }> {
   const engine = await ttsEngineFor(entitlements(profile).audio);
-  const kept = await withinLinkVoices(profile, await playlistItems(profile, ids), persona, voice, engine);
-  const items = kept.map((item, i) => ({ ...item, rank: i + 1 }));
+  const items = (await playlistItems(profile, ids)).map((item, i) => ({ ...item, rank: i + 1 }));
   return { items, episode: await assemble(items, persona, voice, engine, generate ? requester(profile) : null) };
 }

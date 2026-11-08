@@ -15,7 +15,7 @@ import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { useItemAudio } from "@/components/article/useItemAudio";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
-import { ttsErrorLabel } from "@/lib/player/tts-error";
+import { TTS_ERROR_LABEL } from "@/lib/player/tts-error";
 import { useArrivalHighlight, useMoreArrival, type Arrival } from "./arrival";
 import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
@@ -156,7 +156,7 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
         <span className="ml-auto inline-flex shrink-0 items-center gap-1">
           {/* 음성을 만드는 동안은 머리 대신 카드 안 진행 카드(VoiceMaking)로 알린다 */}
           {!viaPlayer && single.ctl.error ? (
-            <span className="text-cherry">{ttsErrorLabel(single.ctl.error)}</span>
+            <span className="text-cherry">{TTS_ERROR_LABEL}</span>
           ) : preparing ? null : playing ? (
             <span className="text-sky">듣는 중</span>
           ) : done ? (

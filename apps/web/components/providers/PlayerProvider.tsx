@@ -206,12 +206,10 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const addingRef = useRef<{ clusterId: number; title: string }[]>([]);
   const [pending, setPending] = useState<{ clusterId: number; title: string }[]>([]);
   /**
-   * 미리 만들어 달라고 한 소식 음성(itemQuery → 만드는 중·다 됨·건너뜀). 같은 소식을 두 번 부르지 않고, 다 된 소식은 넘어갈 때 안내 소리를 틀지 않는다.
-   * 건너뜀: 내 관심 링크 소식인데 오늘 새로 만들 몫(하루 3개)을 다 써서 만들 수 없다. 이어 들을 때 빼고 다음 소식으로 간다(예전 전체 파일과 같은 규칙)
+   * 미리 만들어 달라고 한 소식 음성(itemQuery → 만드는 중·다 됨). 같은 소식을 두 번 부르지 않고, 다 된 소식은 넘어갈 때 안내 소리를 틀지 않는다.
+   * (2026-11-08 내 관심 링크 소식 하루 3개 몫을 없애며 '건너뜀'도 없앴다)
    */
-  const warmedItemsRef = useRef(new Map<string, "pending" | "done" | "skip">());
-  /** 건너뛸 소식이 생기면 늘려서 그다음 소식을 미리 만들게 한다 */
-  const [warmTick, setWarmTick] = useState(0);
+  const warmedItemsRef = useRef(new Map<string, "pending" | "done">());
   /** 이번에 '들음'으로 기록한 소식(같은 소식을 여러 번 보내지 않게) */
   const heardRef = useRef(new Set<number>());
   /** 마지막으로 저장한 듣던 자리 */
@@ -338,11 +336,6 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       warmedItemsRef.current.set(query, "pending");
       fetch(itemAudioUrl(query), { redirect: "manual", cache: "no-store" })
         .then(async (res) => {
-          if (res.status === 429 && (await res.json().catch(() => null))?.error === "link_voice_limit") {
-            warmedItemsRef.current.set(query, "skip");
-            setWarmTick((t) => t + 1);
-            return;
-          }
           if (res.type !== "opaqueredirect" && !res.ok) throw new Error(String(res.status));
           warmedItemsRef.current.set(query, "done");
         })
@@ -1088,13 +1081,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     void savePlayerPrefs({ rate: r });
   };
 
-  /** from부터 이어 들을 다음 소식(읽은 소식 건너뛰기 + 오늘 몫을 넘어 음성을 못 만드는 링크 소식 빼기) */
-  const nextChained = (from: number): number | null => {
-    const skipped = (i: number) => warmedItemsRef.current.get(itemQuery(chapters[i]!.clusterId, persona, voice)) === "skip";
-    let n = nextPlayable(chapters, from, readSet, skip);
-    while (n !== null && skipped(n)) n = nextPlayable(chapters, n + 1, readSet, skip);
-    return n;
-  };
+  /** from부터 이어 들을 다음 소식(읽은 소식 건너뛰기) */
+  const nextChained = (from: number): number | null => nextPlayable(chapters, from, readSet, skip);
 
   /**
    * 소식 하나짜리 파일이 끝났을 때: 다음 소식 파일을 건다(듣는 동안 미리 만들어 두어 바로 열린다).
@@ -1130,9 +1118,9 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     const n = nextChained(lead.index + 1);
     const id = n !== null ? chapters[n]?.clusterId : playlistRef.current ? queueRef.current[0] : undefined;
     if (id !== undefined) warmItem(id);
-    // nextChained는 매 렌더 새로 만든다. 건너뛸 소식이 생기면 warmTick으로 다시 돈다
+    // nextChained는 매 렌더 새로 만든다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lead, preparing, chapters, readSet, skip, autoNext, warmItem, warmTick]);
+  }, [lead, preparing, chapters, readSet, skip, autoNext, warmItem]);
 
   const onTimeUpdate = (e: React.SyntheticEvent<HTMLAudioElement>) => {
     const audio = e.currentTarget;
@@ -1397,12 +1385,6 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           const audio = e.currentTarget;
           if (!audio.getAttribute("src")) return;
           stopWait();
-          // 이어 듣다 걸린 소식이 몫을 넘은 링크 소식이면(미리 만들 때 알았다) 멈추지 않고 다음 소식으로
-          const failed = leadRef.current;
-          if (failed && warmedItemsRef.current.get(failed.query) === "skip" && onceRef.current === null && autoNext) {
-            setPreparing(false);
-            return leadEnded(failed);
-          }
           if (preparing) void ttsErrorMessage().then(setError);
           else setError(FILE_ERROR);
           setPreparing(false);
