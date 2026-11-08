@@ -179,13 +179,13 @@ Premium이 '내 관심 링크' 칸에 유튜브 채널 주소를 넣으면, 그 
 
 - [x] **나** 글 화면 '공유'(머리말 아이콘·본문 '공유하기')를 누르면 시트(`components/ui/Sheet`): 소식 제목, 주소 칸 + '링크 복사'(소식 주소 `/s/[id]`만, 내 관심 링크 글은 원문 주소. 누르면 '복사됨' 2초, 폭 고정), '다른 앱으로 보내기'(기기 공유 창 = 카카오톡·문자 등 설치된 앱, 제목·요약·주소를 같이. 앱은 @capacitor/share, 웹은 navigator.share, 없는 브라우저면 숨김). 보내면 시트를 닫는다. `lib/native/share.ts`(canShareToApps·shareToApps·copyText, 클립보드가 막힌 웹뷰는 숨긴 입력 칸으로 복사). GA4 `share` action `copy_link`·`shared`
 - [x] 로컬 3100 데모 계정으로 밝은·어두운 화면·복사 내용 확인, 타입체크·lint 통과
-- [ ] 커밋·배포(사용자 확인 뒤). 앱은 웹 화면이라 새 빌드 없이 바뀐다(공유 플러그인은 1.2부터)
+- [x] 커밋·운영 배포(2026-11-08, 사용자 "배포해"). 앱은 웹 화면이라 새 빌드 없이 바뀐다(공유 플러그인은 1.2부터)
 
 ## 13. Premium 음성 만들기 제한 없앰(2026-11-08, 사용자 "음성 만드는건 프리미엄에 제한두지마")
 
 - [x] **나** 내 관심 링크 소식 음성 하루 3개(`DAILY_LINK_VOICES`, 10-28) 삭제: core 상수, episode.ts `withinLinkVoices`·`linkVoicesUsedUp`, limits `LinkVoiceLimitError`, ttsFailure 429, `/api/tts-status`의 linkLimit, 플레이어의 '건너뜀'(몫을 넘은 링크 소식 빼고 이어 듣기), 오류 문구 '내 관심 링크 소식은 하루 3개까지 새로 들을 수 있어요'. 쓰임 기록(usage_log voice·voice_link)은 비용 보기용으로 남김. 서비스 전체 Gemini 음성 하루 $2 상한(넘으면 기본 목소리)은 그대로
 - [x] 타입체크·lint·테스트 258개. `맹고-문서/플랜.md`·`운영비와-가격.md`
-- [ ] 배포(공유 시트·둘러보기 유튜브와 같이, 사용자 확인 뒤)
+- [x] 운영 배포(`bcf9df1`, 둘러보기 유튜브와 같이, `maengo-hh79gn492`)
 
 ## 결정해 줄 것
 

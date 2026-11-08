@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCheck, IconShare } from "@/components/icons";
+import { IconCheck, IconLink, IconShare } from "@/components/icons";
+import { Sheet } from "@/components/ui/Sheet";
 import { track } from "@/lib/analytics";
 import { withBase } from "@/lib/base-path";
-import { shareContent } from "@/lib/native/share";
+import { canShareToApps, copyText, shareToApps } from "@/lib/native/share";
 import { isLinkTopicId } from "@maengo/core/topics";
 import type { FeedItem } from "@/lib/types";
 
 /**
- * 글 화면의 '공유'. 제목·요약과 로그인 없이 보는 소식 주소(/s/[id], 미리보기 카드에 제목이 보인다)를 보낸다.
- * 내 관심 링크(사용자가 넣은 출처)의 글은 공개 주소가 없어서 예전처럼 원문 주소와 맹고 소개 주소를 보낸다.
- * 공유 시트가 없어 복사했으면 아이콘만 잠깐 체크로 바꾼다.
- * icon: 머리말 오른쪽 아이콘. tile: 본문 출처 아래 '공유하기' 버튼(2026-10-31, 아이콘이 눈에 안 띄어 '플레이리스트에 담기' 자리에 넣었다.
- * 2026-11-07부터 '북마크' 옆, 위 여백은 둘을 감싼 줄이 둔다)
+ * 글 화면의 '공유'(2026-11-08 개편). 누르면 공유 시트가 올라와 둘 중 하나를 고른다.
+ * - 링크 복사: 로그인 없이 보는 소식 주소(/s/[id], 미리보기 카드에 제목이 보인다). 내 관심 링크(사용자가 넣은 출처) 글은 공개 주소가 없어서 원문 주소
+ * - 다른 앱으로 보내기: 기기 공유 창(카카오톡·문자 등 설치된 앱). 제목·요약·주소를 같이 보낸다. 공유 창이 없는 브라우저면 버튼을 숨긴다
+ * icon: 머리말 오른쪽 아이콘. tile: 본문 출처 아래 '공유하기' 버튼(2026-10-31, 2026-11-07부터 '북마크' 옆, 위 여백은 둘을 감싼 줄이 둔다)
  */
 export function ShareButton({
   item,
@@ -22,59 +22,90 @@ export function ShareButton({
   item: Pick<FeedItem, "clusterId" | "title" | "short" | "url" | "category" | "topicId">;
   variant?: "icon" | "tile";
 }) {
+  const [open, setOpen] = useState(false);
+  const [apps, setApps] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const place = variant === "tile" ? "body" : "header";
+  const linkOnly = isLinkTopicId(item.topicId);
+
   useEffect(() => {
     if (!copied) return;
     const t = setTimeout(() => setCopied(false), 2000);
     return () => clearTimeout(t);
   }, [copied]);
 
-  const share = async () => {
-    setError(false);
-    const text = isLinkTopicId(item.topicId)
+  const link = () => (linkOnly ? item.url : `${location.origin}${withBase(`/s/${item.clusterId}`)}`);
+  const openSheet = () => {
+    setApps(canShareToApps());
+    setCopied(false);
+    setError(null);
+    setOpen(true);
+  };
+  const copy = async () => {
+    setError(null);
+    if (await copyText(link())) {
+      setCopied(true);
+      track("share", { category: item.category, action: "copy_link", place });
+    } else setError("링크를 복사하지 못했어요");
+  };
+  const toApps = async () => {
+    setError(null);
+    const text = linkOnly
       ? `${item.title}\n\n${item.short}\n\n원문 ${item.url}\n\n맹고에서 요약했어요 ${location.origin}${withBase("/")}`
-      : `${item.title}\n\n${item.short}\n\n${location.origin}${withBase(`/s/${item.clusterId}`)}`;
-    const r = await shareContent({ title: item.title, text });
-    if (r === "shared" || r === "copied") track("share", { category: item.category, action: r, place: variant === "tile" ? "body" : "header" });
-    if (r === "copied") setCopied(true);
-    if (r === "failed") setError(true);
+      : `${item.title}\n\n${item.short}\n\n${link()}`;
+    const r = await shareToApps({ title: item.title, text });
+    if (r === "shared") {
+      track("share", { category: item.category, action: "shared", place });
+      setOpen(false);
+    } else if (r === "failed") setError("공유하지 못했어요");
   };
 
-  const icon = copied ? <IconCheck className="size-5 text-sky [stroke-width:3]" /> : <IconShare className="size-5" />;
-  const label = copied ? "공유할 글을 복사했어요" : "공유";
-
-  if (variant === "tile") {
-    return (
-      <div>
-        <button
-          type="button"
-          onClick={share}
-          aria-label={copied ? label : undefined}
-          className="tile inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold hover:bg-snow"
-        >
-          {icon}
-          공유하기
-        </button>
-        {error && (
-          <p role="alert" className="mt-2 text-[14px] font-bold text-cherry">
-            공유하지 못했어요
-          </p>
-        )}
-      </div>
-    );
-  }
+  const shown = open ? link().replace(/^https?:\/\//, "") : "";
 
   return (
-    <div className="relative">
-      <button type="button" onClick={share} aria-label={label} className="inline-flex size-11 items-center justify-center rounded-xl text-sub hover:bg-snow">
-        {icon}
-      </button>
-      {error && (
-        <p role="alert" className="absolute right-0 top-full mt-1 w-max rounded-lg bg-ink px-3 py-1.5 text-[13px] font-bold text-paper">
-          공유하지 못했어요
-        </p>
+    <>
+      {variant === "tile" ? (
+        <button type="button" onClick={openSheet} className="tile inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold hover:bg-snow">
+          <IconShare className="size-5" />
+          공유하기
+        </button>
+      ) : (
+        <button type="button" onClick={openSheet} aria-label="공유" className="inline-flex size-11 items-center justify-center rounded-xl text-sub hover:bg-snow">
+          <IconShare className="size-5" />
+        </button>
       )}
-    </div>
+      <Sheet title="공유하기" open={open} onClose={() => setOpen(false)}>
+        <p className="line-clamp-2 text-[15px] font-bold leading-snug text-sub">{item.title}</p>
+        <div className="mt-4 flex gap-2">
+          <span className="tile flex min-h-12 min-w-0 flex-1 items-center bg-snow px-4 text-[15px] font-semibold text-sub">
+            <span className="truncate">{shown}</span>
+          </span>
+          {/* '링크 복사' ↔ '복사됨'으로 바뀌어도 폭이 그대로이게(옆 주소 칸이 움찔하지 않게) */}
+          <button type="button" onClick={copy} className="btn min-h-12 w-[124px] shrink-0 justify-center px-3 text-[15px]">
+            {copied ? <IconCheck className="size-5 [stroke-width:3]" /> : <IconLink className="size-5" />}
+            {copied ? "복사됨" : "링크 복사"}
+          </button>
+        </div>
+        {apps && (
+          <button
+            type="button"
+            onClick={toApps}
+            className="tile mt-3 flex min-h-14 w-full items-center gap-3 px-4 text-left hover:bg-snow"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-tint text-sky">
+              <IconShare className="size-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-extrabold">다른 앱으로 보내기</span>
+              <span className="block text-[13px] font-semibold text-sub">카카오톡·문자 등 설치된 앱</span>
+            </span>
+          </button>
+        )}
+        <p role="alert" className="mt-3 text-[14px] font-bold text-cherry empty:hidden">
+          {error}
+        </p>
+      </Sheet>
+    </>
   );
 }
