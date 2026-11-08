@@ -101,6 +101,12 @@ export function youtubeChannelPage(u: URL): string | null {
 /** 유튜브 채널 id(UC…)의 새 영상 피드 주소 */
 export const youtubeFeedUrl = (channelId: string) => `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
 
+/** 유튜브 채널 피드(sources.url)인지 */
+export const isYoutubeFeedUrl = (url: string) => url.startsWith('https://www.youtube.com/feeds/videos.xml');
+
+/** 내 관심 링크 유튜브 채널은 최근 1주일 안 영상까지 받고 요약 후보로 둔다(2026-11-08 사용자 결정. 블로그 등은 수집 창 72시간 그대로) */
+export const LINK_VIDEO_WINDOW_HOURS = 7 * 24;
+
 /** 주소만 보고 막는 곳: 채널이 아닌 유튜브 주소(youtube), RSS가 없는 SNS·브런치(blocked). 아니면 null */
 export function blockedLink(u: URL): 'youtube' | 'blocked' | null {
   const yt = youtubeLinkKind(u);

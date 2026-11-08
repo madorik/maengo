@@ -1,7 +1,7 @@
 import { createGeminiAi } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
 import {
-  blockedHost, blockedLink, COMMON_FEED_PATHS, isHttpInput, feedLinksInHtml, feedUrlKey, guessLang, isUnsafeLinkUrl, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls, youtubeChannelPage, youtubeFeedUrl, type LinkError,
+  blockedHost, blockedLink, COMMON_FEED_PATHS, isYoutubeFeedUrl, LINK_VIDEO_WINDOW_HOURS, isHttpInput, feedLinksInHtml, feedUrlKey, guessLang, isUnsafeLinkUrl, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls, youtubeChannelPage, youtubeFeedUrl, type LinkError,
 } from '@maengo/core/topics';
 import { cluster } from './jobs/cluster';
 import { storeEntries, type SourceRow } from './jobs/collect';
@@ -206,7 +206,8 @@ export async function ingestLinkNow(source: { id: number; url: string; name: str
   }
   try {
     const row: SourceRow = { id: source.id, kind: 'rss', url: source.url, name: source.name, lang: source.lang, fail_count: 0, custom: source.custom };
-    const since = ctx.now.getTime() - ctx.windowHours * HOUR;
+    // 유튜브 채널은 1주일 안 영상까지(블로그 등은 72시간)
+    const since = ctx.now.getTime() - (isYoutubeFeedUrl(source.url) ? LINK_VIDEO_WINDOW_HOURS : ctx.windowHours) * HOUR;
     const fresh = freshEntries(entries, since, source.custom ? LINK_MAX_PER_FETCH : Infinity);
     const { inserted, insertedIds } = await storeEntries(ctx, fresh.map((entry) => ({ source: row, entry })));
     const latest = latestOf(entries);
@@ -219,7 +220,7 @@ export async function ingestLinkNow(source: { id: number; url: string; name: str
     }
     await tagLinks(ctx);
     // 유튜브 채널이면 최신 영상 한 편을 바로 요약해 넣은 사람이 곧 받게 한다. 하루 요약과 같은 규칙(채널당 하루 1편·1시간·한 사람 90분·하루 상한)
-    if (source.url.startsWith('https://www.youtube.com/feeds/videos.xml')) {
+    if (isYoutubeFeedUrl(source.url)) {
       const blocked = await aiBlockedReason();
       ctx.log(`${source.name}: 영상 요약 ${blocked ? `건너뜀(${blocked.note})` : '시작'}`);
       if (!blocked) await summarizeLinkVideos(ctx, await loadAudience(ctx));

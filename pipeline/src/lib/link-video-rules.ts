@@ -1,10 +1,13 @@
 // 내 관심 링크 유튜브 채널 영상을 고르는 규칙(DB 없이 시험할 수 있게 jobs/link-videos.ts에서 뗐다). 정책은 ROADMAP 10번
 
+import { LINK_VIDEO_WINDOW_HOURS } from '@maengo/core/topics';
+
 export const LINK_VIDEO = {
   minSeconds: 60,
   maxSeconds: 60 * 60,
   perUserSeconds: 90 * 60,
-  maxAgeHours: 48,
+  /** 최근 1주일 안 영상만(2026-11-08 48시간 → 1주일, 사용자 결정). 그 사람이 아직 안 받은 것(요약 안 된 것)만 */
+  maxAgeHours: LINK_VIDEO_WINDOW_HOURS,
   /** Premium 한 명당 하루 영상 요약 상한(원) */
   krwPerPremium: 52,
   usdKrw: 1400,

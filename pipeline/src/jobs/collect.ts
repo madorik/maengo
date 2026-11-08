@@ -1,4 +1,5 @@
 import { db, check, inChunks } from '../lib/db';
+import { isYoutubeFeedUrl, LINK_VIDEO_WINDOW_HOURS } from '@maengo/core/topics';
 import { freshEntries, latestOf, LINK_MAX_PER_FETCH, parseFeed, type FeedEntry } from '../lib/feed';
 import { fetchText } from '../lib/http';
 import { mapLimit } from '../lib/limit';
@@ -79,6 +80,8 @@ export async function collect(ctx: Ctx) {
   );
   const sources = check(await db.from('sources').select('id,kind,url,name,lang,fail_count,custom').eq('active', true), 'sources') as SourceRow[];
   const since = ctx.now.getTime() - ctx.windowHours * HOUR;
+  // 내 관심 링크 유튜브 채널은 1주일 안 영상까지(요약은 채널당 하루 1편이라 밀린 영상이 그 안에서 차례로 온다)
+  const sinceOf = (s: SourceRow) => (s.custom && isYoutubeFeedUrl(s.url) ? ctx.now.getTime() - LINK_VIDEO_WINDOW_HOURS * HOUR : since);
   const failed: string[] = [];
 
   const perSource = await mapLimit(sources, 8, async (s) => {
@@ -86,7 +89,7 @@ export async function collect(ctx: Ctx) {
       // 사용자가 넣은 출처(custom)는 https만(넣을 때와 같은 규칙. 사설 주소는 fetchText가 늘 막는다)
       const xml = await fetchText(s.url, { attempts: s.kind === 'youtube' ? 4 : 2, maxBytes: 20_000_000, httpsOnly: s.custom });
       const entries = parseFeed(xml, s.lang);
-      const fresh = freshEntries(entries, since, s.custom ? LINK_MAX_PER_FETCH : Infinity);
+      const fresh = freshEntries(entries, sinceOf(s), s.custom ? LINK_MAX_PER_FETCH : Infinity);
       const latest = latestOf(entries);
       await db
         .from('sources')

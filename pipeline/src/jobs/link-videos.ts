@@ -11,12 +11,35 @@ import { summarizeCluster } from './summarize';
 
 // 내 관심 링크의 유튜브 채널 영상 요약(2026-11-08 사용자 결정, ROADMAP 10번). 하루 한 번 summarize 단계 맨 앞에서 돈다.
 // - 사용자가 넣은 채널(custom 출처)만. 맹고가 정해 둔 유튜브 출처는 꺼 두었고 여기서도 보지 않는다
-// - 채널마다 하루 1편(최근 48시간 안의 가장 새 영상), 1분~1시간 영상만(긴 영상은 자르지 않고 건너뜀)
-// - 한 사람이 받는 영상은 하루 합계 90분까지. 넘치면 다음 날로(48시간이 지나면 버림). 여러 사람이 넣은 채널의 영상은 한 번만 요약한다
+// - 채널마다 하루 1편: 최근 1주일 안 영상 중 아직 요약 안 된(누구에게도 안 간) 가장 새 영상. 1분~1시간만(긴 영상은 자르지 않고 건너뜀)
+//   (2026-11-08 48시간 → 1주일, '사용자에게 중복되지 않은 것만'. 받은·읽은 소식은 원래 규칙대로 그 사람에게 다시 안 간다)
+// - 묶기(cluster)는 72시간 창이라 4~7일 된 영상은 묶음이 없다: 여기서 영상 하나짜리 묶음을 만든다(ensureVideoClusters)
+// - 한 사람이 받는 영상은 하루 합계 90분까지. 넘치면 다음 날로(1주일이 지나면 버림). 여러 사람이 넣은 채널의 영상은 한 번만 요약한다
 // - 하루 전체 상한: Premium(체험 포함) 한 명당 ₩52(1시간 영상 한 편 값). 정상이면 닿지 않고 버그만 막는다
 // 배송·지금 받기·하나 더 받기는 영상을 요약하지 않는다(videos: 0). 여기서 요약해 둔 영상만 후보가 된다(audience.summarizable).
 
 const YT_FEED = 'https://www.youtube.com/feeds/videos.xml%';
+
+/**
+ * 묶음이 없는 채널 영상(72시간 창 밖이라 묶기가 건너뛴 4~7일 된 영상)에 영상 하나짜리 묶음을 만든다.
+ * 묶기 단계가 새 묶음을 만드는 모양과 같다(대표 글 = 그 영상, 처음 본 때 = 발행 시각, 중심 = 임베딩이 있으면 그것). 링크 태그('s-<id>')도 붙인다
+ */
+async function ensureVideoClusters(ctx: Ctx, channelIds: number[], since: string): Promise<number> {
+  const loose = check(
+    await db.from('items').select('id,source_id,published_at,embedding').in('source_id', channelIds).eq('kind', 'video').gte('published_at', since).is('cluster_id', null),
+    'loose link videos',
+  ) as { id: number; source_id: number; published_at: string; embedding: string | null }[];
+  for (const it of loose) {
+    const [c] = check(
+      await db.from('clusters').insert({ rep_item_id: it.id, first_seen_at: it.published_at, last_seen_at: ctx.now.toISOString() }).select('id'),
+      'link video cluster',
+    ) as { id: number }[];
+    check(await db.rpc('set_item_clusters', { p: [{ id: it.id, c: c!.id }] }), 'set_item_clusters');
+    check(await db.from('clusters').update({ size: 1, is_video: true, ...(it.embedding ? { centroid: it.embedding } : {}) }).eq('id', c!.id), 'link video cluster update');
+    check(await db.from('cluster_topics').upsert({ cluster_id: c!.id, topic_id: `s-${it.source_id}`, relevance: 1 }, { onConflict: 'cluster_id,topic_id' }), 'link video tag');
+  }
+  return loose.length;
+}
 
 interface VideoItem {
   cluster_id: number | null;
@@ -28,7 +51,7 @@ interface VideoItem {
 export async function summarizeLinkVideos(ctx: Ctx, audience: Audience[]): Promise<void> {
   const premium = audience.filter((a) => a.plan !== 'free');
   const users = premium
-    .map((a) => ({ sources: Object.keys(a.weights).filter((t) => isLinkTopicId(t) && a.weights[t]! > 0).map((t) => linkSourceId(t)!) }))
+    .map((a) => ({ sources: Object.keys(a.weights).filter((t) => isLinkTopicId(t) && a.weights[t]! > 0).map((t) => linkSourceId(t)!), exclude: a.exclude }))
     .filter((u) => u.sources.length);
   const sourceIds = [...new Set(users.flatMap((u) => u.sources))];
   if (!sourceIds.length) return void ctx.log(`link videos: 링크를 넣은 Premium 없음(Premium ${premium.length}명)`);
@@ -40,6 +63,8 @@ export async function summarizeLinkVideos(ctx: Ctx, audience: Audience[]): Promi
   const channelIds = channels.map((c) => c.id);
 
   const since = new Date(ctx.now.getTime() - LINK_VIDEO.maxAgeHours * HOUR).toISOString();
+  const made = await ensureVideoClusters(ctx, channelIds, since);
+  if (made) ctx.log(`link videos: 묶음 없던 영상 ${made}편에 묶음을 만듦`);
   const items = check(
     await db
       .from('items')
@@ -64,11 +89,14 @@ export async function summarizeLinkVideos(ctx: Ctx, audience: Audience[]): Promi
   const todayStart = Date.parse(`${ctx.date}T00:00:00+09:00`);
   const doneToday = new Set(items.filter((i) => Date.parse(doneAt.get(i.cluster_id!) ?? '') >= todayStart).map((i) => i.source_id));
 
-  // 채널마다 가장 새 영상 하나(최신순으로 받아 왔으니 처음 만나는 것)
+  // 채널마다 가장 새 영상 하나(최신순으로 받아 왔으니 처음 만나는 것). 그 채널을 넣은 사람이 모두 이미 받았거나 읽은 영상은 건너뛴다
+  const subscribers = new Map<number, Set<number>[]>();
+  for (const u of users) for (const s of u.sources) (subscribers.get(s) ?? subscribers.set(s, []).get(s)!).push(u.exclude);
+  const seenByAll = (i: VideoItem) => (subscribers.get(i.source_id) ?? []).every((ex) => ex.has(i.cluster_id!));
   const newest = new Map<number, VideoItem>();
   for (const i of items) {
     if (doneToday.has(i.source_id) || newest.has(i.source_id)) continue;
-    if (doneAt.has(i.cluster_id!) || skippedIds.has(i.cluster_id!)) continue;
+    if (doneAt.has(i.cluster_id!) || skippedIds.has(i.cluster_id!) || seenByAll(i)) continue;
     newest.set(i.source_id, i);
   }
 
