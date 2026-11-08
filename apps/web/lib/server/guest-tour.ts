@@ -6,7 +6,7 @@ import type { GuestItem, GuestLine } from '../types';
 import { db, must } from './db';
 
 // 로그인 없이 둘러보기(/try, 맹고-문서/둘러보기.md). 고정해 둔 소식(lib/try-items.ts)을 그 순서대로 늘 똑같이 보여 준다.
-// 음성은 이미 만든 것만 쓰고 TTS는 부르지 않는다(비용 0). 걸러 낸 소식, 내 관심 링크 글뿐인 소식, 음성이 없어진 소식은 빼고 보여 준다.
+// 음성은 이미 만든 것만 쓰고 TTS는 부르지 않는다(비용 0). 걸러 낸 소식, 내 관심 링크 글뿐인 소식(목록에 link: true로 고른 것은 예외), 음성이 없어진 소식은 빼고 보여 준다.
 
 interface SummaryRow {
   cluster_id: number;
@@ -33,9 +33,9 @@ interface SegRow {
   lines: GuestLine[];
 }
 
-/** 대표 글이 공개 출처면 그 글, 아니면 공개 출처 글 중 첫 글. 없으면 null(내 관심 링크 글뿐인 소식) */
-function publicRep(members: MemberRow[], repId: number | null): MemberRow | null {
-  const open = members.filter((m) => m.sources && !m.sources.custom);
+/** 대표 글이 공개 출처면 그 글, 아니면 공개 출처 글 중 첫 글. 없으면 null(내 관심 링크 글뿐인 소식). link면 내 관심 링크 글도 쓴다 */
+function publicRep(members: MemberRow[], repId: number | null, link = false): MemberRow | null {
+  const open = members.filter((m) => m.sources && (link || !m.sources.custom));
   return open.find((m) => m.id === repId) ?? open[0] ?? null;
 }
 
@@ -52,11 +52,11 @@ export const guestTour = cache(async (): Promise<GuestItem[]> => {
   const byCluster = new Map<number, MemberRow[]>();
   for (const m of must(members, 'try items') as unknown as MemberRow[]) (byCluster.get(m.cluster_id) ?? byCluster.set(m.cluster_id, []).get(m.cluster_id)!).push(m);
 
-  return TRY_ITEMS.flatMap(({ clusterId, audioKey }) => {
+  return TRY_ITEMS.flatMap(({ clusterId, audioKey, link }) => {
     const s = summaryOf.get(clusterId);
     const seg = segOf.get(audioKey);
     if (!s || s.clusters.skip_reason || !seg || seg.cluster_id !== clusterId || !seg.lines?.length) return [];
-    const rep = publicRep(byCluster.get(clusterId) ?? [], s.clusters.rep_item_id);
+    const rep = publicRep(byCluster.get(clusterId) ?? [], s.clusters.rep_item_id, link);
     if (!rep) return [];
     return [
       {
