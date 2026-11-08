@@ -5,7 +5,8 @@ import { db, must } from './db';
 
 // 공유받은 사람이 로그인 없이 보는 소식 한 건(/s/[id], 2026-10-23). 공개 분야 페이지(public-topics.ts)와 같은 범위만 보인다:
 // 제목·한 줄 요약·출처·원문 링크. 다시 쓴 전체 글과 사람마다 다른 것(why·읽음)은 넣지 않는다.
-// 사용자가 넣은 출처(내 관심 링크, sources.custom)의 글뿐인 소식과 걸러 낸 소식(skip_reason)은 없는 것으로 친다.
+// 걸러 낸 소식(skip_reason)은 없는 것으로 친다. 내 관심 링크(사용자가 넣은 출처, 유튜브 채널 포함)의 글뿐인 소식도 보인다
+// (2026-11-08 사용자: 공유는 늘 맹고 소식 주소여야 한다. 처음엔 없는 것으로 쳐서 공유가 원문 주소를 보냈다).
 
 export interface SharedItem {
   clusterId: number;
@@ -46,11 +47,13 @@ export const sharedItem = cache(async (clusterId: number): Promise<SharedItem | 
     'shared summary',
   ) as unknown as Row | null;
   if (!row || row.clusters.skip_reason) return null;
-  const members = (
+  const all = (
     must(await db.from('items').select('id,canonical_url,kind,sources(name,custom)').eq('cluster_id', clusterId), 'shared items') as unknown as MemberRow[]
-  ).filter((m) => m.sources && !m.sources.custom);
-  // 대표 글이 공개 출처면 그 글, 아니면 공개 출처 글 중 첫 글
-  const rep = members.find((m) => m.id === row.clusters.rep_item_id) ?? members[0];
+  ).filter((m) => m.sources);
+  // 공개 출처 글을 먼저(대표 글이 공개 출처면 그 글), 없으면 내 관심 링크 글(대표 글 먼저)
+  const open = all.filter((m) => !m.sources!.custom);
+  const pool = open.length ? open : all;
+  const rep = pool.find((m) => m.id === row.clusters.rep_item_id) ?? pool[0];
   if (!rep) return null;
   return {
     clusterId,
