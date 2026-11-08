@@ -152,7 +152,7 @@ export interface LibraryData {
 export type TopicResult = { tone: 'ok' | 'warn'; message: string; /** 막힌 까닭(온보딩이 알맞은 안내를 고른다, 링크는 분석 이벤트에 남긴다) */ code?: 'adult' | LinkError };
 
 export interface UserTopic {
-  /** 기타(목록에 없어 직접 적은 관심사)인지 */
+  /** 내 키워드(예전 '기타', 목록에 없어 직접 적은 관심사)인지 */
   custom?: boolean;
   /** 내 관심 링크(토픽 's-<sources.id>')인지 */
   link?: boolean;

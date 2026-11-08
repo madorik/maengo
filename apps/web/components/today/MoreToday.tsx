@@ -105,7 +105,7 @@ export function MoreToday({
         <p role="alert" className="mt-2 px-1 text-[14px] font-bold text-cherry">
           {ERRORS[error]}
           {error === "no_more" && (
-            <Link href="/settings#topics" className="ml-2 underline">
+            <Link href="/keywords" className="ml-2 underline">
               관심사 넓히기
             </Link>
           )}

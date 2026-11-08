@@ -82,7 +82,7 @@ export async function signOut() {
 
 /**
  * 처음 고른 관심 분야를 저장하고 오늘 피드로 간다(PLAN.md 5.2).
- * 기타를 고르고 적은 말은 설정 > 관심사의 기타와 같은 규칙으로 넣는다(목록에 있는 말은 관심사로). 기타만 골라도 된다.
+ * 내 키워드를 고르고 적은 말은 내 관심 키워드 > 내 키워드와 같은 규칙으로 넣는다(목록에 있는 말은 관심사로). 내 키워드만 골라도 된다.
  * 플랜 한도(topicLimit)보다 많이 고르면 몰래 자르지 않고 되돌려 보낸다(화면은 한도가 차면 더 못 고르게 막는다)
  */
 export async function completeOnboarding(formData: FormData) {
@@ -129,7 +129,7 @@ export async function completeOnboarding(formData: FormData) {
 
 /**
  * 계정 삭제(설정 > 계정). auth 사용자를 지우면 프로필·관심사·피드·읽음·피드백·기기 토큰이 함께 지워진다(on delete cascade).
- * 아무도 안 쓰게 된 기타 관심사 문구도 지우고(이미 소식 분류에 쓰였으면 FK 때문에 남는다), 아무도 구독하지 않게 된 내 관심 링크 출처는 끈다. 데모 계정은 지우지 않는다.
+ * 아무도 안 쓰게 된 내 키워드 문구도 지우고(이미 소식 분류에 쓰였으면 FK 때문에 남는다), 아무도 구독하지 않게 된 내 관심 링크 출처는 끈다. 데모 계정은 지우지 않는다.
  */
 export async function deleteAccount() {
   const profile = await requireProfile();
@@ -257,9 +257,9 @@ export async function savePlayerPrefs(prefs: { voice?: Voice; autoNext?: boolean
 }
 
 /**
- * 관심사 고치기(설정). 넷 중 하나가 온다.
- * group+pick: 분야 하나에서 고른 것 통째로 정하기 / add: 관심사 켜기(뉴스 분야) / remove: 관심사 끄기(기타 포함) /
- * text: 적은 말 넣기(사전에 있으면 그 관심사, 없으면 기타)
+ * 관심사 고치기(내 관심 키워드 화면). 넷 중 하나가 온다.
+ * group+pick: 분야 하나에서 고른 것 통째로 정하기 / add: 관심사 켜기(뉴스 분야) / remove: 관심사 끄기(내 키워드 포함) /
+ * text: 적은 말 넣기(사전에 있으면 그 관심사, 없으면 내 키워드). rename이 같이 오면 그 내 키워드 칸을 적은 말로 바꾼다
  */
 export async function editTopics(_prev: TopicResult | null, formData: FormData): Promise<TopicResult | null> {
   const profile = await requireProfile();
@@ -271,12 +271,15 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
   if (typeof group === "string") result = await setGroupPicks(profile, group, String(formData.get("pick") ?? ""));
   else if (typeof add === "string") result = await addTopics(profile, [add]);
   else if (typeof remove === "string") result = await removeTopic(profile, remove);
-  else if (typeof text === "string") result = await addCustomTopics(profile, text);
-  revalidatePath("/settings");
+  else if (typeof text === "string") {
+    const rename = formData.get("rename");
+    result = await addCustomTopics(profile, text, typeof rename === "string" ? rename : undefined);
+  }
+  revalidatePath("/keywords");
   return result;
 }
 
-/** 설정 > 내 관심 링크 칸: 빼기(removeLink, ✕ 버튼)가 먼저, 아니면 그 칸(slot)에 주소 넣기(link). 결과 모양은 관심사와 같다 */
+/** 내 관심 키워드 > 내 관심 링크 칸: 빼기(removeLink, ✕ 버튼)가 먼저, 아니면 그 칸(slot)에 주소 넣기(link). 결과 모양은 관심사와 같다 */
 export async function editLinks(_prev: TopicResult | null, formData: FormData): Promise<TopicResult | null> {
   const profile = await requireProfile();
   let result: TopicResult | null = null;
@@ -284,7 +287,7 @@ export async function editLinks(_prev: TopicResult | null, formData: FormData): 
   const link = formData.get("link");
   if (typeof remove === "string") result = await removeLink(profile, remove);
   else if (typeof link === "string") result = await addLink(profile, link, Number(formData.get("slot")));
-  revalidatePath("/settings");
+  revalidatePath("/keywords");
   return result;
 }
 

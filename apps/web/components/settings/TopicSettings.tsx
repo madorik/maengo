@@ -3,34 +3,31 @@
 import { startTransition, useActionState, useEffect, useId, useMemo, useOptimistic, useRef, useState } from "react";
 import { editTopics } from "@/app/actions";
 import { track } from "@/lib/analytics";
-import Link from "next/link";
 import { IconCheck, IconChevronDown, IconClose } from "@/components/icons";
-import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { useToast } from "@/components/ui/Toast";
 import { topicTone } from "@/components/TopicGroupIcon";
 import type { TopicGroupView, TopicResult, UserTopic } from "@/lib/types";
 
 type Section = { id: string; name: string; picked: boolean };
 type Op = { drop: string[]; add: string[] };
-/** restore: 되돌리기 알림에서 다시 넣기(기타 입력 칸에 적던 말은 그대로 둔다) */
-type Send = { fields: Record<string, string>; op?: Op; restore?: boolean };
+type Send = { fields: Record<string, string>; op?: Op };
 /** remove는 실제로 뺐으면 true, undo는 되돌리기 알림에서 다시 넣기 */
 type Chip = { id: string; name: string; tone: string; remove: () => boolean; undo: () => void };
 
 /**
- * 설정 > 관심사(2026-10-11 개편). 고른 관심사만 분야 색 라벨로 보여 주고, 고르기는 분야별 드롭다운으로 한다.
- * - 라벨: 분야 전체를 고르면 분야 이름('AI') 하나만, 아니면 고른 상세 관심사들. 뉴스 분야·기타는 그 이름. ✕로 뺀다.
- * - 드롭다운(분야마다 하나 + 뉴스 + 기타): 누르면 아래에 체크 목록이 열리고, 체크해도 닫히지 않는다. 바깥을 누르거나 Esc면 닫힌다.
+ * 내 관심 키워드 > 관심 분야(2026-10-11 개편, 2026-11-08 설정에서 따로 뺌). 고른 관심사만 분야 색 라벨로 보여 주고, 고르기는 분야별 드롭다운으로 한다.
+ * 직접 적는 말(예전 '기타')은 아래 '내 키워드' 묶음(KeywordSlots)에서 고친다. custom은 '하나는 남기기'를 셀 때만 쓴다.
+ * - 라벨: 분야 전체를 고르면 분야 이름('AI') 하나만, 아니면 고른 상세 관심사들. 뉴스 분야는 그 이름. ✕로 뺀다.
+ * - 드롭다운(분야마다 하나 + 뉴스): 누르면 아래에 체크 목록이 열리고, 체크해도 닫히지 않는다. 바깥을 누르거나 Esc면 닫힌다.
  *   분야는 트리 선택처럼 움직인다: 전체를 켜면 상세가 모두 켜진 것으로 보이고(라벨은 분야 하나), 그 상태에서 상세 하나를 끄면 나머지 상세만 남고,
  *   상세를 다 켜면 전체로 합친다. 서버도 같은 규칙으로 저장한다(setGroupPicks).
  * - 누르는 즉시 라벨·체크가 바뀐다(useOptimistic). 서버가 막으면(한도 등) 되돌아가고 까닭을 보여 준다.
  * - 라벨 ✕로 빼면 되돌리기 알림이 뜬다. 누르면 그때 고른 상태에 그 관심사를 다시 넣는다(한도에 걸리면 위와 같이 까닭을 보여 준다).
  */
-export function TopicSettings({ groups, news, custom, customAllowed }: { groups: TopicGroupView[]; news: Section[]; custom: UserTopic[]; customAllowed: boolean }) {
+export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView[]; news: Section[]; custom: UserTopic[] }) {
   const panelId = useId();
   const boxRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const [text, setText] = useState("");
 
   const serverPicked = useMemo(
     () =>
@@ -48,21 +45,18 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
     return next;
   });
 
-  const [state, dispatch] = useActionState<TopicResult | null, Send>(async (prev, { fields, op, restore }) => {
+  const [state, dispatch] = useActionState<TopicResult | null, Send>(async (prev, { fields, op }) => {
     if (op) apply(op);
     const formData = new FormData();
     for (const [k, v] of Object.entries(fields)) formData.set(k, v);
-    const r = await editTopics(prev, formData);
-    if ("text" in fields && !restore && r?.tone !== "warn") setText("");
-    return r;
+    return editTopics(prev, formData);
   }, null);
-  const send = (fields: Record<string, string>, op?: Op, restore = false) => {
-    // 분석: 무엇을 했는지만(직접 적은 말은 남기지 않는다)
+  const send = (fields: Record<string, string>, op?: Op) => {
+    // 분석: 무엇을 했는지만
     if ("group" in fields) track("topic_edit", { action: "group", group: fields.group, picks: fields.pick ? fields.pick.split(",").filter(Boolean).length : 0 });
     else if ("add" in fields) track("topic_edit", { action: "add", topic: fields.add });
-    else if ("remove" in fields) track("topic_edit", { action: "remove", topic: fields.remove.startsWith("c-") ? "custom" : fields.remove });
-    else if ("text" in fields) track("topic_edit", { action: "text" });
-    startTransition(() => dispatch({ fields, op, restore }));
+    else if ("remove" in fields) track("topic_edit", { action: "remove", topic: fields.remove });
+    startTransition(() => dispatch({ fields, op }));
   };
 
   /** 분야 하나에서 고른 것을 통째로 정한다. 상세를 다 고르면 전체로. 보냈으면 true */
@@ -82,7 +76,7 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
     const some = ids.filter((x) => picked.has(x));
     return setGroup(g, some.includes(id) ? some.filter((x) => x !== id) : [...some, id]);
   };
-  /** 뉴스 분야·기타 하나 켜고 끄기. 보냈으면 true */
+  /** 뉴스 분야 하나 켜고 끄기. 보냈으면 true */
   const toggleOne = (id: string) => {
     if (picked.has(id)) {
       if (picked.size <= 1) return false;
@@ -140,21 +134,9 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
           if (!l.picked.has(n.id)) l.send({ add: n.id }, { drop: [], add: [n.id] });
         },
       })),
-    // 기타는 적은 말로 다시 넣는다(같은 말이면 같은 관심사가 된다. 기타를 못 넣는 플랜이면 까닭을 보여 준다)
-    ...custom
-      .filter((c) => picked.has(c.id))
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        tone: "etc",
-        remove: () => toggleOne(c.id),
-        undo: () => {
-          const l = latest.current;
-          if (!l.picked.has(c.id)) l.send({ text: c.name }, { drop: [], add: [c.id] }, true);
-        },
-      })),
   ];
-  const only = chips.length <= 1;
+  // 내 키워드까지 합쳐 하나는 남겨야 한다(서버도 막는다)
+  const only = chips.length + custom.filter((c) => picked.has(c.id)).length <= 1;
 
   // 바깥을 누르면 닫는다(모바일 사파리는 버튼에 포커스를 주지 않아 blur만으로는 못 닫는다)
   useEffect(() => {
@@ -168,7 +150,6 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
 
   const openGroup = groups.find((g) => g.id === open);
   const newsCount = news.filter((n) => picked.has(n.id)).length;
-  const customCount = custom.filter((c) => picked.has(c.id)).length;
   const trigger = (id: string, label: string, badge: string | null) => (
     <button
       key={id}
@@ -189,7 +170,7 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
   return (
     <>
       {chips.length > 0 && (
-        <ul aria-label="내 관심사" className="flex flex-wrap gap-2">
+        <ul aria-label="고른 관심 분야" className="flex flex-wrap gap-2">
           {chips.map((c) => (
             <li key={c.id} className={`inline-flex min-h-9 items-center gap-0.5 rounded-xl py-0.5 pl-3 pr-1 text-[14px] font-extrabold ${topicTone(c.tone)}`}>
               {c.name}
@@ -233,7 +214,6 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
             return trigger(g.id, g.name, picked.has(g.id) ? "전체" : some ? String(some) : null);
           })}
           {trigger("news", "뉴스", newsCount ? String(newsCount) : null)}
-          {trigger("etc", "기타", customCount ? String(customCount) : null)}
         </div>
 
         {open && (
@@ -252,41 +232,6 @@ export function TopicSettings({ groups, news, custom, customAllowed }: { groups:
               </>
             )}
             {open === "news" && news.map((n) => <CheckRow key={n.id} label={n.name} checked={picked.has(n.id)} onClick={() => toggleOne(n.id)} />)}
-            {open === "etc" && !customAllowed && (
-              // 기타 직접 적기는 Premium만. Free가 전에 넣어 둔 기타는 라벨로 남아 있고 ✕로 뺄 수 있다
-              <div className="flex items-center justify-between gap-3 p-3">
-                <span className="text-[15px] font-bold text-sub">목록에 없는 관심사 넣기</span>
-                <Link href="/premium" className="no-underline" aria-label="목록에 없는 관심사 넣기, Premium에서 쓸 수 있어요">
-                  <PremiumBadge />
-                </Link>
-              </div>
-            )}
-            {open === "etc" && customAllowed && (
-              <form
-                className="flex gap-2 p-1.5"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (text.trim()) send({ text: text.trim() });
-                }}
-              >
-                <label htmlFor="etc-text" className="sr-only">
-                  목록에 없는 관심사
-                </label>
-                <input
-                  id="etc-text"
-                  autoFocus
-                  autoComplete="off"
-                  maxLength={200}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="목록에 없는 관심사(예: 드론, 게임)"
-                  className="tile min-h-12 min-w-0 flex-1 px-4 text-[16px] font-semibold placeholder:text-faint"
-                />
-                <button type="submit" disabled={!text.trim()} className="btn min-h-12 shrink-0 px-5">
-                  넣기
-                </button>
-              </form>
-            )}
           </div>
         )}
       </div>

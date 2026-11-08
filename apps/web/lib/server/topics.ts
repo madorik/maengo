@@ -161,17 +161,21 @@ async function looksAdult(custom: { id: string; name: string }[]): Promise<boole
   }
 }
 
+const EMPTY: TopicResult = { tone: 'warn', message: '키워드를 한 단어 이상 적어 주세요.' };
+
 /**
- * 기타에 적기(온보딩·설정). 쉼표 등으로 나눈 말(최대 3개)을 적은 그대로 올린다.
- * 목록에 같은 이름·별칭이 있으면 그 관심사로 넣고('종부세' → 부동산 정책·세금, 기타 개수에 안 셈),
+ * 직접 적기(온보딩의 기타, 내 관심 키워드 > 내 키워드). 쉼표 등으로 나눈 말(최대 3개)을 적은 그대로 올린다.
+ * 목록에 같은 이름·별칭이 있으면 그 관심사로 넣고('종부세' → 부동산 정책·세금, 내 키워드 개수에 안 셈),
  * 없으면 custom 토픽을 만든다(Premium만 10개, Free는 목록에 있는 말만 들어간다). 성인 키워드는 받지 않는다.
+ * replacing: 내 키워드 칸의 글을 고쳤을 때 바꿀 원래 키워드 id. 개수는 그 칸을 빼고 세고, 새 말이 들어간 뒤에만 원래 것을 지운다
+ * (막히면 원래 키워드가 그대로 남는다). 같은 말로 고치면 아무것도 안 한다.
  */
-export async function addCustomTopics(profile: Profile, raw: string): Promise<TopicResult> {
+export async function addCustomTopics(profile: Profile, raw: string, replacing?: string): Promise<TopicResult> {
   const text = raw.trim().slice(0, 200);
-  if (!text) return { tone: 'warn', message: '기타에 한 단어 이상 적어 주세요.' };
+  if (!text) return EMPTY;
   if (isAdultInterest(text)) return ADULT;
   const phrases = splitInterests(text);
-  if (!phrases.length) return { tone: 'warn', message: '기타에 한 단어 이상 적어 주세요.' };
+  if (!phrases.length) return EMPTY;
   const ids: string[] = [];
   const custom: { id: string; name: string }[] = [];
   for (const p of phrases) {
@@ -183,10 +187,13 @@ export async function addCustomTopics(profile: Profile, raw: string): Promise<To
       ids.push(id);
     }
   }
-  // 기타 개수 한도(Premium 10개, Free 0개). 이미 넣은 말은 다시 세지 않는다
+  // 내 키워드 개수 한도(Premium 10개, Free 0개). 이미 넣은 말은 다시 세지 않는다. 고치는 칸은 빠질 것이라 세지 않는다
   const limit = entitlements(profile).customLimit;
   const weights = await weightsOf(profile.id);
-  const mineCustom = Object.keys(weights).filter((id) => isCustomTopicId(id) && weights[id]! > 0);
+  const old = replacing && isCustomTopicId(replacing) && weights[replacing]! > 0 ? replacing : null;
+  if (replacing && !old) return { tone: 'warn', message: '없는 키워드예요. 화면을 새로 고쳐 주세요.' };
+  if (old && ids.length === 1 && ids[0] === old) return { tone: 'ok', message: '' };
+  const mineCustom = Object.keys(weights).filter((id) => isCustomTopicId(id) && weights[id]! > 0 && id !== old);
   const freshCustom = custom.filter((c) => !mineCustom.includes(c.id));
   const room = Math.max(0, limit - mineCustom.length);
   let limitNote = '';
@@ -194,7 +201,7 @@ export async function addCustomTopics(profile: Profile, raw: string): Promise<To
     const drop = new Set(freshCustom.slice(room).map((c) => c.id));
     for (const id of drop) ids.splice(ids.indexOf(id), 1);
     custom.splice(0, custom.length, ...custom.filter((c) => !drop.has(c.id)));
-    const msg = limit === 0 ? '목록에 없는 관심사는 Premium에서 넣을 수 있어요.' : `기타에는 ${limit}개까지 적을 수 있어요. 하나를 빼고 다시 적어 주세요.`;
+    const msg = limit === 0 ? '목록에 없는 관심사는 Premium에서 넣을 수 있어요.' : `내 키워드는 ${limit}개까지 넣을 수 있어요. 하나를 빼고 다시 적어 주세요.`;
     if (!ids.length) return { tone: 'warn', message: msg };
     limitNote = msg;
   }
@@ -206,5 +213,11 @@ export async function addCustomTopics(profile: Profile, raw: string): Promise<To
       'topics custom',
     );
   }
-  return addTopicIds(profile, [...new Set(ids)], 'text', limitNote);
+  const result = await addTopicIds(profile, [...new Set(ids)], 'text', limitNote);
+  if (old && !ids.includes(old)) {
+    // 새 말이 하나라도 들어갔으면(이미 있던 관심사로 합쳐진 경우 포함) 원래 키워드를 뺀다
+    const after = await weightsOf(profile.id);
+    if (ids.some((id) => after[id]! > 0)) must(await db.from('user_topics').delete().eq('user_id', profile.id).eq('topic_id', old), 'user_topics replace');
+  }
+  return result;
 }

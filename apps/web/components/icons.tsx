@@ -141,6 +141,8 @@ export const IconAtom = (p: Props) => (
 export const IconGlobe = (p: Props) => (
   <Line {...p}><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17" /><path d="M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.2-3.6-8.5S9.6 5.9 12 3.5z" /></Line>
 );
+/** 내 관심 키워드 메뉴(#) */
+export const IconHash = (p: Props) => <Line {...p}><path d="M10 4L8 20" /><path d="M16 4l-2 16" /><path d="M4.5 9h15" /><path d="M4.5 15h15" /></Line>;
 export const IconPencil = (p: Props) => <Line {...p}><path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></Line>;
 
 /** Premium 왕관(금색) */

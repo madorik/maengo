@@ -5,7 +5,6 @@ import Link from "next/link";
 import { PlanSync } from "@/components/app/PlanSync";
 import { DarkModeSwitch } from "@/components/settings/DarkModeSwitch";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
-import { LinkSlots } from "@/components/settings/LinkSlots";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { BillingBanner } from "@/components/premium/BillingBanner";
@@ -14,15 +13,13 @@ import { WalletHistory } from "@/components/settings/WalletHistory";
 import { billingNoticeOf } from "@/lib/billing/notice";
 import { subscriptionView } from "@/lib/server/billing";
 import { PushToggle } from "@/components/settings/PushToggle";
-import { TopicSettings } from "@/components/settings/TopicSettings";
+import { Section } from "@/components/settings/Section";
 import { demoRebuildFeed, demoReset } from "@/app/actions";
 import { dailyMaengoUsage, toProfileView } from "@/lib/server/feed";
 import { syncWallet, walletHistory } from "@/lib/server/wallet";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
-import { userLinks } from "@/lib/server/links";
-import { entitlements, webPushTokens } from "@/lib/server/profile";
-import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
+import { webPushTokens } from "@/lib/server/profile";
 import { appInfoOf } from "@/lib/app-client";
 import { storeReviewUrl } from "@/lib/site";
 import { WEB_VERSION } from "@/lib/server/web-version";
@@ -31,31 +28,12 @@ import { BusinessInfo } from "@/components/public/BusinessInfo";
 
 export const metadata: Metadata = { title: "설정" };
 
-
-
-/** 설정 한 묶음. action은 제목 오른쪽에 둔다(알림 켜고 끄기) */
-function Section({ id, title, action, children }: { id: string; title: string; action?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-20 border-t-2 border-line py-7">
-      <div className="flex flex-wrap items-center justify-between gap-x-3">
-        <h2 id={`${id}-title`} className="text-[20px] font-black tracking-[-0.02em]">
-          {title}
-        </h2>
-        {action}
-      </div>
-      <div className="mt-3 text-[15px] font-medium leading-[1.7]">{children}</div>
-    </section>
-  );
-}
-
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const demoTools = demoToolsEnabled();
   // 지갑 내역은 지갑을 맞춘 뒤(처음이면 가입 선물이 들어간다) 읽는다
   const walletAndHistory = syncWallet(profile.id).then(async (w) => [w, await walletHistory(profile.id)] as const);
-  const [topics, links, webTokens, [wallet, history], usage, sub] = await Promise.all([
-    userTopics(profile),
-    userLinks(profile),
+  const [webTokens, [wallet, history], usage, sub] = await Promise.all([
     webPushTokens(profile.id),
     walletAndHistory,
     dailyMaengoUsage(profile),
@@ -123,20 +101,6 @@ export default async function SettingsPage() {
           </div>
           {/* 지갑이 들고 난 기록(최근 50개) */}
           <WalletHistory entries={history} />
-        </Section>
-
-        <Section id="topics" title="관심사">
-          <TopicSettings
-            groups={topicGroups(topics)}
-            news={newsSections(topics)}
-            custom={topics.filter((t) => t.custom)}
-            customAllowed={entitlements(profile).customLimit > 0}
-          />
-        </Section>
-
-        <Section id="links" title="내 관심 링크">
-          {/* 블로그·사이트 주소 칸 3개(Premium). Free는 Premium 배지, 전에 넣어 둔 링크는 배지와 빼기만 */}
-          <LinkSlots links={links} limit={entitlements(profile).linkLimit} />
         </Section>
 
         <Section id="listen" title="목소리">

@@ -99,7 +99,7 @@ export async function RevenueTab({ range }: { range: AdminRange }) {
                 <li key={t.id} className="grid grid-cols-[minmax(0,9rem)_1fr_2.5rem] items-center gap-2 text-[14px]">
                   <span className="truncate font-bold">
                     {t.name}
-                    {t.custom && <span className="ml-1 text-[12px] font-semibold text-faint">기타</span>}
+                    {t.custom && <span className="ml-1 text-[12px] font-semibold text-faint">내 키워드</span>}
                   </span>
                   <span className="h-2 rounded-full bg-line">
                     <span className="block h-full rounded-full bg-mango" style={{ width: `${(t.users / topMax) * 100}%` }} />

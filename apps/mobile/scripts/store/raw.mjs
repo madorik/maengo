@@ -50,7 +50,7 @@ async function shoot(page, path, name, prepare) {
   console.log("shot", platform, name, page.url());
 }
 
-/** 설정을 관심사부터 보이게 내리고 내 관심 링크 칸을 채운다 */
+/** 내 관심 키워드 화면을 관심 분야부터 보이게 하고 내 관심 링크 칸을 채운다(2026-11-08 설정에서 옮김) */
 async function links(page) {
   await page.evaluate((urls) => {
     const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
@@ -84,7 +84,7 @@ await shoot(light, "/today", "today");
 const href = (await light.locator('a[href*="/article/"]').first().getAttribute("href")).replace(/^\/maengo/, "");
 await shoot(light, href, "article");
 await shoot(light, "/listen", "listen");
-await shoot(light, "/settings", "links", links);
+await shoot(light, "/keywords", "links", links);
 await shoot(light, "/library", "library");
 // 핵심 두 가지(2026-11-06): 플레이리스트(담아 둔 소식을 이어 듣기), 소식마다 맹고 AI에게 묻기
 await shoot(light, "/playlist", "playlist");

@@ -16,7 +16,7 @@ import { stripBase } from "@/lib/base-path";
 const TOUR_KEY = "maengo_feature_tour_seen";
 const STATE_KEY = "maengo_feature_tour_state";
 
-type Page = "today" | "article" | "settings";
+type Page = "today" | "article" | "keywords" | "settings";
 type Step = { page: Page; target: string; title: string; body: string };
 
 function steps(audio: boolean, dailyListens: number): Step[] {
@@ -46,10 +46,10 @@ function steps(audio: boolean, dailyListens: number): Step[] {
       body: "이 버튼을 누르면 지금 보는 소식에 대해 무엇이든 물어볼 수 있어요. 말로 물어도 돼요.",
     },
     {
-      page: "settings",
+      page: "keywords",
       target: "#topics",
       title: "관심 분야를 고르고 바꿔요",
-      body: "설정에서 관심 분야를 더하거나 뺄 수 있어요. 고른 분야에서만 소식을 골라요.",
+      body: "내 관심 키워드에서 관심 분야를 더하거나 빼고, 목록에 없는 키워드도 적을 수 있어요. 고른 것에서만 소식을 골라요.",
     },
     {
       page: "settings",
@@ -126,7 +126,8 @@ function isPinned(el: HTMLElement): boolean {
   return false;
 }
 
-const pathOf = (page: Page, article: string | null) => (page === "today" ? "/today" : page === "settings" ? "/settings" : (article ?? "/today"));
+const PATHS: Partial<Record<Page, string>> = { today: "/today", keywords: "/keywords", settings: "/settings" };
+const pathOf = (page: Page, article: string | null) => PATHS[page] ?? article ?? "/today";
 
 type Rect = { top: number; left: number; width: number; height: number };
 const PAD = 8;
