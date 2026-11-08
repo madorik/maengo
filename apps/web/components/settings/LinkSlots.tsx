@@ -10,6 +10,7 @@ import type { LinkView, TopicResult } from "@/lib/types";
 
 /**
  * 내 관심 키워드 > 내 관심 링크(Premium, 2026-10-15 사용자 결정: 인풋박스 칸으로 관리, 3개, 넣기 버튼 없이 적고 엔터. 2026-11-08 설정에서 옮김).
+ * 2026-11-08부터 유튜브 채널 주소도 받는다(채널마다 하루 1편·1시간 이내 영상을 요약, pipeline jobs/link-videos.ts).
  * 칸마다 주소 한 칸. 적고 엔터(키보드 완료)를 치거나 칸을 벗어나면 넣고, 넣어 둔 링크는 ✕로 뺀다. 넣어 둔 칸의 주소를 고쳐 넣으면 그 칸의 링크가 바뀐다.
  * 서버가 RSS를 찾아 글을 가져올 수 있는지 확인한다(확인 중에는 칸을 잠그고 오른쪽에 도는 표시). 되면 오른쪽에 초록 체크와 칸 아래 이름,
  * 안 되면 빨간 테두리와 칸 아래 까닭(2026-10-17 사용자 결정). 넣어 둔 링크가 계속 못 가져와도 빨간 테두리. Free는 Premium 배지.
@@ -23,8 +24,8 @@ export function LinkSlots({ links, limit }: { links: LinkView[]; limit: number }
     <>
       {limit <= 0 && (
         <div className="flex min-h-12 items-center justify-between gap-3">
-          <span className="text-sub">블로그·사이트 주소로 소식 받기</span>
-          <Link href="/premium" className="no-underline" aria-label="블로그·사이트 주소로 소식 받기, Premium에서 쓸 수 있어요">
+          <span className="text-sub">블로그·사이트·유튜브 채널로 소식 받기</span>
+          <Link href="/premium" className="no-underline" aria-label="블로그·사이트·유튜브 채널로 소식 받기, Premium에서 쓸 수 있어요">
             <PremiumBadge />
           </Link>
         </div>
@@ -149,7 +150,7 @@ function Slot({ slot, saved }: { slot: number; saved: LinkView | null }) {
               }
               if (text !== tried) e.currentTarget.form?.requestSubmit();
             }}
-            placeholder="블로그·사이트 주소"
+            placeholder="블로그·사이트·유튜브 채널 주소"
             disabled={pending}
             aria-invalid={status === "error" || undefined}
             aria-describedby={`${id}-msg`}

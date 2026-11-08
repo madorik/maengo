@@ -36,7 +36,7 @@ export type LinkError = 'invalid' | 'http' | 'youtube' | 'blocked' | 'private' |
 export const LINK_ERROR_MESSAGE: Record<LinkError, string> = {
   invalid: '주소가 아니에요. https://로 시작하는 주소를 넣어 주세요.',
   http: 'http 주소는 받을 수 없어요. https://로 시작하는 주소를 넣어 주세요.',
-  youtube: '유튜브는 받을 수 없어요.',
+  youtube: '유튜브는 채널 주소만 받아요(예: youtube.com/@채널이름).',
   blocked: '이 사이트는 받을 수 없어요.',
   private: '이 주소는 받을 수 없어요.',
   unsafe: '도박·불법·사기 관련 사이트는 넣을 수 없어요.',
@@ -70,12 +70,42 @@ const YOUTUBE = /(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$/i;
 // RSS를 주지 않거나 로그인 뒤에만 보이는 곳. 주소만 보고 미리 알려 준다
 const NO_FEED = /(^|\.)(brunch\.co\.kr|x\.com|twitter\.com|instagram\.com|threads\.net|facebook\.com|tiktok\.com|linkedin\.com|cafe\.naver\.com|cafe\.daum\.net|band\.us)$/i;
 
-/** 주소만 보고 막는 곳: 유튜브(youtube), RSS가 없는 SNS·브런치(blocked). 아니면 null */
-export function blockedHost(hostname: string): 'youtube' | 'blocked' | null {
-  const host = hostname.toLowerCase();
-  if (YOUTUBE.test(host)) return 'youtube';
-  if (NO_FEED.test(host)) return 'blocked';
-  return null;
+/** 호스트만 보고 막는 곳: RSS가 없는 SNS·브런치. 아니면 null. 유튜브는 주소 모양까지 봐야 해서 blockedLink에서 */
+export function blockedHost(hostname: string): 'blocked' | null {
+  return NO_FEED.test(hostname.toLowerCase()) ? 'blocked' : null;
+}
+
+/**
+ * 유튜브 주소의 종류(2026-11-08부터 채널은 받는다, ROADMAP 10번). 채널: youtube.com/@핸들, /channel/UC…, /c/이름, /user/이름(뒤에 /videos 등이 붙어도).
+ * 영상·쇼츠·재생목록·youtu.be·첫 화면은 'other'. 유튜브가 아니면 null
+ */
+export function youtubeLinkKind(u: URL): 'channel' | 'other' | null {
+  const host = u.hostname.toLowerCase();
+  if (!YOUTUBE.test(host)) return null;
+  if (!/(^|\.)youtube\.com$/.test(host)) return 'other';
+  const [first = '', second = ''] = u.pathname.split('/').filter(Boolean);
+  if (first.length > 1 && first.startsWith('@')) return 'channel';
+  if (first === 'channel' && /^UC[\w-]{10,}$/.test(second)) return 'channel';
+  if ((first === 'c' || first === 'user') && second) return 'channel';
+  return 'other';
+}
+
+/** 유튜브 채널 페이지의 기준 주소(www.youtube.com, 채널 부분까지만). 채널이 아니면 null */
+export function youtubeChannelPage(u: URL): string | null {
+  if (youtubeLinkKind(u) !== 'channel') return null;
+  const parts = u.pathname.split('/').filter(Boolean);
+  const keep = parts[0]!.startsWith('@') ? parts.slice(0, 1) : parts.slice(0, 2);
+  return `https://www.youtube.com/${keep.join('/')}`;
+}
+
+/** 유튜브 채널 id(UC…)의 새 영상 피드 주소 */
+export const youtubeFeedUrl = (channelId: string) => `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+
+/** 주소만 보고 막는 곳: 채널이 아닌 유튜브 주소(youtube), RSS가 없는 SNS·브런치(blocked). 아니면 null */
+export function blockedLink(u: URL): 'youtube' | 'blocked' | null {
+  const yt = youtubeLinkKind(u);
+  if (yt) return yt === 'channel' ? null : 'youtube';
+  return blockedHost(u.hostname);
 }
 
 /** 서버가 가져오면 안 되는 주소(사설망·로컬). 리다이렉트로 옮겨 간 주소도 같은 검사를 한다 */
@@ -130,6 +160,7 @@ export function platformFeedUrls(u: URL): string[] {
   else if (host.endsWith('.substack.com')) out.push(`https://${host}/feed`);
   else if (host === 'github.com' && parts.length >= 2) out.push(`https://github.com/${parts[0]}/${parts[1]}/releases.atom`);
   else if ((host === 'reddit.com' || host === 'old.reddit.com') && parts[0] === 'r' && parts[1]) out.push(`https://www.reddit.com/r/${parts[1]}/.rss`);
+  else if ((host === 'youtube.com' || host === 'm.youtube.com') && parts[0] === 'channel' && parts[1]) out.push(youtubeFeedUrl(parts[1]));
   return out;
 }
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  blockedHost, feedLinksInHtml, feedUrlKey, guessLang, isHttpInput, isIpHost, isLinkTopicId, isUnsafeLinkUrl, isPrivateHost, linkSourceId, linkTopicId, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls,
+  blockedHost, blockedLink, youtubeChannelPage, youtubeLinkKind, feedLinksInHtml, feedUrlKey, guessLang, isHttpInput, isIpHost, isLinkTopicId, isUnsafeLinkUrl, isPrivateHost, linkSourceId, linkTopicId, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls,
   rankingWeights,
 } from '../topics/links';
 
@@ -43,9 +43,22 @@ test('주소 정리: 프로토콜을 붙이고, https가 아니거나 주소가 
   assert.ok(!isHttpInput('a.com/http://x'));
 });
 
-test('막는 곳: 유튜브, RSS 없는 SNS·브런치. 사설·로컬 주소', () => {
-  assert.equal(blockedHost('www.youtube.com'), 'youtube');
-  assert.equal(blockedHost('youtu.be'), 'youtube');
+test('막는 곳: 채널이 아닌 유튜브 주소, RSS 없는 SNS·브런치. 사설·로컬 주소', () => {
+  const u = (s: string) => new URL(s);
+  assert.equal(blockedLink(u('https://www.youtube.com/watch?v=abc')), 'youtube');
+  assert.equal(blockedLink(u('https://youtu.be/abc')), 'youtube');
+  assert.equal(blockedLink(u('https://www.youtube.com/shorts/abc')), 'youtube');
+  assert.equal(blockedLink(u('https://www.youtube.com/')), 'youtube');
+  assert.equal(blockedLink(u('https://www.youtube.com/@안될공학')), null);
+  assert.equal(blockedLink(u('https://m.youtube.com/@syuka/videos')), null);
+  assert.equal(blockedLink(u('https://www.youtube.com/channel/UCsJ6RuBiTVWRX156FVbeaGg')), null);
+  assert.equal(blockedLink(u('https://www.youtube.com/c/someone')), null);
+  assert.equal(blockedLink(u('https://brunch.co.kr/@a')), 'blocked');
+  assert.equal(youtubeLinkKind(u('https://toss.tech')), null);
+  assert.equal(youtubeChannelPage(u('https://m.youtube.com/@syuka/videos?x=1')), 'https://www.youtube.com/@syuka');
+  assert.equal(youtubeChannelPage(u('https://youtube.com/channel/UCsJ6RuBiTVWRX156FVbeaGg/featured')), 'https://www.youtube.com/channel/UCsJ6RuBiTVWRX156FVbeaGg');
+  assert.equal(youtubeChannelPage(u('https://www.youtube.com/watch?v=abc')), null);
+  assert.equal(blockedHost('www.youtube.com'), null);
   assert.equal(blockedHost('brunch.co.kr'), 'blocked');
   assert.equal(blockedHost('x.com'), 'blocked');
   assert.equal(blockedHost('toss.tech'), null);

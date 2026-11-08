@@ -132,6 +132,8 @@ export class GeminiOutputError extends Error {
 export const GEMINI_TIMEOUT_MS = 60_000;
 /** 영상 요약은 영상을 읽느라 더 걸린다 */
 export const GEMINI_VIDEO_TIMEOUT_MS = 180_000;
+/** 영상 요약 때 화면을 보는 빈도(1초에 몇 장). 0.1 = 10초에 한 장(내 관심 링크 유튜브 채널, 2026-11-08) */
+export const VIDEO_FPS = 0.1;
 /** 듣기 음성(TTS)은 글이 길어 더 기다린다 */
 export const GEMINI_TTS_TIMEOUT_MS = 120_000;
 /** 마감(deadline)까지 이보다 적게 남았으면 부르지 않는다(끊길 게 뻔한 요청에 돈을 쓰지 않게) */
@@ -424,7 +426,8 @@ export function createGeminiAi(opts: GeminiOptions): GeminiAi {
       const topicIds = input.dictionary.map((t) => t.id);
       const video = input.kind === 'video' && !!input.videoUrl;
       const parts: Part[] = [];
-      if (video) parts.push({ fileData: { fileUri: input.videoUrl!, mimeType: 'video/*' } });
+      // 화면은 10초에 한 장만 본다(말하는 영상은 소리가 핵심, 2026-11-08 실측 20분 영상 약 3.8만 토큰). 저해상도는 generateJson에서
+      if (video) parts.push({ fileData: { fileUri: input.videoUrl!, mimeType: 'video/*' }, videoMetadata: { fps: VIDEO_FPS } });
       parts.push({ text: `토픽 사전\n${dictionaryBlock(input)}\n\n${sourceBlock(input)}` });
       const { data, model } = await generateJson<{
         skip: string; title: string; short: string; body: string[]; category: string; impact: string; author: string;

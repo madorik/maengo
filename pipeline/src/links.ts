@@ -1,13 +1,15 @@
 import { createGeminiAi } from '@maengo/core/gemini';
 import { kstDate } from '@maengo/core/kst';
 import {
-  blockedHost, COMMON_FEED_PATHS, isHttpInput, feedLinksInHtml, feedUrlKey, guessLang, isUnsafeLinkUrl, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls, type LinkError,
+  blockedHost, blockedLink, COMMON_FEED_PATHS, isHttpInput, feedLinksInHtml, feedUrlKey, guessLang, isUnsafeLinkUrl, looksLikeFeedUrl, normalizeLinkInput, platformFeedUrls, youtubeChannelPage, youtubeFeedUrl, type LinkError,
 } from '@maengo/core/topics';
 import { cluster } from './jobs/cluster';
 import { storeEntries, type SourceRow } from './jobs/collect';
 import { embedItems } from './jobs/embed';
+import { summarizeLinkVideos } from './jobs/link-videos';
 import { tagLinks } from './jobs/tag';
 import { aiBlockedReason, guardAi } from './lib/ai-guard';
+import { loadAudience } from './lib/audience';
 import { HOUR, type Ctx } from './lib/ctx';
 import { check, db } from './lib/db';
 import { env } from './lib/env';
@@ -19,7 +21,8 @@ import { flushUsage, recordUsage } from './lib/usage';
 
 // 내 관심 링크(설정 > 관심사, Premium): 사용자가 적은 주소에서 RSS를 찾아 확인하고(resolveLink), 넣은 자리에서 최근 글을 바로 처리한다(ingestLinkNow).
 // 이 뒤로는 보통 출처와 같다: 하루 한 번(06:00) collect가 받고(custom 출처는 한 번에 LINK_MAX_PER_FETCH개), tagLinks가 묶음에 's-<id>' 토픽을 붙인다.
-// 주소 규칙(막는 곳·플랫폼별 피드 주소·사설 주소)은 core topics/links.ts. 유튜브는 받지 않는다(2026-10-15 사용자 결정).
+// 주소 규칙(막는 곳·플랫폼별 피드 주소·사설 주소)은 core topics/links.ts. 유튜브는 채널 주소만 받는다(2026-11-08, 처음엔 막았다):
+// 채널 페이지의 RSS link 태그(없으면 페이지 안 채널 id)로 /feeds/videos.xml?channel_id=… 를 찾는다. 영상 요약은 jobs/link-videos.ts.
 
 export interface ResolvedLink {
   /** sources.url(피드 주소, feedUrlKey로 정리) */
@@ -43,6 +46,16 @@ class HostError extends Error {
   constructor(public readonly reason: LinkError) {
     super(reason);
   }
+}
+
+/** 유튜브 채널 페이지 HTML에서 그 채널 자신의 id(UC…). 못 찾으면 null */
+export function youtubeChannelIdIn(html: string): string | null {
+  return (
+    html.match(/type="application\/rss\+xml"[^>]*href="https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[\w-]{10,})"/)?.[1] ??
+    html.match(/"externalId":"(UC[\w-]{10,})"/)?.[1] ??
+    html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{10,})"/)?.[1] ??
+    null
+  );
 }
 
 function hostCheck(u: URL): void {
@@ -79,11 +92,15 @@ export async function resolveLink(raw: string): Promise<ResolveResult> {
   if (isHttpInput(raw)) return { ok: false, error: 'http' };
   const u = normalizeLinkInput(raw);
   if (!u) return { ok: false, error: 'invalid' };
+  const blocked = blockedLink(u);
+  if (blocked) return { ok: false, error: blocked };
   try {
     hostCheck(u);
   } catch (e) {
     return { ok: false, error: (e as HostError).reason };
   }
+  // 유튜브 채널은 www 채널 페이지로 모아서 연다(모바일 페이지·/videos 탭에는 RSS 태그가 없을 수 있다)
+  const ytPage = youtubeChannelPage(u);
 
   const tried = new Set<string>();
   let sawEmpty = false;
@@ -119,7 +136,7 @@ export async function resolveLink(raw: string): Promise<ResolveResult> {
     // 2. 페이지를 열어 <link rel="alternate">. 페이지 자체가 피드일 수도 있다
     let html = '';
     try {
-      const page = await fetchUser(u.toString());
+      const page = await fetchUser(ytPage ?? u.toString());
       html = page.text;
       if (isFeedXml(html)) {
         const link = await tryFeed(page.url);
@@ -128,6 +145,15 @@ export async function resolveLink(raw: string): Promise<ResolveResult> {
     } catch (e) {
       if (e instanceof HostError) throw e;
       unreachable = true;
+    }
+    if (ytPage) {
+      // 유튜브: 채널 자신의 id만 읽는다(RSS 태그 → externalId → canonical). 페이지에는 추천 채널의 channelId도 섞여 있어서 그건 쓰지 않는다.
+      // 페이지가 커서(약 2MB) 일반 피드 찾기(feedLinksInHtml)는 태그를 못 찾는다. 흔한 경로(/feed …)도 볼 필요가 없다
+      const id = youtubeChannelIdIn(html);
+      const link = id ? await tryFeed(youtubeFeedUrl(id)) : null;
+      if (link) return { ok: true, link };
+      if (sawEmpty) return { ok: false, error: 'empty' };
+      return { ok: false, error: unreachable ? 'unreachable' : 'nofeed' };
     }
     for (const c of feedLinksInHtml(html, u.toString())) {
       const link = await tryFeed(c);
@@ -167,7 +193,7 @@ function makeCtx(): Ctx {
 }
 
 /**
- * 링크를 넣은 자리에서: 창(72시간) 안의 글을 items에 넣고(최신 LINK_MAX_PER_FETCH개까지), 그 글만 임베딩 → 묶기 → 링크 태그.
+ * 링크를 넣은 자리에서: 창(72시간) 안의 글을 items에 넣고(최신 LINK_MAX_PER_FETCH개까지), 그 글만 임베딩 → 묶기 → 링크 태그 → (유튜브 채널이면) 최신 영상 한 편 요약.
  * 그래야 '하나 더 받기'와 다음 지급에 바로 후보가 된다. AI가 막혀 있으면 넣기만 하고(하루 한 번 도는 ingest가 처리한다),
  * 다른 요청이 처리 중이면(잠금) 그냥 둔다. 실패해도 링크 넣기는 이미 끝났으므로 기록만 남긴다
  */
@@ -192,6 +218,10 @@ export async function ingestLinkNow(source: { id: number; url: string; name: str
       await cluster(ctx);
     }
     await tagLinks(ctx);
+    // 유튜브 채널이면 최신 영상 한 편을 바로 요약해 넣은 사람이 곧 받게 한다. 하루 요약과 같은 규칙(채널당 하루 1편·1시간·한 사람 90분·하루 상한)
+    if (source.url.startsWith('https://www.youtube.com/feeds/videos.xml') && !(await aiBlockedReason())) {
+      await summarizeLinkVideos(ctx, await loadAudience(ctx));
+    }
   } catch (e) {
     ctx.log(`${source.name}: 처리 실패(다음 수집이 잇는다): ${String((e as Error).message ?? e).slice(0, 200)}`);
   } finally {

@@ -1,7 +1,7 @@
 import 'server-only';
 import { after } from 'next/server';
 import type { SiteVerdict } from '@maengo/core/ai';
-import { blockedHost, isAdultInterest, isHttpInput, isLinkTopicId, isUnsafeLinkUrl, LINK_ERROR_MESSAGE, linkSourceId, linkTopicId, normalizeLinkInput, type LinkError } from '@maengo/core/topics';
+import { blockedLink, isAdultInterest, isHttpInput, isLinkTopicId, isUnsafeLinkUrl, LINK_ERROR_MESSAGE, linkSourceId, linkTopicId, normalizeLinkInput, type LinkError } from '@maengo/core/topics';
 import type { ResolvedLink } from '@maengo/pipeline/links';
 import type { LinkView, TopicResult } from '../types';
 import { db, must } from './db';
@@ -84,7 +84,7 @@ export async function userLinks(profile: Profile): Promise<LinkView[]> {
 }
 
 /**
- * 칸(slot)에 링크 넣기. 주소만 보고 막을 것(유튜브·SNS·사설 주소)은 바로 돌려보내고, 그다음 RSS를 찾아 확인한다(pipeline resolveLink).
+ * 칸(slot)에 링크 넣기. 주소만 보고 막을 것(채널이 아닌 유튜브 주소·SNS·사설 주소)은 바로 돌려보내고, 그다음 RSS를 찾아 확인한다(pipeline resolveLink).
  * 찾으면 sources(같은 피드는 한 행)·topics('s-<id>')·user_topics에 넣고, 창 안의 최근 글을 그 자리에서 처리해 바로 후보가 되게 한다.
  * 그 칸에 이미 다른 링크가 있으면 뺀 뒤 넣는다(같은 피드면 그대로). 성공은 문구 없이(칸에 보인다), 막히면 까닭만
  */
@@ -96,7 +96,7 @@ export async function addLink(profile: Profile, raw: string, slot: number): Prom
   if (isHttpInput(text)) return warn(LINK_ERROR_MESSAGE.http, 'http');
   const u = normalizeLinkInput(text);
   if (!u) return warn(LINK_ERROR_MESSAGE.invalid, 'invalid');
-  const blocked = blockedHost(u.hostname);
+  const blocked = blockedLink(u);
   if (blocked) return warn(LINK_ERROR_MESSAGE[blocked], blocked);
   if (isUnsafeLinkUrl(u)) return warn(LINK_ERROR_MESSAGE.private, 'private');
   if (isAdultInterest(u.hostname)) return ADULT;

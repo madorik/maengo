@@ -45,7 +45,7 @@ export default async function KeywordsPage() {
         </Section>
 
         <Section id="links" title="내 관심 링크">
-          {/* 블로그·사이트 주소 칸 3개(Premium). Free는 Premium 배지, 전에 넣어 둔 링크는 배지와 빼기만 */}
+          {/* 블로그·사이트·유튜브 채널 주소 칸 3개(Premium). Free는 Premium 배지, 전에 넣어 둔 링크는 배지와 빼기만 */}
           <LinkSlots links={links} limit={entitlements(profile).linkLimit} />
         </Section>
       </div>

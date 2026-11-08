@@ -22,23 +22,23 @@ test('같은 토픽은 최대 2개까지만 고른다', () => {
   assert.deepEqual(out.map((x) => x.clusterId).sort(), [1, 2, 4, 5]);
 });
 
-test('영상은 최대 2개까지만 고른다', () => {
-  const candidates = [1, 2, 3].map((id) => c(id, `t${id}`, { isVideo: true })).concat([c(4, 't4'), c(5, 't5')]);
-  const weights = { t1: 1, t2: 1, t3: 1, t4: 0.2, t5: 0.2 };
-  const out = rankFeed(candidates, weights, new Set());
-  assert.equal(out.length, 5);
-  // 제약을 지키며 4개를 고른 뒤, 모자란 1칸은 제약을 풀어 채운다
-  const firstFour = rankFeed(candidates, weights, new Set(), { limit: 4 });
-  assert.equal(firstFour.filter((x) => candidates.find((k) => k.id === x.clusterId)!.isVideo).length, 2);
+test('영상은 최대 3개까지만 고른다(내 관심 링크 유튜브 채널 3칸, 2026-11-08 2→3)', () => {
+  const candidates = [1, 2, 3, 4].map((id) => c(id, `t${id}`, { isVideo: true })).concat([c(5, 't5'), c(6, 't6')]);
+  const weights = { t1: 1, t2: 1, t3: 1, t4: 1, t5: 0.2, t6: 0.2 };
+  const out = rankFeed(candidates, weights, new Set(), { limit: 6 });
+  assert.equal(out.length, 6);
+  // 제약을 지키며 5개를 고르면 영상 3개 + 글 2개. 모자란 칸이 있을 때만 제약을 풀어 채운다
+  const firstFive = rankFeed(candidates, weights, new Set(), { limit: 5 });
+  assert.equal(firstFive.filter((x) => candidates.find((k) => k.id === x.clusterId)!.isVideo).length, 3);
 });
 
 test('관심사가 하나뿐이어도 영상 상한은 토픽당 개수를 푼 뒤 맨 나중에 푼다', () => {
-  // 인기 높은 영상 10개 + 글 8개가 모두 한 토픽. 토픽당 2개를 풀어 채울 때도 영상은 2개까지만(배송은 영상을 요약하지 않는다)
+  // 인기 높은 영상 10개 + 글 8개가 모두 한 토픽. 토픽당 2개를 풀어 채울 때도 영상은 3개까지만(배송은 영상을 요약하지 않는다)
   const videos = Array.from({ length: 10 }, (_, i) => c(i + 1, 'ai', { isVideo: true, popularity: 5 }));
   const articles = Array.from({ length: 8 }, (_, i) => c(i + 11, 'ai'));
   const out = rankFeed([...videos, ...articles], { ai: 1 }, new Set(), { limit: 8 });
   assert.equal(out.length, 8);
-  assert.equal(out.filter((x) => x.clusterId <= 10).length, 2);
+  assert.equal(out.filter((x) => x.clusterId <= 10).length, 3);
   // 글이 모자라면 그제야 영상으로 채운다
   const few = rankFeed([...videos, ...articles.slice(0, 3)], { ai: 1 }, new Set(), { limit: 8 });
   assert.equal(few.length, 8);

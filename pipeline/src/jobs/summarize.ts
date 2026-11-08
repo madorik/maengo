@@ -11,6 +11,7 @@ import { mapLimit } from '../lib/limit';
 import { dictionary, loadAudience, loadCandidates, withSimilarExcluded } from '../lib/audience';
 import { youtubeIdOf } from '../lib/url';
 import type { Ctx } from '../lib/ctx';
+import { summarizeLinkVideos } from './link-videos';
 
 // 7. summarize: 유저 관심사로 미리 랭킹해 보고, 누군가의 피드에 들어갈 만한 묶음만 요약한다.
 // 한 번의 호출로 제목·요약·전체 글·카테고리·토픽·토픽별 "왜 중요한가"를 같이 받는다.
@@ -56,7 +57,8 @@ export async function summarizeCluster(
   ctx: Ctx,
   clusterId: number,
   tier: Tier,
-  budget: { videos: number },
+  /** videos: 이번 실행에서 더 요약할 수 있는 영상 수, maxVideoMinutes: 이보다 긴 영상은 건너뜀(기본 env, 내 관심 링크 영상은 60분) */
+  budget: { videos: number; maxVideoMinutes?: number },
 ): Promise<SummaryResult> {
   const members = check(
     await db
@@ -86,7 +88,7 @@ export async function summarizeCluster(
     if (!vid) return 'failed';
     if (budget.videos <= 0) return 'deferred';
     const seconds = await youtubeSeconds(vid);
-    if (seconds == null || seconds > env.maxVideoMinutes * 60) {
+    if (seconds == null || seconds > (budget.maxVideoMinutes ?? env.maxVideoMinutes) * 60) {
       await db.from('clusters').update({ skip_reason: seconds == null ? '영상 길이를 알 수 없음' : `영상이 ${Math.round(seconds / 60)}분이라 김` }).eq('id', clusterId);
       return 'skipped';
     }
@@ -190,6 +192,12 @@ export async function summarizeCluster(
 
 export async function summarize(ctx: Ctx) {
   const audience = await loadAudience(ctx);
+  // 내 관심 링크의 유튜브 채널 영상을 먼저(채널당 하루 1편·1시간·한 사람 90분·하루 상한). 실패해도 글 요약은 이어 간다
+  try {
+    await summarizeLinkVideos(ctx, audience);
+  } catch (e) {
+    ctx.log(`link videos 실패: ${String((e as Error).message ?? e).slice(0, 200)}`);
+  }
   const candidates = await loadCandidates(ctx);
   const needed = new Map<number, number>(); // 묶음 → 가장 높은 유저 점수
   for (const a of audience) {

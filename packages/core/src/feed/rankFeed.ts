@@ -35,6 +35,7 @@ export interface RankOptions {
   /** 이 사람이 실제로 받는 수(하루 소식). limit에 여분을 더해 고를 때 넘긴다. 관심사별 몫(perTopicShare)을 이 수로 나눈다. 없으면 limit */
   visible?: number;
   maxPerTopic?: number;
+  /** 하루 영상 상한. 기본 3(내 관심 링크 3칸이 모두 유튜브 채널이어도 채널마다 1편씩 받게, 2026-11-08 2→3) */
   maxVideos?: number;
   /** 대표 토픽이 내 관심 링크인 소식의 상한. 없으면 제한 없음 */
   maxLinks?: number;
@@ -107,7 +108,7 @@ export function rankFeed(
   candidates: RankCandidate[],
   weights: Record<string, number>,
   exclude: ReadonlySet<number>,
-  { limit = 5, visible = limit, maxPerTopic = perTopicShare(visible, weights), maxVideos = 2, maxLinks = Infinity, day, prior = [] }: RankOptions = {},
+  { limit = 5, visible = limit, maxPerTopic = perTopicShare(visible, weights), maxVideos = 3, maxLinks = Infinity, day, prior = [] }: RankOptions = {},
 ): RankedItem[] {
   const scored: (RankedItem & SimilarityKey & { isVideo: boolean; major: boolean })[] = [];
   for (const c of candidates) {
