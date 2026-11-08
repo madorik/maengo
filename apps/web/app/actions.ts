@@ -10,7 +10,8 @@ import { isRate } from "@/lib/player/rate";
 import { allowedOrigin, googleAuthUrl, googleDirectEnabled, LOGIN_TTL_SEC, randomToken, signState, STATE_COOKIE } from "@/lib/server/google-login";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
-import { addToPlaylist, clearPlaylist, rebuildFeed, receiveMore, removeFromPlaylist, reorderPlaylist, type MoreResult } from "@/lib/server/feed";
+import { addToPlaylist, clearPlaylist, isInUserFeed, rebuildFeed, receiveMore, removeFromPlaylist, reorderPlaylist, type MoreResult } from "@/lib/server/feed";
+import { sharePath } from "@/lib/server/share-token";
 import { demoLoginEnabled, demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
@@ -289,6 +290,14 @@ export async function editLinks(_prev: TopicResult | null, formData: FormData): 
   else if (typeof link === "string") result = await addLink(profile, link, Number(formData.get("slot")));
   revalidatePath("/keywords");
   return result;
+}
+
+/** 글 화면 '공유': 이 사람이 받은 소식이면 공유 주소(/s/<토큰>, basePath 없이). 받은 적 없는 소식이면 null(아무 글이나 주소를 만들지 못하게) */
+export async function shareLinkFor(clusterId: number): Promise<string | null> {
+  const profile = await requireProfile();
+  if (!Number.isSafeInteger(clusterId) || clusterId <= 0) return null;
+  if (!(await isInUserFeed(profile, clusterId))) return null;
+  return sharePath(clusterId);
 }
 
 // ---- 데모 도구(설정 화면, 로컬 개발만). 플랜 바꾸기는 결제가 붙어 지웠다(2026-10-14) ----

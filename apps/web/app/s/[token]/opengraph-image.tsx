@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { CATEGORY_LABEL } from "@maengo/core/categories";
 import { ImageResponse } from "next/og";
 import { sharedItem } from "@/lib/server/shared-item";
+import { decodeShareToken } from "@/lib/server/share-token";
 
 // 공유한 소식의 카드 이미지(1200×630). 카카오톡·메신저 미리보기에 제목이 바로 보이게 소식 제목을 크게 넣는다.
 // 글꼴·색은 맹고 기본 카드 이미지(app/opengraph-image.tsx)와 같다. 없는 소식이면 맹고 소개 문구로 그린다.
@@ -20,8 +21,9 @@ function fit(title: string): { text: string; fontSize: number } {
   return { text: n > max ? `${[...title].slice(0, max - 1).join("")}…` : title, fontSize: 50 };
 }
 
-export default async function SharedItemImage({ params }: { params: Promise<{ id: string }> }) {
-  const item = await sharedItem(Number((await params).id));
+export default async function SharedItemImage({ params }: { params: Promise<{ token: string }> }) {
+  const id = decodeShareToken((await params).token);
+  const item = id ? await sharedItem(id) : null;
   // 요청 때 그려서 글꼴은 프로젝트 안 복사본을 읽는다(next.config.ts outputFileTracingIncludes)
   const fonts = join(process.cwd(), "assets/fonts");
   const [black, bold, icon] = await Promise.all([
