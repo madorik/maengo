@@ -46,7 +46,7 @@ export function useTodayAudio(clusterId: number, next?: FeedItem): { ctl: Listen
         next && nextIndex >= 0
           ? () => {
               p.playOne(nextIndex);
-              router.push(`/article/${next.clusterId}`);
+              router.push(`/article/${next.token}`);
             }
           : undefined,
     },

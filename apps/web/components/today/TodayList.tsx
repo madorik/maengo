@@ -171,7 +171,7 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
       </div>
       <h2 className="mt-2.5 text-[18px] font-black leading-snug tracking-[-0.02em]">
         {/* 카드 전체를 덮는 링크. 듣기 버튼만 그 위에 올라온다 */}
-        <Link ref={titleRef} href={`/article/${item.clusterId}`} className={`no-underline after:absolute after:inset-0 after:rounded-2xl ${done ? "text-sub" : ""}`}>
+        <Link ref={titleRef} href={`/article/${item.token}`} className={`no-underline after:absolute after:inset-0 after:rounded-2xl ${done ? "text-sub" : ""}`}>
           {item.title}
         </Link>
       </h2>

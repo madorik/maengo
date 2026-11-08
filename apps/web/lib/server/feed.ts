@@ -1,4 +1,5 @@
 import 'server-only';
+import { articleToken } from './share-token';
 import { cache } from 'react';
 import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankDistinct, WEIGHT_MAX, WEIGHT_MIN, type Impact, type RankCandidate, type SimilarityKey } from '@maengo/core/feed';
@@ -459,6 +460,7 @@ function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date, names: Ma
   return {
     rank: row.rank,
     clusterId: row.clusterId,
+    token: articleToken(row.clusterId),
     feedDate: date,
     title: c.title,
     kind: c.kind,
@@ -714,6 +716,7 @@ export async function getLibrary(
   for (const e of r.entries) {
     const entry: LibraryEntry = {
       clusterId: e.cluster_id,
+      token: articleToken(e.cluster_id),
       feedDate: e.date,
       title: e.title,
       short: e.short,
@@ -763,6 +766,7 @@ export async function getPlaylist(profile: Profile): Promise<LibraryEntry[]> {
     if (!c) return [];
     return [{
       clusterId: id,
+      token: articleToken(id),
       feedDate: '',
       title: c.title,
       short: c.short,

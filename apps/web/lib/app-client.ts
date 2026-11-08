@@ -50,7 +50,8 @@ export const APP_AUTH_CALLBACK = "kr.maengo.app://auth/callback";
 export const APP_SCHEME = "kr.maengo.app";
 
 /** 위젯 등에서 앱 안 화면을 여는 딥링크로 열어도 되는 화면(아무 주소나 열지 않게) */
-const OPENABLE = /^\/(today|library|playlist|article\/\d+)$/;
+// 글은 위젯(앱 1.3, 소식 번호로 연다)의 숫자 주소와 토큰 주소(2026-11-08) 둘 다. 숫자 주소는 글 화면이 ?from=widget일 때만 받아 토큰 주소로 넘긴다
+const OPENABLE = /^\/(today|library|playlist|article\/(\d+|[\w-]{22}))$/;
 
 /**
  * "kr.maengo.app://open/article/123?from=widget" → "/article/123?from=widget". 열 수 없는 주소면 null.

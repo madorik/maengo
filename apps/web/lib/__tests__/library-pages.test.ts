@@ -13,6 +13,7 @@ import type { LibraryEntry } from '../types';
 
 const entry = (clusterId: number, feedDate: string): LibraryEntry => ({
   clusterId,
+  token: `t${clusterId}`,
   feedDate,
   title: `소식 ${clusterId}`,
   short: '',

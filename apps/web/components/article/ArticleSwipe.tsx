@@ -17,12 +17,13 @@ export function ArticleSwipe({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data } = useToday();
-  const id = Number(pathname.match(/^\/article\/(\d+)$/)?.[1]);
-  const index = data.items.findIndex((i) => i.clusterId === id);
+  // 주소는 소식 번호가 아니라 토큰(/article/<token>, 2026-11-08)
+  const token = pathname.match(/^\/article\/([\w-]+)$/)?.[1];
+  const index = token ? data.items.findIndex((i) => i.token === token) : -1;
   const prevItem = index > 0 ? data.items[index - 1] : undefined;
   const nextItem = index >= 0 ? data.items[index + 1] : undefined;
-  const prev: SwipeTarget | undefined = prevItem && { href: `/article/${prevItem.clusterId}`, label: "이전 글", Icon: IconBack };
-  const next: SwipeTarget | undefined = nextItem && { href: `/article/${nextItem.clusterId}`, label: "다음 글", Icon: IconChevronRight };
+  const prev: SwipeTarget | undefined = prevItem && { href: `/article/${prevItem.token}`, label: "이전 글", Icon: IconBack };
+  const next: SwipeTarget | undefined = nextItem && { href: `/article/${nextItem.token}`, label: "다음 글", Icon: IconChevronRight };
 
   // 앞뒤 글은 본문까지 미리 받아 둔다. 기본(로딩 뼈대까지만)이면 넘길 때마다 뼈대가 한 번 비친다
   const prevHref = prev?.href;

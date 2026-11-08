@@ -7,6 +7,8 @@ import type { Chapter, FeedbackKind, Persona, Plan, Voice } from '@maengo/core/t
 export interface FeedItem {
   rank: number;
   clusterId: number;
+  /** 글 화면 주소의 토큰(/article/<token>, 소식 번호를 숨긴다, lib/server/share-token.ts) */
+  token: string;
   /** 이 소식이 들어간 피드 날짜(YYYY-MM-DD) */
   feedDate: string;
   title: string;
@@ -104,6 +106,8 @@ export interface EpisodeData {
 
 export interface LibraryEntry {
   clusterId: number;
+  /** 글 화면 주소의 토큰(/article/<token>) */
+  token: string;
   feedDate: string;
   title: string;
   short: string;

@@ -175,7 +175,7 @@ function Row({ entry: e, busy, inPlayer, onAdd, onRemove }: { entry: LibraryEntr
           </span>
         </div>
         <h2 className="mt-1.5 text-[16px] font-black leading-snug tracking-[-0.02em]">
-          <Link href={`/article/${e.clusterId}`} className="no-underline">
+          <Link href={`/article/${e.token}`} className="no-underline">
             {e.title}
           </Link>
         </h2>

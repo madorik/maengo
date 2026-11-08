@@ -42,7 +42,7 @@ function LibraryCard({ entry: e }: { entry: LibraryEntry }) {
         </span>
       </div>
       <h3 className="mt-2 text-[17px] font-black leading-snug tracking-[-0.02em]">
-        <Link href={`/article/${e.clusterId}`} className="no-underline after:absolute after:inset-0 after:rounded-2xl">
+        <Link href={`/article/${e.token}`} className="no-underline after:absolute after:inset-0 after:rounded-2xl">
           {e.title}
         </Link>
       </h3>
