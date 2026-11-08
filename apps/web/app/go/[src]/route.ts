@@ -14,11 +14,12 @@ const CHANNELS: Record<string, { source: string; medium: string }> = {
   community: { source: "community", medium: "referral" },
 };
 
-export function GET(request: NextRequest, { params }: { params: Promise<{ src: string }> }) {
+export function GET(_request: NextRequest, { params }: { params: Promise<{ src: string }> }) {
   return params.then(({ src }) => {
     const ch = CHANNELS[src.toLowerCase()];
-    // 라우트 핸들러 리다이렉트는 basePath(/maengo)를 직접 붙인다(lib/base-path.ts)
+    // 라우트 핸들러 리다이렉트는 basePath(/maengo)를 직접 붙인다(lib/base-path.ts).
+    // 도메인 없는 상대 주소로 보낸다: watalabs.com이 maengo.vercel.app으로 넘겨주므로 request.url로 만들면 maengo.vercel.app으로 가 버린다
     const query = ch ? `?utm_source=${ch.source}&utm_medium=${ch.medium}&utm_campaign=organic` : "";
-    return NextResponse.redirect(new URL(withBase(`/try${query}`), request.url), 307);
+    return new NextResponse(null, { status: 307, headers: { location: withBase(`/try${query}`), "cache-control": "no-store" } });
   });
 }
