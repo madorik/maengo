@@ -31,12 +31,12 @@ export async function summarizeLinkVideos(ctx: Ctx, audience: Audience[]): Promi
     .map((a) => ({ sources: Object.keys(a.weights).filter((t) => isLinkTopicId(t) && a.weights[t]! > 0).map((t) => linkSourceId(t)!) }))
     .filter((u) => u.sources.length);
   const sourceIds = [...new Set(users.flatMap((u) => u.sources))];
-  if (!sourceIds.length) return;
+  if (!sourceIds.length) return void ctx.log(`link videos: 링크를 넣은 Premium 없음(Premium ${premium.length}명)`);
   const channels = check(
     await db.from('sources').select('id').in('id', sourceIds).eq('custom', true).eq('active', true).like('url', YT_FEED),
     'link video sources',
   ) as { id: number }[];
-  if (!channels.length) return;
+  if (!channels.length) return void ctx.log(`link videos: 유튜브 채널 없음(링크 ${sourceIds.length}곳)`);
   const channelIds = channels.map((c) => c.id);
 
   const since = new Date(ctx.now.getTime() - LINK_VIDEO.maxAgeHours * HOUR).toISOString();
@@ -75,10 +75,11 @@ export async function summarizeLinkVideos(ctx: Ctx, audience: Audience[]): Promi
   // 길이는 영상 페이지에서(비용 0). 1분이 안 되거나(라이브·예정 포함) 1시간이 넘으면 묶음에 까닭을 남겨 다시 보지 않는다
   const picks = new Map<number, VideoPick>();
   const seconds = new Map<number, number>();
+  let unreadable = 0;
   await mapLimit([...newest], 4, async ([sourceId, it]) => {
     const vid = youtubeIdOf(it.canonical_url);
     const sec = vid ? await youtubeSeconds(vid) : null;
-    if (sec == null) return; // 못 읽었으면 다음 실행에서 다시
+    if (sec == null) return void unreadable++; // 못 읽었으면 다음 실행에서 다시
     if (sec < LINK_VIDEO.minSeconds || sec > LINK_VIDEO.maxSeconds) {
       const reason = sec < LINK_VIDEO.minSeconds ? '1분이 안 되는 영상(라이브·예정 포함)' : `영상이 ${Math.round(sec / 60)}분이라 김(1시간까지)`;
       await db.from('clusters').update({ skip_reason: reason }).eq('id', it.cluster_id!);
@@ -97,7 +98,7 @@ export async function summarizeLinkVideos(ctx: Ctx, audience: Audience[]): Promi
   const spentUsd = spent.reduce((s, r) => s + Number(r.est_usd), 0);
   const queue = withinBudget(allocated, seconds, capUsd - spentUsd);
   ctx.log(
-    `link videos: 채널 ${channelIds.length}곳 · 후보 ${newest.size}편 · 길이 통과 ${picks.size}편 · 사람별 90분 ${allocated.length}편 · 예산 안 ${queue.length}편` +
+    `link videos: 채널 ${channelIds.length}곳 · 후보 ${newest.size}편 · 길이 못 읽음 ${unreadable}편 · 길이 통과 ${picks.size}편 · 사람별 90분 ${allocated.length}편 · 예산 안 ${queue.length}편` +
       ` (오늘 $${spentUsd.toFixed(3)} / 상한 $${capUsd.toFixed(3)})`,
   );
 
@@ -116,6 +117,6 @@ export async function summarizeLinkVideos(ctx: Ctx, audience: Audience[]): Promi
       ctx.log(`  영상 요약 실패 #${id}: ${String((e as Error).message ?? e).slice(0, 160)}`);
     }
   });
-  ctx.stats.linkVideos = { channels: channelIds.length, candidates: newest.size, allocated: allocated.length, queued: queue.length, ...counts, spentUsd, capUsd };
+  ctx.stats.linkVideos = { channels: channelIds.length, candidates: newest.size, unreadable, allocated: allocated.length, queued: queue.length, ...counts, spentUsd, capUsd };
   ctx.log(`link videos: 완료 ${counts.ok} · 소식 아님 ${counts.skipped} · 미룸 ${counts.deferred} · 실패 ${counts.failed}`);
 }
