@@ -8,7 +8,8 @@ import { readSession } from "./lib/session-token";
 // 데모 세션은 운영 배포(VERCEL_ENV=production)에서는 보지 않고 쿠키를 지운다(lib/server/demo.ts와 같은 규칙).
 // Supabase 토큰이 만료됐으면 여기서 갱신해 응답 쿠키에 다시 쓴다(서버 컴포넌트는 쿠키를 못 쓴다).
 // 소개 페이지(/)는 누구나 볼 수 있는 정적 페이지라 여기서 다루지 않는다. 앱(User-Agent에 MaengoApp)만 예외로,
-// 소개 대신 로그인 여부에 따라 /today·/login으로 보낸다. 브라우저 요청은 matcher에서 걸러져 이 함수를 타지 않는다.
+// 소개 대신 로그인 여부에 따라 /today·/try로 보낸다(2026-11-08: 로그인 전 첫 화면을 로그인 대신 둘러보기로. 로그인 화면에서 46명 중 대부분이 떠났다).
+// 브라우저 요청은 matcher에서 걸러져 이 함수를 타지 않는다.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -43,7 +44,7 @@ export async function proxy(request: NextRequest) {
   let res = response;
   if (pathname === "/") {
     if (!isAppUserAgent(request.headers.get("user-agent"))) return response;
-    res = redirect(signedIn ? "/today" : "/login");
+    res = redirect(signedIn ? "/today" : "/try");
   } else if (pathname === "/login" && signedIn) res = redirect("/today");
   else if (pathname !== "/login" && pathname !== "/contact" && !signedIn) res = redirect("/login");
 

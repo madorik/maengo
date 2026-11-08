@@ -39,6 +39,8 @@ import playlistShot from "./playlist.webp";
 // 검색과 속도를 위해 정적으로 만들고, 로그인 여부에 따라 달라지는 버튼만 AuthLink가 브라우저에서 바꾼다.
 
 const START = { href: "/login", label: "무료로 시작하기" };
+/** 첫 화면의 큰 버튼(로그인 전). 2026-11-08: 로그인 화면에서 대부분 떠나서 먼저 들어 보게 한다(app/try) */
+const TRY = { href: "/try", label: "로그인 없이 들어 보기" };
 const OPEN = { href: "/today", label: "오늘의 소식 열기" };
 
 /**
@@ -165,16 +167,11 @@ export async function Landing() {
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
               {SITE_DEFINITION} AI, 주식, 반도체처럼 고른 분야의 소식만 매일 모아 출처와 함께 핵심만 짚고, 화면을 보기 어려울 땐 끝까지 이어서 읽어 드려요.
             </p>
+            {/* 로그인 전: 큰 버튼은 둘러보기(이미 만든 음성 소식을 로그인 없이 들어 본다, app/try), 옆은 가입. 로그인 뒤: 오늘의 소식 */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <AuthLink signedOut={START} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
-              <AuthLink signedOut={{ href: "/login", label: "이미 계정이 있어요" }} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
+              <AuthLink signedOut={TRY} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
+              <AuthLink signedOut={START} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
-            {/* 로그인 없이 이미 만든 음성 소식 몇 개를 들어 본다(app/try, 2026-11-07) */}
-            <AuthLink
-              signedOut={{ href: "/try", label: "로그인 없이 먼저 들어 보기 →" }}
-              signedIn={null}
-              className="mt-4 inline-flex min-h-11 items-center text-[16px] font-extrabold text-sky-dark no-underline hover:underline"
-            />
             {/* 스토어 링크(앱은 이 페이지 대신 로그인·오늘로 가므로 앱 안에는 안 보인다, proxy.ts). Play는 심사 통과 뒤 PLAY_STORE_URL을 채우면 나온다 */}
             <p className="mt-5 flex flex-wrap gap-x-5 gap-y-1">
               <StoreLink href={APP_STORE_URL} label="App Store에서 iPhone 앱 받기" />
