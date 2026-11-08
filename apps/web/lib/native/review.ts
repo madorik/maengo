@@ -2,7 +2,8 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 
 // 스토어 별점 요청(앱 1.3부터, apps/mobile의 MaengoReview 플러그인). iOS는 SKStoreReviewController, 안드로이드는 Play 인앱 리뷰.
 // 실제로 창을 띄울지는 OS가 정한다(iOS는 1년에 3번까지). 그래서 결과는 알 수 없고, 맹고는 좋은 순간에 한 번 부탁만 한다:
-// 서로 다른 날 3번 이상 와서 오늘 소식을 다 본 순간, 한 번 부탁하면 120일은 다시 부탁하지 않는다.
+// 서로 다른 날 2번 이상 와서 오늘 소식을 다 본 순간(2026-11-08 3번 → 2번, 사용자 결정: 별점이 나라당 5개쯤 모여야 스토어에 뜨는데 3일째까지 오는 사람이 적다),
+// 한 번 부탁하면 120일은 다시 부탁하지 않는다.
 
 interface MaengoReviewPlugin {
   request(): Promise<void>;
@@ -11,7 +12,7 @@ interface MaengoReviewPlugin {
 const plugin = registerPlugin<MaengoReviewPlugin>("MaengoReview");
 const DAYS_KEY = "maengo:review-days";
 const ASKED_KEY = "maengo:review-asked";
-const MIN_DAYS = 3;
+const MIN_DAYS = 2;
 const AGAIN_AFTER_MS = 120 * 24 * 3600_000;
 
 function readDays(): string[] {
