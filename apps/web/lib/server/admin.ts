@@ -12,3 +12,13 @@ export function isAdmin(profile: Profile): boolean {
     .filter(Boolean);
   return !!profile.email && allowed.includes(profile.email.toLowerCase());
 }
+
+/**
+ * 분석(GA4)에서 뺄 내부 계정: 관리자, 회사 메일(estsoft.com), 데모(example.com).
+ * 맹고 일일 분석(metrics.sql internal)과 같은 기준의 메일 부분. 이 계정으로 로그인한 기기는 내부 기기로 표시된다(components/AnalyticsSession.tsx)
+ */
+export function isInternalAccount(profile: Profile): boolean {
+  if (isAdmin(profile) || profile.demo) return true;
+  const email = profile.email?.toLowerCase() ?? '';
+  return email.endsWith('@estsoft.com') || email.endsWith('@example.com');
+}

@@ -14,6 +14,7 @@ import { ProfileProvider } from "@/components/providers/ProfileProvider";
 import { TodayProvider } from "@/components/providers/TodayProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { appInfoOf, isAppUserAgent } from "@/lib/app-client";
+import { isInternalAccount } from "@/lib/server/admin";
 import { getTodayData, toProfileView } from "@/lib/server/feed";
 import { requireOnboarded } from "@/lib/server/session";
 import { recordVisit } from "@/lib/server/visits";
@@ -54,7 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {/* Apple 검색 광고로 설치한 사람이 체험·결제했는지 RevenueCat에서 보이게(iOS 앱만) */}
         <AppAdAttribution />
         {/* 분석용 사용자 ID는 회원 id의 해시만 보낸다(이메일·이름은 보내지 않는다) */}
-        <AnalyticsSession uid={createHash("sha256").update(`maengo:${profile.id}`).digest("hex").slice(0, 24)} plan={profile.plan} />
+        <AnalyticsSession uid={createHash("sha256").update(`maengo:${profile.id}`).digest("hex").slice(0, 24)} plan={profile.plan} internal={isInternalAccount(profile)} />
       </TodayProvider>
     </ProfileProvider>
   );
