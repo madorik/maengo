@@ -82,7 +82,12 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["소식은 언제 와요?", "매일 아침 6시에 새 소식을 모아 요약하고, 설정에서 고른 시각에 오늘의 소식이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
   [
     "음성으로 들을 수 있나요?",
-    `네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 문장이 자연스럽게 이어지는 AI 목소리로 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.${free.dailyListens > 0 && !free.audio ? ` Free도 하루 ${free.dailyListens}개는 기본 목소리로 들을 수 있고, 오늘 소식 전체 듣기도 그 안에서 돼요.` : ""}`,
+    // 2026-11-10: 첫 화면이 '귀로 들어요'인데 답이 'Premium에서'로 시작해 Free는 못 듣는 것처럼 읽혔다 → Free가 듣는 몫부터
+    free.audio
+      ? "네. 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요."
+      : free.dailyListens > 0
+        ? `네. Free도 하루 ${free.dailyListens}개는 기본 목소리로 들을 수 있고, 오늘 소식 전체 듣기도 그 안에서 돼요. Premium은 개수 제한 없이, 문장이 자연스럽게 이어지는 AI 목소리(여성·남성 중 선택)로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요.`
+        : "네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 문장이 자연스럽게 이어지는 AI 목소리로 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.",
   ],
   ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", `네. 전체 듣기를 누르면 오늘 소식을 끝까지 이어서 읽어 주고${free.dailyListens > 0 && !free.audio ? `(Free는 하루 ${free.dailyListens}개까지)` : ""}, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요.`],
   ["자주 보는 블로그나 유튜브 채널의 새 글도 받을 수 있나요?", `네. Premium에서 '내 관심 링크'에 블로그·사이트·유튜브 채널 주소를 넣으면 새 글을 요약해서 하루 소식에 같이 보내 드려요. ${plus.linkLimit}곳까지 넣을 수 있어요. 유튜브는 최근 1주일 안 영상 중 아직 받지 않은 것을 채널마다 하루 1편(1시간 이내) 요약해요. 브런치는 아직 넣을 수 없어요.`],
@@ -167,6 +172,26 @@ export async function Landing() {
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
               {SITE_DEFINITION} AI, 주식, 반도체처럼 고른 분야의 소식만 매일 모아 출처와 함께 핵심만 짚고, 화면을 보기 어려울 땐 끝까지 이어서 읽어 드려요.
             </p>
+            {/* 뉴스레터·커뮤니티·범용 AI 브리핑과 다른 점을 첫 화면에서(2026-11-10, 아래 기능 소개에 묻혀 있던 것) */}
+            <ul aria-label="맹고가 다른 점" className="mt-5 flex flex-col gap-2 text-[15px] font-extrabold md:text-[16px]">
+              {(
+                [
+                  plus.linkLimit > 0 ? { t: "자주 보는 블로그·유튜브도 요약", premium: true } : null,
+                  { t: "하루 분량을 다 보면 끝, 끝없는 스크롤 없음" },
+                  free.audio ? { t: "누구나 귀로 듣기" } : free.dailyListens > 0 ? { t: `Free도 하루 ${free.dailyListens}개는 귀로 듣기` } : null,
+                ] as ({ t: string; premium?: boolean } | null)[]
+              )
+                .filter((x) => x !== null)
+                .map(({ t, premium }) => (
+                  <li key={t} className="flex items-start gap-2">
+                    <IconCheck className="mt-0.5 size-5 shrink-0 text-leaf [stroke-width:3]" />
+                    <span>
+                      {t}
+                      {premium && <span className="ml-1.5 text-[13px] font-bold text-faint">Premium</span>}
+                    </span>
+                  </li>
+                ))}
+            </ul>
             {/* 로그인 전: 큰 버튼은 둘러보기(이미 만든 음성 소식을 로그인 없이 들어 본다, app/try), 옆은 가입. 로그인 뒤: 오늘의 소식 */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <AuthLink signedOut={TRY} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
@@ -269,8 +294,8 @@ export async function Landing() {
 
             <Feature
               flip
-              title="자주 가는 블로그, 새 글도 같이 받아요"
-              body="즐겨 보는 블로그나 사이트 주소를 '내 관심 링크'에 넣어 두면, 그곳에 올라온 새 글을 요약해서 하루 소식에 함께 보내 드려요. 네이버 블로그, 티스토리, 벨로그, 미디엄, 서브스택 같은 곳을 넣을 수 있고, Premium에서 3곳까지 쓸 수 있어요."
+              title="자주 보는 블로그·유튜브, 새 글도 같이 받아요"
+              body={`즐겨 보는 블로그나 유튜브 채널 주소를 '내 관심 링크'에 넣어 두면, 새 글과 새 영상을 요약해서 하루 소식에 함께 보내 드려요. 네이버 블로그, 티스토리, 벨로그, 미디엄, 서브스택 같은 블로그와 유튜브 채널을 넣을 수 있고, Premium에서 ${plus.linkLimit}곳까지 쓸 수 있어요.`}
             >
               {/* 설정 > 내 관심 링크 칸과 같은 모양(넣어 둔 주소, 가져올 수 있다는 체크, 이름과 마지막 글 시점) */}
               <div className="tile p-5">

@@ -35,7 +35,7 @@ export function ogImages() {
   return [{ url: appUrl("/opengraph-image"), width: 1200, height: 630, alt: `${SITE_NAME} - 관심 분야의 소식을 AI로 요약해서 음성 지원해줘요` }];
 }
 /** 소개 페이지 문구를 바꾼 날. 사이트맵 lastmod로 나간다(빌드 시각을 쓰면 배포마다 모두 '바뀜'이 돼 검색엔진이 믿지 않는다) */
-export const LANDING_UPDATED_ON = "2026-11-07";
+export const LANDING_UPDATED_ON = "2026-11-10";
 
 /**
  * 다른 이름. 검색·AI가 과일 '망고'(Mango)나 비슷한 이름의 다른 서비스와 헷갈리지 않게 구조화 데이터에 같이 적는다

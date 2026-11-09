@@ -34,8 +34,8 @@
 | `login_start` | 구글·애플 로그인 버튼 | `provider` |
 | `onboarding_complete` | 온보딩 '시작하기' | `topics`(고른 개수) |
 | `today_build` | '오늘 맹고 받기' | `reason`(first·waiting·exhausted) |
-| `item_open` | 글 상세를 열 때 | `category`, `kind`(article·video), `today`(오늘 피드인지) |
-| `source_open` | 원문 링크 | `category`, `kind` |
+| `item_open` | 글 상세를 열 때. 둘러보기(/try)에서는 카드의 대본을 처음 펼칠 때(소식마다 한 번, 2026-11-10) | `category`, `kind`(article·video), `today`(오늘 피드인지), `where`(둘러보기면 `try`) |
+| `source_open` | 원문 링크 | `category`, `kind`, `where`(둘러보기면 `try`, 2026-11-10) |
 | `listen_start` | 듣기 시작 | `mode`(today·today_one·item·playlist), `count`(플레이리스트 개수) |
 | `listen_complete` | 끝까지 들음 | `mode`(today·item·playlist) |
 | `script_tab_open` | 듣기 창 '대본' 탭 | `mode` |
@@ -52,7 +52,7 @@
 | `ask` | 글 화면 맹고 AI(2026-11-03부터) | `category`, `action`(open: 맹고 AI 버튼을 눌러 창을 엶, voice: 마이크로 말하기 시작, answered: 답함, limit: 하루 횟수를 다 씀, error: 답을 못 받음) |
 | `purchase_start` | 구독·맹고 추가 구매 결제 시작(앱) | `product`(스토어 상품 ID) |
 | `purchase_complete` | 결제 끝남 | `product` |
-| `try_start` | 로그인 없이 둘러보기(/try)에서 처음 듣기를 누름(2026-11-07부터) | `items`(둘러볼 소식 수), `mode`(all: 전체 듣기, item: 카드의 듣기) |
+| `try_start` | 로그인 없이 둘러보기(/try)에서 처음 듣기를 누름(2026-11-07부터) | `items`(둘러볼 소식 수), `mode`(all: 전체 듣기, item: 카드의 듣기), `where`(2026-11-10부터: hero 머리 카드의 큰 버튼, spot 처음 뜨는 안내, card 소식 카드) |
 | `try_complete` | 둘러보기 마지막 소식까지 들어 체험 팝업이 뜸 | `heard`(들어 본 소식 수), `items` |
 | `try_trial_click` | 둘러보기 'Premium 무료로 체험하기' | `where`(list: 목록 아래 카드, finish: 다 들은 뒤 팝업), `heard`, `items`, `signed_in` |
 | `try_ask` | 둘러보기 맹고 AI(물으면 답 대신 가입 권유) | `action`(open: 창을 엶, send: 질문을 보냄, signup: 가입하고 물어보기) |

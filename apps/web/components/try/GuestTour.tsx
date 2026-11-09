@@ -42,6 +42,17 @@ const noSubscribe = () => () => {};
 /** 처음 열면 전체 듣기를 짚어 준다. 이 탭에서 한 번(닫거나 들으면 다시 안 띄움) */
 const SPOT_KEY = "maengo_try_spot";
 
+/** 듣기를 처음 누른 자리(try_start where): 머리 카드의 큰 버튼 · 처음 짚어 주는 안내 · 소식 카드 */
+type StartFrom = "hero" | "spot" | "card";
+
+/** 1분 25초 · 40초 · 2분 */
+function koDuration(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return m === 0 ? `${r}초` : r === 0 ? `${m}분` : `${m}분 ${r}초`;
+}
+
 /** 지금 읽는 줄(시작 시각이 지난 마지막 줄). 시작 전이면 -1 */
 function lineAt(lines: GuestItem["lines"], ms: number): number {
   let at = -1;
@@ -174,19 +185,28 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
     } catch {}
   }, []);
 
-  const start = (i: number, mode: "all" | "item") => {
+  const start = (i: number, mode: "all" | "item", where: StartFrom) => {
     if (!started.current) {
       started.current = true;
-      track("try_start", { items: n, mode });
+      track("try_start", { items: n, mode, where });
     }
     p.play(i);
   };
-  const listenAll = () => {
+  const listenAll = (where: StartFrom) => {
     closeSpot();
     if (playing) return p.pause();
     if (p.cur >= 0) return p.play(p.cur);
-    start(0, "all");
+    start(0, "all", where);
   };
+  // 대본을 펼쳐 읽은 소식(한 소식은 한 번만 센다). 듣지 않고 읽기만 하는 사람을 보려고 잰다
+  const opened = useRef<Set<number>>(new Set());
+  const onOpen = (item: GuestItem) => {
+    if (opened.current.has(item.clusterId)) return;
+    opened.current.add(item.clusterId);
+    track("item_open", { category: item.category, kind: item.kind, where: "try" });
+  };
+  const firstMs = items[0]!.durationMs;
+  const totalMin = Math.max(1, Math.round(items.reduce((s, it) => s + it.durationMs, 0) / 60000));
 
   // 잠금 화면·이어폰 버튼(웹 브라우저)
   const curItem = p.cur >= 0 ? items[p.cur] : undefined;
@@ -211,25 +231,25 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
       <main className={`mx-auto max-w-[640px] px-4 pt-5 lg:pt-8 ${curItem ? "pb-[calc(var(--tour-bar-h,140px)+96px)]" : "pb-[calc(96px+env(safe-area-inset-bottom))]"}`}>
         {/* 오늘 화면의 머리 카드와 같은 모양 */}
         <section aria-labelledby="try-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13px] font-extrabold text-ink/70">로그인 없이 둘러보기</p>
-              <h1 id="try-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
-                소식 {n}개 들어 보기
-              </h1>
-            </div>
-            <button
-              ref={listenAllRef}
-              type="button"
-              onClick={listenAll}
-              aria-label={playing ? "듣기 일시정지" : "소식 전체 듣기"}
-              className="btn btn-ink mt-1 inline-flex min-h-11 shrink-0 items-center gap-1.5 px-4 text-[14px]"
-            >
-              {playing ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
-              {playing ? "일시정지" : p.cur >= 0 ? "이어 듣기" : "전체 듣기"}
-            </button>
-          </div>
+          <p className="text-[13px] font-extrabold text-ink/70">로그인 없이 둘러보기</p>
+          <h1 id="try-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
+            소식 {n}개 들어 보기
+          </h1>
           <p className="mt-1 text-[14px] font-semibold leading-snug text-ink/80">{categories.join(", ")}에서 골랐어요</p>
+          {/* 처음 보는 사람이 바로 누르게 폭 전체의 큰 버튼, 아래에 들을 시간(첫 소식이 짧다는 걸 먼저) */}
+          <button
+            ref={listenAllRef}
+            type="button"
+            onClick={() => listenAll("hero")}
+            aria-label={playing ? "듣기 일시정지" : p.cur >= 0 ? "이어 듣기" : `소식 ${n}개 처음부터 듣기`}
+            className="btn btn-ink mt-4 flex min-h-14 w-full items-center justify-center gap-2 text-[17px]"
+          >
+            {playing ? <IconPause className="size-5" /> : <IconPlay className="size-5" />}
+            {playing ? "일시정지" : p.cur >= 0 ? "이어 듣기" : "지금 바로 들어 보기"}
+          </button>
+          <p className="mt-2 text-center text-[13px] font-bold text-ink/70">
+            첫 소식 {koDuration(firstMs)}, 전체 약 {totalMin}분
+          </p>
           <div className="mt-4 flex items-center gap-3">
             <ProgressBar value={p.heard.size / n} tone="leaf" label="들어 본 소식" className="h-4 flex-1" track="bg-white/60" />
             <span className="font-round text-[17px] font-black tabular-nums">{`${p.heard.size}/${n}`}</span>
@@ -245,8 +265,9 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
               status={p.cur === i ? p.status : "idle"}
               posMs={p.cur === i ? p.posMs : 0}
               heard={p.heard.has(item.clusterId)}
-              onListen={() => (p.cur === i && playing ? p.pause() : p.cur === i ? p.play(i) : start(i, "item"))}
-              onLine={(ms) => (p.cur === i ? p.seek(ms) : start(i, "item"))}
+              onListen={() => (p.cur === i && playing ? p.pause() : p.cur === i ? p.play(i) : start(i, "item", "card"))}
+              onLine={(ms) => (p.cur === i ? p.seek(ms) : start(i, "item", "card"))}
+              onOpen={() => onOpen(item)}
             />
           ))}
         </ol>
@@ -271,7 +292,7 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
 
       <GuestAsk item={curItem ?? items[0]!} raised={!!curItem} />
 
-      {spot && <Spotlight target={listenAllRef} total={n} onStart={listenAll} onClose={closeSpot} />}
+      {spot && <Spotlight target={listenAllRef} total={n} onStart={() => listenAll("spot")} onClose={closeSpot} />}
 
       {finished && <FinishDialog offer={offer} heard={p.heard.size} total={n} onClose={() => setFinished(false)} />}
     </div>
@@ -287,6 +308,7 @@ function GuestCard({
   heard,
   onListen,
   onLine,
+  onOpen,
 }: {
   item: GuestItem;
   current: boolean;
@@ -295,6 +317,8 @@ function GuestCard({
   heard: boolean;
   onListen: () => void;
   onLine: (ms: number) => void;
+  /** 대본을 펼칠 때(읽기 재기) */
+  onOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const preparing = current && status === "loading";
@@ -324,7 +348,10 @@ function GuestCard({
         {/* 카드 전체를 덮는 버튼(대본 펼치기). 듣기 버튼과 펼친 대본만 그 위에 올라온다 */}
         <button
           type="button"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            if (!open) onOpen();
+            setOpen((o) => !o);
+          }}
           aria-expanded={open}
           aria-controls={body}
           className={`text-left after:absolute after:inset-0 after:rounded-2xl ${heard && !current ? "text-sub" : ""}`}
@@ -354,7 +381,13 @@ function GuestCard({
               </button>
             );
           })}
-          <a href={item.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-xl px-1 text-[14px] font-extrabold text-sky-dark no-underline hover:underline">
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track("source_open", { category: item.category, kind: item.kind, where: "try" })}
+            className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-xl px-1 text-[14px] font-extrabold text-sky-dark no-underline hover:underline"
+          >
             {item.kind === "video" ? "유튜브에서 보기" : "원문 보기"}
             <IconExternal className="size-4" />
             <span className="sr-only">(새 탭에서 열림)</span>
@@ -654,7 +687,7 @@ function Spotlight({ target, total, onStart, onClose }: { target: React.RefObjec
                 귀로 들어 보세요
               </h2>
               <p id="try-spot-body" className="mt-1 text-[15px] font-semibold leading-relaxed text-sub">
-                전체 듣기를 누르면 소식 {total}개를 처음부터 이어서 읽어 드려요.
+                누르면 소식 {total}개를 처음부터 이어서 읽어 드려요.
               </p>
             </div>
           </div>
@@ -664,7 +697,7 @@ function Spotlight({ target, total, onStart, onClose }: { target: React.RefObjec
             </button>
             <button ref={startRef} type="button" onClick={onStart} className="btn min-h-11 gap-1.5 px-5 text-[15px]">
               <IconPlay className="size-4" />
-              전체 듣기
+              들어 보기
             </button>
           </div>
         </div>
