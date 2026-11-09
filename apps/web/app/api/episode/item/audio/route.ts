@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { episodeFileUrl, getItemEpisode } from "@/lib/server/episode";
 import { currentProfile } from "@/lib/server/session";
-import { claimItemListen } from "@/lib/server/listen-access";
+import { claimItemListen, itemListenAccess } from "@/lib/server/listen-access";
 import { redirectToFile, ttsFailure } from "@/lib/server/file-response";
 import { parseEpisodeParams } from "../../params";
 
@@ -15,6 +15,18 @@ export async function GET(request: NextRequest) {
   const params = parseEpisodeParams(request.nextUrl.searchParams);
   const id = Number(request.nextUrl.searchParams.get("id"));
   if (!params || !Number.isInteger(id)) return new NextResponse(null, { status: 400 });
+  // warm=1: 전체 듣기가 다음 소식 음성만 미리 만들어 둔다(lib/player/item.ts itemWarmUrl). 들을 수 있는지만 보고 몫은 쓰지 않으며, 파일 주소 없이 204
+  if (request.nextUrl.searchParams.get("warm") === "1") {
+    if (!(await itemListenAccess(profile, id))) return new NextResponse(null, { status: 403 });
+    try {
+      const episode = await getItemEpisode(profile, id, params.persona, params.voice, { generate: true });
+      if (!episode) return new NextResponse(null, { status: 404 });
+      await episodeFileUrl(episode);
+      return new NextResponse(null, { status: 204 });
+    } catch (e) {
+      return ttsFailure(e);
+    }
+  }
   // Premium이거나 Free의 오늘 듣기 몫. Free는 여기서 몫을 쓴 것으로 남긴다(lib/server/listen-access.ts)
   if (!(await claimItemListen(profile, id))) return new NextResponse(null, { status: 403 });
   try {

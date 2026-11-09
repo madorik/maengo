@@ -18,6 +18,7 @@ import { formatClock } from "@/lib/player/machine";
 import { claimDock, releaseDock, setPlayerDocked, useDock } from "@/lib/float-dock";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { Queue, Switch } from "./controls";
+import { ListenLimit } from "./ListenLimit";
 import { Script } from "./Script";
 import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 
@@ -29,6 +30,8 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
  * 글 화면은 아래 '이 글 듣기' 막대가 있어서 플레이어가 돌고 있을 때만 띄운다. 그 밖에는 그 자리를 맹고 AI 버튼(components/article/AskDock.tsx)에 준다
  * (2026-11-03 사용자 결정). 띄웠는지는 lib/float-dock.ts로 알려 맹고 AI 버튼이 그 위로 올라가게 하고, 두 창은 한 번에 하나만 편다.
  * 앱(inApp)에서는 창 대신 화면을 꽉 채우는 시트(components/ui/Sheet.tsx full)로 연다(2026-10-19 사용자 결정): 끌어 내리기·안드로이드 뒤로 가기로 닫힌다.
+ * 오늘 카드의 '전체 듣기'를 누르면 접혀 있어도 펴서 재생 목록 탭으로 연다(2026-11-09 사용자 결정, lib/float-dock.ts requestPlayerOpen).
+ * Free도 오늘 듣기 몫(plans.daily_listens)만큼 전체 듣기를 쓴다(2026-11-09). 몫을 다 쓴 소식 앞에서 멈추면 결제 안내(ListenLimit)
  */
 export function ListenWidget({ initialCollapsed, inApp = false }: { initialCollapsed: boolean; /** 앱(Capacitor)인지. 서버가 User-Agent로 정한다 */ inApp?: boolean }) {
   const p = usePlayer();
@@ -75,11 +78,24 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
     if (!open) releaseDock("player");
   }, [open]);
 
+  // 오늘 카드의 '전체 듣기': 접어 두었어도 펴고, 창을 재생 목록 탭으로 연다
+  const lastRequest = useRef(floating.playerRequest);
+  useEffect(() => {
+    if (floating.playerRequest === lastRequest.current) return;
+    lastRequest.current = floating.playerRequest;
+    document.cookie = `${LISTEN_COLLAPSED_COOKIE}=; max-age=0; path=/; samesite=lax`;
+    claimDock("player");
+    setCollapsed(false);
+    setTab("queue");
+    setOpen(true);
+  }, [floating.playerRequest]);
+
   // 숨었거나 접혀 있는 동안, 맹고 AI 창을 편 동안은 창을 닫아 둔다(다시 나타나거나 펴질 때 창이 갑자기 열리지 않게)
   if (open && (hidden || collapsed || floating.open === "ask")) setOpen(false);
   if (hidden) return null;
 
-  const locked = !profile.audio;
+  // 들을 수 없는 플랜(Premium도 아니고 Free 듣기 몫도 없음)이면 결제 페이지로 가는 자리만
+  const locked = !profile.audio && profile.dailyListens <= 0;
   // 이름은 늘 "플레이어". 무엇을 듣는지(플레이리스트·오늘 소식)는 소제목에 쓴다
   const heading = "플레이어";
   const source = p.playlist ? "플레이리스트" : "오늘 소식";
@@ -155,6 +171,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   const voiceName = p.voice === "f" ? "여성" : "남성";
   const sub = p.error
       ? p.error
+      : p.limitReached
+        ? "오늘 무료 듣기를 다 들었어요"
       : p.preparing
         ? PREPARING_SHORT
         : ch
@@ -211,6 +229,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           </button>
         </div>
       )}
+      {p.limitReached && <ListenLimit className="mt-2" />}
       {p.error && (
         <div className="mt-2 flex items-center gap-2">
           <p role="alert" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-cherry">

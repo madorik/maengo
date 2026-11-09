@@ -5,7 +5,6 @@ import { useEffect, useRef } from "react";
 import { IconCheck, IconClose, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
-import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { BookmarkButton } from "@/components/ui/BookmarkButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
@@ -14,6 +13,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { useItemAudio } from "@/components/article/useItemAudio";
+import { requestPlayerOpen } from "@/lib/float-dock";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
 import { TTS_ERROR_LABEL } from "@/lib/player/tts-error";
 import { useArrivalHighlight, useMoreArrival, type Arrival } from "./arrival";
@@ -215,12 +215,16 @@ function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival
   );
 }
 
-/** 오늘 카드의 '전체 듣기': 오늘 소식 전체를 플레이어로 듣는다(플레이리스트를 듣던 중이면 오늘로 바꾼다). 오늘을 듣는 중이면 일시정지 */
+/**
+ * 오늘 카드의 '전체 듣기': 오늘 소식 전체를 플레이어로 듣고, 플레이어 창을 재생 목록으로 편다(2026-11-09 사용자 결정).
+ * 플레이리스트를 듣던 중이면 오늘로 바꾼다. 오늘을 듣는 중이면 일시정지.
+ * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다(2026-11-09). 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
+ */
 function ListenAll() {
   const p = usePlayer();
-  const { audio } = useProfile();
+  const { data, listenAccess } = useToday();
   const cls = "btn btn-ink mt-1 inline-flex min-h-11 shrink-0 items-center gap-1.5 px-4 text-[14px] no-underline";
-  if (!audio) {
+  if (!p.enabled || !data.items.some((i) => listenAccess(i.clusterId) !== null)) {
     return (
       <Link href="/premium" data-tour="listen-all" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className={cls}>
         <IconPlay className="size-4" />
@@ -235,7 +239,12 @@ function ListenAll() {
     <button
       type="button"
       data-tour="listen-all"
-      onClick={() => (playingToday ? p.pause() : p.playToday())}
+      onClick={() => {
+        if (playingToday) return p.pause();
+        // 재생은 누른 손짓 안에서 먼저 건다(iOS 자동 재생 정책), 창은 그다음에
+        p.playToday();
+        requestPlayerOpen();
+      }}
       aria-busy={p.starting || undefined}
       aria-label={playingToday ? "오늘 소식 듣기 일시정지" : "오늘 소식 전체 듣기"}
       className={cls}

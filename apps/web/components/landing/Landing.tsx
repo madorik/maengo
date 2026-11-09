@@ -82,9 +82,9 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["소식은 언제 와요?", "매일 아침 6시에 새 소식을 모아 요약하고, 설정에서 고른 시각에 오늘의 소식이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
   [
     "음성으로 들을 수 있나요?",
-    `네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 문장이 자연스럽게 이어지는 AI 목소리로 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.${free.dailyListens > 0 && !free.audio ? ` Free도 하루 ${free.dailyListens}개는 기본 목소리로 '이 글 듣기'를 들을 수 있어요.` : ""}`,
+    `네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 문장이 자연스럽게 이어지는 AI 목소리로 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.${free.dailyListens > 0 && !free.audio ? ` Free도 하루 ${free.dailyListens}개는 기본 목소리로 들을 수 있고, 오늘 소식 전체 듣기도 그 안에서 돼요.` : ""}`,
   ],
-  ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", "네. Premium에서 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요."],
+  ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", `네. 전체 듣기를 누르면 오늘 소식을 끝까지 이어서 읽어 주고${free.dailyListens > 0 && !free.audio ? `(Free는 하루 ${free.dailyListens}개까지)` : ""}, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요.`],
   ["자주 보는 블로그나 유튜브 채널의 새 글도 받을 수 있나요?", `네. Premium에서 '내 관심 링크'에 블로그·사이트·유튜브 채널 주소를 넣으면 새 글을 요약해서 하루 소식에 같이 보내 드려요. ${plus.linkLimit}곳까지 넣을 수 있어요. 유튜브는 최근 1주일 안 영상 중 아직 받지 않은 것을 채널마다 하루 1편(1시간 이내) 요약해요. 브런치는 아직 넣을 수 없어요.`],
   ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
@@ -92,7 +92,7 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
     "소식에 대해 더 물어볼 수 있나요?",
     `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 궁금한 걸 글이나 말로 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
   ],
-  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 전체 음성 듣기와 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한과 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
   ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
 ];

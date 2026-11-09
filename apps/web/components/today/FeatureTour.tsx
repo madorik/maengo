@@ -25,7 +25,12 @@ function steps(audio: boolean, dailyListens: number): Step[] {
       page: "today",
       target: '[data-tour="listen-all"]',
       title: "오늘 소식을 귀로 들어요",
-      body: audio ? "전체 듣기를 누르면 오늘 소식을 처음부터 차례로 읽어 드려요. 출퇴근길이나 손이 바쁠 때 좋아요." : `전체 듣기는 Premium에서 돼요. Free도 하루 ${dailyListens}개는 무료로 들을 수 있어요.`,
+      // Free도 하루 몫 안에서 전체 듣기를 쓴다(2026-11-09)
+      body: audio
+        ? "전체 듣기를 누르면 오늘 소식을 처음부터 차례로 읽어 드려요. 출퇴근길이나 손이 바쁠 때 좋아요."
+        : dailyListens > 0
+          ? `전체 듣기를 누르면 오늘 소식을 차례로 읽어 드려요. Free는 하루 ${dailyListens}개까지 들을 수 있어요.`
+          : "전체 듣기는 Premium에서 돼요.",
     },
     {
       page: "today",

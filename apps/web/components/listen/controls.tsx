@@ -3,10 +3,12 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import Link from "next/link";
 import { useState } from "react";
 import { IconCheck, IconClose, IconGrip } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
+import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { SORT_INSTRUCTIONS, sortAnnouncements } from "@/components/ui/sortable-a11y";
 import { useToast } from "@/components/ui/Toast";
 import { formatClock } from "@/lib/player/machine";
@@ -20,7 +22,8 @@ type Row = { clusterId: number; title: string; rank: number };
  * 빼면 되돌리기 알림이 뜨고, 누르면 뺀 자리로 돌아온다(그사이 음성을 만들기 시작했으면 되돌리지 못했다고 알린다. 준비 중인 소식은 알림 없음).
  * 오늘 소식은 그날 동안 빼 두고 맨 아래 '다시 넣기'로도 되돌린다. 플레이리스트는 손잡이를 끌어 순서도 바꾼다(저장된 플레이리스트는 그대로).
  * 듣는 중에는 음성 조각이 다 있을 때만 바꿀 수 있다(새 목록으로 이어 붙이기만 하면 된다).
- * 플레이리스트 화면에서 추가한 소식은 음성을 만드는 동안 끝에 '준비 중'으로 보인다
+ * 플레이리스트 화면에서 추가한 소식은 음성을 만드는 동안 끝에 '준비 중'으로 보인다.
+ * Free가 오늘 듣기 몫을 다 써서 못 듣는 소식은 왕관을 달고, 누르면 결제 페이지로 간다(2026-11-09)
  */
 export function Queue({ onPick }: { onPick?: () => void }) {
   const p = usePlayer();
@@ -149,6 +152,23 @@ function Item({
   const current = index >= 0 && index === p.cur;
   const done = consumed(row.clusterId);
   const note = current ? (playing ? "듣는 중" : "멈춤") : skipped ? "건너뜀" : ch ? formatClock(ch.endMs - ch.startMs) : "";
+  // Free가 오늘 몫을 다 써서 못 듣는 소식: 고르는 대신 결제 페이지로
+  if (p.locked(row.clusterId)) {
+    return (
+      <li ref={liRef} style={style} className={`tile relative flex items-center ${handle ? "pl-1" : ""} ${current ? "border-mango" : ""}`}>
+        {handle}
+        <Link
+          href="/premium"
+          aria-label={`${row.title} 듣기, Premium에서 들을 수 있어요`}
+          className={`grid min-h-12 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[inherit] py-2.5 text-left no-underline hover:bg-snow ${handle ? "pl-1 pr-3" : "px-3"}`}
+        >
+          <span className="truncate text-[15px] font-extrabold text-sub">{row.title}</span>
+          <PremiumBadge />
+        </Link>
+        {onRemove && <RemoveButton title={row.title} onClick={onRemove} disabled={!p.canRemove} />}
+      </li>
+    );
+  }
   return (
     <li
       ref={liRef}

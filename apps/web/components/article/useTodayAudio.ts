@@ -27,7 +27,8 @@ export function useTodayAudio(clusterId: number, next?: FeedItem): { ctl: Listen
   return {
     activePara: current ? ch?.lines[p.lineIndex]?.para : undefined,
     ctl: {
-      state: !p.enabled ? "locked" : current ? (p.status === "playing" ? "playing" : "paused") : finished ? "finished" : "idle",
+      // Free가 오늘 몫을 다 쓴 소식도 잠금(결제 안내). 플레이어는 그 소식 앞에서 멈춘다
+      state: !p.enabled || p.locked(clusterId) ? "locked" : current ? (p.status === "playing" ? "playing" : "paused") : finished ? "finished" : "idle",
       ready: p.ready && index >= 0,
       preparing: p.preparing && current,
       error: current || p.cur < 0 ? p.error : null,

@@ -13,6 +13,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel, PREPARING_TEXT } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
 import { Queue, Switch } from "./controls";
+import { ListenLimit } from "./ListenLimit";
 import { PlusLock } from "./PlusLock";
 import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 
@@ -137,6 +138,7 @@ function TodayListenScreen() {
 
       <footer className="border-t-2 border-line">
         <div className="mx-auto max-w-[640px] px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
+          {p.limitReached && <ListenLimit className="mb-3" />}
           {p.error && (
             <div className="flex items-center justify-center gap-3 pb-3">
               <p role="alert" className="min-w-0 text-[14px] font-bold text-cherry">

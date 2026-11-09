@@ -6,7 +6,7 @@ import { savePlayerPrefs } from "@/app/actions";
 import {
   chapterAt, heldOffset, lineAt, nextPlayable, positionAt, prevPlayable, progress as progressOf, startIndex, tick, withRealChapter, type Progress,
 } from "@/lib/player/machine";
-import { ITEM_PLAY_EVENT, itemAudioUrl, itemInfoUrl, itemQuery } from "@/lib/player/item";
+import { ITEM_PLAY_EVENT, itemAudioUrl, itemInfoUrl, itemQuery, itemWarmUrl } from "@/lib/player/item";
 import { initialRate, nextRate } from "@/lib/player/rate";
 import { keptIds, parseRemoved, planTodaySwap, sameIds, saveRemoved, useRemovedRaw } from "@/lib/player/removed";
 import { clearResume, parseResume, resumeTarget, saveResume, useResumeRaw } from "@/lib/player/resume";
@@ -47,8 +47,12 @@ interface Lead {
 }
 
 export interface PlayerApi {
-  /** 플랜상 들을 수 있는지 */
+  /** 플랜상 들을 수 있는지(Premium, 또는 Free의 오늘 듣기 몫이 있는 플랜) */
   enabled: boolean;
+  /** 이 소식을 들을 수 없는지: Free가 오늘 듣기 몫을 다 썼고 처음 듣는 소식(lib/server/listen-access.ts) */
+  locked: (clusterId: number) => boolean;
+  /** Free가 전체 듣기로 몫을 다 써서 들을 수 없는 소식 앞에서 멈춰 있는지(결제 안내를 띄운다, components/listen/ListenLimit.tsx) */
+  limitReached: boolean;
   /** 에피소드 정보를 받아 왔는지 */
   ready: boolean;
   /** 에피소드 정보를 받기 전에 재생을 눌러, 받는 대로 시작하려고 기다리는 중 */
@@ -158,7 +162,7 @@ const PlayerContext = createContext<PlayerApi | null>(null);
 const NO_READ: ReadonlySet<number> = new Set();
 
 export function PlayerProvider({ profile, children }: { profile: ProfileView; children: React.ReactNode }) {
-  const { data, read, listened, markListened } = useToday();
+  const { data, read, listened, markListened, listenAccess } = useToday();
   const toast = useToast();
   const audioRef = useRef<HTMLAudioElement>(null);
   /** 메타데이터가 오기 전에 요청된 이동(항목 번호). loadedmetadata에서 그때의 챕터 표로 적용한다 */
@@ -172,6 +176,9 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const onceRef = useRef<number | null>(null);
   /** 첫 소식만 먼저 듣는 중(이벤트 처리용. 화면은 lead 상태를 본다) */
   const leadRef = useRef<Lead | null>(null);
+  /** 비동기 콜백(load)에서 쓰는 최신 locked·stopAtLimit(렌더마다 바꿔 둔다) */
+  const lockedRef = useRef<(id: number) => boolean>(() => false);
+  const stopAtLimitRef = useRef<(index: number, startMs: number) => void>(() => {});
 
   const [episode, setEpisode] = useState<EpisodeData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -230,7 +237,10 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const readSet = playlist ? NO_READ : (!idle && readSnap) || read;
   const skip = playlist ? false : skipRead;
 
-  const enabled = profile.audio && (playlist !== null || data.items.length > 0);
+  // Free도 오늘 듣기 몫(plans.daily_listens)만큼 전체 듣기를 쓴다(2026-11-09 사용자 결정: 하루 3개 안에서). 플레이리스트는 Premium만
+  const enabled = (profile.audio || profile.dailyListens > 0) && (playlist !== null || data.items.length > 0);
+  /** Free가 오늘 몫을 다 쓴, 처음 듣는 소식. 플레이어는 이 소식 앞에서 멈춘다(stopAtLimit) */
+  const locked = (id: number) => !profile.audio && listenAccess(id) === null;
   const baseChapters = episode?.chapters ?? [];
   // 첫 소식을 먼저 듣는 중이면 그 챕터의 줄 시각을 실제 값으로(대본 하이라이트·진행 막대가 맞게)
   const chapters = lead?.chapter && !episode?.ready ? withRealChapter(baseChapters, lead.index, lead.chapter) : baseChapters;
@@ -334,7 +344,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       const query = itemQuery(clusterId, persona, voice);
       if (warmedItemsRef.current.has(query)) return;
       warmedItemsRef.current.set(query, "pending");
-      fetch(itemAudioUrl(query), { redirect: "manual", cache: "no-store" })
+      fetch(itemWarmUrl(query), { redirect: "manual", cache: "no-store" })
         .then(async (res) => {
           if (res.type !== "opaqueredirect" && !res.ok) throw new Error(String(res.status));
           warmedItemsRef.current.set(query, "done");
@@ -407,9 +417,10 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           setCur(-1);
           setPosMs(0);
         } else setCur(index);
-        // 듣던 중이고 전체 음성이 아직 없으면 그 소식부터 하나씩 듣는다
+        // 듣던 중이고 전체 음성이 아직 없으면 그 소식부터 하나씩 듣는다(Free가 몫을 다 쓴 소식이면 그 앞에서 멈춘다)
         if (keep.resume && index >= 0 && !ep.ready) {
           const ch = ep.chapters[index]!;
+          if (lockedRef.current(ch.clusterId)) return stopAtLimitRef.current(index, ch.startMs);
           return startLead(index, ch.clusterId, ch.startMs, offsetMs);
         }
         if (ep.ready || keep.resume) {
@@ -546,6 +557,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     const ch = chapters[index];
     const audio = audioRef.current;
     if (!ch || !audio || !episode) return;
+    if (locked(ch.clusterId)) return stopAtLimit(index, ch.startMs);
     onceRef.current = once ? index : null;
     setError(null);
     begin();
@@ -690,6 +702,35 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       setPosMs(0);
     } else setStatus("paused");
   };
+
+  /**
+   * Free가 오늘 듣기 몫을 다 쓴 소식에 닿았을 때(2026-11-09): 그 소식 앞에서 멈추고 결제 안내를 띄운다(limitReached).
+   * 그 소식 음성은 만들지 않는다(서버도 /api/episode/item/audio에서 막는다)
+   */
+  const stopAtLimit = (index: number, startMs: number) => {
+    const audio = audioRef.current;
+    stopWait();
+    want(false);
+    pendingRef.current = null;
+    refreshRef.current = null;
+    onceRef.current = null;
+    setLead(null);
+    setPreparing(false);
+    if (audio) {
+      audio.pause();
+      if (audio.getAttribute("src")) {
+        audio.removeAttribute("src");
+        audio.load();
+      }
+    }
+    setCur(index);
+    setPosMs(startMs);
+    setStatus("paused");
+  };
+  useEffect(() => {
+    lockedRef.current = locked;
+    stopAtLimitRef.current = stopAtLimit;
+  });
 
   const retry = () => {
     setError(null);
@@ -901,7 +942,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
           setCur(index);
           if (leadAt >= 0) return setLead({ ...l, index: leadAt });
           const ch = ep.chapters[index]!;
-          if (!audio.paused) return startLead(index, ch.clusterId, ch.startMs, 0);
+          if (!audio.paused) return locked(ch.clusterId) ? stopAtLimit(index, ch.startMs) : startLead(index, ch.clusterId, ch.startMs, 0);
           setLead(null);
           audio.removeAttribute("src");
           audio.load();
@@ -927,7 +968,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         const from = kept >= 0 ? Math.min(offsetMs, Math.max(0, ch.endMs - ch.startMs - 500)) : 0;
         if (ep.ready) return openFile(ep, index, resume, from);
         // 새 목록의 음성이 다 있지 않으면 전체 파일을 만들지 않고 하나씩 듣는다(멈춰 있었으면 재생을 누를 때)
-        if (resume) return startLead(index, ch.clusterId, ch.startMs, from);
+        if (resume) return locked(ch.clusterId) ? stopAtLimit(index, ch.startMs) : startLead(index, ch.clusterId, ch.startMs, from);
         setPosMs(ch.startMs + from);
       })
       .catch(() => {
@@ -1105,6 +1146,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       setStatus("paused");
       return;
     }
+    if (locked(ch.clusterId)) return stopAtLimit(n, ch.startMs);
     enter(n);
     setPosMs(ch.startMs);
     if (episode.ready) return openFile(episode, n, true);
@@ -1117,7 +1159,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     if (!lead || preparing || onceRef.current !== null || !autoNext) return;
     const n = nextChained(lead.index + 1);
     const id = n !== null ? chapters[n]?.clusterId : playlistRef.current ? queueRef.current[0] : undefined;
-    if (id !== undefined) warmItem(id);
+    // Free가 몫을 다 쓴 소식은 만들지 않는다(미리 만들기는 몫을 쓰지 않는다: /api/episode/item/audio?warm=1)
+    if (id !== undefined && !locked(id)) warmItem(id);
     // nextChained는 매 렌더 새로 만든다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead, preparing, chapters, readSet, skip, autoNext, warmItem]);
@@ -1238,6 +1281,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const live = !idle;
   const api: PlayerApi = {
     enabled,
+    locked,
+    limitReached: !playlist && cur >= 0 && status !== "done" && !!chapters[cur] && locked(chapters[cur]!.clusterId),
     ready: !!episode,
     starting,
     preparing,
@@ -1404,7 +1449,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         ref={waitRef}
         src={waitUrl(voice, engineOf(profile.audio))}
         // 듣기를 쓸 수 있는 사람만 미리 받아 둔다(탭하자마자 나오게)
-        preload={profile.audio ? "auto" : "none"}
+        preload={enabled ? "auto" : "none"}
         // 안내를 다 들었는데 본 소리가 멈춰 있으면(iOS가 안내를 틀며 멈춘 경우) 다시 건다. 사용자가 멈췄으면 stopWait가 꺼 둔다
         onEnded={endWait}
         hidden

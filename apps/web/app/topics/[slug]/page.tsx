@@ -61,7 +61,7 @@ function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number;
     ],
     [
       `${t.name} 소식을 음성으로 들을 수 있나요?`,
-      `네. Premium이면 ${t.name} 소식을 플레이리스트에 담아 끝까지 이어서 들을 수 있어요.${free.dailyListens > 0 ? ` Free도 하루 ${free.dailyListens}개는 '이 글 듣기'로 들어요.` : ""}`,
+      `네. Premium이면 ${t.name} 소식을 플레이리스트에 담아 끝까지 이어서 들을 수 있어요.${free.dailyListens > 0 ? ` Free도 하루 ${free.dailyListens}개는 들을 수 있어요.` : ""}`,
     ],
   ];
 }
