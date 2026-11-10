@@ -145,13 +145,10 @@ export async function Landing() {
             <span className="text-[26px] font-black tracking-[-0.04em] text-mango-deep max-[374px]:sr-only">맹고</span>
           </Link>
           <nav aria-label="소개 메뉴" className="flex items-center gap-1 whitespace-nowrap">
-            <a href="#features" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
-              무엇을 해 주나요
-            </a>
-            <Link href={topicsPath()} className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
-              관심 분야
+            {/* 2026-11-10 사용자: '무엇을 해 주나요'·'관심 분야'가 길어서 '소식 보기' 하나로, 누르면 이번 주 소식이 바로 보인다(app/topics). 휴대폰에서도 보인다 */}
+            <Link href={topicsPath()} className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:px-3">
+              소식 보기
             </Link>
-            {/* 요금은 휴대폰에서도 보인다(기능은 넓은 화면에서만) */}
             <a href="#pricing" className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:px-3">
               요금
             </a>

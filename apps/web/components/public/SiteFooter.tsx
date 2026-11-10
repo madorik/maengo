@@ -17,7 +17,7 @@ export function SiteFooter() {
         </span>
         <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Link href={topicsPath()} className={LINK}>
-            관심 분야
+            소식 보기
           </Link>
           <Link href="/terms" className={LINK}>
             이용약관

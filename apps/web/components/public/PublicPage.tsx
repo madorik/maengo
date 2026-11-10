@@ -19,7 +19,7 @@ export function PublicPage({ children }: { children: React.ReactNode }) {
           </Link>
           <nav aria-label="공개 메뉴" className="flex items-center gap-1">
             <Link href={topicsPath()} className="inline-flex min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow">
-              관심 분야
+              소식 보기
             </Link>
             <Link href="/#pricing" className="hidden min-h-11 items-center rounded-xl px-3 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:inline-flex">
               요금

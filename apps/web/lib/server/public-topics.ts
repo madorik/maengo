@@ -110,6 +110,26 @@ export function publicTopicDigest(topic: PublicTopic): Promise<PublicTopicDigest
   return digest(new Set([topic.id, ...childrenOf(topic.id).map((c) => c.id)]), LIST_DAYS, LIST_LIMIT, 3);
 }
 
+/**
+ * 소식 보기(/topics) 첫 목록: 공개 분야마다의 이번 주 순서를 그대로 두고 분야를 번갈아 limit개까지 섞는다(같은 소식은 한 번만).
+ * 분야를 고르지 않아도 바로 보이게(2026-11-10 사용자)
+ */
+export async function publicMixedDigest(limit = 12): Promise<{ items: { item: PublicTopicItem; topic: PublicTopic }[]; updatedAt: string | null }> {
+  const digests = await Promise.all(PUBLIC_TOPICS.map(async (topic) => ({ topic, d: await publicTopicDigest(topic) })));
+  const seen = new Set<number>();
+  const items: { item: PublicTopicItem; topic: PublicTopic }[] = [];
+  for (let i = 0; items.length < limit && digests.some(({ d }) => i < d.items.length); i++) {
+    for (const { topic, d } of digests) {
+      const it = d.items[i];
+      if (!it || seen.has(it.clusterId) || items.length >= limit) continue;
+      seen.add(it.clusterId);
+      items.push({ item: it, topic });
+    }
+  }
+  const updatedAt = digests.map(({ d }) => d.updatedAt).filter((x): x is string => !!x).sort().at(-1) ?? null;
+  return { items, updatedAt };
+}
+
 /** 세부 주제 하나의 공개 소식(지난 30일, 최대 15개)과 출처 목록 */
 export function publicDetailDigest(detail: PublicDetail): Promise<PublicTopicDigest> {
   return digest(new Set([detail.id]), DETAIL_DAYS, DETAIL_LIMIT, DETAIL_LIMIT);

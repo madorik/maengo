@@ -87,7 +87,7 @@ export default async function TopicPage({ params }: Props) {
             <li aria-hidden="true">/</li>
             <li>
               <Link href={topicsPath()} className="text-sub no-underline hover:text-ink hover:underline">
-                관심 분야
+                소식 보기
               </Link>
             </li>
             <li aria-hidden="true">/</li>
@@ -191,7 +191,7 @@ export default async function TopicPage({ params }: Props) {
   );
 }
 
-/** 검색엔진용: 이 페이지(모음), 위치(맹고 > 관심 분야 > 분야), 소식 목록(원문 주소), 자주 묻는 질문 */
+/** 검색엔진용: 이 페이지(모음), 위치(맹고 > 소식 보기 > 분야), 소식 목록(원문 주소), 자주 묻는 질문 */
 function TopicJsonLd({ topic, items, faq }: { topic: PublicTopic; items: PublicTopicItem[]; faq: [string, string][] }) {
   const url = appUrl(topicsPath(topic.slug));
   return (
@@ -219,7 +219,7 @@ function TopicJsonLd({ topic, items, faq }: { topic: PublicTopic; items: PublicT
           "@type": "BreadcrumbList",
           itemListElement: [
             { "@type": "ListItem", position: 1, name: SITE_NAME, item: appUrl("/") },
-            { "@type": "ListItem", position: 2, name: "관심 분야", item: appUrl(topicsPath()) },
+            { "@type": "ListItem", position: 2, name: "소식 보기", item: appUrl(topicsPath()) },
             { "@type": "ListItem", position: 3, name: topic.name, item: url },
           ],
         },
