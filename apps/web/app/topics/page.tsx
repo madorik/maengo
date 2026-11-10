@@ -7,7 +7,7 @@ import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/li
 import { publicMixedDigest } from "@/lib/server/public-topics";
 import { APP_STORE_ID, SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
 
-// 소식 보기(머리 메뉴, 2026-11-10 사용자: '관심 분야 선택하는게 너무 길어. 소식 보기 같은 메뉴로 변경하고 바로 보여지게해').
+// 1분 요약(머리 메뉴, 2026-11-10 사용자: '관심 분야 선택하는게 너무 길어. … 바로 보여지게해' → 이름은 요약된 소식이라는 게 보이게 '1분 요약'으로, 같은 날 A안).
 // 들어오면 분야를 고르지 않아도 이번 주 소식이 바로 보인다(공개 분야 5개를 번갈아 12개). 분야로 좁히는 칩은 위에, 분야 카드는 아래에.
 // 공개 원칙은 분야 페이지와 같다: 제목·한 줄 요약·출처·원문 링크만. 분야 페이지처럼 한 시간마다 새로 그린다
 export const revalidate = 3600;
@@ -34,7 +34,7 @@ export default async function TopicsPage() {
         data={{
           "@context": "https://schema.org",
           "@type": "CollectionPage",
-          name: "이번 주 소식",
+          name: "이번 주 1분 요약",
           url: appUrl(topicsPath()),
           description: DESCRIPTION,
           inLanguage: "ko-KR",
@@ -50,9 +50,9 @@ export default async function TopicsPage() {
         }}
       />
       <div className="mx-auto max-w-[760px] px-5 pt-10 md:pt-14">
-        <h1 className="text-[34px] font-black leading-[1.2] tracking-[-0.04em] md:text-[44px]">이번 주 소식</h1>
+        <h1 className="text-[34px] font-black leading-[1.2] tracking-[-0.04em] md:text-[44px]">이번 주 1분 요약</h1>
         <p className="mt-3 text-[16px] font-medium leading-relaxed text-sub md:text-[17px]">
-          맹고가 분야마다 이슈도가 높은 소식을 골라 핵심만 요약했어요.{updatedAt ? ` ${dayLabel(updatedAt)} 업데이트.` : ""}
+          분야마다 이슈도가 높은 소식만 골라, 하나를 1분 안에 읽을 수 있게 핵심만 추렸어요.{updatedAt ? ` ${dayLabel(updatedAt)} 업데이트.` : ""}
         </p>
 
         {/* 분야로 좁히기: '전체'가 지금 화면, 나머지는 분야 페이지로. 고른 칩은 망고 바탕에 남색 글자로 고정(다크 모드에서 ink가 밝아져 흰 글자가 묻히던 것, 2026-11-10) */}
@@ -74,7 +74,7 @@ export default async function TopicsPage() {
         </nav>
 
         {items.length > 0 ? (
-          <ol className="mt-6 flex flex-col gap-3" aria-label="이번 주 소식">
+          <ol className="mt-6 flex flex-col gap-3" aria-label="이번 주 1분 요약">
             {items.map(({ item, topic }) => (
               <TopicItem key={item.clusterId} item={item} label={topic.name} />
             ))}

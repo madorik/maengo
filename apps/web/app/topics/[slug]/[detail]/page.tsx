@@ -63,7 +63,7 @@ export default async function DetailPage({ params }: Props) {
             <li aria-hidden="true">/</li>
             <li>
               <Link href={topicsPath()} className="text-sub no-underline hover:text-ink hover:underline">
-                소식 보기
+                1분 요약
               </Link>
             </li>
             <li aria-hidden="true">/</li>
@@ -158,7 +158,7 @@ export default async function DetailPage({ params }: Props) {
   );
 }
 
-/** 검색엔진용: 이 페이지(모음), 위치(맹고 > 소식 보기 > 분야 > 주제), 소식 목록(원문 주소) */
+/** 검색엔진용: 이 페이지(모음), 위치(맹고 > 1분 요약 > 분야 > 주제), 소식 목록(원문 주소) */
 function DetailJsonLd({ detail: d, items }: { detail: PublicDetail; items: PublicTopicItem[] }) {
   const url = appUrl(detailPath(d));
   return (
@@ -186,7 +186,7 @@ function DetailJsonLd({ detail: d, items }: { detail: PublicDetail; items: Publi
           "@type": "BreadcrumbList",
           itemListElement: [
             { "@type": "ListItem", position: 1, name: SITE_NAME, item: appUrl("/") },
-            { "@type": "ListItem", position: 2, name: "소식 보기", item: appUrl(topicsPath()) },
+            { "@type": "ListItem", position: 2, name: "1분 요약", item: appUrl(topicsPath()) },
             { "@type": "ListItem", position: 3, name: d.group.name, item: appUrl(topicsPath(d.group.slug)) },
             { "@type": "ListItem", position: 4, name: d.name, item: url },
           ],

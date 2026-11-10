@@ -111,7 +111,7 @@ export function publicTopicDigest(topic: PublicTopic): Promise<PublicTopicDigest
 }
 
 /**
- * 소식 보기(/topics) 첫 목록: 공개 분야마다의 이번 주 순서를 그대로 두고 분야를 번갈아 limit개까지 섞는다(같은 소식은 한 번만).
+ * 1분 요약(/topics) 첫 목록: 공개 분야마다의 이번 주 순서를 그대로 두고 분야를 번갈아 limit개까지 섞는다(같은 소식은 한 번만).
  * 분야를 고르지 않아도 바로 보이게(2026-11-10 사용자)
  */
 export async function publicMixedDigest(limit = 12): Promise<{ items: { item: PublicTopicItem; topic: PublicTopic }[]; updatedAt: string | null }> {
