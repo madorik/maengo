@@ -3,7 +3,7 @@ import Link from "next/link";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
 import { dayLabel, TopicItem } from "@/components/public/TopicItem";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
-import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
+import { archivePath, detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
 import { publicMixedDigest } from "@/lib/server/public-topics";
 import { APP_STORE_ID, SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
 
@@ -112,6 +112,23 @@ export default async function TopicsPage() {
           </ul>
           <p className="mt-5 text-[14px] font-semibold text-sub">목록에 없는 관심사는 Premium에서 직접 적을 수 있어요.</p>
         </section>
+
+        {/* 지난 소식(2026-11-10): 분야마다 지금까지 요약한 소식 전부, 쪽 넘기기·기간 찾기 */}
+        <nav aria-labelledby="archive-title" className="mt-14">
+          <h2 id="archive-title" className="text-[24px] font-black tracking-[-0.03em] md:text-[28px]">
+            지난 소식 찾아보기
+          </h2>
+          <p className="mt-1 text-[15px] font-medium text-sub">이번 주에 놓친 소식도 분야별로 모두 모아 뒀어요. 기간을 골라 찾을 수 있어요.</p>
+          <ul className="mt-5 flex flex-wrap gap-2">
+            {PUBLIC_TOPICS.map((t) => (
+              <li key={t.slug}>
+                <Link href={archivePath(t)} className={`${chip} bg-snow text-ink hover:bg-line`}>
+                  {t.name} 지난 소식
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
 
       <StartBand title="내 관심 소식만 매일 받아 보세요" body="관심 분야만 고르면 첫 소식을 바로 보여 드려요. 출퇴근길엔 귀로 들어요." />

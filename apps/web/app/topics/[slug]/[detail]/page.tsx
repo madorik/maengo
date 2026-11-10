@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArchiveLinkCard } from "@/components/public/ArchiveView";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
 import { dayLabel, TopicItem } from "@/components/public/TopicItem";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { detailPath, detailsOf, PUBLIC_DETAILS, publicDetailBySlug, topicsPath, type PublicDetail } from "@/lib/public-topics";
-import { DETAIL_MIN_ITEMS, publicDetailDigest, publicDetailStats, type PublicTopicItem } from "@/lib/server/public-topics";
+import { DETAIL_MIN_ITEMS, publicArchive, publicDetailDigest, publicDetailStats, type PublicTopicItem } from "@/lib/server/public-topics";
 import { APP_STORE_ID, SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
 
 // 세부 주제 페이지(2026-11-10 사용자 결정 '주제별로 하나씩 만들어서 검색 유입 늘리자', 맹고-문서/검색-노출.md).
@@ -46,7 +47,7 @@ export default async function DetailPage({ params }: Props) {
   const { slug, detail } = await params;
   const d = publicDetailBySlug(slug, detail);
   if (!d) notFound();
-  const { items, sources, updatedAt } = await publicDetailDigest(d);
+  const [{ items, sources, updatedAt }, archive] = await Promise.all([publicDetailDigest(d), publicArchive(d, { page: 1 })]);
   const siblings = detailsOf(d.group).filter((x) => x.id !== d.id);
 
   return (
@@ -114,6 +115,7 @@ export default async function DetailPage({ params }: Props) {
           ) : (
             <p className="tile mt-6 p-5 text-[15px] font-semibold text-sub">최근 30일 동안 고른 {d.name} 소식이 아직 없어요. 내일 아침에 다시 모아요.</p>
           )}
+          {archive.total > items.length && <ArchiveLinkCard topic={d} total={archive.total} />}
         </section>
 
         {sources.length > 0 && (

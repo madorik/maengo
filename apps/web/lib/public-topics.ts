@@ -70,6 +70,9 @@ export const detailsOf = (g: PublicTopic) => PUBLIC_DETAILS.filter((d) => d.grou
 
 export const detailPath = (d: PublicDetail) => `${topicsPath(d.group.slug)}/${d.slug}`;
 
+/** 지난 소식(/topics/<분야>/archive, /topics/<분야>/<주제>/archive, 2026-11-10). 주제 주소에 archive가 없어 겹치지 않는다 */
+export const archivePath = (t: PublicTopic | PublicDetail) => `${"group" in t ? detailPath(t) : topicsPath(t.slug)}/archive`;
+
 /** 분야 이름 + 세부 관심사로 쓰는 소개 한 줄: "LLM, 바이브코딩, AI 에이전트 …" */
 export function detailsLine(t: PublicTopic, max = t.details.length): string {
   const shown = t.details.slice(0, max);

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArchiveLinkCard } from "@/components/public/ArchiveView";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
 import { dayLabel, TopicItem } from "@/components/public/TopicItem";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { detailPath, detailsLine, detailsOf, PUBLIC_TOPICS, publicTopicBySlug, topicsPath, type PublicTopic } from "@/lib/public-topics";
 import { getPlans } from "@/lib/server/plans";
-import { publicTopicDigest, type PublicTopicItem } from "@/lib/server/public-topics";
+import { publicArchive, publicTopicDigest, type PublicTopicItem } from "@/lib/server/public-topics";
 import { APP_STORE_ID, SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
 
 // 공개 분야 페이지. 지난 7일 이 분야 소식(제목·한 줄 요약·원문 링크)과 출처를 보여 준다.
@@ -69,7 +70,7 @@ function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number;
 export default async function TopicPage({ params }: Props) {
   const topic = publicTopicBySlug((await params).slug);
   if (!topic) notFound();
-  const [{ items, sources, updatedAt }, plans] = await Promise.all([publicTopicDigest(topic), getPlans()]);
+  const [{ items, sources, updatedAt }, plans, archive] = await Promise.all([publicTopicDigest(topic), getPlans(), publicArchive(topic, { page: 1 })]);
   const others = PUBLIC_TOPICS.filter((t) => t.slug !== topic.slug);
   const faq = topicFaq(topic, sources, plans.get("free")!, plans.get("plus")!.dailyItems);
 
@@ -132,6 +133,7 @@ export default async function TopicPage({ params }: Props) {
           ) : (
             <p className="tile mt-6 p-5 text-[15px] font-semibold text-sub">이번 주에 고른 {topic.name} 소식이 아직 없어요. 내일 아침에 다시 모아요.</p>
           )}
+          {archive.total > 0 && <ArchiveLinkCard topic={topic} total={archive.total} />}
         </section>
 
         {sources.length > 0 && (

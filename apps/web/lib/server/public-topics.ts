@@ -1,4 +1,5 @@
 import 'server-only';
+import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 import { MIN_RELEVANCE, popularityBoost, rankFeed, type Impact, type RankCandidate } from '@maengo/core/feed';
 import { childrenOf } from '@maengo/core/topics';
@@ -226,6 +227,91 @@ async function digest(ids: ReadonlySet<string>, listDays: number, limit: number,
     sources,
     updatedAt: mine.reduce((a, s) => (s.created_at > a ? s.created_at : a), mine[0]!.created_at),
   };
+}
+
+/**
+ * 지난 소식(2026-11-10 사용자 결정 '지난 소식, 공개는 지금처럼', 맹고-문서/검색-노출.md): 지금까지 요약한 이 분야(주제) 소식 전부를
+ * 맹고가 모은 날 최신순으로 한 쪽에 ARCHIVE_PAGE_SIZE개씩. 공개 범위는 위 목록과 같다(제목·한 줄 요약·출처·원문 링크).
+ * 요약된 묶음은 지우지 않아서(데이터-보존-정책.md) 처음 요약한 날까지 거슬러 볼 수 있다. 사용자가 넣은 출처 글만 있는 소식은 뺀다.
+ * 같은 조건은 한 시간 동안 다시 읽지 않는다(검색 로봇이 쪽을 넘겨도 DB를 매번 읽지 않게)
+ */
+export const ARCHIVE_PAGE_SIZE = 20;
+
+export interface PublicArchive {
+  items: PublicTopicItem[];
+  /** 조건에 맞는 소식 수 */
+  total: number;
+}
+
+interface ArchiveRow {
+  cluster_id: number;
+  title: string;
+  short: string;
+  published_at: string | null;
+  clusters: { first_seen_at: string; rep_item_id: number | null; items: ItemRow[] };
+}
+
+/** 하루의 시작(한국 시각 0시)을 ISO로. day는 'YYYY-MM-DD' */
+const kstStart = (day: string) => new Date(`${day}T00:00:00+09:00`).toISOString();
+const nextDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + DAY).toISOString().slice(0, 10);
+
+const archiveQuery = unstable_cache(
+  async (topicIds: string[], page: number, from: string | null, to: string | null): Promise<PublicArchive> => {
+    const query = (head: boolean) => {
+      let q = db
+        .from('summaries')
+        .select(
+          'cluster_id,title,short,published_at,clusters!inner(first_seen_at,rep_item_id,cluster_topics!inner(topic_id),items!items_cluster_id_fkey!inner(id,cluster_id,canonical_url,kind,sources!inner(name,custom)))',
+          { count: 'exact', head },
+        )
+        .eq('tier', 'basic')
+        .is('clusters.skip_reason', null)
+        .in('clusters.cluster_topics.topic_id', topicIds)
+        .gte('clusters.cluster_topics.relevance', MIN_RELEVANCE)
+        .eq('clusters.items.sources.custom', false);
+      if (from) q = q.gte('clusters.first_seen_at', kstStart(from));
+      if (to) q = q.lt('clusters.first_seen_at', kstStart(nextDay(to)));
+      return q;
+    };
+    const start = (page - 1) * ARCHIVE_PAGE_SIZE;
+    const res = await query(false)
+      .order('clusters(first_seen_at)', { ascending: false })
+      .order('cluster_id', { ascending: false })
+      .range(start, start + ARCHIVE_PAGE_SIZE - 1);
+    // 마지막 쪽 너머를 달라고 하면 PostgREST가 416(PGRST103)으로 답한다. 그때는 수만 센다
+    if (res.error?.code === 'PGRST103') {
+      const head = await query(true);
+      if (head.error) throw new Error(`public archive count: ${head.error.message}`);
+      return { items: [], total: head.count ?? 0 };
+    }
+    const rows = must(res, 'public archive') as unknown as ArchiveRow[];
+    return {
+      total: res.count ?? rows.length,
+      items: rows.map((s) => {
+        const members = s.clusters.items;
+        const rep = members.find((m) => m.id === s.clusters.rep_item_id) ?? members[0]!;
+        const others = [...new Set(members.filter((m) => m !== rep).map((m) => m.sources!.name).filter((n) => n !== rep.sources!.name))];
+        return {
+          clusterId: s.cluster_id,
+          title: s.title,
+          short: s.short,
+          url: rep.canonical_url,
+          kind: rep.kind,
+          sourceLabel: rep.sources!.name,
+          coverage: others.length === 0 ? undefined : others.length === 1 ? `${others[0]}에서도 다뤘어요` : `${others[0]} 외 ${others.length - 1}곳에서도 다뤘어요`,
+          date: s.published_at ?? s.clusters.first_seen_at,
+        };
+      }),
+    };
+  },
+  ['public-archive-v1'],
+  { revalidate: 3600 },
+);
+
+/** 분야(세부 주제까지)나 세부 주제 하나의 지난 소식 한 쪽. from·to는 한국 날짜 'YYYY-MM-DD'(둘 다 포함) */
+export function publicArchive(topic: PublicTopic | PublicDetail, opts: { page: number; from?: string; to?: string }): Promise<PublicArchive> {
+  const ids = 'group' in topic ? [topic.id] : [topic.id, ...childrenOf(topic.id).map((c) => c.id)];
+  return archiveQuery(ids, opts.page, opts.from ?? null, opts.to ?? null);
 }
 
 /** 분야별 마지막 요약 시각(사이트맵 lastmod). 소식이 없으면 그 분야는 빠진다 */
