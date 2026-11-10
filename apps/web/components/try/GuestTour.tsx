@@ -250,13 +250,13 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
           type="button"
           onClick={() => listenAll("hero")}
           aria-label={playing ? "듣기 일시정지" : p.cur >= 0 ? "이어 듣기" : `소식 ${n}개 처음부터 듣기`}
-          className="mt-4 flex h-[60px] w-full items-center gap-3 rounded-full bg-ink pl-2 pr-5 text-left text-white"
+          className="mt-4 flex h-[60px] w-full items-center gap-3 rounded-full bg-ink pl-2 pr-5 text-left text-paper"
         >
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink">
             {playing ? <IconPause className="size-[18px]" /> : <IconPlay className="size-[18px]" />}
           </span>
           <span className="flex-1 text-[16px] font-bold">{playing ? "듣는 중" : p.cur >= 0 ? "이어 듣기" : "브리핑 들어 보기"}</span>
-          <span className="text-[13px] font-medium tabular-nums text-white/65">
+          <span className="text-[13px] font-medium tabular-nums opacity-65">
             {p.heard.size > 0 ? `${p.heard.size}/${n}` : `첫 소식 ${koDuration(firstMs)}`}
           </span>
         </button>
@@ -385,11 +385,11 @@ function GuestStation({
         ) : (
           <span
             className={`absolute rounded-full ${big ? "left-[6px] top-[18px] size-5 border-[5px]" : "left-[9px] top-[21px] size-3.5 border-4"}`}
-            style={{ borderColor: index < at ? PASSED : LINE, background: index < at ? PASSED : "#FFFFFF" }}
+            style={{ borderColor: index < at ? PASSED : LINE, background: index < at ? PASSED : "var(--color-paper)" }}
           />
         )}
       </div>
-      <div className={`min-w-0 flex-1 ${here ? "my-1 rounded-2xl bg-[#FFF6DD] px-3 pb-3" : ""}`}>
+      <div className={`min-w-0 flex-1 ${here ? "my-1 rounded-2xl bg-mango-tint px-3 pb-3" : ""}`}>
         <button
           type="button"
           onClick={onTap}
@@ -417,7 +417,7 @@ function GuestStation({
         </button>
         {/* 듣는 소식의 대본: 줄을 누르면 그 자리로 */}
         {here && (
-          <div className="border-t border-[#F3E3B5] pt-2">
+          <div className="border-t border-line pt-2">
             {item.lines.map((line, i) => {
               if (i === 0) return null;
               const now = i === active;

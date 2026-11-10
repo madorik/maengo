@@ -258,6 +258,21 @@
     background: var(--color-paper);
   }
 
+  /* 퇴근길 브리핑(오늘 화면, 남색): 아래 여백·당겨 내림까지 남색으로, 위 머리말도 남색에 맞춘다(2026-11-10 사용자).
+     오늘 화면(TodayList)이 html[data-briefing="pm"]를 붙이고 떠날 때 뗀다 */
+  html[data-briefing="pm"],
+  html[data-briefing="pm"] body {
+    background: #1F2340;
+  }
+  html[data-briefing="pm"] [data-topbar] {
+    --color-paper: #1F2340;
+    --color-ink: #FFFFFF;
+    --color-sub: rgb(255 255 255 / 0.65);
+    --color-line: rgb(255 255 255 / 0.12);
+    --color-snow: rgb(255 255 255 / 0.08);
+    color: #FFFFFF;
+  }
+
   /* 보관함에서 골라 듣기로 고르는 동안은 떠 있는 플레이어를 숨긴다(아래 '고른 n개 듣기' 막대와 겹친다) */
   html[data-picking] [data-tour="player"] {
     visibility: hidden;

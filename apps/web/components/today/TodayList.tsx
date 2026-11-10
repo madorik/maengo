@@ -37,6 +37,15 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
   }, [newMember, game.total, tourSeen]);
   const view = useView();
   const pm = data.slot === "pm";
+  // 퇴근길(남색)이면 페이지 바탕·머리말까지 남색으로(globals.css html[data-briefing="pm"]). 이 화면을 떠나면 뗀다
+  useEffect(() => {
+    const root = document.documentElement;
+    if (pm) root.dataset.briefing = "pm";
+    else delete root.dataset.briefing;
+    return () => {
+      delete root.dataset.briefing;
+    };
+  }, [pm]);
   const slotLabel = SLOT_LABEL[data.slot];
   // 인사 날짜 끝의 때(아침·저녁 등)는 떼고 출근길·퇴근길을 붙인다(저녁에 출근길 브리핑을 보면 "저녁 출근길"이 되지 않게)
   const day = data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|오후|저녁|밤)$/, "");
@@ -152,20 +161,21 @@ function useView(): { value: "route" | "card"; set: (v: "route" | "card") => voi
 
 function ViewToggle({ view, onChange, pm }: { view: "route" | "card"; onChange: (v: "route" | "card") => void; pm: boolean }) {
   const base = "flex h-8 w-9 items-center justify-center rounded-full";
-  const on = pm ? "bg-white/20" : "bg-paper shadow-[0_0_0_1px_var(--color-line)]";
-  const stroke = (active: boolean) => (active ? (pm ? "#FFFFFF" : "#1F2340") : pm ? "rgba(255,255,255,0.6)" : "#6B7089");
+  // 색은 글자색(currentColor)으로: 다크 모드에서도 테마 색을 따른다
+  const on = pm ? "bg-white/20 text-white" : "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]";
+  const off = pm ? "text-white/60" : "text-sub";
   return (
     <div role="group" aria-label="보기 방식" className={`flex gap-0.5 rounded-full p-[3px] ${pm ? "bg-white/10" : "bg-snow"}`}>
-      <button type="button" aria-pressed={view === "route"} aria-label="노선으로 보기" onClick={() => onChange("route")} className={`${base} ${view === "route" ? on : ""}`}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={stroke(view === "route")} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <button type="button" aria-pressed={view === "route"} aria-label="노선으로 보기" onClick={() => onChange("route")} className={`${base} ${view === "route" ? on : off}`}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="M7 4v16" />
           <circle cx="7" cy="7" r="2" fill="currentColor" />
           <circle cx="7" cy="17" r="2" fill="currentColor" />
           <path d="M12 7h8M12 17h8" />
         </svg>
       </button>
-      <button type="button" aria-pressed={view === "card"} aria-label="카드로 보기" onClick={() => onChange("card")} className={`${base} ${view === "card" ? on : ""}`}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={stroke(view === "card")} strokeWidth="2" aria-hidden="true">
+      <button type="button" aria-pressed={view === "card"} aria-label="카드로 보기" onClick={() => onChange("card")} className={`${base} ${view === "card" ? on : off}`}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <rect x="4" y="4" width="7" height="7" rx="2" />
           <rect x="13" y="4" width="7" height="7" rx="2" />
           <rect x="4" y="13" width="7" height="7" rx="2" />
@@ -228,13 +238,13 @@ function Route({ items, pm, current, consumed }: { items: FeedItem[]; pm: boolea
               ) : (
                 <span
                   className={`absolute rounded-full ${big ? "left-[6px] top-[18px] size-5 border-[5px]" : "left-[9px] top-[21px] size-3.5 border-4"}`}
-                  style={{ borderColor: i < at ? passed : line, background: i < at ? passed : pm ? "#1F2340" : "#FFFFFF" }}
+                  style={{ borderColor: i < at ? passed : line, background: i < at ? passed : pm ? "#1F2340" : "var(--color-paper)" }}
                 />
               )}
             </div>
             <Link
               href={`/article/${item.token}`}
-              className={`flex min-w-0 flex-1 items-center gap-3 py-2.5 no-underline ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-[#FFF6DD] px-3") : ""}`}
+              className={`flex min-w-0 flex-1 items-center gap-3 py-2.5 no-underline ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-mango-tint px-3") : ""}`}
             >
               <div className="min-w-0 flex-1">
                 {big && headline && (
@@ -306,7 +316,7 @@ function CardGrid({ items, pm, consumed }: { items: FeedItem[]; pm: boolean; con
 function ListenBar({ pm, label }: { pm: boolean; label: string }) {
   const p = usePlayer();
   const { data, listenAccess } = useToday();
-  const shell = `mt-4 flex h-[60px] w-full items-center gap-3 rounded-full pl-2 pr-5 text-left no-underline ${pm ? "bg-white text-ink" : "bg-ink text-white"}`;
+  const shell = `mt-4 flex h-[60px] w-full items-center gap-3 rounded-full pl-2 pr-5 text-left no-underline ${pm ? "bg-white text-[#1F2340]" : "bg-ink text-paper"}`;
   const knob = "flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink";
   if (!p.enabled || !data.items.some((i) => listenAccess(i.clusterId) !== null)) {
     return (

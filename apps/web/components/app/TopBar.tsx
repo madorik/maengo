@@ -7,7 +7,7 @@ import { MobileNav } from "./MobileNav";
 /** 모바일 위쪽 막대: 메뉴(☰, 왼쪽 서랍) + 로고 + 계정 메뉴(Premium이면 사진에 왕관) */
 export function TopBar() {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-paper pt-[env(safe-area-inset-top)] lg:hidden">
+    <header data-topbar className="sticky top-0 z-20 border-b border-line bg-paper pt-[env(safe-area-inset-top)] lg:hidden">
       <div className="mx-auto flex min-h-14 max-w-[640px] items-center gap-1 pl-1.5 pr-2">
         <MobileNav />
         {/* 머리말 '맹고 | 내 관심 뉴스 요약'(2026-11-10 사용자, 화면에 '뉴스'를 쓰는 예외) */}
