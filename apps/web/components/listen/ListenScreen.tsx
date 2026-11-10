@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
+import { SLOT_LABEL } from "@maengo/core/sections";
 import { Bubble } from "@/components/ui/Bubble";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel, PREPARING_TEXT } from "@/lib/player/labels";
@@ -20,6 +21,7 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 /** 듣기 화면(오늘 피드). 플레이리스트를 듣는 중이면 오늘로 돌아가는 버튼만 보여 준다(대본 화면은 오늘 피드용) */
 export function ListenScreen() {
   const p = usePlayer();
+  const { data } = useToday();
   if (!p.playlist) return <TodayListenScreen />;
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center gap-5 px-6 text-center">
@@ -27,7 +29,7 @@ export function ListenScreen() {
       <h1 className="text-[22px] font-black">플레이리스트를 듣고 있어요</h1>
       <div className="flex flex-wrap justify-center gap-2">
         <button type="button" onClick={p.exitPlaylist} className="btn btn-sky">
-          오늘 소식 듣기로 돌아가기
+          {SLOT_LABEL[data.slot]} 브리핑으로 돌아가기
         </button>
         <Link href="/library" className="btn btn-ghost">
           보관함
@@ -41,6 +43,8 @@ export function ListenScreen() {
 function TodayListenScreen() {
   const p = usePlayer();
   const { data, game } = useToday();
+  // 지금 브리핑 이름(2026-11-10 하루 두 번: 출근길·퇴근길)
+  const briefing = `${SLOT_LABEL[data.slot]} 브리핑`;
   const [sheet, setSheet] = useState(false);
 
   const playing = p.status === "playing";
@@ -119,18 +123,18 @@ function TodayListenScreen() {
           <>
             <div className="pt-3">
               <p className="text-[14px] font-black text-sky">
-                {`오늘 ${p.progress.count}개`}
+                {`${briefing} ${p.progress.count}개`}
                 <span className="ml-2 font-bold tabular-nums text-sub">
                   {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
                 </span>
               </p>
-              <h1 className="mt-1 line-clamp-2 text-[22px] font-black leading-snug tracking-[-0.02em]">{ch?.title ?? "오늘 소식"}</h1>
+              <h1 className="mt-1 line-clamp-2 text-[22px] font-black leading-snug tracking-[-0.02em]">{ch?.title ?? briefing}</h1>
             </div>
             <Script
               lines={active ? (ch?.lines ?? []) : []}
               current={active ? p.lineIndex : -1}
               playing={playing}
-              intro={`오늘 소식 ${p.ready ? p.progress.count : data.items.length}개${p.ready ? `, ${minutesLabel(p.progress.totalMs)}` : ""}`}
+              intro={`소식 ${p.ready ? p.progress.count : data.items.length}개${p.ready ? `, ${minutesLabel(p.progress.totalMs)}` : ""}`}
             />
           </>
         )}

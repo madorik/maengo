@@ -1,34 +1,13 @@
 import { CATEGORY_LABEL, type CategoryId } from "@maengo/core/categories";
-
-// 카테고리마다 색 하나. 글자는 진한 톤이라 연한 바탕 위에서도 읽힌다. 다크 모드는 tone + --tone(글자색)으로 globals.css가 바탕·글자를 다시 만든다.
-const TONE: Record<CategoryId, string> = {
-  ai: "bg-[#EFEAFF] text-[#5A3FC0] tone [--tone:#5A3FC0]",
-  tech: "bg-sky-tint text-sky-dark",
-  design: "bg-[#FFE8F2] text-[#B02A6B] tone [--tone:#B02A6B]",
-  business: "bg-mango-tint text-mango-deep",
-  marketing: "bg-[#FFEBDD] text-[#B4500B] tone [--tone:#B4500B]",
-  career: "bg-leaf-tint text-leaf-dark",
-  finance: "bg-[#E2F5F3] text-[#0F6E66] tone [--tone:#0F6E66]",
-  crypto: "bg-[#FFF3D1] text-[#8A5A00] tone [--tone:#8A5A00]",
-  politics: "bg-[#EEF0F6] text-[#3B4A6B] tone [--tone:#3B4A6B]",
-  society: "bg-[#E9F0EE] text-[#3E6158] tone [--tone:#3E6158]",
-  world: "bg-[#E8EEF9] text-[#2A4F8F] tone [--tone:#2A4F8F]",
-  entertainment: "bg-[#F6E8FF] text-[#8A2DB8] tone [--tone:#8A2DB8]",
-  sports: "bg-[#E4F4E8] text-[#1F7A3E] tone [--tone:#1F7A3E]",
-  beauty: "bg-[#FFE6EE] text-[#B4325E] tone [--tone:#B4325E]",
-  food: "bg-[#F1F4DC] text-[#5E6B12] tone [--tone:#5E6B12]",
-  realestate: "bg-[#F3EEE6] text-[#7A5A2E] tone [--tone:#7A5A2E]",
-  science: "bg-[#E6EBFF] text-[#3046B5] tone [--tone:#3046B5]",
-  travel: "bg-[#E0F4FA] text-[#0B6C8A] tone [--tone:#0B6C8A]",
-  life: "bg-[#FDECEC] text-[#B23A3A] tone [--tone:#B23A3A]",
-  etc: "bg-snow text-sub",
-};
+import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 
 export function CategoryChip({ category }: { category: CategoryId }) {
+  // 2026-11-10 개편: 글 종류(코인·경제·주식…) 대신 분야 8개 이름으로 보인다(오늘·보관함과 같은 이름). 분야가 없는 글(기타)만 글 종류 이름
+  const section = sectionOf({ category });
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-lg px-2 py-0.5 text-[13px] font-extrabold ${TONE[category]}`}>
-      <span className="sr-only">카테고리 </span>
-      {CATEGORY_LABEL[category]}
+    <span className="inline-flex shrink-0 items-center rounded-lg bg-snow px-2 py-0.5 text-[13px] font-semibold text-ink">
+      <span className="sr-only">분야 </span>
+      {section ? SECTION_LABEL[section] : CATEGORY_LABEL[category]}
     </span>
   );
 }
