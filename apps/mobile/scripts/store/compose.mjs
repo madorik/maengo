@@ -8,16 +8,17 @@ const EN = process.argv.includes("--en");
 const img = (p) => `data:image/png;base64,${readFileSync(p).toString("base64")}`;
 const icon = `data:image/svg+xml;base64,${readFileSync(iconPath).toString("base64")}`;
 
-// 핵심부터(2026-11-06 사용자: 플레이리스트와 소식마다 AI에게 묻기가 맨 앞). Play 휴대전화 스크린샷은 8장까지
+// 2026-11-10 개편판: 하루 두 번 브리핑(출근길·퇴근길)부터, 듣기·맹고 AI·관심사 찾기·요약·보관함 골라 듣기·주간 리포트(Premium).
+// Play 휴대전화 스크린샷은 8장까지. 원본은 로컬 개발 서버에서 데모 계정으로 찍었다(raw2.mjs, 맹고-문서/스토어-스크린샷.md)
 const SLIDES_KO = [
-  { raw: "playlist", lines: ["나만의 플레이리스트로", "소식을 이어 들어요"] },
+  { raw: "today", lines: ["출근길엔", "내 관심 소식만 귀로"] },
+  { raw: "today-pm", lines: ["퇴근길에", "한 번 더 챙겨 드려요"], dark: true },
+  { raw: "listen", lines: ["운전할 때도", "듣기만 하면 돼요"] },
   { raw: "ask", lines: ["소식에서 궁금한 건", "맹고 AI에게 물어요"] },
-  { raw: "today", lines: ["관심 분야에서", "이슈도가 높은 소식만"] },
+  { raw: "found", lines: ["고르지 않아도", "관심사를 찾아 줘요"] },
   { raw: "article", lines: ["핵심만 짧게 요약하고", "원문은 바로 확인해요"] },
-  { raw: "listen", lines: ["읽기 힘들 땐", "귀로 들어요"] },
-  { raw: "links", lines: ["자주 보는 블로그는", "링크만 넣어 두세요"] },
-  { raw: "library", lines: ["지난 소식은", "보관함에서 찾아요"] },
-  { raw: "article-dark", lines: ["밤에는 다크 모드로", "눈 편하게 읽어요"], dark: true },
+  { raw: "library", lines: ["지난 소식도", "골라서 들어요"] },
+  { raw: "report", lines: ["한 주 소식은", "주간 리포트로"] },
 ];
 
 const SLIDES_EN = [
@@ -80,5 +81,5 @@ for (const [platform, W, H] of EN ? [["android", 360, 640]] : [["ios", 430, 932]
     await render(slideHtml({ ...s, src: img(`${rawDir}/${platform}-${s.raw}.png`) }, W, H), W, H, 3, `${outDir}/${platform}-${i + 1}-${s.raw}.png`);
   }
 }
-await render(featureHtml(img(`${rawDir}/android-article.png`)), 1024, 500, 1, `${outDir}/play-feature-1024x500.png`);
+await render(featureHtml(img(`${rawDir}/android-today.png`)), 1024, 500, 1, `${outDir}/play-feature-1024x500.png`);
 await browser.close();

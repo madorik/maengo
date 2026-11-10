@@ -27,13 +27,13 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
   const can = (ok: boolean) => (ok ? "가능" : "불가");
   const both = (f: (l: PlanLimits) => string) => ({ free: f(free), plus: f(plus) });
   return [
-    { label: "하루 소식", ...both((l) => `${l.dailyItems}개`) },
+    // 2026-11-10 하루 두 번 브리핑: 출근길·퇴근길 브리핑마다 이만큼
+    { label: "브리핑마다 소식(출근길·퇴근길)", ...both((l) => `${l.dailyItems}개`) },
     // 음성이 없는 플랜도 하루 몇 개는 '이 글 듣기'로 들어 본다(2026-10-23, plans.daily_listens)
     { label: "소식 플레이어 + 음성 듣기(TTS)", ...both((l) => (l.audio ? "무제한" : l.dailyListens > 0 ? `하루 ${l.dailyListens}개` : "불가")) },
     // 음성 엔진: 음성 듣기 플랜은 Gemini, 그 밖은 기본 음성(Chirp, lib/server/ai.ts ttsEngineFor)
     { label: "목소리", ...both((l) => (l.audio ? "더 자연스러운 AI 목소리" : l.dailyListens > 0 ? "기본" : "불가")) },
     { label: "맹고 AI 질문", free: `하루 ${ASK_DAILY.free}번`, plus: `하루 ${ASK_DAILY.plus}번` },
-    { label: "내 관심 링크", ...both((l) => (l.linkLimit > 0 ? `${l.linkLimit}곳` : "불가")) },
     { label: "주간 리포트", free: "불가", plus: "가능" },
     { label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) },
     { label: "받은 소식 보관", ...both((l) => archiveLabel(l.archiveDays)) },
