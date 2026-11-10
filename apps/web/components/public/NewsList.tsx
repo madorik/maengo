@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { IconBack, IconChevronRight } from "@/components/icons";
+import { PeriodFilter } from "@/components/public/PeriodFilter";
 import { TopicItem } from "@/components/public/TopicItem";
 import { withBase } from "@/lib/base-path";
 import { archiveHref, archivePresets, isFiltered, pageWindow, rangeLabel, type ArchiveQuery } from "@/lib/public-archive";
@@ -69,6 +70,7 @@ export function NewsList({ scope, archive, query, today }: { scope: ListScope; a
   const what = `${scope ? scope.name : "모든 분야"} 소식`;
   const fieldName = (id?: string) => PUBLIC_TOPICS.find((t) => t.id === id)?.name;
   const at = (page: number) => archiveHref(base, { ...query, page }) + HASH;
+  const presets = archivePresets(today);
 
   return (
     <section id={LIST_ID} aria-labelledby="list-title" className="scroll-mt-20">
@@ -90,45 +92,16 @@ export function NewsList({ scope, archive, query, today }: { scope: ListScope; a
         </ul>
       </nav>
 
-      <div role="search" aria-label="기간으로 찾기" className="tile mt-4 flex flex-col gap-3 p-4">
-        <ul className="flex flex-wrap gap-2">
-          {archivePresets(today).map((p) => {
-            const on = p.from === query.from && p.to === query.to;
-            return (
-              <li key={p.label}>
-                {on ? (
-                  <span aria-current="true" className={chipOn}>
-                    {p.label}
-                  </span>
-                ) : (
-                  <Link href={archiveHref(base, { page: 1, from: p.from, to: p.to }) + HASH} className={chipOff}>
-                    {p.label}
-                  </Link>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        {/* 날짜 직접: 폼을 보내면 1쪽부터(쪽 번호는 넣지 않는다). 기간을 바꾸면 칸도 새 값으로 다시 그린다 */}
-        <form key={`${query.from}~${query.to}`} action={withBase(base) + HASH} className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 max-[359px]:grid-cols-1 sm:flex">
-          <label htmlFor="list-from" className="sr-only">
-            시작일
-          </label>
-          <input id="list-from" type="date" name="from" defaultValue={query.from} max={today} className="tile min-h-11 min-w-0 px-2.5 text-[16px] font-bold tabular-nums sm:px-3" />
-          <span aria-hidden="true" className="font-bold text-faint max-[359px]:hidden">
-            ~
-          </span>
-          <label htmlFor="list-to" className="sr-only">
-            종료일
-          </label>
-          <input id="list-to" type="date" name="to" defaultValue={query.to} max={today} className="tile min-h-11 min-w-0 px-2.5 text-[16px] font-bold tabular-nums sm:px-3" />
-          <button type="submit" className="btn btn-ink col-span-full min-h-11 shrink-0 px-5 text-[15px]">
-            찾기
-          </button>
-        </form>
-      </div>
+      <PeriodFilter
+        presets={presets.map((p) => ({ label: p.label, href: archiveHref(base, { page: 1, from: p.from, to: p.to }) + HASH, on: p.from === query.from && p.to === query.to }))}
+        action={withBase(base) + HASH}
+        from={query.from}
+        to={query.to}
+        today={today}
+        custom={isFiltered(query) && !presets.some((p) => p.from === query.from && p.to === query.to)}
+      />
 
-      <h2 id="list-title" className="mt-10 text-[22px] font-black tracking-[-0.03em] md:text-[26px]">
+      <h2 id="list-title" className="mt-8 text-[22px] font-black tracking-[-0.03em] md:text-[26px]">
         {range ? `${range} ${what}` : what} <span className="text-mango-deep">{archive.total.toLocaleString("ko-KR")}개</span>
       </h2>
       {archive.items.length > 0 && (
@@ -153,22 +126,22 @@ export function NewsList({ scope, archive, query, today }: { scope: ListScope; a
   );
 }
 
-/** 쪽 넘기기: ‹ 이전 · 1 … 4 5 [6] 7 8 … 20 · 다음 › */
+/** 쪽 넘기기: ‹ 이전 · 1 … 5 [6] 7 … 20 · 다음 › (휴대폰은 ‹ ›만, 한 줄에 들어간다) */
 function Pager({ at, page, pages }: { at: (page: number) => string; page: number; pages: number }) {
-  const box = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl px-2 text-[15px] font-extrabold tabular-nums no-underline";
+  const box = "inline-flex min-h-11 min-w-10 items-center justify-center rounded-xl px-1.5 text-[15px] font-extrabold tabular-nums no-underline sm:min-w-11 sm:px-2";
   return (
     <nav aria-label="쪽 넘기기" className="mt-8">
-      <ul className="flex flex-wrap items-center justify-center gap-1">
+      <ul className="flex items-center justify-center gap-0.5 sm:gap-1">
         <li>
           {page > 1 ? (
             <Link href={at(page - 1)} rel="prev" className={`${box} gap-0.5 text-ink hover:bg-snow`}>
               <IconBack className="size-4" />
-              이전
+              <span className="max-sm:sr-only">이전</span>
             </Link>
           ) : (
             <span aria-hidden="true" className={`${box} gap-0.5 text-faint`}>
               <IconBack className="size-4" />
-              이전
+              <span className="max-sm:hidden">이전</span>
             </span>
           )}
         </li>
@@ -194,12 +167,12 @@ function Pager({ at, page, pages }: { at: (page: number) => string; page: number
         <li>
           {page < pages ? (
             <Link href={at(page + 1)} rel="next" className={`${box} gap-0.5 text-ink hover:bg-snow`}>
-              다음
+              <span className="max-sm:sr-only">다음</span>
               <IconChevronRight className="size-4" />
             </Link>
           ) : (
             <span aria-hidden="true" className={`${box} gap-0.5 text-faint`}>
-              다음
+              <span className="max-sm:hidden">다음</span>
               <IconChevronRight className="size-4" />
             </span>
           )}

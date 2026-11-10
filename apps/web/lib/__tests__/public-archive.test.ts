@@ -39,9 +39,11 @@ test('기간 이름', () => {
 
 test('쪽 번호 줄', () => {
   assert.deepEqual(pageWindow(1, 1), [1]);
-  assert.deepEqual(pageWindow(1, 7), [1, 2, 3, null, 7]);
-  assert.deepEqual(pageWindow(6, 20), [1, null, 4, 5, 6, 7, 8, null, 20]);
-  assert.deepEqual(pageWindow(4, 7), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(pageWindow(1, 7), [1, 2, null, 7]);
+  assert.deepEqual(pageWindow(3, 17), [1, 2, 3, 4, null, 17]);
+  assert.deepEqual(pageWindow(8, 17), [1, null, 7, 8, 9, null, 17]);
+  assert.deepEqual(pageWindow(6, 20, 2), [1, null, 4, 5, 6, 7, 8, null, 20]);
+  assert.deepEqual(pageWindow(3, 5), [1, 2, 3, 4, 5]);
 });
 
 test('한국 날짜: UTC 15시면 다음 날', () => {

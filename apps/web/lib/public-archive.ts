@@ -73,11 +73,11 @@ export function rangeLabel(q: ArchiveQuery, today: string): string | null {
   return null;
 }
 
-/** 쪽 번호 줄: 1 … 4 5 [6] 7 8 … 20 (null은 말줄임) */
-export function pageWindow(page: number, pages: number): (number | null)[] {
+/** 쪽 번호 줄: 1 … 5 [6] 7 … 20 (null은 말줄임). 휴대폰 한 줄에 들어가게 앞뒤 radius쪽만 */
+export function pageWindow(page: number, pages: number, radius = 1): (number | null)[] {
   const out: (number | null)[] = [];
-  const lo = Math.max(1, page - 2);
-  const hi = Math.min(pages, page + 2);
+  const lo = Math.max(1, page - radius);
+  const hi = Math.min(pages, page + radius);
   if (lo > 1) out.push(1);
   if (lo > 2) out.push(null);
   for (let p = lo; p <= hi; p++) out.push(p);
