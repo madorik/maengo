@@ -126,10 +126,19 @@ export const SUPPORT_EMAIL = "watalabs.help@gmail.com";
  * 이 뒤로 내용을 바꾸면 날짜도 바꾸고 약관 페이지 부칙 아래에 개정 이력을 다시 단다. 앱 안 팝업 공지는 하지 않는다(2026-10-18 사용자 결정)
  */
 export const LEGAL_EFFECTIVE_ON = "2026-11-06";
-export const LEGAL_EFFECTIVE_DATE = (() => {
-  const [y, m, d] = LEGAL_EFFECTIVE_ON.split("-").map(Number);
+/** "2026-11-17" → "2026년 11월 17일" */
+export const koDate = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
   return `${y}년 ${m}월 ${d}일`;
-})();
+};
+export const LEGAL_EFFECTIVE_DATE = koDate(LEGAL_EFFECTIVE_ON);
+/**
+ * 개인정보 처리방침만의 시행일(2026-11-10부터 약관과 나눔). 처리방침 12조에 '시행 7일 전부터 서비스 안에 알린다'고 했으므로
+ * 고친 날(PRIVACY_UPDATED_ON)에 올리고 7일 뒤를 시행일로 한다. 시행일 전에는 처리방침 맨 위에 바뀌는 점 안내가 보인다
+ */
+export const PRIVACY_UPDATED_ON = "2026-11-10";
+export const PRIVACY_EFFECTIVE_ON = "2026-11-17";
+export const PRIVACY_PREVIOUS_ON = "2026-11-06";
 
 /**
  * 문의 메일. 빈 메일로 문서를 공개하지 않도록 운영에서는 비어 있으면 null(문서 페이지가 404로 숨는다).

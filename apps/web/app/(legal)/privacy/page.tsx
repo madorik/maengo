@@ -2,9 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LegalPage, Recipient } from "@/components/legal/LegalPage";
-import { CEO_NAME, OPERATOR_NAME, supportEmail } from "@/lib/site";
+import { CEO_NAME, koDate, OPERATOR_NAME, PRIVACY_EFFECTIVE_ON, PRIVACY_PREVIOUS_ON, supportEmail } from "@/lib/site";
 
 export const metadata: Metadata = { title: "개인정보 처리방침", alternates: { canonical: "/privacy" } };
+
+// 시행일 전 안내(맨 위)는 날짜로 켜고 끈다. 하루에 한 번 새로 그려 시행일이 지나면 저절로 사라진다
+export const revalidate = 86400;
+
+/** 시행 예정 안내: 오늘(한국 시간)이 시행일 전이면 보인다 */
+const beforeEffective = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date()) < PRIVACY_EFFECTIVE_ON;
 
 // 개인정보 보호법 제30조의 항목을 실제로 처리하는 대로 적는다(2026-10-10 기준 코드·설정 확인).
 // 처리 항목·위탁처가 바뀌면(결제, 분석 도구, 새 외부 API 등) 이 문서와 lib/site.ts의 시행일을 같이 고친다.
@@ -18,6 +24,15 @@ export default function PrivacyPage() {
   const mail = <a href={`mailto:${email}`}>{email}</a>;
   return (
     <LegalPage title="개인정보 처리방침" path="/privacy">
+      {beforeEffective() && (
+        <div role="note" className="mb-8 rounded-2xl border-2 border-mango bg-mango-tint p-5 text-[15px] leading-relaxed">
+          <p className="!mt-0 font-black">이 방침은 {koDate(PRIVACY_EFFECTIVE_ON)}부터 시행돼요</p>
+          <p>
+            바뀌는 점: Google 애널리틱스의 Google 신호를 켜서 연령대·성별·관심 분야 같은 이용자 집단의 통계를 봅니다(개인을 알아볼 수 없는 집계만, 맞춤 광고에는 쓰지 않음). 시행일 전까지는{" "}
+            {koDate(PRIVACY_PREVIOUS_ON)} 시행 방침이 적용돼요.
+          </p>
+        </div>
+      )}
       <p>
         맹고(이하 &lsquo;서비스&rsquo;)는 {OPERATOR_NAME}(대표 {CEO_NAME}, 이하 &lsquo;운영자&rsquo;)가 운영합니다. 운영자는 「개인정보 보호법」 등 관련 법령을 지키며, 이용자의 개인정보를 아래와 같이
         처리합니다.
@@ -149,8 +164,11 @@ export default function PrivacyPage() {
       <Recipient
         name="Google LLC (Google 애널리틱스)"
         rows={[
-          ["맡기는 일", "이용 통계 분석"],
-          ["항목", "서비스 이용 기록, 이용 통계용 쿠키 식별자, 브라우저·기기 정보, 회원 식별값을 바꾼 값(이메일·이름은 보내지 않음)"],
+          ["맡기는 일", "이용 통계 분석(연령대·성별·관심 분야별 집계 통계 포함)"],
+          [
+            "항목",
+            "서비스 이용 기록, 이용 통계용 쿠키 식별자, 브라우저·기기 정보, 회원 식별값을 바꾼 값(이메일·이름은 보내지 않음). Google 계정에 로그인하고 맞춤 광고를 허용한 이용자는 Google이 가진 연령대·성별·관심 분야 정보와 연결한 집계 통계(Google 신호)",
+          ],
           ["국가", "미국"],
           ["시기·방법", "서비스를 쓸 때마다 네트워크로 전송"],
           ["보유 기간", "14개월"],
@@ -158,7 +176,8 @@ export default function PrivacyPage() {
       />
       <p>
         호스팅의 국외 처리는 서비스 제공에 꼭 필요해, 원하지 않으면 계정을 삭제해 주세요. 알림 발송의 국외 이전을 원하지 않으면 설정에서 알림을 끄면 됩니다. 문의 메일 발송·답장 초안 작성의 국외 이전을 원하지 않으면 문의하기 양식 대신 메일로 직접 보내 주세요. 이용 통계 분석을 원하지 않으면 브라우저에서
-        쿠키를 막거나 Google 애널리틱스 차단 부가 기능을 쓰면 됩니다.
+        쿠키를 막거나 Google 애널리틱스 차단 부가 기능을 쓰면 됩니다. 연령대·관심 분야 통계(Google 신호)에서 빠지려면 Google 계정의 내 광고 센터(myadcenter.google.com)에서
+        맞춤 광고를 끄면 됩니다.
       </p>
       <p>Google·Apple 로그인은 이용자가 그 회사에서 맹고로 정보를 보내는 것이며, 맹고가 그 회사에 개인정보를 넘기는 것은 아닙니다.</p>
 
@@ -178,7 +197,10 @@ export default function PrivacyPage() {
       <h2>8. 쿠키</h2>
       <ul>
         <li>로그인을 유지하는 쿠키(이름이 sb-로 시작)와 로그인 여부를 표시하는 쿠키(maengo_signed_in)를 씁니다.</li>
-        <li>이용 통계를 위해 Google 애널리틱스 쿠키(이름이 _ga로 시작)를 씁니다. 광고 쿠키는 쓰지 않습니다.</li>
+        <li>
+          이용 통계를 위해 Google 애널리틱스 쿠키(이름이 _ga로 시작)를 씁니다. Google 애널리틱스의 Google 신호를 켜서 연령대·성별·관심 분야 같은 이용자 집단의 통계를 봅니다. 이
+          통계는 개인을 알아볼 수 없는 집단 단위로만 보며, 맞춤 광고나 리마케팅에는 쓰지 않습니다.
+        </li>
         <li>브라우저 설정에서 쿠키를 막을 수 있습니다. 다만 로그인 쿠키를 막으면 로그인할 수 없습니다.</li>
       </ul>
 
@@ -208,6 +230,11 @@ export default function PrivacyPage() {
 
       <h2>12. 방침의 변경</h2>
       <p>이 방침을 바꾸면 시행 7일 전부터 서비스 안에 알립니다. 이용자 권리에 중요한 변경은 30일 전부터 알립니다.</p>
+      <h3>개정 이력</h3>
+      <ul>
+        <li>{koDate(PRIVACY_EFFECTIVE_ON)} 시행: Google 애널리틱스의 Google 신호(연령대·성별·관심 분야 집계 통계) 사용과 빠지는 방법을 적었습니다(5. 처리 위탁과 국외 이전, 8. 쿠키).</li>
+        <li>{koDate(PRIVACY_PREVIOUS_ON)} 시행: 처음 방침.</li>
+      </ul>
     </LegalPage>
   );
 }
