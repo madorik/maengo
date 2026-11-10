@@ -19,3 +19,7 @@ next-env.d.ts
 *service-account*.json
 GoogleService-Info.plist
 google-services.json
+
+# 쇼츠 만들기(소식 재활용)는 저장소에 넣지 않는다(2026-11-03 사용자 결정). 파일은 로컬에만 두고 스킬 maengo-shorts로 쓴다
+apps/mobile/scripts/shorts/
+apps/web/scripts/shorts-*.ts
