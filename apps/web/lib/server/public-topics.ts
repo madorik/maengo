@@ -1,8 +1,8 @@
 import 'server-only';
 import { cache } from 'react';
-import { popularityBoost, rankFeed, type Impact, type RankCandidate } from '@maengo/core/feed';
+import { MIN_RELEVANCE, popularityBoost, rankFeed, type Impact, type RankCandidate } from '@maengo/core/feed';
 import { childrenOf } from '@maengo/core/topics';
-import { PUBLIC_TOPICS, type PublicTopic } from '../public-topics';
+import { PUBLIC_DETAILS, PUBLIC_TOPICS, type PublicDetail, type PublicTopic } from '../public-topics';
 import { db, must } from './db';
 
 // 공개 분야 페이지(/topics/…)의 소식. 로그인한 사람의 피드와 같은 요약(basic)과 랭킹(rankFeed)을 쓰되 사람마다 다른 것(why·읽음)은 빼고,
@@ -16,6 +16,11 @@ const LIST_LIMIT = 12;
 /** 출처 목록을 셀 기간과 개수 */
 const SOURCE_DAYS = 30;
 const SOURCE_LIMIT = 16;
+/** 세부 주제 페이지: 한 주제는 소식이 적어 30일(읽어 둔 기간 전부)에서 고른다 */
+const DETAIL_DAYS = 30;
+const DETAIL_LIMIT = 15;
+/** 세부 주제 페이지를 검색에 내는 최소 소식 수(이보다 적으면 noindex·사이트맵에서 뺌, 얇은 페이지가 색인되지 않게) */
+export const DETAIL_MIN_ITEMS = 3;
 
 export interface PublicTopicItem {
   clusterId: number;
@@ -101,9 +106,34 @@ const recent = cache(async () => {
 const dateOf = (s: SummaryRow) => s.published_at ?? s.clusters.first_seen_at;
 
 /** 한 분야의 공개 소식(지난 7일, 최대 12개)과 출처 목록 */
-export async function publicTopicDigest(topic: PublicTopic): Promise<PublicTopicDigest> {
+export function publicTopicDigest(topic: PublicTopic): Promise<PublicTopicDigest> {
+  return digest(new Set([topic.id, ...childrenOf(topic.id).map((c) => c.id)]), LIST_DAYS, LIST_LIMIT, 3);
+}
+
+/** 세부 주제 하나의 공개 소식(지난 30일, 최대 15개)과 출처 목록 */
+export function publicDetailDigest(detail: PublicDetail): Promise<PublicTopicDigest> {
+  return digest(new Set([detail.id]), DETAIL_DAYS, DETAIL_LIMIT, DETAIL_LIMIT);
+}
+
+/** 세부 주제마다 지난 30일 소식 수(랭킹이 받는 관련도 이상)와 마지막 요약 시각. 사이트맵·noindex 판단에 쓴다(가볍게, 이미 읽은 것만) */
+export async function publicDetailStats(): Promise<Map<string, { count: number; updatedAt: string }>> {
   const { summaries, topicsOf } = await recent();
-  const ids = new Set([topic.id, ...childrenOf(topic.id).map((c) => c.id)]);
+  const out = new Map<string, { count: number; updatedAt: string }>();
+  for (const d of PUBLIC_DETAILS) {
+    let count = 0;
+    let updatedAt = '';
+    for (const s of summaries) {
+      if (!topicsOf.get(s.cluster_id)?.some((t) => t.topicId === d.id && t.relevance >= MIN_RELEVANCE)) continue;
+      count++;
+      if (s.created_at > updatedAt) updatedAt = s.created_at;
+    }
+    if (count) out.set(d.id, { count, updatedAt });
+  }
+  return out;
+}
+
+async function digest(ids: ReadonlySet<string>, listDays: number, limit: number, maxPerTopic: number): Promise<PublicTopicDigest> {
+  const { summaries, topicsOf } = await recent();
   const mine = summaries.filter((s) => topicsOf.get(s.cluster_id)?.some((t) => ids.has(t.topicId)));
   if (!mine.length) return { items: [], sources: [], updatedAt: null };
 
@@ -133,9 +163,9 @@ export async function publicTopicDigest(topic: PublicTopic): Promise<PublicTopic
     .slice(0, SOURCE_LIMIT)
     .map(([name]) => name);
 
-  // 목록: 지난 7일 소식을 이 분야 전체를 고른 사람의 순서로
+  // 목록: 기간 안의 소식을 이 분야(주제) 전체를 고른 사람의 순서로
   const now = new Date();
-  const weekAgo = now.getTime() - LIST_DAYS * DAY;
+  const weekAgo = now.getTime() - listDays * DAY;
   const weights = Object.fromEntries([...ids].map((id) => [id, 1]));
   const candidates: RankCandidate[] = mine
     .filter((s) => Date.parse(s.clusters.first_seen_at) >= weekAgo && publicMembers.has(s.cluster_id))
@@ -154,7 +184,7 @@ export async function publicTopicDigest(topic: PublicTopic): Promise<PublicTopic
       };
     });
   const byId = new Map(mine.map((s) => [s.cluster_id, s]));
-  const ranked = rankFeed(candidates, weights, new Set(), { limit: LIST_LIMIT, maxPerTopic: 3, maxVideos: 3 });
+  const ranked = rankFeed(candidates, weights, new Set(), { limit, maxPerTopic, maxVideos: 3 });
 
   return {
     items: ranked.map(({ clusterId }) => {

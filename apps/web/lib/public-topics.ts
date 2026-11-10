@@ -31,6 +31,45 @@ export function publicTopicBySlug(slug: string): PublicTopic | undefined {
 
 export const topicsPath = (slug?: string) => (slug ? `/topics/${slug}` : "/topics");
 
+/**
+ * 세부 주제 페이지(/topics/<분야>/<주제>, 2026-11-10 사용자 결정 '주제별로 하나씩 만들어서 검색 유입 늘리자').
+ * 사람들이 실제로 치는 주제(비트코인, 미국 주식, LLM …)로 검색에 걸리게 한다. 소식 한 건마다의 페이지는 여전히 만들지 않는다(맹고-문서/검색-노출.md)
+ */
+export interface PublicDetail {
+  /** 주소 조각(/topics/<분야>/<slug>) */
+  slug: string;
+  /** 토픽 사전의 세부 관심사 id */
+  id: string;
+  name: string;
+  /** 사전의 다른 이름(검색어: BTC, 비트코인 ETF …) */
+  aliases: string[];
+  group: PublicTopic;
+}
+
+// 주소는 사전 id를 쓰되 검색에 보이는 주소가 읽히게 몇 개만 바꾼다
+const DETAIL_SLUG: Record<string, string> = {
+  "llm-dev": "llm",
+  "llm-agent": "ai-agent",
+  "ai-automation": "automation",
+  "gen-media": "image-video",
+  "stock-us": "us-stock",
+  macro: "rates-fx",
+  "crypto-reg": "regulation",
+  "dev-release": "releases",
+};
+
+export const PUBLIC_DETAILS: PublicDetail[] = PUBLIC_TOPICS.flatMap((g) =>
+  childrenOf(g.id).map((c) => ({ slug: DETAIL_SLUG[c.id] ?? c.id, id: c.id, name: c.name, aliases: c.aliases, group: g })),
+);
+
+export function publicDetailBySlug(groupSlug: string, slug: string): PublicDetail | undefined {
+  return PUBLIC_DETAILS.find((d) => d.group.slug === groupSlug && d.slug === slug);
+}
+
+export const detailsOf = (g: PublicTopic) => PUBLIC_DETAILS.filter((d) => d.group.slug === g.slug);
+
+export const detailPath = (d: PublicDetail) => `${topicsPath(d.group.slug)}/${d.slug}`;
+
 /** 분야 이름 + 세부 관심사로 쓰는 소개 한 줄: "LLM, 바이브코딩, AI 에이전트 …" */
 export function detailsLine(t: PublicTopic, max = t.details.length): string {
   const shown = t.details.slice(0, max);

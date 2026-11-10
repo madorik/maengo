@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { IconDoc, IconExternal, IconPlay } from "@/components/icons";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
+import { dayLabel, TopicItem } from "@/components/public/TopicItem";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
-import { detailsLine, PUBLIC_TOPICS, publicTopicBySlug, topicsPath, type PublicTopic } from "@/lib/public-topics";
+import { detailPath, detailsLine, detailsOf, PUBLIC_TOPICS, publicTopicBySlug, topicsPath, type PublicTopic } from "@/lib/public-topics";
 import { getPlans } from "@/lib/server/plans";
 import { publicTopicDigest, type PublicTopicItem } from "@/lib/server/public-topics";
 import { APP_STORE_ID, SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
@@ -66,8 +66,6 @@ function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number;
   ];
 }
 
-const dayLabel = (iso: string) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" }).format(new Date(iso));
-
 export default async function TopicPage({ params }: Props) {
   const topic = publicTopicBySlug((await params).slug);
   if (!topic) notFound();
@@ -106,11 +104,14 @@ export default async function TopicPage({ params }: Props) {
             맹고의 {topic.name} 분야는 {detailsLine(topic)} 소식을 다뤄요. 매일 아침 6시에 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI로 요약해서 음성
             지원해줘요.
           </p>
-          {topic.details.length > 0 && (
-            <ul aria-label={`${topic.name} 세부 관심사`} className="mt-5 flex flex-wrap gap-2">
-              {topic.details.map((d) => (
-                <li key={d} className="rounded-xl bg-snow px-3 py-1.5 text-[14px] font-extrabold">
-                  {d}
+          {/* 세부 주제마다 페이지가 있다(2026-11-10, app/topics/[slug]/[detail]) */}
+          {detailsOf(topic).length > 0 && (
+            <ul aria-label={`${topic.name} 세부 주제`} className="mt-5 flex flex-wrap gap-2">
+              {detailsOf(topic).map((d) => (
+                <li key={d.id}>
+                  <Link href={detailPath(d)} className="inline-flex min-h-9 items-center rounded-xl bg-snow px-3 py-1.5 text-[14px] font-extrabold text-ink no-underline hover:bg-line hover:underline">
+                    {d.name}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -187,32 +188,6 @@ export default async function TopicPage({ params }: Props) {
 
       <StartBand title={`${topic.name} 소식을 매일 아침 받아 보세요`} body="관심 분야만 고르면 첫 소식을 바로 보여 드려요. Premium이면 음성으로도 들어요." />
     </PublicPage>
-  );
-}
-
-function TopicItem({ item: it }: { item: PublicTopicItem }) {
-  const video = it.kind === "video";
-  return (
-    <li className="tile p-5">
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-extrabold">
-        <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
-          {video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
-          {it.sourceLabel}
-        </span>
-        <time dateTime={it.date} className="font-semibold text-sub">
-          {dayLabel(it.date)}
-        </time>
-      </p>
-      <h3 className="mt-2 text-[18px] font-black leading-snug tracking-[-0.02em]">{it.title}</h3>
-      <p className="mt-1.5 text-[15px] font-medium leading-relaxed text-sub">{it.short}</p>
-      <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <a href={it.url} target="_blank" rel="noopener" className="inline-flex min-h-9 items-center gap-1 text-[14px] font-extrabold text-sky-dark no-underline hover:underline">
-          {video ? "영상 보기" : "원문 보기"}
-          <IconExternal className="size-3.5" />
-        </a>
-        {it.coverage && <span className="text-[13px] font-bold text-sub">{it.coverage}</span>}
-      </p>
-    </li>
   );
 }
 
