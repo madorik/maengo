@@ -55,11 +55,11 @@ export default async function TopicsPage() {
           맹고가 분야마다 이슈도가 높은 소식을 골라 핵심만 요약했어요.{updatedAt ? ` ${dayLabel(updatedAt)} 업데이트.` : ""}
         </p>
 
-        {/* 분야로 좁히기: '전체'가 지금 화면, 나머지는 분야 페이지로 */}
+        {/* 분야로 좁히기: '전체'가 지금 화면, 나머지는 분야 페이지로. 고른 칩은 망고 바탕에 남색 글자로 고정(다크 모드에서 ink가 밝아져 흰 글자가 묻히던 것, 2026-11-10) */}
         <nav aria-label="분야로 좁히기" className="-mx-5 mt-6 overflow-x-auto px-5 [scrollbar-width:none]">
           <ul className="flex w-max gap-2">
             <li>
-              <span aria-current="page" className={`${chip} bg-ink text-white`}>
+              <span aria-current="page" className={`${chip} bg-mango text-[#1F2340]`}>
                 전체
               </span>
             </li>
