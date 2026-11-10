@@ -16,6 +16,12 @@ const section = (title) => {
 const SHORT = section("짧은 설명(Play, 80자 이내)");
 const FULL = section("전체 설명(Play 전체 설명 / App Store 설명)");
 const KEYWORDS = md.match(/\| 키워드\(App Store, 100자\) \| ([^|]+) \|/)[1].trim();
+// Play 제목과 App Store 이름은 같은 문구(2026-11-07). 두 스토어 모두 30자 한도
+const TITLE = md.match(/\| 스토어 제목\(Play 제목·App Store 이름, 30자\) \| ([^|]+) \|/)[1].trim();
+if ([...TITLE].length > 30) throw new Error(`스토어 제목이 30자를 넘음: ${TITLE}`);
+// 부제는 이름과 낱말이 겹치지 않게(App Store는 이름·부제·키워드의 같은 낱말을 한 번만 친다)
+const SUBTITLE = md.match(/\| 부제\(App Store, 30자\) \| ([^|]+) \|/)[1].trim();
+if ([...SUBTITLE].length > 30) throw new Error(`부제가 30자를 넘음: ${SUBTITLE}`);
 // iOS 1.3은 위젯을 뺐다(2026-10-31, App.entitlements). 다시 넣으면 이 줄 빼기도 지운다
 const fullFor = (store) =>
   FULL.replace("App Store·Google Play의 구독 관리", `${store}의 구독 관리`)
@@ -28,7 +34,7 @@ const shots = (prefix) => readdirSync(dir).filter((f) => f.startsWith(prefix)).s
 async function uploadPlay() {
   const edit = await play("POST", "/edits", {});
   const e = `/edits/${edit.id}`;
-  await play("PUT", `${e}/listings/ko-KR`, { language: "ko-KR", title: "맹고", shortDescription: SHORT, fullDescription: fullFor("Google Play") });
+  await play("PUT", `${e}/listings/ko-KR`, { language: "ko-KR", title: TITLE, shortDescription: SHORT, fullDescription: fullFor("Google Play") });
   await play("PATCH", `${e}/details`, { contactEmail: "watalabs.help@gmail.com", contactWebsite: "https://watalabs.com" });
   const put = async (type, files) => {
     await play("DELETE", `${e}/listings/ko-KR/${type}`);
@@ -65,7 +71,7 @@ async function uploadAsc() {
   const info = (await asc("GET", `/v1/apps/${APP_ID}/appInfos`)).data.find((i) => (i.attributes.appStoreState ?? i.attributes.state) !== "READY_FOR_SALE");
   const iloc = (await asc("GET", `/v1/appInfos/${info.id}/appInfoLocalizations`)).data.find((l) => l.attributes.locale === "ko");
   await asc("PATCH", `/v1/appInfoLocalizations/${iloc.id}`, {
-    data: { type: "appInfoLocalizations", id: iloc.id, attributes: { subtitle: "관심 분야 소식, 요약하고 읽어 드려요", privacyPolicyUrl: "https://watalabs.com/maengo/privacy" } },
+    data: { type: "appInfoLocalizations", id: iloc.id, attributes: { name: TITLE, subtitle: SUBTITLE, privacyPolicyUrl: "https://watalabs.com/maengo/privacy" } },
   });
   console.log("ASC app info localization");
 

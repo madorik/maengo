@@ -6,7 +6,9 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 앱 이름 | 맹고 (이미 쓰는 이름이면 `맹고 - 맞춤 뉴스 요약`) |
+| 앱 이름(홈 화면) | 맹고 |
+| 스토어 제목(Play 제목·App Store 이름, 30자) | 맹고 - 관심 분야 소식만, AI 요약·음성 듣기 |
+| 부제(App Store, 30자) | 영어 소식도 한국어로, 원문 출처까지 |
 | 패키지·번들 ID | `kr.maengo.app` |
 | 카테고리 | 뉴스 및 잡지(Play) / 뉴스(App Store) |
 | 연락처 이메일 | watalabs.help@gmail.com |
@@ -15,7 +17,7 @@
 | 이용약관 | https://watalabs.com/maengo/terms |
 | 계정 삭제 안내(Play) | https://watalabs.com/maengo/delete-account |
 | 가격 | 무료(앱 안 결제 있음: Premium 월 ₩3,800 자동 갱신 구독·첫 구독 7일 무료, 맹고 추가 구매 10·30·50·100. [BILLING.md](BILLING.md)) |
-| 키워드(App Store, 100자) | 뉴스요약,AI뉴스,주식뉴스,코인뉴스,반도체,IT뉴스,오디오뉴스,브리핑,출근길,팟캐스트,헤드라인 |
+| 키워드(App Store, 100자) | 뉴스요약,경제뉴스,주식뉴스,AI뉴스,뉴스듣기,출근길,출퇴근,직장인,코인뉴스,반도체,IT뉴스,오디오뉴스,브리핑,팟캐스트,헤드라인 |
 
 ### 짧은 설명(Play, 80자 이내)
 관심 분야 소식만 골라 AI가 요약하고 읽어 드려요. 출퇴근길에 귀로 듣는 맞춤 소식.
@@ -47,6 +49,9 @@ Premium은 매달 자동으로 갱신되며, 갱신 24시간 전까지 App Store
 
 이용약관(EULA): https://watalabs.com/maengo/terms
 개인정보 처리방침: https://watalabs.com/maengo/privacy
+
+### 출시 노트(1.3.2, 2026-11-08)
+• 앱 이름과 소개 이미지를 새로 바꿨어요
 
 ### 출시 노트(1.3.0, 초안)
 맹고 1.3.0이에요.
@@ -170,6 +175,7 @@ Content: summaries of public news articles and official blogs, each linking to t
 - 2026-10-23 올린 상태: 첫 화면(스플래시) 교체로 **1.2.1(Android versionCode 4, iOS 빌드 4)**. Play 내부 테스트 완료, 비공개 테스트(alpha)도 1.2.0(3) 대신 1.2.1(4)로 바꿔 냄. iOS 빌드 4 업로드, App Store 버전 이름을 1.2.0 → **1.2.1**로 바꾸고 빌드 4(VALID)를 붙임, TestFlight '테스트할 내용'은 위 1.2.1 출시 노트
 - 2026-10-23 밤 1.3.0: **Android versionCode 6** Play 내부 테스트·비공개 테스트(alpha) 출시 완료(출시 노트는 위 1.3.0). **iOS 빌드 6은 아카이브 실패**: 새 App Group(`group.kr.maengo.app`)과 위젯 번들 ID(`kr.maengo.app.widget`)를 등록해야 하는데 Xcode에 계정이 없고, ASC API 키(8MTQYTB587)로 `-authenticationKey*`를 주면 "Authentication failed"(프로비저닝 권한 없음, Admin 키가 필요한 듯). Xcode > Settings > Accounts에 팀 QYS79FM739 계정을 넣은 뒤 위 iOS 명령(`-allowProvisioningUpdates`)으로 다시 하면 그룹·번들 ID·프로필이 자동으로 만들어진다
 - 2026-10-31 올린 상태: 스크린샷·설명을 1.3 화면으로 새로(캡처: 오늘·요약과 원문·듣기·내 관심 링크·보관함·다크, 문구는 핵심 가치 기준). **App Store** 설명·홍보 문구·6.7인치 6장 완료, 카테고리 뉴스, 저작권 '2026 와타랩스', 가격 무료(기준 국가 대한민국), 판매 국가 대한민국만, 제3자 콘텐츠 '예(권리 있음)', 앱 심사 정보(연락처·메모) 완료. **Play** 등록정보 커밋은 403 "한국 법에 따라 계정 세부정보에 추가 정보" → Play Console 개발자 계정 세부정보를 채운 뒤 `upload.mjs … play` 다시
+- 2026-11-08 올린 상태: 스토어 이미지를 출시 홍보 이미지 디자인(앱 화면을 HTML로 다시 그린 판, 장마다 다른 바탕)으로 바꿈. 순서 첫 장·듣기·맹고 AI·관심 분야·요약과 원문·이슈도 순서, 6장. 날짜 배지·다른 플랫폼 이름·둘러보기 안내는 뺌. 원본 `~/Desktop/maengo-store/2026-11-08/`, 만든 스크립트 `src/`. **Play** 휴대전화 스크린샷 8 → 6장 교체 커밋(검토). **iOS 1.3.2(빌드 9)**: 네이티브 변경 없이 버전만 올림, 이름 `맹고 - 관심 분야 소식만, AI 요약·음성 듣기`·부제 `영어 소식도 한국어로, 원문 출처까지`·6.7인치 6장·설명(STORE.md 최신, Free 5·듣기 3) 반영. 내보내기는 API 키로 하면 'Cloud signing permission error'라 Xcode 로그인 계정으로(-allowProvisioningUpdates만)
 - 2026-10-31 10:32 **iOS 1.3.0(빌드 6) 심사 제출**: 버전 + 구독(Premium) + 맹고 묶음 4개를 한 제출로(WAITING_FOR_REVIEW). 위젯은 뺀 빌드. 유료 앱 계약 맺음, 앱 개인정보 라벨 게시(위 표). 첫 인앱 상품은 API로 따로 제출이 안 되고(FIRST_CONSUMABLE_MUST_BE_SUBMITTED_ON_VERSION) 버전 화면에서 고른 뒤 같은 제출 묶음에 버전을 넣어 냈다. 승인되면 바로 출시(AFTER_APPROVAL)
 - 2026-11-04 1.3.0 반려(2.1(b), 구독 화면 '스토어를 불러오지 못했어요') → 원인은 유료 앱 계약 '사용자 정보 대기 중'(은행·세금). 계약 활성 뒤 **iOS 빌드 7**(맹고 AI 말로 묻기 플러그인 포함, 위젯 없음)을 올려 1.3.0에 붙이고, 해결 필요(UNRESOLVED_ISSUES)로 남은 기존 제출 묶음을 `PATCH /v1/reviewSubmissions/{id}` `submitted: true`로 그대로 다시 냄(인앱 5개도 같이 WAITING_FOR_REVIEW). 아카이브는 샌드박스 안에서 돌리면 SwiftPM 매니페스트 컴파일이 실패한다
 - 2026-11-04 **Android 1.3.0(versionCode 7)**: 맹고 AI 말로 묻기 플러그인·RECORD_AUDIO 포함. 내부 테스트·비공개 테스트(alpha) 출시(출시 노트는 위 1.3.0, 맹고 AI 줄 더함). Play 등록정보는 글만 다시 올림(맹고 AI 줄, Free·Premium 질문 횟수), 이미지는 10-31 판 그대로
