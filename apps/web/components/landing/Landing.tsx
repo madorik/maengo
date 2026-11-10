@@ -102,6 +102,9 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
 ];
 
+/** 소식 하나를 듣는 데 걸리는 시간(분). 둘러보기 소식 10개 음성이 평균 85초(47~101초, 2026-11-10 확인)라 1.5분으로 어림한다 */
+const LISTEN_MIN_PER_ITEM = 1.5;
+
 /** 출처 예시(소개용). 테크는 공식 문서·기업 테크 블로그, 뉴스는 네이버 헤드라인에서 고른다 */
 const SOURCES = [
   { kind: "공식 기술 문서", title: "PostgreSQL 19, 11월 출시로 연기", Icon: IconDoc },
@@ -164,13 +167,17 @@ export async function Landing() {
         {/* 첫 화면: 말은 오른쪽, 소개 영상(소리 없음)은 왼쪽(모바일은 말이 먼저). 영상 배경이 페이지 색과 같아 상자 없이 놓인다 */}
         <section aria-labelledby="hero-title" className="mx-auto grid max-w-[1100px] items-start gap-12 px-5 pb-16 pt-10 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-20">
           <div className="md:order-2">
+            {/* 대상: 출퇴근하는 30~50대 직장인(2026-11-10 사용자 결정, 맹고-문서/타겟.md) */}
             <h1 id="hero-title" className="text-[36px] font-black leading-[1.2] tracking-[-0.045em] md:text-[54px]">
-              관심 분야 소식만,
+              출퇴근길엔
+              <br />
+              내 관심 소식만
               <br />
               귀로 들어요.
             </h1>
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
-              {SITE_DEFINITION} AI, 주식, 반도체처럼 고른 분야의 소식만 매일 모아 출처와 함께 핵심만 짚고, 화면을 보기 어려울 땐 끝까지 이어서 읽어 드려요.
+              {SITE_DEFINITION} 경제, 주식, AI처럼 고른 분야의 소식만 매일 골라 출처와 함께 핵심만 짚어요. 하루 소식 {plus.dailyItems}개를 다 들어도 약{" "}
+              {Math.round(plus.dailyItems * LISTEN_MIN_PER_ITEM)}분, 출근길 한 번이면 들어요.
             </p>
             {/* 뉴스레터·커뮤니티·범용 AI 브리핑과 다른 점을 첫 화면에서(2026-11-10, 아래 기능 소개에 묻혀 있던 것) */}
             <ul aria-label="맹고가 다른 점" className="mt-5 flex flex-col gap-2 text-[15px] font-extrabold md:text-[16px]">

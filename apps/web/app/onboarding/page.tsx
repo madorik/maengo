@@ -28,8 +28,9 @@ function errorText(error: string, limit: number): string | undefined {
 /**
  * 처음부터 골라 두는 칸(2026-10-23 사용자 결정). 가입하고 아무것도 안 고른 채 떠나는 사람이 많아서(12명 중 5명)
  * 많이 고른 분야(AI·주식)와 뉴스 헤드라인 하나를 골라 둬서 바로 '시작하기'를 눌러도 소식이 오게 한다. 뉴스는 경제 → 생활/문화(2026-10-28 사용자 결정)
+ * → 출퇴근하는 30~50대 직장인 대상(2026-11-10 사용자 결정, 맹고-문서/타겟.md)이라 재테크·일 소식 먼저: 경제·주식·AI
  */
-const PRESELECTED = ["ai", "stock", "life-culture"] as const;
+const PRESELECTED = ["economy", "stock", "ai"] as const;
 
 // 처음 로그인한 사람이 관심 분야(5개)와 뉴스 분야(6개)를 고르는 화면(PLAN.md 5.2). 직업은 묻지 않는다.
 // 둘을 합쳐 3개까지 고르고(ONBOARDING_TOPIC_LIMIT, 2026-10-28), 다 고르면 나머지 칸은 막는다(TopicPicks). 더 고르는 건 설정에서 플랜 한도까지.
