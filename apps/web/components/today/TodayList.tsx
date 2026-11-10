@@ -240,14 +240,15 @@ function Route({ items, pm, current, consumed }: { items: FeedItem[]; pm: boolea
                 {big && headline && (
                   <span className={`mb-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pm ? "bg-mango/20 text-mango" : "bg-mango-tint text-mango-deep"}`}>가장 많이 다룬 소식</span>
                 )}
+                {/* 제목은 두 줄까지, 넘치면 …(2026-11-10 사용자) */}
                 <p
-                  className={`${big ? "text-[17px] font-bold" : "text-[15px] font-semibold"} leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}
+                  className={`line-clamp-2 ${big ? "text-[17px] font-bold" : "text-[15px] font-semibold"} leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}
                 >
                   {item.title}
                 </p>
                 <Meta item={item} pm={pm} />
               </div>
-              <Thumb item={item} className={big ? "size-[72px] rounded-2xl" : "size-[52px] rounded-[14px]"} />
+              <Thumb item={item} className={big ? "aspect-[3/2] w-[108px] rounded-2xl" : "aspect-[3/2] w-[84px] rounded-xl"} />
             </Link>
           </li>
         );
@@ -289,7 +290,7 @@ function CardGrid({ items, pm, consumed }: { items: FeedItem[]; pm: boolean; con
                 <Thumb item={item} className="absolute inset-0 size-full" />
               </div>
               <Meta item={item} pm={pm} />
-              <p className={`mt-0.5 line-clamp-3 text-[15px] font-semibold leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}>{item.title}</p>
+              <p className={`mt-0.5 line-clamp-2 text-[15px] font-semibold leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}>{item.title}</p>
             </Link>
           </li>
         );

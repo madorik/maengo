@@ -413,7 +413,7 @@ function GuestStation({
               ) : null}
             </span>
           </span>
-          <Thumb item={{ photo: null, thumbnail: item.photo }} className={big ? "size-[72px] rounded-2xl" : "size-[52px] rounded-[14px]"} />
+          <Thumb item={{ photo: null, thumbnail: item.photo }} className={big ? "aspect-[3/2] w-[108px] rounded-2xl" : "aspect-[3/2] w-[84px] rounded-xl"} />
         </button>
         {/* 듣는 소식의 대본: 줄을 누르면 그 자리로 */}
         {here && (

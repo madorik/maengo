@@ -151,7 +151,7 @@ function EntryCard({ entry: e }: { entry: LibraryEntry }) {
       <div className="mt-2">
         <Meta e={e} />
       </div>
-      <h3 className={`mt-0.5 line-clamp-3 text-[14px] font-semibold leading-[1.42] tracking-[-0.02em] ${done ? "text-sub" : "text-ink"}`}>
+      <h3 className={`mt-0.5 line-clamp-2 text-[14px] font-semibold leading-[1.42] tracking-[-0.02em] ${done ? "text-sub" : "text-ink"}`}>
         <Link href={`/article/${e.token}`} className="no-underline after:absolute after:inset-0">
           {e.title}
         </Link>
