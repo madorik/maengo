@@ -1,6 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { isCategory } from '@maengo/core/categories';
+import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import { isTryAudioKey, TRY_ITEMS } from '../try-items';
 import type { GuestItem, GuestLine } from '../types';
 import { db, must } from './db';
@@ -23,6 +24,7 @@ interface MemberRow {
   canonical_url: string;
   kind: 'article' | 'video';
   author: string | null;
+  image_url: string | null;
   sources: { name: string; custom: boolean } | null;
 }
 
@@ -44,7 +46,7 @@ export const guestTour = cache(async (): Promise<GuestItem[]> => {
   const ids = TRY_ITEMS.map((t) => t.clusterId);
   const [summaries, members, segs] = await Promise.all([
     db.from('summaries').select('cluster_id,title,short,category,author,clusters!inner(skip_reason,rep_item_id)').eq('tier', 'basic').in('cluster_id', ids),
-    db.from('items').select('id,cluster_id,canonical_url,kind,author,sources(name,custom)').in('cluster_id', ids),
+    db.from('items').select('id,cluster_id,canonical_url,kind,author,image_url,sources(name,custom)').in('cluster_id', ids),
     db.from('audio_segments').select('key,cluster_id,duration_ms,lines').in('key', TRY_ITEMS.map((t) => t.audioKey)),
   ]);
   const summaryOf = new Map((must(summaries, 'try summaries') as unknown as SummaryRow[]).map((s) => [s.cluster_id, s]));
@@ -58,6 +60,9 @@ export const guestTour = cache(async (): Promise<GuestItem[]> => {
     if (!s || s.clusters.skip_reason || !seg || seg.cluster_id !== clusterId || !seg.lines?.length) return [];
     const rep = publicRep(byCluster.get(clusterId) ?? [], s.clusters.rep_item_id, link);
     if (!rep) return [];
+    // 썸네일: 대표 글 사진 → 같은 소식의 다른 글 사진 → 유튜브 썸네일
+    const vid = rep.kind === 'video' ? youtubeId(rep.canonical_url) : null;
+    const photo = rep.image_url ?? (byCluster.get(clusterId) ?? []).find((m) => m.image_url)?.image_url ?? (vid ? youtubeThumbnail(vid) : null);
     return [
       {
         clusterId,
@@ -71,6 +76,7 @@ export const guestTour = cache(async (): Promise<GuestItem[]> => {
         audioKey,
         durationMs: seg.duration_ms,
         lines: seg.lines.map(({ text, startMs, endMs, para }) => ({ text, startMs, endMs, ...(para !== undefined ? { para } : {}) })),
+        photo,
       },
     ];
   });

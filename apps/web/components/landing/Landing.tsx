@@ -1,17 +1,14 @@
 import { archiveLabel, discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
-import Image from "next/image";
+import { SECTIONS } from "@maengo/core/sections";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe } from "@/components/icons";
-import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot, type MascotMood } from "@/components/Mascot";
 import { JsonLd } from "@/components/public/PublicPage";
 import { SiteFooter } from "@/components/public/SiteFooter";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
-import { Bubble } from "@/components/ui/Bubble";
-import { CategoryChip } from "@/components/ui/CategoryChip";
-import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { ASK_DAILY } from "@/lib/ask";
-import { detailsLine, NEWS_SECTION_NAMES, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
+import { detailsLine, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
 import {
   APP_OPERATING_SYSTEMS,
   APP_STORE_URL,
@@ -31,85 +28,89 @@ import {
 } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AuthLink } from "./AuthLink";
-import { PromoVideo } from "./PromoVideo";
-import playlistScriptShot from "./playlist-script.webp";
-import playlistShot from "./playlist.webp";
+import articleShot from "./app-article.webp";
+import foundShot from "./app-found.webp";
+import libraryShot from "./app-library.webp";
+import listenShot from "./app-listen.webp";
+import reportShot from "./app-report.webp";
+import todayPmShot from "./app-today-pm.webp";
+import todayShot from "./app-today.webp";
 
-// 소개(메인) 페이지. 로그인 전에 맹고가 무엇인지 보여 준다. 그림 대신 실제 화면 조각을 그대로 쓴다.
+// 소개(메인) 페이지. 로그인 전에 맹고가 무엇인지 보여 준다. 그림 대신 실제 앱 화면을 그대로 쓴다.
+// 2026-11-10 개편(사용자: '관심사를 선택하는 게 아니고 사용자 관심에 맞게 자동으로 골라 주는 것'): 관심사는 맹고가 찾고 맞춘다,
+// 출근길·퇴근길 하루 두 번 브리핑, 주간 리포트(Premium). 예전 소개 영상(예전 화면)·내 관심 링크 소개는 뺐다.
 // 검색과 속도를 위해 정적으로 만들고, 로그인 여부에 따라 달라지는 버튼만 AuthLink가 브라우저에서 바꾼다.
 
 const START = { href: "/login", label: "무료로 시작하기" };
 /** 첫 화면의 큰 버튼(로그인 전). 2026-11-08: 로그인 화면에서 대부분 떠나서 먼저 들어 보게 한다(app/try) */
 const TRY = { href: "/try", label: "로그인 없이 들어 보기" };
-const OPEN = { href: "/today", label: "오늘의 소식 열기" };
+const OPEN = { href: "/today", label: "내 브리핑 열기" };
+
+/** 분야 8개 이름(맹고가 다루는 분야) */
+const SECTION_NAMES = SECTIONS.map((s) => s.label);
 
 /**
- * 요금 카드의 기능 목록(2026-10-22 사용자 지정, /premium 비교표와 같은 내용). 숫자는 plans 표.
- * 2026-10-26 사용자: 가입 선물 맹고 줄은 빼고(자주 묻는 질문에만), Premium 음성은 '무제한'으로
- * 2026-10-27 사용자: '하루 무료 소식' → '하루 소식', 내 관심 링크 n곳을 넣는다(관심사 개수는 넣지 않는다)
- * 2026-10-29 사용자: Premium 음성은 더 자연스러운 AI 목소리(Gemini)라는 걸 밝힌다(/premium 비교표는 '목소리' 줄)
- * 2026-11-03 사용자: 맹고 AI 질문 하루 횟수를 넣는다(코드 상수 lib/ask.ts ASK_DAILY)
+ * 요금 카드의 기능 목록(/premium 비교표와 같은 내용). 숫자는 plans 표.
+ * 2026-11-10 개편: 하루 소식 → 브리핑마다 소식, 메뉴에서 뺀 내 관심 링크는 빼고 Premium에 주간 리포트
  */
 function planItems(l: PlanLimits, askDaily: number): string[] {
   return [
-    `하루 소식 ${l.dailyItems}개`,
+    `출근길·퇴근길 브리핑마다 소식 ${l.dailyItems}개`,
     ...(l.audio ? ["자연스러운 AI 목소리로 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
     `맹고 AI 질문 하루 ${askDaily}번`,
-    ...(l.linkLimit > 0 ? [`내 관심 링크 ${l.linkLimit}곳`] : []),
+    ...(l.id === "plus" ? ["주간 리포트"] : []),
     ...(l.canBuyMaengo ? ["맹고 추가 구매"] : []),
     l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관`,
   ];
 }
 
 /**
- * 자주 묻는 질문. 플랜 숫자는 plans 표 값. 검색·AI 답변이 그대로 옮겨 가도 맞도록 답의 첫 문장에 결론을 쓴다.
- * 분야 이름은 토픽 사전(PUBLIC_TOPICS·NEWS_SECTION_NAMES)에서 읽는다
+ * 자주 묻는 질문. 플랜 숫자는 plans 표 값. 검색·AI 답변이 그대로 옮겨 가도 맞도록 답의 첫 문장에 결론을 쓴다
  */
 const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   // 영문 이름·만든 회사를 같이 적어 '망고'·비슷한 이름의 다른 서비스와 헷갈리지 않게 한다(2026-11-06)
   [
     "맹고는 어떤 앱인가요?",
-    `${SITE_DEFINITION} 영문 이름은 ${SITE_NAME_EN}이고, ${COMPANY_NAME}(${COMPANY_NAME_EN})가 만들어요. AI, 주식, 코인처럼 관심 있는 분야를 고르면 매일 아침 그 분야 소식만 골라 출처와 함께 요약해요. 웹에서 바로 쓰고, ${
+    `${SITE_DEFINITION} 영문 이름은 ${SITE_NAME_EN}이고, ${COMPANY_NAME}(${COMPANY_NAME_EN})가 만들어요. 관심사를 고르지 않아도 읽고 듣는 소식에 맞춰 맹고가 내 관심 소식만 골라, 출근길·퇴근길 하루 두 번 출처와 함께 요약하고 읽어 드려요. 웹에서 바로 쓰고, ${
       PLAY_STORE_URL ? "Android·iPhone 앱은 Google Play·App Store에서 받아요." : "iPhone 앱은 App Store에서 받아요. Android 앱은 곧 Google Play에 나와요."
     }`,
   ],
   [
-    "고를 수 있는 관심 분야는 뭐예요?",
-    `관심 분야 ${PUBLIC_TOPICS.length}개(${PUBLIC_TOPICS.map((t) => t.name).join(", ")})와 뉴스 분야 ${NEWS_SECTION_NAMES.length}개(${NEWS_SECTION_NAMES.join(", ")})에서 골라요. AI 안의 바이브코딩, 주식 안의 미국 주식처럼 세부 관심사를 고르면 더 좁혀 받고, 목록에 없는 관심사는 Premium에서 직접 적을 수 있어요.`,
+    "관심사는 어떻게 정해요?",
+    `직접 고르거나 적을 필요가 없어요. 처음에 끌리는 소식 몇 개만 누르면 맹고가 관심 분야를 찾고, 그 뒤로는 읽고 듣고 북마크한 소식과 '덜 받기'를 누른 소식에 맞춰 분야 비중을 계속 맞춰요. 분야는 ${SECTION_NAMES.join(", ")} ${SECTION_NAMES.length}개예요.`,
   ],
-  ["어떤 소식을 모아요?", "테크 소식은 공식 기술 문서와 국내 대기업 테크 블로그, AI·코인·반도체 전문 매체에서 모으고, 정치·경제·사회·생활/문화·IT/과학·세계 뉴스는 네이버 뉴스 헤드라인에 오른 기사에서 골라요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 모든 소식에 원문 출처를 붙여요."],
-  ["해외 AI 소식도 한국어로 받을 수 있나요?", "네. 해외 매체와 공식 블로그의 영어 글도 한국어로 요약해요. 원문 링크가 함께 붙어서 필요하면 바로 원문을 확인할 수 있어요."],
-  ["소식은 언제 와요?", "매일 아침 6시에 새 소식을 모아 요약하고, 설정에서 고른 시각에 오늘의 소식이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
+  ["어떤 소식을 모아요?", `${SECTION_NAMES.join("·")} 소식을 국내 언론사와 해외 매체, 공식 기술 문서·기업 테크 블로그에서 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 많이 다룬 소식을 먼저 놓고, 모든 소식에 원문 출처와 사진을 붙여요.`],
+  ["해외 소식도 한국어로 받을 수 있나요?", "네. 해외 매체와 공식 블로그의 영어 글도 한국어로 요약해요. 원문 링크가 함께 붙어서 필요하면 바로 원문을 확인할 수 있어요."],
+  ["소식은 언제 와요?", "출근길·퇴근길 하루 두 번 와요. 아침과 오후에 새 소식을 모아 요약하고, 정한 시각(처음은 오전 7시·오후 6시, 설정에서 바꿔요)에 브리핑이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
   [
     "음성으로 들을 수 있나요?",
     // 2026-11-10: 첫 화면이 '귀로 들어요'인데 답이 'Premium에서'로 시작해 Free는 못 듣는 것처럼 읽혔다 → Free가 듣는 몫부터
     free.audio
-      ? "네. 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요."
+      ? "네. 브리핑 듣기를 누르면 소식을 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요."
       : free.dailyListens > 0
-        ? `네. Free도 하루 ${free.dailyListens}개는 기본 목소리로 들을 수 있고, 오늘 소식 전체 듣기도 그 안에서 돼요. Premium은 개수 제한 없이, 문장이 자연스럽게 이어지는 AI 목소리(여성·남성 중 선택)로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요.`
-        : "네, Premium에서 요약을 음성으로 들어요. 플레이리스트에 담아 전체 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 문장이 자연스럽게 이어지는 AI 목소리로 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.",
+        ? `네. Free도 하루 ${free.dailyListens}개는 기본 목소리로 들을 수 있고, 브리핑 듣기도 그 안에서 돼요. Premium은 개수 제한 없이, 문장이 자연스럽게 이어지는 AI 목소리(여성·남성 중 선택)로 들어요. 앱에서는 화면을 꺼도 계속 들려요.`
+        : "네, Premium에서 요약을 음성으로 들어요. 브리핑 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.",
   ],
-  ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", `네. 전체 듣기를 누르면 오늘 소식을 끝까지 이어서 읽어 주고${free.dailyListens > 0 && !free.audio ? `(Free는 하루 ${free.dailyListens}개까지)` : ""}, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요.`],
-  ["자주 보는 블로그나 유튜브 채널의 새 글도 받을 수 있나요?", `네. Premium에서 '내 관심 링크'에 블로그·사이트·유튜브 채널 주소를 넣으면 새 글을 요약해서 하루 소식에 같이 보내 드려요. ${plus.linkLimit}곳까지 넣을 수 있어요. 유튜브는 최근 1주일 안 영상 중 아직 받지 않은 것을 채널마다 하루 1편(1시간 이내) 요약해요. 브런치는 아직 넣을 수 없어요.`],
-  ["개발자가 아니어도 쓸 수 있나요?", "네. 직업은 묻지 않아요. 주식, 코인, 정치, 세계 뉴스처럼 관심 있는 분야만 고르면 그 분야 소식만 골라 드려요."],
+  ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", `네. 브리핑 듣기를 누르면 소식을 끝까지 이어서 읽어 주고${free.dailyListens > 0 && !free.audio ? `(Free는 하루 ${free.dailyListens}개까지)` : ""}, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요.`],
+  ["주간 리포트는 뭐예요?", "Premium에서 매주 월요일 아침, 지난주에 받은 소식을 한 줄 총평·분야별 정리·많이 본 분야·놓친 주요 소식으로 모아 드려요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   [
     "소식에 대해 더 물어볼 수 있나요?",
     `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 궁금한 걸 글이나 말로 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
   ],
-  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 하루 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한과 하루 소식 ${plus.dailyItems}개는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한, 브리핑마다 소식 ${plus.dailyItems}개, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
-  ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 하루 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
+  ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 브리핑 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
 ];
 
 /** 소식 하나를 듣는 데 걸리는 시간(분). 둘러보기 소식 10개 음성이 평균 85초(47~101초, 2026-11-10 확인)라 1.5분으로 어림한다 */
 const LISTEN_MIN_PER_ITEM = 1.5;
 
-/** 출처 예시(소개용). 테크는 공식 문서·기업 테크 블로그, 뉴스는 네이버 헤드라인에서 고른다 */
+/** 출처 예시(소개용) */
 const SOURCES = [
+  { kind: "국내 언론사", title: "반도체 수출, 석 달 연속 늘어", Icon: IconGlobe },
   { kind: "공식 기술 문서", title: "PostgreSQL 19, 11월 출시로 연기", Icon: IconDoc },
   { kind: "기업 테크 블로그", title: "주문 시스템을 이벤트 기반으로 바꾼 이야기", Icon: IconCode },
-  { kind: "네이버 뉴스 헤드라인", title: "반도체 수출, 석 달 연속 늘어", Icon: IconGlobe },
 ];
 
 /**
@@ -117,55 +118,62 @@ const SOURCES = [
  * 카드마다 그 순간의 맹고 표정(떨기·찡그림·웃으며 듣기)
  */
 const MOMENTS: { title: string; body: string; mood: MascotMood; tint: string }[] = [
-  { title: "손 시린 출근길", body: "전체 듣기를 한 번 누르고 휴대폰을 주머니에 넣어 두세요. 오늘 소식을 끝까지 이어서 읽어 드려요.", mood: "shiver", tint: "bg-sky-tint" },
-  { title: "만원 지하철", body: "화면을 들여다볼 틈이 없어도 이어폰만 있으면 돼요. 앱에서는 화면을 꺼도 계속 들려요.", mood: "squeeze", tint: "bg-mango-tint" },
-  { title: "운전 중", body: "출발 전에 전체 듣기를 눌러 두면 도착할 때까지 화면을 보지 않고 들을 수 있어요.", mood: "listen", tint: "bg-leaf-tint" },
+  { title: "손 시린 출근길", body: "브리핑 듣기를 한 번 누르고 휴대폰을 주머니에 넣어 두세요. 소식을 끝까지 이어서 읽어 드려요.", mood: "shiver", tint: "bg-mango-tint" },
+  { title: "만원 지하철", body: "화면을 들여다볼 틈이 없어도 이어폰만 있으면 돼요. 앱에서는 화면을 꺼도 계속 들려요.", mood: "squeeze", tint: "bg-snow" },
+  { title: "운전 중", body: "출발 전에 브리핑 듣기를 눌러 두면 도착할 때까지 화면을 보지 않고 들을 수 있어요.", mood: "listen", tint: "bg-mango-tint" },
 ];
 
-/** 내 관심 링크 예시(소개용). 설정 > 내 관심 링크 칸과 같은 모양 */
-const LINK_EXAMPLES = [
-  { url: "devnote.tistory.com", name: "개발 공부 기록", last: "3시간 전" },
-  { url: "velog.io/@frontend", name: "프론트엔드 노트", last: "어제" },
-  { url: "blog.naver.com/stocknote", name: "주식 공부 노트", last: "2일 전" },
-];
+/** 실제 앱 화면 한 장(휴대폰 틀) */
+function Phone({ src, className = "", priority = false }: { src: StaticImageData; className?: string; priority?: boolean }) {
+  return (
+    <div className={`rounded-[34px] bg-[#1F2340] p-2 shadow-[0_18px_44px_rgb(31_35_64/0.2)] ${className}`}>
+      <Image src={src} alt="" sizes="(min-width: 768px) 240px, 45vw" priority={priority} className="h-auto w-full rounded-[27px]" />
+    </div>
+  );
+}
 
 export async function Landing() {
   const plans = await getPlans();
   const free = plans.get("free")!;
   const plus = plans.get("plus")!;
   const FAQ = faq(free, plus);
+  const navLink = "inline-flex min-h-11 items-center rounded-full px-2.5 text-[15px] font-semibold text-sub no-underline hover:bg-snow sm:px-3";
   return (
     <div className="min-h-dvh bg-paper">
       <LandingJsonLd faq={FAQ} premiumKrw={plus.priceKrw} />
-      <header className="sticky top-0 z-20 border-b-2 border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1100px] items-center justify-between gap-3 px-5">
-          <Link href="/" className="flex items-center gap-2 no-underline">
-            <MangoIcon className="size-9" />
-            {/* 좁은 휴대폰(375px 밑)에서는 글자를 숨겨 메뉴가 한 줄에 들어가게 한다(아이콘·이름은 그대로 링크) */}
-            <span className="text-[26px] font-black tracking-[-0.04em] text-mango-deep max-[374px]:sr-only">맹고</span>
+          {/* 앱 머리말과 같은 '맹고 | 내 관심 뉴스 요약'. 좁은 휴대폰에서는 뒤 문구를 숨겨 메뉴가 한 줄에 들어가게 한다 */}
+          <Link href="/" className="flex min-w-0 items-center gap-2.5 no-underline">
+            <span className="text-[22px] font-bold tracking-[-0.035em] text-ink">맹고</span>
+            <span aria-hidden="true" className="h-4 w-px bg-line-dark max-[519px]:hidden" />
+            <span className="text-[15px] font-medium text-sub max-[519px]:hidden">내 관심 뉴스 요약</span>
           </Link>
           <nav aria-label="소개 메뉴" className="flex items-center gap-1 whitespace-nowrap">
-            {/* 2026-11-10 사용자: '무엇을 해 주나요'·'관심 분야'가 길어서 메뉴 하나로, 이름은 요약이라는 게 보이게 '1분 요약'(같은 날 '소식 보기'에서 바꿈). 누르면 이번 주 요약이 바로 보인다(app/topics). 휴대폰에서도 보인다 */}
-            <Link href={topicsPath()} className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:px-3">
+            <Link href={topicsPath()} className={navLink}>
               1분 요약
             </Link>
-            <a href="#pricing" className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:px-3">
+            <a href="#pricing" className={navLink}>
               요금
             </a>
-            <Link href="/contact" className="inline-flex min-h-11 items-center rounded-xl px-2.5 text-[15px] font-extrabold text-sub no-underline hover:bg-snow sm:px-3">
+            <Link href="/contact" className={navLink}>
               문의하기
             </Link>
-            <AuthLink signedOut={{ href: "/login", label: "로그인" }} signedIn={{ href: "/today", label: "오늘의 소식" }} className="btn btn-ghost ml-1 min-h-11 px-4 text-[14px]" />
+            <AuthLink
+              signedOut={{ href: "/login", label: "로그인" }}
+              signedIn={{ href: "/today", label: "내 브리핑" }}
+              className="ml-1 inline-flex min-h-10 items-center rounded-full border border-line px-4 text-[14px] font-semibold text-ink no-underline hover:bg-snow"
+            />
           </nav>
         </div>
       </header>
 
       <main>
-        {/* 첫 화면: 말은 오른쪽, 소개 영상(소리 없음)은 왼쪽(모바일은 말이 먼저). 영상 배경이 페이지 색과 같아 상자 없이 놓인다 */}
-        <section aria-labelledby="hero-title" className="mx-auto grid max-w-[1100px] items-start gap-12 px-5 pb-16 pt-10 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-20">
+        {/* 첫 화면: 말은 오른쪽, 실제 앱 화면(출근길·퇴근길 두 장)은 왼쪽(모바일은 말이 먼저) */}
+        <section aria-labelledby="hero-title" className="mx-auto grid max-w-[1100px] items-center gap-12 px-5 pb-16 pt-10 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-20">
           <div className="md:order-2">
             {/* 대상: 출퇴근하는 30~50대 직장인(2026-11-10 사용자 결정, 맹고-문서/타겟.md) */}
-            <h1 id="hero-title" className="text-[36px] font-black leading-[1.2] tracking-[-0.045em] md:text-[54px]">
+            <h1 id="hero-title" className="text-[36px] font-bold leading-[1.22] tracking-[-0.05em] md:text-[54px]">
               출퇴근길엔
               <br />
               내 관심 소식만
@@ -173,59 +181,53 @@ export async function Landing() {
               귀로 들어요.
             </h1>
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
-              {SITE_DEFINITION} 경제, 주식, AI처럼 고른 분야의 소식만 매일 골라 출처와 함께 핵심만 짚어요. 하루 소식 {plus.dailyItems}개를 다 들어도 약{" "}
-              {Math.round(plus.dailyItems * LISTEN_MIN_PER_ITEM)}분, 출근길 한 번이면 들어요.
+              관심사를 고르지 않아도 돼요. 읽고 듣는 소식에 맞춰 맹고가 내 관심 소식만 골라, 출근길·퇴근길 하루 두 번 출처와 함께 짚어 드려요. 브리핑 하나를 다
+              들어도 약 {Math.round(plus.dailyItems * LISTEN_MIN_PER_ITEM)}분이에요.
             </p>
-            {/* 뉴스레터·커뮤니티·범용 AI 브리핑과 다른 점을 첫 화면에서(2026-11-10, 아래 기능 소개에 묻혀 있던 것) */}
-            <ul aria-label="맹고가 다른 점" className="mt-5 flex flex-col gap-2 text-[15px] font-extrabold md:text-[16px]">
-              {(
-                [
-                  plus.linkLimit > 0 ? { t: "자주 보는 블로그·유튜브도 요약", premium: true } : null,
-                  { t: "하루 분량을 다 보면 끝, 끝없는 스크롤 없음" },
-                  free.audio ? { t: "누구나 귀로 듣기" } : free.dailyListens > 0 ? { t: `Free도 하루 ${free.dailyListens}개는 귀로 듣기` } : null,
-                ] as ({ t: string; premium?: boolean } | null)[]
-              )
-                .filter((x) => x !== null)
-                .map(({ t, premium }) => (
+            <ul aria-label="맹고가 다른 점" className="mt-5 flex flex-col gap-2 text-[15px] font-semibold md:text-[16px]">
+              {[
+                "관심사는 맹고가 알아서 찾고 맞춰요",
+                "출근길·퇴근길 하루 두 번, 다 들으면 끝",
+                free.audio ? "누구나 귀로 듣기" : free.dailyListens > 0 ? `Free도 하루 ${free.dailyListens}개는 귀로 듣기` : null,
+              ]
+                .filter((t): t is string => !!t)
+                .map((t) => (
                   <li key={t} className="flex items-start gap-2">
-                    <IconCheck className="mt-0.5 size-5 shrink-0 text-leaf [stroke-width:3]" />
-                    <span>
-                      {t}
-                      {premium && <span className="ml-1.5 text-[13px] font-bold text-faint">Premium</span>}
-                    </span>
+                    <IconCheck className="mt-0.5 size-5 shrink-0 text-mango-deep [stroke-width:3]" />
+                    <span>{t}</span>
                   </li>
                 ))}
             </ul>
-            {/* 로그인 전: 큰 버튼은 둘러보기(이미 만든 음성 소식을 로그인 없이 들어 본다, app/try), 옆은 가입. 로그인 뒤: 오늘의 소식 */}
+            {/* 로그인 전: 큰 버튼은 둘러보기(이미 만든 음성 소식을 로그인 없이 들어 본다, app/try), 옆은 가입. 로그인 뒤: 내 브리핑 */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <AuthLink signedOut={TRY} signedIn={OPEN} className="btn min-h-14 px-8 text-[17px]" />
+              <AuthLink signedOut={TRY} signedIn={OPEN} className="btn btn-ink min-h-14 px-8 text-[17px]" />
               <AuthLink signedOut={START} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
-            {/* 스토어 링크(앱은 이 페이지 대신 로그인·오늘로 가므로 앱 안에는 안 보인다, proxy.ts). Play는 심사 통과 뒤 PLAY_STORE_URL을 채우면 나온다 */}
+            {/* 스토어 링크(앱은 이 페이지 대신 로그인·오늘로 가므로 앱 안에는 안 보인다, proxy.ts) */}
             <p className="mt-5 flex flex-wrap gap-x-5 gap-y-1">
               <StoreLink href={APP_STORE_URL} label="App Store에서 iPhone 앱 받기" />
               {PLAY_STORE_URL && <StoreLink href={PLAY_STORE_URL} label="Google Play에서 Android 앱 받기" />}
             </p>
           </div>
 
-          <div className="mx-auto w-full max-w-[420px] md:order-1">
-            <PromoVideo />
+          <div aria-hidden="true" className="mx-auto flex w-full max-w-[460px] items-start justify-center gap-3 sm:gap-4 md:order-1">
+            <Phone src={todayShot} priority className="w-1/2 max-w-[220px]" />
+            <Phone src={todayPmShot} className="mt-12 w-1/2 max-w-[220px]" />
           </div>
         </section>
 
         <section aria-labelledby="moments-title" className="mx-auto max-w-[1100px] px-5 pb-16 md:pb-24">
-          <h2 id="moments-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
+          <h2 id="moments-title" className="text-center text-[28px] font-bold tracking-[-0.04em] md:text-[36px]">
             읽을 수 없을 땐, 들으면 돼요
           </h2>
           <ul className="mt-10 grid gap-4 md:grid-cols-3">
             {MOMENTS.map(({ title, body, mood, tint }) => (
               <li key={title} className="tile flex flex-col gap-4 p-6">
-                {/* 캐릭터 옆에 제목(위가 비지 않게). 캐릭터 배경은 다크 모드에서도 밝게(남색 헤드폰이 어두운 카드에 묻히지 않게) */}
                 <div className="flex items-center gap-4">
                   <span className={`keep-light flex size-20 shrink-0 items-center justify-center rounded-3xl ${tint}`}>
                     <Mascot mood={mood} className="size-16" />
                   </span>
-                  <span className="text-[20px] font-black">{title}</span>
+                  <span className="text-[20px] font-bold">{title}</span>
                 </div>
                 <span className="text-[15px] font-medium leading-relaxed text-sub">{body}</span>
               </li>
@@ -233,111 +235,56 @@ export async function Landing() {
           </ul>
         </section>
 
-        <section id="features" aria-label="맹고가 해 주는 일" className="scroll-mt-20 border-y-2 border-line bg-snow">
+        <section id="features" aria-label="맹고가 해 주는 일" className="scroll-mt-20 border-y border-line bg-snow">
           <div className="mx-auto flex max-w-[1100px] flex-col gap-20 px-5 py-16 md:gap-28 md:py-24">
             <Feature
-              title="관심 있는 분야만, 매일 받아요"
-              body="요즘은 하루에도 너무 많은 정보가 쏟아져요. AI, 주식, 코인, 반도체처럼 관심 있는 분야만 고르면 그 분야 소식만 매일 골라 드려요. 여러 곳에서 다룬 같은 소식은 하나로 묶고, 새 AI 모델 출시나 보안 위협처럼 이슈도가 높은 소식은 맨 앞에 놓아요."
+              title="관심사는 맹고가 찾아요"
+              body="키워드를 고르거나 적을 필요가 없어요. 처음에 끌리는 소식 몇 개만 누르면 관심 분야를 찾고, 그 뒤로는 읽고 듣고 북마크한 소식에 맞춰 계속 맞춰 드려요. 많이 본 분야는 더, 넘긴 분야는 덜 받아요."
             >
-              <div className="tile p-5">
-                <p className="text-[14px] font-black text-sub">내 관심사</p>
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {["바이브코딩", "AI 에이전트", "코스피", "비트코인", "정치"].map((t) => (
-                    <li key={t} className="tile px-3 py-1 text-[14px] font-extrabold">
-                      {t}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-5 flex flex-wrap items-center gap-2 border-t-2 border-line pt-4 text-[13px] font-extrabold">
-                  <CategoryChip category="ai" />
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-sky-tint px-2 py-0.5 text-sky-dark">
-                    <IconDoc className="size-3.5" />
-                    공식 문서
-                  </span>
-                  <span className="font-bold text-sub">긱뉴스 외 2곳에서도 다뤘어요</span>
-                </div>
-                <p className="mt-2 text-[17px] font-black leading-snug">Gemini API, 유튜브 링크만으로 영상 요약</p>
-              </div>
+              <Phone src={foundShot} className="mx-auto w-[62%] max-w-[240px]" />
             </Feature>
 
             <Feature
               flip
-              title="출퇴근길엔 플레이리스트로 들어요"
-              body="듣고 싶은 소식을 플레이리스트에 담고 전체 듣기를 누르면 끝까지 이어서 읽어 드려요. 듣는 동안 대본에서 지금 읽는 문장을 짚어 주고, 앱에서는 화면을 꺼도 계속 들려요. 목소리는 여성·남성 중에 골라요."
+              title="출근길·퇴근길, 하루 두 번"
+              body="아침엔 출근길 브리핑, 저녁엔 그 뒤에 나온 소식으로 퇴근길 브리핑을 한 번 더 챙겨 드려요. 여러 곳에서 다룬 같은 소식은 하나로 묶고, 많이 다룬 소식을 맨 앞에 놓아요. 다 들으면 거기까지, 끝없는 스크롤은 없어요."
             >
-              {/* 실제 화면(앱): 플레이리스트와, 전체 듣기를 누르면 열리는 재생·대본 창 */}
               <div className="flex items-start justify-center gap-3 sm:gap-4">
-                {[playlistShot, playlistScriptShot].map((shot, i) => (
-                  <div key={i} className={`w-1/2 max-w-[220px] rounded-[34px] bg-[#1F2340] p-2 shadow-[0_18px_44px_rgb(31_35_64/0.22)] ${i === 1 ? "mt-10" : ""}`}>
-                    <Image src={shot} alt="" sizes="220px" className="h-auto w-full rounded-[27px]" />
-                  </div>
-                ))}
+                <Phone src={todayShot} className="w-1/2 max-w-[220px]" />
+                <Phone src={todayPmShot} className="mt-10 w-1/2 max-w-[220px]" />
               </div>
             </Feature>
 
             <Feature
-              title="다 읽지 않아도, 핵심만 요약해요"
-              body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심 내용만 짧게 요약하고, 이 소식이 내 관심 분야에서 왜 중요한지도 한 줄로 짚어 드려요. 같은 소식이라도 어떤 관심사로 골랐는지에 따라 다르게 설명하고, 영어로 된 해외 글도 한국어로 요약해요."
+              title="듣기만 하면 돼요"
+              body="브리핑 듣기를 누르면 소식을 끝까지 이어서 읽어 드려요. 앱에서는 화면을 꺼도 계속 들리고, 보관함에서 고른 소식만 골라 들을 수도 있어요. 목소리는 여성·남성 중에 골라요."
             >
-              <div className="flex items-start gap-2">
-                <Mascot className="size-24 shrink-0" />
-                <div className="flex flex-1 flex-col gap-3 pt-2">
-                  <Bubble>
-                    <p className="text-[16px] font-bold leading-relaxed">
-                      <span className="text-mango-deep">LLM 에이전트에 관심 있다면, </span>지금 만드는 에이전트의 회귀 테스트에 바로 쓸 수 있어요.
-                    </p>
-                  </Bubble>
-                  <Bubble>
-                    <p className="text-[16px] font-bold leading-relaxed">
-                      <span className="text-mango-deep">RAG에 관심 있다면, </span>챗봇 답변 품질을 배포할 때마다 확인할 수 있어요.
-                    </p>
-                  </Bubble>
-                </div>
-              </div>
+              <Phone src={listenShot} className="mx-auto w-[62%] max-w-[240px]" />
             </Feature>
 
             <Feature
               flip
-              title="자주 보는 블로그·유튜브, 새 글도 같이 받아요"
-              body={`즐겨 보는 블로그나 유튜브 채널 주소를 '내 관심 링크'에 넣어 두면, 새 글과 새 영상을 요약해서 하루 소식에 함께 보내 드려요. 네이버 블로그, 티스토리, 벨로그, 미디엄, 서브스택 같은 블로그와 유튜브 채널을 넣을 수 있고, Premium에서 ${plus.linkLimit}곳까지 쓸 수 있어요.`}
+              title="다 읽지 않아도, 핵심만 요약해요"
+              body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심만 짧게 요약하고, 원문 사진과 출처 링크를 함께 보여 드려요. 영어로 된 해외 글도 한국어로 요약하고, 읽다 궁금한 건 맹고 AI에게 물어보면 돼요."
             >
-              {/* 설정 > 내 관심 링크 칸과 같은 모양(넣어 둔 주소, 가져올 수 있다는 체크, 이름과 마지막 글 시점) */}
-              <div className="tile p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[14px] font-black text-sub">내 관심 링크</p>
-                  <PremiumBadge />
-                </div>
-                <ul className="mt-3 flex flex-col gap-3">
-                  {LINK_EXAMPLES.map(({ url, name, last }) => (
-                    <li key={url}>
-                      <div className="tile flex min-h-12 items-center gap-2 px-4">
-                        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{url}</span>
-                        <IconCheck className="size-5 text-leaf [stroke-width:3]" />
-                      </div>
-                      <p className="mt-1 truncate px-1 text-[13px] font-bold text-faint">
-                        {name} · 마지막 글 {last}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <Phone src={articleShot} className="mx-auto w-[62%] max-w-[240px]" />
             </Feature>
 
             <Feature
               title="모든 소식엔 출처가 있어요"
-              body="테크 소식은 공식 기술 문서와 국내 대기업 테크 블로그를 인용하고, 뉴스는 네이버 뉴스 헤드라인에 오른 기사에서 골라요. 소식마다 원문 링크가 붙어 있어 더 궁금하면 바로 확인할 수 있어요."
+              body="국내 언론사와 해외 매체, 공식 기술 문서와 기업 테크 블로그에서 모으고, 소식마다 원문 링크가 붙어 있어 더 궁금하면 바로 확인할 수 있어요."
             >
               <div className="tile p-5">
-                <p className="text-[14px] font-black text-sub">소식마다 붙는 출처</p>
+                <p className="text-[14px] font-semibold text-sub">소식마다 붙는 출처</p>
                 <ul className="mt-3 flex flex-col gap-3">
                   {SOURCES.map(({ kind, title, Icon }) => (
-                    <li key={kind} className="rounded-2xl border-2 border-line bg-paper p-4">
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-sky-tint px-2 py-0.5 text-[13px] font-extrabold text-sky-dark">
+                    <li key={kind} className="rounded-2xl border border-line bg-paper p-4">
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-snow px-2 py-0.5 text-[13px] font-semibold text-ink">
                         <Icon className="size-3.5" />
                         {kind}
                       </span>
-                      <p className="mt-2 text-[16px] font-black leading-snug">{title}</p>
-                      <p className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-extrabold text-sky-dark">
+                      <p className="mt-2 text-[16px] font-bold leading-snug">{title}</p>
+                      <p className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-sub underline underline-offset-4">
                         원문 보기
                         <IconExternal className="size-3.5" />
                       </p>
@@ -349,98 +296,64 @@ export async function Landing() {
 
             <Feature
               flip
-              title="다 보면 끝, 지난 소식은 보관함에"
-              body="끝없이 스크롤하게 만들지 않아요. 오늘 분량을 다 보면 오늘은 거기까지예요. 지난 소식은 보관함에 날짜별로 쌓이고, 카테고리로 다시 찾을 수 있어요."
+              title="지난 소식은 보관함에, 한 주는 리포트로"
+              body="받은 소식은 보관함에 최신순으로 쌓이고, 분야로 거르거나 찾아서 골라 들을 수 있어요. Premium은 매주 월요일 아침, 지난주 소식을 한 줄 총평과 분야별 정리로 모은 주간 리포트를 받아요."
             >
-              <div className="flex flex-col gap-4">
-                <div className="flex items-end gap-2">
-                  <Mascot mood="cheer" className="size-20 shrink-0" />
-                  <Bubble className="mb-5 flex-1">
-                    <p className="text-[16px] font-bold">오늘은 여기까지예요! 나머지 소식은 몰라도 괜찮아요.</p>
-                  </Bubble>
-                </div>
-                <div className="tile p-4">
-                  <p className="text-[14px] font-black text-sub">보관함</p>
-                  <ul className="mt-2 flex flex-wrap gap-2">
-                    {[
-                      ["전체", 24],
-                      ["AI", 11],
-                      ["테크", 8],
-                      ["커리어", 1],
-                      ["여행", 1],
-                    ].map(([label, n], i) => (
-                      <li key={label} className={`tile px-3 py-1 text-[14px] font-extrabold ${i === 0 ? "border-sky bg-sky-tint text-sky-dark" : ""}`}>
-                        {label} <span className="font-round text-[13px] text-faint">{n}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="flex items-start justify-center gap-3 sm:gap-4">
+                <Phone src={libraryShot} className="w-1/2 max-w-[220px]" />
+                <Phone src={reportShot} className="mt-10 w-1/2 max-w-[220px]" />
               </div>
             </Feature>
           </div>
         </section>
 
         <section aria-labelledby="how-title" className="mx-auto max-w-[1100px] px-5 py-16 md:py-24">
-          <h2 id="how-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
+          <h2 id="how-title" className="text-center text-[28px] font-bold tracking-[-0.04em] md:text-[36px]">
             시작은 1분이면 돼요
           </h2>
           <ol className="mt-10 grid gap-4 md:grid-cols-3">
             {[
-              ["관심사를 골라요", "목록에서 고르면 돼요. 목록에 없는 관심사는 Premium에서 직접 적을 수 있어요."],
-              ["새벽에 AI가 훑고 골라요", "매일 새벽 소식을 모아 같은 소식은 묶고, 요약하고, 나에게 맞는 순서로 골라요."],
-              ["받아서 읽고 들어요", "고른 시각에 오늘의 소식이 도착해요. 읽어도 되고, 이어서 들어도 돼요."],
+              ["끌리는 소식을 눌러요", "처음에 소식 몇 개만 누르면 맹고가 관심 분야를 찾아요. 고르거나 적을 건 없어요."],
+              ["맹고가 모으고 골라요", "출근길·퇴근길 전에 소식을 모아 같은 소식은 묶고, 요약하고, 내 관심에 맞는 순서로 골라요."],
+              ["출퇴근길에 들어요", "브리핑이 도착하면 읽어도 되고 이어서 들어도 돼요. 듣고 읽는 만큼 관심사도 더 잘 맞춰져요."],
             ].map(([title, body], i) => (
               <li key={title} className="tile flex flex-col gap-3 p-6">
-                <span className="flex size-11 items-center justify-center keep-light rounded-full bg-mango font-round text-[20px] font-black text-ink shadow-[0_3px_0_var(--color-mango-dark)]">
-                  {i + 1}
-                </span>
-                <span className="text-[19px] font-black">{title}</span>
+                <span className="keep-light flex size-11 items-center justify-center rounded-full bg-mango font-round text-[20px] font-black text-ink">{i + 1}</span>
+                <span className="text-[19px] font-bold">{title}</span>
                 <span className="text-[15px] font-medium leading-relaxed text-sub">{body}</span>
               </li>
             ))}
           </ol>
         </section>
 
-        {/* 고를 수 있는 관심 분야. 분야마다 소식 목록을 보여 주는 공개 페이지로 잇는다 */}
+        {/* 맹고가 다루는 분야. 분야마다 소식 목록을 보여 주는 공개 페이지(검색 노출용)로 잇는다 */}
         <section id="topics" aria-labelledby="topics-title" className="mx-auto max-w-[1100px] scroll-mt-20 px-5 pb-16 md:pb-24">
-          <h2 id="topics-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
-            고를 수 있는 관심 분야
+          <h2 id="topics-title" className="text-center text-[28px] font-bold tracking-[-0.04em] md:text-[36px]">
+            맹고가 다루는 분야
           </h2>
-          <p className="mt-3 text-center text-[16px] font-medium text-sub">분야를 누르면 이번 주에 맹고가 고른 소식을 볼 수 있어요.</p>
+          <p className="mt-3 text-center text-[16px] font-medium text-sub">{SECTION_NAMES.join(", ")}. 분야를 누르면 맹고가 요약한 소식을 볼 수 있어요.</p>
           <ul className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PUBLIC_TOPICS.map((t) => (
               <li key={t.slug}>
                 <Link href={topicsPath(t.slug)} className="tile flex h-full items-center gap-3 p-4 no-underline hover:border-line-dark">
                   <TopicGroupIcon id={t.id} className="size-11 rounded-2xl" iconClassName="size-6" />
                   <span className="min-w-0">
-                    <span className="block text-[17px] font-black">{t.name}</span>
-                    <span className="block truncate text-[14px] font-semibold text-sub">{detailsLine(t, 3)}</span>
+                    <span className="block text-[17px] font-bold">{t.name}</span>
+                    <span className="block truncate text-[14px] font-medium text-sub">{detailsLine(t, 3)}</span>
                   </span>
                 </Link>
               </li>
             ))}
-            <li className="tile flex items-center gap-3 p-4">
-              <TopicGroupIcon id="politics" className="size-11 rounded-2xl" iconClassName="size-6" />
-              <span className="min-w-0">
-                <span className="block text-[17px] font-black">뉴스 분야</span>
-                <span className="block text-[14px] font-semibold text-sub">{NEWS_SECTION_NAMES.join(", ")}</span>
-              </span>
-            </li>
           </ul>
         </section>
 
-        <section id="pricing" aria-labelledby="pricing-title" className="scroll-mt-20 border-y-2 border-line bg-snow">
+        <section id="pricing" aria-labelledby="pricing-title" className="scroll-mt-20 border-y border-line bg-snow">
           <div className="mx-auto max-w-[880px] px-5 py-16 md:py-24">
-            <h2 id="pricing-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
+            <h2 id="pricing-title" className="text-center text-[28px] font-bold tracking-[-0.04em] md:text-[36px]">
               요금
             </h2>
             <div className="mt-10 grid gap-5 md:grid-cols-2">
-              <Plan
-                name="Free"
-                price="0원"
-                items={planItems(free, ASK_DAILY.free)}
-                cta={{ signedOut: START, signedIn: OPEN, ghost: true }}
-              />
+              <Plan name="Free" price="0원" items={planItems(free, ASK_DAILY.free)} cta={{ signedOut: START, signedIn: OPEN, ghost: true }} />
               <Plan
                 featured
                 name="Premium"
@@ -456,15 +369,15 @@ export async function Landing() {
         </section>
 
         <section aria-labelledby="faq-title" className="mx-auto max-w-[760px] px-5 pt-16 md:pt-24">
-          <h2 id="faq-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
+          <h2 id="faq-title" className="text-center text-[28px] font-bold tracking-[-0.04em] md:text-[36px]">
             자주 묻는 질문
           </h2>
           <div className="mt-8 flex flex-col gap-3">
             {FAQ.map(([q, a]) => (
               <details key={q} className="tile group p-5 [&_summary::-webkit-details-marker]:hidden">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[17px] font-black">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[17px] font-bold">
                   {q}
-                  <span aria-hidden="true" className="text-[22px] font-black text-sky transition-transform group-open:rotate-45">
+                  <span aria-hidden="true" className="text-[22px] font-bold text-sub transition-transform group-open:rotate-45">
                     +
                   </span>
                 </summary>
@@ -476,8 +389,8 @@ export async function Landing() {
           {SUPPORT_EMAIL && (
             <div className="tile mt-6 flex flex-col items-center gap-4 p-5 text-center sm:flex-row sm:justify-between sm:text-left">
               <div className="min-w-0">
-                <p className="text-[17px] font-black">더 궁금한 게 있나요?</p>
-                <p className="mt-1 break-all text-[14px] font-semibold text-sub">{SUPPORT_EMAIL}</p>
+                <p className="text-[17px] font-bold">더 궁금한 게 있나요?</p>
+                <p className="mt-1 break-all text-[14px] font-medium text-sub">{SUPPORT_EMAIL}</p>
               </div>
               <Link href="/contact" className="btn btn-ghost min-h-12 shrink-0 px-6 text-[15px] no-underline">
                 문의하기
@@ -487,13 +400,13 @@ export async function Landing() {
         </section>
 
         <section aria-labelledby="cta-title" className="mx-auto max-w-[1100px] px-5 py-16 md:py-24">
-          <div className="keep-light flex flex-col items-center gap-6 rounded-3xl bg-mango px-6 py-12 text-center shadow-[0_6px_0_var(--color-mango-dark)] md:flex-row md:px-14 md:text-left">
+          <div className="keep-light flex flex-col items-center gap-6 rounded-3xl bg-mango px-6 py-12 text-center md:flex-row md:px-14 md:text-left">
             <Mascot mood="listen" className="size-28 shrink-0 md:size-36" />
             <div className="flex-1">
-              <h2 id="cta-title" className="text-[26px] font-black leading-snug tracking-[-0.03em] md:text-[34px]">
-                오늘부터 받아 보세요
+              <h2 id="cta-title" className="text-[26px] font-bold leading-snug tracking-[-0.04em] md:text-[34px]">
+                오늘 퇴근길부터 들어 보세요
               </h2>
-              <p className="mt-2 text-[16px] font-semibold text-ink/75">관심사만 고르면 첫 소식을 바로 보여 드려요.</p>
+              <p className="mt-2 text-[16px] font-medium text-ink/75">끌리는 소식 몇 개만 누르면 첫 브리핑을 바로 보여 드려요.</p>
             </div>
             <AuthLink signedOut={START} signedIn={OPEN} className="btn btn-ink min-h-14 shrink-0 px-8 text-[17px]" />
           </div>
@@ -509,7 +422,7 @@ function Feature({ title, body, flip = false, children }: { title: string; body:
   return (
     <div className="grid items-center gap-8 md:grid-cols-2 md:gap-16">
       <div className={flip ? "md:order-2" : ""}>
-        <h2 className="text-[26px] font-black leading-snug tracking-[-0.03em] md:text-[34px]">{title}</h2>
+        <h2 className="text-[26px] font-bold leading-snug tracking-[-0.04em] md:text-[34px]">{title}</h2>
         <p className="mt-4 max-w-[460px] text-[16px] font-medium leading-relaxed text-sub md:text-[17px]">{body}</p>
       </div>
       <div aria-hidden="true" className={`mx-auto w-full max-w-[460px] ${flip ? "md:order-1" : ""}`}>
@@ -542,19 +455,19 @@ function Plan({
   return (
     <div className={`tile flex flex-col p-6 ${featured ? "border-mango" : ""}`}>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="inline-flex items-center gap-1.5 text-[20px] font-black">
+        <h3 className="inline-flex items-center gap-1.5 text-[20px] font-bold">
           {featured && <Crown className="size-6" />}
           {name}
         </h3>
-        {badge && <span className="keep-light rounded-lg bg-mango px-2 py-0.5 text-[12px] font-black">{badge}</span>}
+        {badge && <span className="keep-light rounded-lg bg-mango px-2 py-0.5 text-[12px] font-bold">{badge}</span>}
       </div>
       {listPrice && (
         <p className="mt-2 flex items-center gap-2 font-round">
           <del className="text-[16px] font-bold text-faint">{listPrice}</del>
-          <span className="rounded-lg bg-orange px-2 py-0.5 text-[12px] font-black text-white">{discount}% 할인</span>
+          <span className="rounded-lg bg-orange px-2 py-0.5 text-[12px] font-bold text-white">{discount}% 할인</span>
         </p>
       )}
-      <p className={`${listPrice ? "mt-0.5" : "mt-2"} flex flex-wrap items-baseline gap-x-2 font-round font-black tracking-[-0.02em]`}>
+      <p className={`${listPrice ? "mt-0.5" : "mt-2"} flex flex-wrap items-baseline gap-x-2 font-round font-bold tracking-[-0.02em]`}>
         <span className="text-[30px]">{price}</span>
       </p>
       <ul className="mt-5 flex flex-1 flex-col gap-2.5">
@@ -572,7 +485,7 @@ function Plan({
 
 function StoreLink({ href, label }: { href: string; label: string }) {
   return (
-    <a href={href} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-1 text-[15px] font-extrabold text-sky-dark no-underline hover:underline">
+    <a href={href} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-sky-dark no-underline hover:underline">
       {label}
       <IconExternal className="size-3.5" />
     </a>

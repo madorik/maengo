@@ -32,7 +32,7 @@ export default async function SharedItemImage({ params }: { params: Promise<{ to
     readFile(join(process.cwd(), "app/icon.svg"), "utf8"),
   ]);
   const iconSrc = `data:image/svg+xml;base64,${Buffer.from(icon).toString("base64")}`;
-  const { text, fontSize } = fit(item?.title ?? "관심 분야 소식을 매일 아침 요약하고 읽어 드려요");
+  const { text, fontSize } = fit(item?.title ?? "내 관심 소식만 골라 출퇴근길에 읽어 드려요");
 
   return new ImageResponse(
     (
@@ -61,7 +61,7 @@ export default async function SharedItemImage({ params }: { params: Promise<{ to
         >
           {text}
         </div>
-        <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: "#545A70" }}>맹고가 요약했어요 · 매일 아침 관심 분야 소식</div>
+        <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: "#545A70" }}>맹고가 요약했어요 · 출퇴근길 내 관심 소식</div>
       </div>
     ),
     {

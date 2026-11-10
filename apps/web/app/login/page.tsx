@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: Props) {
           맹고
         </span>
       </Link>
-      <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">관심 분야 소식을 매일 골라 드려요</h1>
+      <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">내 관심 소식을 하루 두 번 골라 드려요</h1>
 
       <form action={signIn} className="mt-10 flex flex-col gap-3">
         {deleted && (

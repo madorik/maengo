@@ -233,4 +233,6 @@ export interface GuestItem {
   durationMs: number;
   /** 대본 줄과 읽는 시각(첫 줄은 제목) */
   lines: GuestLine[];
+  /** 썸네일: 원문 대표 사진(소식의 글 중 있는 것), 유튜브면 영상 썸네일. 없으면 null(2026-11-10 새 화면) */
+  photo: string | null;
 }

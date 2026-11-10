@@ -16,9 +16,9 @@ import { SITE_NAME, appUrl, organizationId } from "@/lib/site";
 // next.config.ts의 리다이렉트와 엮여 같은 주소로 끝없이 307을 낸다(2026-10-18 확인)
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-const title = (t: PublicTopic) => `${t.name} 소식, 매일 아침 요약`;
+const title = (t: PublicTopic) => `${t.name} 소식 요약, 출퇴근길에 듣기`;
 const description = (t: PublicTopic) =>
-  `${t.name} 분야(${detailsLine(t, 4)}) 소식을 매일 아침 AI로 요약해서 음성 지원해줘요. 맹고가 요약한 ${t.name} 소식을 최신순으로 모두 모았어요.`;
+  `${t.name} 분야(${detailsLine(t, 4)}) 소식을 AI로 요약해서 출근길·퇴근길에 음성으로 들려줘요. 맹고가 요약한 ${t.name} 소식을 최신순으로 모두 모았어요.`;
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const topic = publicTopicBySlug((await params).slug);
@@ -35,7 +35,7 @@ function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number;
     [
       `맹고의 ${t.name} 분야는 어떤 소식을 다뤄요?`,
       t.details.length
-        ? `${detailsLine(t)} 소식을 다뤄요. ${t.name} 분야 전체를 고르거나, 이 중 원하는 세부 관심사만 골라 받을 수 있어요.`
+        ? `${detailsLine(t)} 소식을 다뤄요. 따로 고르지 않아도 읽고 듣는 소식에 맞춰 맹고가 이 분야 소식을 더 받거나 덜 받게 맞춰요.`
         : `${t.name} 분야의 새 소식을 다뤄요.`,
     ],
     [
@@ -44,7 +44,7 @@ function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number;
     ],
     [
       `${t.name} 소식은 언제, 몇 개 받아요?`,
-      `매일 아침 6시에 새 글을 모아 내가 정한 시각에 그날 소식을 보내 드려요. 하루 소식은 Free ${free.dailyItems}개, Premium ${plusItems}개이고, 여러 곳에서 다룬 같은 소식은 하나로 묶어 이슈도가 높은 소식부터 골라요.`,
+      `출근길·퇴근길 하루 두 번, 정한 시각에 브리핑을 보내 드려요. 브리핑마다 Free ${free.dailyItems}개, Premium ${plusItems}개이고, 여러 곳에서 다룬 같은 소식은 하나로 묶어 이슈도가 높은 소식부터 골라요.`,
     ],
     [
       `${t.name} 소식을 음성으로 들을 수 있나요?`,
@@ -90,8 +90,8 @@ export default async function TopicPage({ params, searchParams }: Props) {
           <TopicGroupIcon id={topic.id} className="size-14 rounded-2xl" iconClassName="size-8" />
           <h1 className="mt-4 text-[34px] font-black leading-[1.2] tracking-[-0.04em] md:text-[44px]">{topic.name} 소식</h1>
           <p className="mt-4 text-[17px] font-medium leading-relaxed text-sub">
-            맹고의 {topic.name} 분야는 {detailsLine(topic)} 소식을 다뤄요. 매일 아침 6시에 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI로 요약해서 음성
-            지원해줘요.
+            맹고의 {topic.name} 분야는 {detailsLine(topic)} 소식을 다뤄요. 아침과 오후에 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI로 요약해서
+            출근길·퇴근길에 음성으로 들려줘요.
           </p>
         </header>
 
@@ -152,7 +152,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
         </nav>
       </div>
 
-      <StartBand title={`${topic.name} 소식을 매일 아침 받아 보세요`} body="관심 분야만 고르면 첫 소식을 바로 보여 드려요. Premium이면 음성으로도 들어요." />
+      <StartBand title={`${topic.name} 소식을 출퇴근길에 받아 보세요`} body="끌리는 소식 몇 개만 누르면 맹고가 내 관심에 맞는 소식을 골라 드려요. 음성으로도 들어요." />
     </PublicPage>
   );
 }

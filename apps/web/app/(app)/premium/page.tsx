@@ -69,7 +69,7 @@ export default async function PremiumPage({ searchParams }: { searchParams: Prom
               <h1 id="premium-title" className="mt-3 text-[28px] font-black leading-tight tracking-[-0.03em]">
                 맹고 Premium
               </h1>
-              <p className="mt-1 text-[15px] font-semibold leading-snug text-white/75">매일 {plus.dailyItems}개 소식, 귀로도 들어요</p>
+              <p className="mt-1 text-[15px] font-semibold leading-snug text-white/75">출근길·퇴근길 {plus.dailyItems}개씩, 귀로도 들어요</p>
             </div>
             <span className="flex size-[88px] shrink-0 items-center justify-center rounded-full bg-mango">
               <Mascot mood="listen" className="size-[76px]" />

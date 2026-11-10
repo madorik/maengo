@@ -77,7 +77,7 @@ export default async function DetailPage(props: Props) {
           <TopicGroupIcon id={d.group.id} className="size-14 rounded-2xl" iconClassName="size-8" />
           <h1 className="mt-4 text-[34px] font-black leading-[1.2] tracking-[-0.04em] md:text-[44px]">{d.name} 소식</h1>
           <p className="mt-4 text-[17px] font-medium leading-relaxed text-sub">
-            맹고에서는 {d.group.name} 분야 안의 {d.name} 소식만 따로 골라 받을 수 있어요. 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI가 핵심만
+            맹고는 {d.group.name} 분야 안의 {d.name} 소식도 다뤄요. 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI가 핵심만
             요약해요. 영어로 나온 소식도 한국어로 요약하고, 모든 소식에 원문 링크가 붙어요.
           </p>
           {d.aliases.length > 0 && (
@@ -116,7 +116,7 @@ export default async function DetailPage(props: Props) {
         )}
       </div>
 
-      <StartBand title={`${d.name} 소식만 골라 매일 받아 보세요`} body={`설정에서 ${d.name}만 골라 두면 그 주제 소식만 와요. 바쁠 땐 음성으로 들어요.`} />
+      <StartBand title={`${d.name} 소식도 출퇴근길에 받아 보세요`} body={`${d.name} 소식을 자주 읽고 들으면 맹고가 그 소식을 더 챙겨 드려요. 바쁠 땐 음성으로 들어요.`} />
     </PublicPage>
   );
 }

@@ -1,18 +1,16 @@
 "use client";
 
-import { CATEGORY_LABEL } from "@maengo/core/categories";
+import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Crown, IconCheck, IconChevronDown, IconExternal, IconNext, IconPause, IconPlay, IconPrev, IconSpeaker } from "@/components/icons";
+import { Crown, IconCheck, IconChevronDown, IconExternal, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { AuthLink, useSignedIn } from "@/components/landing/AuthLink";
-import { MangoIcon } from "@/components/MangoIcon";
 import { Mascot } from "@/components/Mascot";
 import { SeekBar } from "@/components/listen/SeekBar";
-import { CategoryChip } from "@/components/ui/CategoryChip";
+import { CommuteMango } from "@/components/today/CommuteMango";
+import { Thumb } from "@/components/today/Thumb";
 import { Confetti } from "@/components/ui/Confetti";
 import { Sheet } from "@/components/ui/Sheet";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { SourceChip } from "@/components/ui/SourceChip";
 import { Spinner } from "@/components/ui/Spinner";
 import { track } from "@/lib/analytics";
 import { isAppUserAgent } from "@/lib/app-client";
@@ -163,7 +161,7 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
   const started = useRef(false);
   const offer: Offer = { perks, priceLabel, trialDays };
   const playing = p.status === "playing" || p.status === "loading";
-  const categories = [...new Set(items.map((i) => CATEGORY_LABEL[i.category]))];
+  const sections = [...new Set(items.map((i) => sectionOf({ category: i.category })).filter((x): x is NonNullable<typeof x> => !!x).map((x) => SECTION_LABEL[x]))];
   const listenAllRef = useRef<HTMLButtonElement>(null);
   const [spot, setSpot] = useState(false);
   // 처음 열면 전체 듣기를 짚는다(맨 위에 있을 때만, 이 탭에서 한 번)
@@ -215,61 +213,75 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
     navigator.mediaSession.metadata = new MediaMetadata({ title: curItem.title, artist: "맹고", album: "둘러보기" });
   }, [curItem]);
 
+  // 망고의 자리: 듣기 전엔 출발, 듣는 중이면 그 소식, 다 들었으면 도착(오늘 화면 노선과 같은 규칙)
+  const at = p.cur >= 0 ? p.cur : p.heard.size >= n ? n : -1;
+
   return (
     <div className="min-h-dvh bg-paper">
-      <header className="sticky top-0 z-20 border-b-2 border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      {/* 2026-11-10 새 화면: 오늘 화면과 같은 머리말·브리핑 머리·남색 듣기 버튼·노선(사진 썸네일) */}
+      <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[640px] items-center justify-between gap-3 px-4">
-          <Link href="/" aria-label="맹고 소개" className="flex items-center gap-2 no-underline">
-            <MangoIcon className="size-8" />
-            <span className="text-[22px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
+          <Link href="/" aria-label="맹고 소개" className="flex min-w-0 items-center gap-2.5 no-underline">
+            <span className="text-[20px] font-bold tracking-[-0.035em] text-ink">맹고</span>
+            <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-line-dark" />
+            <span className="truncate text-[14px] font-medium text-sub">내 관심 뉴스 요약</span>
           </Link>
-          <AuthLink signedOut={{ href: "/login", label: "로그인" }} signedIn={{ href: "/today", label: "오늘의 소식" }} className="btn btn-ghost min-h-11 px-4 text-[14px] no-underline" />
+          <AuthLink
+            signedOut={{ href: "/login", label: "로그인" }}
+            signedIn={{ href: "/today", label: "내 브리핑" }}
+            className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-line px-4 text-[14px] font-semibold text-ink no-underline hover:bg-snow"
+          />
         </div>
       </header>
 
       {/* 아래는 맹고 AI 버튼(플레이어가 있으면 그 위)이 마지막 버튼을 가리지 않게 비운다 */}
       <main className={`mx-auto max-w-[640px] px-4 pt-5 lg:pt-8 ${curItem ? "pb-[calc(var(--tour-bar-h,140px)+96px)]" : "pb-[calc(96px+env(safe-area-inset-bottom))]"}`}>
-        {/* 오늘 화면의 머리 카드와 같은 모양 */}
-        <section aria-labelledby="try-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
-          <p className="text-[13px] font-extrabold text-ink/70">로그인 없이 둘러보기</p>
-          <h1 id="try-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
-            소식 {n}개 들어 보기
+        <section aria-labelledby="try-title" className="px-1.5">
+          <p className="text-[13px] font-medium text-sub">로그인 없이 둘러보기</p>
+          <h1 id="try-title" className="mt-1 flex items-baseline gap-2.5">
+            <span className="font-round text-[36px] font-black tracking-[-0.02em]">약 {totalMin}분</span>
+            <span className="text-[15px] font-medium text-sub">소식 {n}개</span>
           </h1>
-          <p className="mt-1 text-[14px] font-semibold leading-snug text-ink/80">{categories.join(", ")}에서 골랐어요</p>
-          {/* 처음 보는 사람이 바로 누르게 폭 전체의 큰 버튼, 아래에 들을 시간(첫 소식이 짧다는 걸 먼저) */}
-          <button
-            ref={listenAllRef}
-            type="button"
-            onClick={() => listenAll("hero")}
-            aria-label={playing ? "듣기 일시정지" : p.cur >= 0 ? "이어 듣기" : `소식 ${n}개 처음부터 듣기`}
-            className="btn btn-ink mt-4 flex min-h-14 w-full items-center justify-center gap-2 text-[17px]"
-          >
-            {playing ? <IconPause className="size-5" /> : <IconPlay className="size-5" />}
-            {playing ? "일시정지" : p.cur >= 0 ? "이어 듣기" : "지금 바로 들어 보기"}
-          </button>
-          <p className="mt-2 text-center text-[13px] font-bold text-ink/70">
-            첫 소식 {koDuration(firstMs)}, 전체 약 {totalMin}분
-          </p>
-          <div className="mt-4 flex items-center gap-3">
-            <ProgressBar value={p.heard.size / n} tone="leaf" label="들어 본 소식" className="h-4 flex-1" track="bg-white/60" />
-            <span className="font-round text-[17px] font-black tabular-nums">{`${p.heard.size}/${n}`}</span>
-          </div>
+          <p className="mt-1 text-[13px] text-sub">{sections.join(", ")}에서 맹고가 골랐어요.</p>
         </section>
 
-        <ol className="mt-6 flex flex-col gap-4" aria-label="둘러볼 소식">
+        <button
+          ref={listenAllRef}
+          type="button"
+          onClick={() => listenAll("hero")}
+          aria-label={playing ? "듣기 일시정지" : p.cur >= 0 ? "이어 듣기" : `소식 ${n}개 처음부터 듣기`}
+          className="mt-4 flex h-[60px] w-full items-center gap-3 rounded-full bg-ink pl-2 pr-5 text-left text-white"
+        >
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink">
+            {playing ? <IconPause className="size-[18px]" /> : <IconPlay className="size-[18px]" />}
+          </span>
+          <span className="flex-1 text-[16px] font-bold">{playing ? "듣는 중" : p.cur >= 0 ? "이어 듣기" : "브리핑 들어 보기"}</span>
+          <span className="text-[13px] font-medium tabular-nums text-white/65">
+            {p.heard.size > 0 ? `${p.heard.size}/${n}` : `첫 소식 ${koDuration(firstMs)}`}
+          </span>
+        </button>
+
+        <h2 className="mt-6 px-1.5 text-[15px] font-bold">오늘의 노선</h2>
+        <ol aria-label="둘러볼 소식" className="mt-3 px-1">
+          <RouteEnd kind="start" here={at === -1} passed={at >= 0} />
           {items.map((item, i) => (
-            <GuestCard
+            <GuestStation
               key={item.clusterId}
               item={item}
-              current={p.cur === i}
+              index={i}
+              at={at}
               status={p.cur === i ? p.status : "idle"}
               posMs={p.cur === i ? p.posMs : 0}
               heard={p.heard.has(item.clusterId)}
-              onListen={() => (p.cur === i && playing ? p.pause() : p.cur === i ? p.play(i) : start(i, "item", "card"))}
+              onTap={() => {
+                onOpen(item);
+                if (p.cur === i) return playing ? p.pause() : p.play(i);
+                start(i, "item", "card");
+              }}
               onLine={(ms) => (p.cur === i ? p.seek(ms) : start(i, "item", "card"))}
-              onOpen={() => onOpen(item)}
             />
           ))}
+          <RouteEnd kind="end" here={at >= n} passed={false} />
         </ol>
 
         <PremiumOffer offer={offer} where="list" heard={p.heard.size} total={n} className="mt-8" />
@@ -299,113 +311,144 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
   );
 }
 
-/** 소식 카드(오늘 목록의 카드와 같은 모양). 누르면 대본이 펼쳐지고, 읽는 줄을 진하게 보여 준다 */
-function GuestCard({
+const LINE = "#FFC23D";
+const PASSED = "#D5D8E0";
+
+/** 노선의 출발·도착 줄(오늘 화면 노선과 같은 모양) */
+function RouteEnd({ kind, here, passed }: { kind: "start" | "end"; here: boolean; passed: boolean }) {
+  return (
+    <li className="flex h-12 items-center gap-3">
+      <div aria-hidden="true" className="relative h-12 w-8 shrink-0">
+        {kind === "start" ? (
+          <span className="absolute bottom-0 left-[13px] top-6 w-1.5" style={{ background: passed ? PASSED : LINE }} />
+        ) : (
+          <span className="absolute left-[13px] top-0 h-3 w-1.5" style={{ background: here ? PASSED : LINE }} />
+        )}
+        {here ? (
+          <span className={`absolute -left-1 ${kind === "start" ? "top-0" : "top-1"}`}>
+            <CommuteMango slot="am" className="size-10" />
+          </span>
+        ) : kind === "start" ? (
+          <span className="absolute left-[10px] top-[18px] size-3 rounded-full" style={{ background: PASSED }} />
+        ) : (
+          <span className="absolute left-[5px] top-[10px] flex size-[22px] items-center justify-center rounded-[7px] bg-ink">
+            <IconCheck className="size-3 text-mango [stroke-width:3.5]" />
+          </span>
+        )}
+      </div>
+      <span className={`text-[12px] font-bold ${kind === "start" ? "text-mango-deep" : ""}`}>{kind === "start" ? "출발" : "도착"}</span>
+      {kind === "end" && <span className="text-[12px] font-medium text-sub">가입하면 출근길·퇴근길 하루 두 번 받아요</span>}
+    </li>
+  );
+}
+
+/**
+ * 노선의 정거장 하나(소식). 누르면 그 소식부터 듣고, 듣는 소식은 아래에 대본이 펼쳐져 읽는 줄을 진하게 보여 준다.
+ * 들은 소식은 제목만 흐리게(썸네일은 그대로, 2026-11-10 사용자)
+ */
+function GuestStation({
   item,
-  current,
+  index,
+  at,
   status,
   posMs,
   heard,
-  onListen,
+  onTap,
   onLine,
-  onOpen,
 }: {
   item: GuestItem;
-  current: boolean;
+  index: number;
+  /** 망고가 있는 자리(-1 출발, 소식 수면 도착) */
+  at: number;
   status: Status;
   posMs: number;
   heard: boolean;
-  onListen: () => void;
+  onTap: () => void;
   onLine: (ms: number) => void;
-  /** 대본을 펼칠 때(읽기 재기) */
-  onOpen: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const preparing = current && status === "loading";
-  const playing = current && status === "playing";
-  const active = current ? lineAt(item.lines, posMs) : -1;
-  const body = `script-${item.clusterId}`;
-
+  const here = index === at;
+  const preparing = here && status === "loading";
+  const playing = here && status === "playing";
+  const active = here ? lineAt(item.lines, posMs) : -1;
+  const big = index === 0;
+  const section = sectionOf({ category: item.category });
+  const dim = heard && !here;
   return (
-    <li className={`tile relative p-4 transition-colors hover:bg-snow sm:p-5 ${current ? "border-sky" : ""}`}>
-      <div className="flex items-center gap-2 text-[13px] font-extrabold">
-        <CategoryChip category={item.category} />
-        <SourceChip item={item} />
-        <span className="ml-auto shrink-0">
-          {current && status === "error" ? (
-            <span className="text-cherry">못 불러왔어요</span>
-          ) : playing ? (
-            <span className="text-sky">듣는 중</span>
-          ) : heard && !current ? (
-            <span className="inline-flex items-center gap-1 text-leaf">
-              <IconCheck className="size-4 [stroke-width:3]" />
-              읽음
-            </span>
-          ) : null}
-        </span>
+    <li className="flex gap-3">
+      <div aria-hidden="true" className="relative w-8 shrink-0">
+        <span className="absolute left-[13px] top-0 h-7 w-1.5" style={{ background: index <= at ? PASSED : LINE }} />
+        <span className="absolute bottom-0 left-[13px] top-7 w-1.5" style={{ background: index < at ? PASSED : LINE }} />
+        {here ? (
+          <span className="absolute -left-1 top-2">
+            <CommuteMango slot="am" className="size-10" />
+          </span>
+        ) : (
+          <span
+            className={`absolute rounded-full ${big ? "left-[6px] top-[18px] size-5 border-[5px]" : "left-[9px] top-[21px] size-3.5 border-4"}`}
+            style={{ borderColor: index < at ? PASSED : LINE, background: index < at ? PASSED : "#FFFFFF" }}
+          />
+        )}
       </div>
-      <h2 className="mt-2.5 text-[18px] font-black leading-snug tracking-[-0.02em]">
-        {/* 카드 전체를 덮는 버튼(대본 펼치기). 듣기 버튼과 펼친 대본만 그 위에 올라온다 */}
+      <div className={`min-w-0 flex-1 ${here ? "my-1 rounded-2xl bg-[#FFF6DD] px-3 pb-3" : ""}`}>
         <button
           type="button"
-          onClick={() => {
-            if (!open) onOpen();
-            setOpen((o) => !o);
-          }}
-          aria-expanded={open}
-          aria-controls={body}
-          className={`text-left after:absolute after:inset-0 after:rounded-2xl ${heard && !current ? "text-sub" : ""}`}
+          onClick={onTap}
+          aria-label={playing || preparing ? `${item.title}, 일시정지` : `${item.title}, 듣기`}
+          className="flex w-full items-center gap-3 py-2.5 text-left"
         >
-          {item.title}
+          <span className="min-w-0 flex-1">
+            <span className={`line-clamp-2 block ${big ? "text-[17px] font-bold" : "text-[15px] font-semibold"} leading-[1.42] tracking-[-0.02em] ${dim ? "text-faint" : "text-ink"}`}>
+              {item.title}
+            </span>
+            <span className="mt-1 flex items-center gap-2 text-[12px] text-sub">
+              {section && <span className="font-semibold text-ink">{SECTION_LABEL[section]}</span>}
+              <span className="truncate">{item.author}</span>
+              <span className="shrink-0 tabular-nums">{formatClock(item.durationMs)}</span>
+              {here && status === "error" ? (
+                <span className="shrink-0 font-semibold text-cherry">못 불러왔어요</span>
+              ) : preparing ? (
+                <Spinner className="size-3.5" />
+              ) : playing ? (
+                <span className="shrink-0 font-semibold text-ink">듣는 중</span>
+              ) : null}
+            </span>
+          </span>
+          <Thumb item={{ photo: null, thumbnail: item.photo }} className={big ? "size-[72px] rounded-2xl" : "size-[52px] rounded-[14px]"} />
         </button>
-      </h2>
-      <p className="mt-2 text-[15px] font-medium leading-relaxed text-sub">{item.short}</p>
-
-      {open && (
-        <div id={body} className="relative z-10 mt-4 border-t-2 border-line pt-3">
-          {item.lines.map((line, i) => {
-            if (i === 0) return null;
-            const now = i === active;
-            const newPara = i > 1 && line.para !== undefined && line.para !== item.lines[i - 1]!.para;
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onLine(line.startMs)}
-                aria-current={now ? "true" : undefined}
-                className={`block w-full rounded-lg py-0.5 text-left text-[16px] font-bold leading-relaxed transition-colors duration-300 hover:bg-snow motion-reduce:transition-none ${newPara ? "mt-3" : ""} ${
-                  now ? "text-ink" : current && i < active ? "text-faint" : "text-sub"
-                }`}
-              >
-                {line.text}
-              </button>
-            );
-          })}
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => track("source_open", { category: item.category, kind: item.kind, where: "try" })}
-            className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-xl px-1 text-[14px] font-extrabold text-sky-dark no-underline hover:underline"
-          >
-            {item.kind === "video" ? "유튜브에서 보기" : "원문 보기"}
-            <IconExternal className="size-4" />
-            <span className="sr-only">(새 탭에서 열림)</span>
-          </a>
-        </div>
-      )}
-
-      <div className="mt-3 flex items-center gap-3">
-        <p className="min-w-0 truncate text-[13px] font-extrabold">{item.author}</p>
-        <button
-          type="button"
-          onClick={onListen}
-          aria-label={playing || preparing ? `${item.title} 그만 듣기` : `${item.title} 듣기`}
-          className="btn btn-ghost relative z-10 ml-auto min-h-11 shrink-0 px-3 text-[14px]"
-        >
-          {preparing ? <Spinner /> : playing ? <IconPause className="size-4 text-sky" /> : <IconSpeaker className="size-5 text-sky" />}
-          {playing || preparing ? "멈춤" : "듣기"}
-        </button>
+        {/* 듣는 소식의 대본: 줄을 누르면 그 자리로 */}
+        {here && (
+          <div className="border-t border-[#F3E3B5] pt-2">
+            {item.lines.map((line, i) => {
+              if (i === 0) return null;
+              const now = i === active;
+              const newPara = i > 1 && line.para !== undefined && line.para !== item.lines[i - 1]!.para;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onLine(line.startMs)}
+                  aria-current={now ? "true" : undefined}
+                  className={`block w-full rounded-lg py-0.5 text-left text-[15px] font-semibold leading-relaxed transition-colors duration-300 motion-reduce:transition-none ${newPara ? "mt-2.5" : ""} ${
+                    now ? "text-ink" : i < active ? "text-faint" : "text-sub"
+                  }`}
+                >
+                  {line.text}
+                </button>
+              );
+            })}
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track("source_open", { category: item.category, kind: item.kind, where: "try" })}
+              className="mt-2 inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold text-ink underline underline-offset-4"
+            >
+              {item.kind === "video" ? "유튜브에서 보기" : "원문 보기"}
+              <IconExternal className="size-4" />
+              <span className="sr-only">(새 탭에서 열림)</span>
+            </a>
+          </div>
+        )}
       </div>
     </li>
   );
@@ -533,21 +576,21 @@ function FreeStart() {
 function PremiumOffer({ offer, where, heard, total, className = "" }: { offer: Offer; where: "list" | "finish"; heard: number; total: number; className?: string }) {
   return (
     <section aria-labelledby="try-premium-title" className={className}>
-      <div className="relative overflow-hidden rounded-3xl bg-[#1F2340] px-6 pb-6 pt-6 text-white shadow-[0_6px_0_#11142A] dark:ring-2 dark:ring-line">
+      <div className="relative overflow-hidden rounded-3xl bg-[#1F2340] px-6 pb-6 pt-6 text-white dark:ring-1 dark:ring-line">
         <span aria-hidden="true" className="absolute -right-12 -top-14 size-48 rounded-full bg-white/[0.06]" />
         <div className="relative">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-black tracking-[0.08em] text-mango">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[13px] font-semibold text-mango">
             <Crown className="size-3.5" />
-            PREMIUM
+            Premium
           </span>
-          <h2 id="try-premium-title" className="mt-3 text-[24px] font-black leading-tight tracking-[-0.03em]">
-            내 관심 분야 소식만,
+          <h2 id="try-premium-title" className="mt-3 text-[24px] font-bold leading-tight tracking-[-0.04em]">
+            맹고가 골라 주는 내 관심 소식,
             <br />
             {offer.trialDays}일 동안 무료로 들어 보세요
           </h2>
           <ul className="mt-5 flex flex-col gap-3">
             {offer.perks.map((p) => (
-              <li key={p.label} className="flex items-center gap-2.5 text-[16px] font-bold">
+              <li key={p.label} className="flex items-center gap-2.5 text-[16px] font-semibold">
                 <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
                   <IconCheck className="size-4 [stroke-width:3]" />
                 </span>
@@ -561,7 +604,7 @@ function PremiumOffer({ offer, where, heard, total, className = "" }: { offer: O
           <div className="mt-6">
             <TrialButton offer={offer} where={where} heard={heard} total={total} />
           </div>
-          <p className="mt-3 text-center text-[13px] font-semibold leading-relaxed text-white/70">
+          <p className="mt-3 text-center text-[13px] font-medium leading-relaxed text-white/70">
             체험이 끝나기 전에 해지하면 결제되지 않아요. 그 뒤에는 {offer.priceLabel}이에요.
           </p>
         </div>
@@ -596,13 +639,13 @@ function FinishDialog({ offer, heard, total, onClose }: { offer: Offer; heard: n
           <Mascot mood="cheer" className="absolute left-1/2 top-5 size-[112px] -translate-x-1/2" />
         </div>
         <div className="px-6 pb-6 pt-5">
-          <h2 id="try-finish-title" className="text-[20px] font-black leading-[1.45] tracking-[-0.03em]">
+          <h2 id="try-finish-title" className="text-[20px] font-bold leading-[1.45] tracking-[-0.03em]">
             소식 {heard}개를 들어 봤어요~!
           </h2>
           <p className="mt-1.5 text-[15px] font-semibold leading-relaxed text-sub">
-            가입하면 내가 고른 분야 소식만
+            가입하면 맹고가 내 관심에 맞는 소식만
             <br />
-            매일 골라서 읽어 드려요.
+            출근길·퇴근길에 골라 읽어 드려요.
           </p>
           <div className="mt-5">
             <TrialButton offer={offer} where="finish" heard={heard} total={total} />
@@ -893,7 +936,7 @@ function GuestAskChat({ messages, waiting, onAsk, variant }: { messages: AskMess
                       }}
                       className="btn mt-3 min-h-11 w-full text-[15px] no-underline"
                     >
-                      {signedIn ? "오늘의 소식에서 물어보기" : "가입하고 물어보기"}
+                      {signedIn ? "내 브리핑에서 물어보기" : "가입하고 물어보기"}
                     </Link>
                   </div>
                 </li>

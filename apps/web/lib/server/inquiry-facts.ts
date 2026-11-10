@@ -111,7 +111,7 @@ export async function inquiryFacts(userId: string, opts: { resync: boolean }): P
   const count = (pf: string) => dev.filter((d) => d.platform === pf).length;
   out.push({ text: `알림: ${p.push_enabled ? '켜짐' : '꺼짐(설정 > 알림에서 켜야 받음)'}, 받을 시각 ${p.notify_at.slice(0, 5)}, 알림 받을 기기 iOS ${count('ios')}·Android ${count('android')}·웹 ${count('web')}` });
   const j = must(jobs, 'delivery_jobs') as { date: string; status: string }[];
-  if (j.length) out.push({ text: `최근 하루 소식 알림: ${j.map((x) => `${dayLabel(`${x.date}T12:00:00+09:00`)} ${DELIVERY[x.status] ?? x.status}`).join(', ')}` });
+  if (j.length) out.push({ text: `최근 브리핑 알림: ${j.map((x) => `${dayLabel(`${x.date}T12:00:00+09:00`)} ${DELIVERY[x.status] ?? x.status}`).join(', ')}` });
 
   const ev = must(events, 'billing_events') as { type: string; event_at: string | null }[];
   if (ev.length) out.push({ text: `최근 결제 알림(RevenueCat): ${ev.map((e) => `${e.event_at ? dayLabel(e.event_at) : '?'} ${e.type}`).join(', ')}` });

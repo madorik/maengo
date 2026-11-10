@@ -387,11 +387,11 @@ export async function rebuildFeed(profile: Profile) {
 }
 
 /**
- * 하루 맹고(설정 > 플랜): 오늘 하루 맹고에서 지급한 수 / 플랜의 하루 맹고. 맹고 = 소식(2026-10-14 사용자 정책).
- * Free 5개 중 2개를 받았으면 2/5. 지갑으로 더 받은 건 세지 않는다. 오늘 피드가 아직 없으면 0/5
+ * 오늘 받은 소식(설정 > 플랜): 오늘 지급한 수 / 오늘 받을 수 있는 수. 맹고 = 소식(2026-10-14 사용자 정책).
+ * 2026-11-10 하루 두 번 브리핑: 브리핑마다 플랜의 하루 소식만큼이라 하루에는 두 배(Free 5+5). 지갑으로 더 받은 건 세지 않는다. 오늘 피드가 아직 없으면 0/10
  */
 export async function dailyMaengoUsage(profile: Profile): Promise<{ given: number; daily: number }> {
-  const daily = entitlements(profile).dailyItems;
+  const daily = entitlements(profile).dailyItems * 2;
   const day = await todayFeed(profile);
   return { given: Math.min(day.visible, daily), daily };
 }

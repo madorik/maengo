@@ -75,8 +75,8 @@ export default async function SettingsPage() {
           <BillingBanner notice={pastDue} uid={profile.id} className="mt-3" />
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="tile p-4">
-              <p className="text-[13px] font-extrabold text-sub">하루 소식</p>
-              {/* 오늘 지급한 소식 / 플랜의 하루 소식 */}
+              <p className="text-[13px] font-extrabold text-sub">오늘 받은 소식</p>
+              {/* 오늘 지급한 소식 / 오늘 받을 수 있는 수(출근길·퇴근길 브리핑 두 번) */}
               <p className="font-round text-[26px] font-black leading-tight tabular-nums">
                 {usage.given}
                 <span className="text-[16px] text-sub">/{usage.daily}</span>

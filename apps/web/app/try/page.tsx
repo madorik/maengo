@@ -35,12 +35,13 @@ export default async function TryPage() {
   const free = plans.get("free")!;
   const plus = plans.get("plus")!;
   // 요금제 비교표(app/(app)/premium/page.tsx)와 같은 숫자
+  // 2026-11-10 개편: 하루 두 번 브리핑마다 소식 수, 주간 리포트. 메뉴에서 뺀 내 관심 링크는 넣지 않는다
   const perks: TourPerk[] = [
-    { label: `하루 소식 ${plus.dailyItems}개`, note: `Free ${free.dailyItems}개` },
+    { label: `브리핑마다 소식 ${plus.dailyItems}개`, note: `Free ${free.dailyItems}개` },
     { label: "소식 플레이어로 이어 듣기 무제한", note: free.dailyListens > 0 ? `Free 하루 ${free.dailyListens}개` : undefined },
     { label: "더 자연스러운 AI 목소리" },
     { label: `맹고 AI 질문 하루 ${ASK_DAILY.plus}번`, note: `Free ${ASK_DAILY.free}번` },
-    ...(plus.linkLimit > 0 ? [{ label: `내 관심 링크 ${plus.linkLimit}곳` }] : []),
+    { label: "주간 리포트" },
   ];
   return <GuestTour items={items} perks={perks} priceLabel={`월 ${plus.priceKrw.toLocaleString("ko-KR")}원`} trialDays={TRIAL_DAYS} />;
 }
@@ -49,8 +50,8 @@ function Empty() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-[400px] flex-col items-center justify-center px-6 text-center">
       <Mascot mood="listen" className="size-24" />
-      <h1 className="mt-4 text-[22px] font-black tracking-[-0.03em]">지금은 들려드릴 소식을 고르고 있어요</h1>
-      <p className="mt-2 text-[15px] font-semibold leading-relaxed text-sub">가입하면 고른 분야 소식을 바로 받아 볼 수 있어요.</p>
+      <h1 className="mt-4 text-[22px] font-bold tracking-[-0.03em]">지금은 들려드릴 소식을 고르고 있어요</h1>
+      <p className="mt-2 text-[15px] font-medium leading-relaxed text-sub">가입하면 맹고가 내 관심에 맞는 소식을 바로 골라 드려요.</p>
       <Link href="/login" className="btn mt-8 min-h-14 w-full text-[17px] no-underline">
         무료로 시작하기
       </Link>

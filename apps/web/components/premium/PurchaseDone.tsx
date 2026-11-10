@@ -41,7 +41,7 @@ function copy(d: PurchaseDoneDetail): { title: [string, string]; body: string } 
           title: [`${d.trialDays}일 무료 체험을`, "시작했어요~!"],
           body: d.chargeLabel && d.price ? `${d.chargeLabel}에 월 ${d.price}이 결제돼요. 그 전에 해지하면 결제되지 않아요.` : "체험이 끝나기 전에 해지하면 결제되지 않아요.",
         }
-      : { title: ["맹고 Premium을", "시작했어요~!"], body: "음성 듣기, 관심사 추가, 내 관심 링크를 바로 쓸 수 있어요." };
+      : { title: ["맹고 Premium을", "시작했어요~!"], body: "음성 듣기 무제한, 브리핑마다 소식 10개, 주간 리포트를 바로 쓸 수 있어요." };
   }
   return d.late
     ? { title: ["결제가 끝났어요", `맹고 ${d.amount}개가 곧 들어와요`], body: "맹고가 지갑에 들어오는 데 조금 걸릴 수 있어요." }

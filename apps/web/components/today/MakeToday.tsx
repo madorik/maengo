@@ -72,7 +72,7 @@ function cheersOf(p: Progress): string[] {
       : [`이미 준비된 소식 ${p.ready}개를 찾았어요!`, "오늘 목록에 예쁘게 담는 중이에요"];
   if (p.stage === "saving") return ["거의 다 됐어요! 오늘 목록에 담는 중이에요"];
   if (p.stage === "done") return [`오늘의 소식 ${p.items}개가 준비됐어요!`];
-  return ["오늘의 소식을 만들고 있어요"];
+  return ["브리핑을 만들고 있어요"];
 }
 
 /** 스크린리더에는 돌아가는 말 대신 단계만 알린다 */
@@ -113,7 +113,7 @@ function Making({ p }: { p: Progress }) {
         </div>
       </div>
       <div className="mt-4 flex items-center gap-3">
-        <div role="progressbar" aria-label="오늘의 소식 만드는 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="h-4 flex-1 overflow-hidden rounded-full bg-line">
+        <div role="progressbar" aria-label="브리핑 만드는 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="h-4 flex-1 overflow-hidden rounded-full bg-line">
           <div className={`h-full rounded-full bg-sky transition-[width] duration-300 ease-out ${done ? "" : "stripes"}`} style={{ width: `${pct}%` }} />
         </div>
         <span className="w-10 text-right font-round text-[14px] font-black tabular-nums text-sky-dark" aria-hidden>
@@ -272,7 +272,7 @@ export function MakeToday({ reason, notifyLabel }: { reason: TodayData["emptyRea
       <div className="mt-10 flex items-end gap-3">
         <Mascot mood="happy" className="size-24 shrink-0" />
         <Bubble className="mb-6 flex-1">
-          <p className="text-[15px] font-bold leading-relaxed">오늘의 소식을 준비하고 있어요. 곧 도착해요.</p>
+          <p className="text-[15px] font-bold leading-relaxed">브리핑을 준비하고 있어요. 곧 도착해요.</p>
           <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
             지난 소식 보기
           </Link>
@@ -297,14 +297,14 @@ export function MakeToday({ reason, notifyLabel }: { reason: TodayData["emptyRea
               {state.kind === "blocked"
                 ? "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요."
                 : state.kind === "error"
-                ? "오늘의 소식을 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
+                ? "브리핑을 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
                 : reason === "first"
                   ? "첫 소식을 받아 볼까요?"
                   : reason === "scheduled"
                     ? `오늘의 소식은 ${notifyLabel}에 와요.`
                   : reason === "exhausted"
                     ? "관심사에서 고른 소식을 다 봤어요. 새로 들어온 소식이 있는지 찾아볼까요?"
-                    : "아직 오늘의 소식이 없어요. 지금 바로 만들어 드릴까요?"}
+                    : "아직 브리핑이 없어요. 지금 바로 만들어 드릴까요?"}
             </p>
             <button type="button" onClick={start} className="btn mt-3 w-full">
               {state.kind === "error" || state.kind === "blocked" ? "다시 받기" : reason === "scheduled" ? "오늘 소식 지금 받기" : "오늘 소식 받기"}

@@ -11,7 +11,7 @@ import { registerThisBrowser } from "@/lib/web-push";
  * 거절하거나 알림을 못 받는 브라우저면 알림 없이 시작한다. 보내는 동안은 막아 두 번 보내지 않는다.
  * 몇 개 골랐는지만 분석에 남긴다(무엇을 적었는지는 남기지 않는다)
  */
-export function OnboardingSubmit({ label = "고른 분야로 시작하기" }: { label?: string }) {
+export function OnboardingSubmit({ label = "이대로 시작하기" }: { label?: string }) {
   const { pending } = useFormStatus();
   const [asking, setAsking] = useState(false);
   /** 권한은 한 번만 묻는다(되돌아와 다시 누르면 바로 보낸다) */

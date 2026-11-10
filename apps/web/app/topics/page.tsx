@@ -56,7 +56,7 @@ export default async function TopicsPage({ searchParams }: Props) {
           <h2 id="fields-title" className="text-[24px] font-black tracking-[-0.03em] md:text-[28px]">
             분야별로 보기
           </h2>
-          <p className="mt-1 text-[15px] font-medium text-sub">관심 있는 분야만 고르면, 그 분야 소식만 매일 아침 받아요. 분야 안의 세부 주제로 더 좁힐 수도 있어요.</p>
+          <p className="mt-1 text-[15px] font-medium text-sub">맹고가 요약한 소식을 분야별로 모았어요. 가입하면 읽고 듣는 소식에 맞춰 내 관심 소식만 골라 드려요.</p>
           <ul className="mt-6 grid gap-3 md:grid-cols-2">
             {PUBLIC_TOPICS.map((t) => (
               <li key={t.slug}>
@@ -83,7 +83,7 @@ export default async function TopicsPage({ searchParams }: Props) {
         </section>
       </div>
 
-      <StartBand title="내 관심 소식만 매일 받아 보세요" body="관심 분야만 고르면 첫 소식을 바로 보여 드려요. 출퇴근길엔 귀로 들어요." />
+      <StartBand title="내 관심 소식만 출퇴근길에 받아 보세요" body="끌리는 소식 몇 개만 누르면 첫 브리핑을 바로 보여 드려요. 출퇴근길엔 귀로 들어요." />
     </PublicPage>
   );
 }
