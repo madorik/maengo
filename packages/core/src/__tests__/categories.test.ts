@@ -18,6 +18,7 @@ test('키워드 분류: 제목과 요약을 더 무겁게 본다', () => {
   assert.equal(c('에이전트 평가, 정답셋 없이 시작하는 법', '실서비스 로그에서 실패한 대화를 모아요', ['배포 전에 평가셋을 돌려요']), 'ai');
   assert.equal(c('디자인 토큰을 코드와 피그마에서 같이 쓰기'), 'design');
   assert.equal(c('한글 웹 폰트 때문에 늦어지는 첫 화면'), 'tech');
+  assert.equal(c('프로야구 한국시리즈 7차전, 끝내기 홈런'), 'sports');
 });
 
 test('더미 AI도 같은 분류기를 쓰고, 결과는 정해진 목록 안에 있다', async () => {
@@ -25,5 +26,6 @@ test('더미 AI도 같은 분류기를 쓰고, 결과는 정해진 목록 안에
   const got = await ai.classify({ model: 'm', title: '디자인 토큰과 피그마', short: '', body: [] });
   assert.equal(got, 'design');
   assert.ok(isCategory(got));
-  assert.ok(!isCategory('sports'));
+  assert.ok(isCategory('sports'));
+  assert.ok(!isCategory('weather'));
 });

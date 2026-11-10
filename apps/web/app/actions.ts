@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { withBase } from "@/lib/base-path";
 import { isRate } from "@/lib/player/rate";
 import { allowedOrigin, googleAuthUrl, googleDirectEnabled, LOGIN_TTL_SEC, randomToken, signState, STATE_COOKIE } from "@/lib/server/google-login";
+import { YOUTUBE_COOKIE, YOUTUBE_SCOPE, youtubeInterestsEnabled } from "@/lib/server/youtube-interests";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session-cookie";
 import { must, db } from "@/lib/server/db";
 import { addToPlaylist, clearPlaylist, isInUserFeed, rebuildFeed, receiveMore, removeFromPlaylist, reorderPlaylist, type MoreResult } from "@/lib/server/feed";
@@ -17,11 +18,15 @@ import { entitlements } from "@/lib/server/profile";
 import { currentProfile, demoUserId, requireProfile } from "@/lib/server/session";
 import { takeTrialIntent, TRIAL_PATH } from "@/lib/server/sign-in";
 import { addLink, releaseLinks, removeLink } from "@/lib/server/links";
+import { markReportSeen } from "@/lib/server/report";
 import { addCustomTopics, addTopics, removeTopic, setGroupPicks } from "@/lib/server/topics";
 import { signSession } from "@/lib/session-token";
 import { supabaseAuth } from "@/lib/supabase/server";
 import { isNotifyTime } from "@maengo/core/kst";
 import { isAdultInterest, TOPIC_BY_ID } from "@maengo/core/topics";
+import { isReportPeriod } from "@maengo/core/report";
+import { isSection, SECTION_IDS } from "@maengo/core/sections";
+import { WEIGHT_MAX, WEIGHT_MIN } from "@maengo/core/feed";
 import type { TopicResult } from "@/lib/types";
 
 const cookieOpts = { sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 } as const;
@@ -61,6 +66,8 @@ export async function signIn(formData: FormData) {
       options: {
         redirectTo: `${await origin()}${withBase("/auth/callback")}`,
         ...(provider === "google" ? { queryParams: { prompt: "select_account" } } : {}),
+        // 유튜브 구독으로 관심사 찾기(YOUTUBE_INTERESTS=1): 같은 구글 화면에서 유튜브 읽기 권한도 묻는다
+        ...(provider === "google" && youtubeInterestsEnabled() ? { scopes: YOUTUBE_SCOPE } : {}),
       },
     });
     if (error || !data.url) redirect(`/login?error=${provider}`);
@@ -88,6 +95,14 @@ export async function signOut() {
  */
 export async function completeOnboarding(formData: FormData) {
   const profile = await requireProfile();
+  // 새 온보딩(2026-11-10): 키워드를 고르지 않고 맹고가 찾은 분야 8개의 비중을 넣는다(section=<분야>:<비중>). 예전 화면(topic)은 아래 그대로
+  const sections = formData.getAll("section").map(String);
+  if (sections.length || formData.get("mode") === "sections") {
+    await saveSectionWeights(profile.id, sections);
+    // 유튜브 구독으로 찾은 분야(로그인 때 잠깐 남긴 쿠키)는 다 썼다
+    (await cookies()).delete(YOUTUBE_COOKIE);
+    await finishOnboarding(profile.id, formData);
+  }
   const limit = Math.min(ONBOARDING_TOPIC_LIMIT, entitlements(profile).topicLimit);
   const picked = [...new Set(formData.getAll("topic").map(String))].filter((id) => TOPIC_BY_ID.has(id));
   if (picked.length > limit) redirect("/onboarding?error=limit");
@@ -110,8 +125,29 @@ export async function completeOnboarding(formData: FormData) {
     const r = await addCustomTopics(profile, etcText);
     if (r.tone === "warn") redirect(`/onboarding?error=${r.code === "adult" ? "adult" : "etc"}`);
   }
+  await finishOnboarding(profile.id, formData);
+}
+
+/**
+ * 분야 8개의 비중을 넣는다(맹고가 찾은 관심사, 2026-11-10). 'economy:1.2'처럼 온다. 빠진 분야는 이슈도가 높은 소식만 받게 낮게(0.3).
+ * 하나도 없으면(건너뛰기) 모두 같게 둔다(분야마다 하루 하나씩 돌아가며)
+ */
+async function saveSectionWeights(userId: string, entries: string[]) {
+  const given = new Map<string, number>();
+  for (const e of entries) {
+    const [id, raw] = e.split(":");
+    const w = Number(raw);
+    if (id && isSection(id) && Number.isFinite(w)) given.set(id, Math.min(WEIGHT_MAX, Math.max(WEIGHT_MIN, w)));
+  }
+  const rows = SECTION_IDS.map((id) => ({ user_id: userId, topic_id: id, weight: given.size ? (given.get(id) ?? 0.3) : 1, source: "onboarding" }));
+  must(await db.from("user_topics").upsert(rows, { onConflict: "user_id,topic_id" }), "user_topics sections");
+}
+
+/** 온보딩 마치기: 알림을 켤 수 있으면 켜고, 온보딩 끝으로 표시하고 오늘(또는 체험 안내)로 */
+async function finishOnboarding(userId: string, formData: FormData): Promise<never> {
   // '시작하기'를 누를 때 알림 권한을 받아 이 기기를 등록했으면(OnboardingSubmit) 알림을 켠 채로 시작한다(2026-10-23 사용자 결정).
-  // 설정의 알림 켜기와 같이 등록된 기기가 있을 때만 켠다. 시간은 기본값(오전 7시), 설정에서 바꾼다
+  // 설정의 알림 켜기와 같이 등록된 기기가 있을 때만 켠다. 시간은 기본값(출근길 오전 7시·퇴근길 오후 6시), 설정에서 바꾼다
+  const profile = { id: userId };
   let pushEnabled = false;
   if (formData.get("push") === "on") {
     const { count } = await db.from("device_tokens").select("token", { count: "exact", head: true }).eq("user_id", profile.id);
@@ -162,9 +198,12 @@ export interface NotifyResult {
 export async function saveNotifyAt(_prev: NotifyResult | null, formData: FormData): Promise<NotifyResult> {
   const profile = await requireProfile();
   const value = formData.get("notifyAt");
-  if (!isNotifyTime(value)) return { notifyAt: profile.notifyAt, error: "고를 수 없는 시간이에요." };
-  if (value !== profile.notifyAt) {
-    must(await db.from("profiles").update({ notify_at: value }).eq("id", profile.id), "profiles notify_at");
+  // 출근길(am, notify_at)·퇴근길(pm, notify_at_pm) 알림 시각(2026-11-10 하루 두 번)
+  const pm = formData.get("slot") === "pm";
+  const current = pm ? profile.notifyAtPm : profile.notifyAt;
+  if (!isNotifyTime(value)) return { notifyAt: current, error: "고를 수 없는 시간이에요." };
+  if (value !== current) {
+    must(await db.from("profiles").update(pm ? { notify_at_pm: value } : { notify_at: value }).eq("id", profile.id), "profiles notify_at");
     revalidatePath("/", "layout");
   }
   return { notifyAt: value };
@@ -278,6 +317,13 @@ export async function editTopics(_prev: TopicResult | null, formData: FormData):
   }
   revalidatePath("/keywords");
   return result;
+}
+
+/** 리포트를 열었다: 오늘 화면의 '리포트가 나왔어요' 카드를 거둔다(lib/server/report.ts) */
+export async function reportSeen(period: string, start: string): Promise<void> {
+  const profile = await requireProfile();
+  if (!isReportPeriod(period) || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return;
+  await markReportSeen(profile, period, start);
 }
 
 /** 내 관심 키워드 > 내 관심 링크 칸: 빼기(removeLink, ✕ 버튼)가 먼저, 아니면 그 칸(slot)에 주소 넣기(link). 결과 모양은 관심사와 같다 */

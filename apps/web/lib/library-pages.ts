@@ -1,4 +1,4 @@
-import { isCategory, type CategoryId } from "@maengo/core/categories";
+import { isSection, type SectionId } from "@maengo/core/sections";
 import { parseLibraryQuery } from "./library-search";
 import type { LibraryData, LibraryReadFilter } from "./types";
 
@@ -11,7 +11,7 @@ export type LibraryGroup = LibraryData["groups"][number];
 export type LibraryPageData = Pick<LibraryData, "page" | "pageCount" | "groups">;
 
 export interface LibraryFilters {
-  category: CategoryId | null;
+  section: SectionId | null;
   read: LibraryReadFilter | null;
   /** 북마크한 소식만 */
   bookmark: boolean;
@@ -28,10 +28,10 @@ export interface LoadedPages {
 /** 주소로 받는 쪽 번호 상한 */
 const PAGE_MAX = 10_000;
 
-/** /api/library의 검색 문자열(page=2&category=ai&read=unread&bookmark=1&q=…) */
+/** /api/library의 검색 문자열(page=2&section=economy&read=unread&bookmark=1&q=…) */
 export function libraryPageSearch(page: number, f: LibraryFilters): string {
   const q = new URLSearchParams({ page: String(page) });
-  if (f.category) q.set("category", f.category);
+  if (f.section) q.set("section", f.section);
   if (f.read) q.set("read", f.read);
   if (f.bookmark) q.set("bookmark", "1");
   if (f.query) q.set("q", f.query);
@@ -42,18 +42,18 @@ export function libraryPageSearch(page: number, f: LibraryFilters): string {
 export function parseLibraryPageSearch(search: URLSearchParams): ({ page: number } & LibraryFilters) | null {
   const page = Number(search.get("page"));
   if (!Number.isInteger(page) || page < 1 || page > PAGE_MAX) return null;
-  const category = search.get("category");
-  if (category !== null && !isCategory(category)) return null;
+  const section = search.get("section");
+  if (section !== null && !isSection(section)) return null;
   const read = search.get("read");
   if (read !== null && read !== "unread") return null;
   const bookmark = search.get("bookmark");
   if (bookmark !== null && bookmark !== "1") return null;
-  return { page, category, read, bookmark: bookmark === "1", query: parseLibraryQuery(search.get("q") ?? undefined) };
+  return { page, section, read, bookmark: bookmark === "1", query: parseLibraryQuery(search.get("q") ?? undefined) };
 }
 
 /** 거르기(카테고리·읽음·북마크·검색어)가 같은지 가르는 열쇠 */
 export function libraryFilterKey(f: LibraryFilters): string {
-  return JSON.stringify([f.category, f.read, f.bookmark, f.query]);
+  return JSON.stringify([f.section, f.read, f.bookmark, f.query]);
 }
 
 /** 1쪽이 그때와 같은지(되살린 쪽을 붙여도 되는지) 보는 값: 개수와 1쪽 소식 순서 */

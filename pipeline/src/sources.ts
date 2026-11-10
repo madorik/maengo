@@ -20,7 +20,7 @@ export interface SourceSeed {
   topic?: 'ai' | 'dev' | 'dev-release' | 'cloud' | 'security' | 'stock' | 'coin' | 'semiconductor' | 'robot' | 'ev-battery';
 }
 
-export type NewsSectionId = 'politics' | 'economy' | 'society' | 'life-culture' | 'it-science' | 'world';
+export type NewsSectionId = 'politics' | 'economy' | 'society' | 'life-culture' | 'it-science' | 'world' | 'sports' | 'entertainment';
 
 export const SOURCES: SourceSeed[] = [
   // 국내 큐레이션·매체
@@ -181,6 +181,18 @@ export const SOURCES: SourceSeed[] = [
   { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=07', name: 'SBS 국제', weight: 0.9, lang: 'ko', section: 'world' },
   { kind: 'rss', url: 'https://www.hankyung.com/feed/international', name: '한국경제 국제', weight: 0.8, lang: 'ko', section: 'world' },
   { kind: 'rss', url: 'https://www.newsis.com/RSS/international.xml', name: '뉴시스 국제', weight: 0.8, lang: 'ko', section: 'world' },
+  // 스포츠·엔터(2026-11-10 사용자: 분야 8개). 11-10에 열어 보고 하루 글이 넉넉하고 대표 이미지가 붙는 곳만 넣었다.
+  // 경향신문(스포츠 하루 3건·연예 피드 멈춤)·한국경제(하루 3~8건, 이미지 없음)는 뺐다
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/sports.xml', name: '연합뉴스 스포츠', weight: 1.0, lang: 'ko', section: 'sports' },
+  { kind: 'rss', url: 'https://rss.donga.com/sports.xml', name: '동아일보 스포츠', weight: 0.9, lang: 'ko', section: 'sports' },
+  { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=09', name: 'SBS 스포츠', weight: 0.9, lang: 'ko', section: 'sports' },
+  { kind: 'rss', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/sports/?outputType=xml', name: '조선일보 스포츠', weight: 0.9, lang: 'ko', section: 'sports' },
+  { kind: 'rss', url: 'https://www.newsis.com/RSS/sports.xml', name: '뉴시스 스포츠', weight: 0.8, lang: 'ko', section: 'sports' },
+  { kind: 'rss', url: 'https://www.yna.co.kr/rss/entertainment.xml', name: '연합뉴스 연예', weight: 1.0, lang: 'ko', section: 'entertainment' },
+  { kind: 'rss', url: 'https://rss.donga.com/entertainment.xml', name: '동아일보 연예', weight: 0.9, lang: 'ko', section: 'entertainment' },
+  { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=14', name: 'SBS 연예', weight: 0.9, lang: 'ko', section: 'entertainment' },
+  { kind: 'rss', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/entertainments/?outputType=xml', name: '조선일보 연예', weight: 0.9, lang: 'ko', section: 'entertainment' },
+  { kind: 'rss', url: 'https://www.newsis.com/RSS/entertain.xml', name: '뉴시스 연예', weight: 0.8, lang: 'ko', section: 'entertainment' },
   // 유튜브 채널 99곳은 2026-10-23에 뺐다(사용자 결정: 영상은 요약하지 않는다). 서버가 영상을 요약하지 않아 거의 배송되지 않으면서
   // 임베딩 상한의 19%를 차지했다. DB에서는 …_youtube_off.sql이 끈다.
 ];

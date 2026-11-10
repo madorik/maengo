@@ -58,7 +58,9 @@ const TICK_STALE_MS = 5 * 60_000;
 const STALE_NOTE = '날짜가 지나 만들거나 보내지 않음';
 
 /** delivery_jobs 한 줄. attempts는 만들기를 가져간 횟수, ready부터는 보내기가 잠깐 실패한 횟수 */
-type JobRow = { user_id: string; date: string; attempts: number };
+type JobRow = { user_id: string; date: string; attempts: number; slot: Slot };
+/** 하루 두 번 브리핑(2026-11-10): 오전 출근길, 오후 퇴근길. 오후 것은 같은 날짜 피드 뒤에 이어 붙인다 */
+type Slot = 'am' | 'pm';
 
 export interface DeliveryResult {
   planned: number;
@@ -117,7 +119,8 @@ async function inactiveUsers(ids: string[], now: Date): Promise<Set<string>> {
  * 순번이 겹치는데 오늘 피드(feed_days)가 없으면 지난 시도가 피드 줄만 넣고 멈춘 것이라 지우고 다시 넣는다.
  * attempts = 이 줄을 가져간 횟수(이번 포함)
  */
-async function saveFeed(a: Audience, date: string, got: RankedItem[], want: number, attempts: number): Promise<BuildResult> {
+async function saveFeed(a: Audience, date: string, got: RankedItem[], want: number, attempts: number, slot: Slot = 'am'): Promise<BuildResult> {
+  if (slot === 'pm') return savePmFeed(a, date, got, want);
   const dayOf = async () => check(await db.from('feed_days').select('built_by').eq('user_id', a.id).eq('date', date).maybeSingle(), 'feed_days') as { built_by: string } | null;
   const already = await dayOf();
   if (already) return existingFeedResult(already.built_by, attempts);
@@ -136,6 +139,24 @@ async function saveFeed(a: Audience, date: string, got: RankedItem[], want: numb
   if (dayError?.code === '23514') ({ error: dayError } = await db.from('feed_days').insert(day));
   if (dayError?.code === '23505') return 'had';
   if (dayError) throw new Error(`feed_days insert: ${dayError.message}`);
+  return 'built';
+}
+
+/**
+ * 오후(퇴근길) 소식을 그날 피드 뒤에 이어 붙인다. 이미 오후 소식이 있으면 had. 오전 피드가 없으면(오후에 처음 온 사람) 1번부터 넣고 그날 피드를 만든다
+ */
+async function savePmFeed(a: Audience, date: string, got: RankedItem[], want: number): Promise<BuildResult> {
+  const hasPm = check(await db.from('feeds').select('rank').eq('user_id', a.id).eq('date', date).eq('slot', 'pm').limit(1), 'feeds pm') as { rank: number }[];
+  if (hasPm.length) return 'had';
+  const last = check(await db.from('feeds').select('rank').eq('user_id', a.id).eq('date', date).order('rank', { ascending: false }).limit(1), 'feeds last') as { rank: number }[];
+  const start = last[0]?.rank ?? 0;
+  const take = got.slice(0, want);
+  const { error } = await db.from('feeds').insert(take.map((r, i) => ({ user_id: a.id, date, rank: start + i + 1, cluster_id: r.clusterId, topic_id: r.topicId, slot: 'pm' })));
+  if (error?.code === '23505') return 'had';
+  if (error) throw new Error(`feeds pm insert: ${error.message}`);
+  const day = check(await db.from('feed_days').select('visible').eq('user_id', a.id).eq('date', date).maybeSingle(), 'feed_days pm') as { visible: number } | null;
+  if (day) check(await db.from('feed_days').update({ visible: start + take.length }).eq('user_id', a.id).eq('date', date), 'feed_days pm visible');
+  else check(await db.from('feed_days').insert({ user_id: a.id, date, visible: take.length, built_by: DELIVERY_BUILT_BY }), 'feed_days pm insert');
   return 'built';
 }
 
@@ -161,14 +182,26 @@ export async function buildFeedsFor(
   userIds: string[],
   deadline: number,
   attempts: ReadonlyMap<string, number> = new Map(),
+  slot: Slot = 'am',
 ): Promise<{ result: Map<string, BuildResult>; errors: Map<string, string>; summarized: number }> {
   const result = new Map<string, BuildResult>();
   const errors = new Map<string, string>();
   let summarized = 0;
   const triesOf = (id: string) => attempts.get(id) ?? 1;
   try {
-    const today = check(await db.from('feed_days').select('user_id,built_by').eq('date', ctx.date).in('user_id', userIds), 'feed_days today') as { user_id: string; built_by: string }[];
-    for (const r of today) result.set(r.user_id, existingFeedResult(r.built_by, triesOf(r.user_id)));
+    // 오전: 그날 피드가 이미 있으면 그대로. 오후: 오후 소식이 이미 있으면 had(오전 소식은 빼고 고른다, 아래 todayIds)
+    if (slot === 'am') {
+      const today = check(await db.from('feed_days').select('user_id,built_by').eq('date', ctx.date).in('user_id', userIds), 'feed_days today') as { user_id: string; built_by: string }[];
+      for (const r of today) result.set(r.user_id, existingFeedResult(r.built_by, triesOf(r.user_id)));
+    } else {
+      const pm = check(await db.from('feeds').select('user_id').eq('date', ctx.date).eq('slot', 'pm').in('user_id', userIds), 'feeds pm today') as { user_id: string }[];
+      for (const r of pm) result.set(r.user_id, 'had');
+    }
+    const todayIds = new Map<string, number[]>();
+    if (slot === 'pm') {
+      const rows = check(await db.from('feeds').select('user_id,cluster_id').eq('date', ctx.date).in('user_id', userIds), 'feeds today') as { user_id: string; cluster_id: number }[];
+      for (const r of rows) (todayIds.get(r.user_id) ?? todayIds.set(r.user_id, []).get(r.user_id)!).push(r.cluster_id);
+    }
     const audience = await loadAudience(ctx, userIds.filter((id) => !result.has(id)));
     // 관심사가 하나도 없는 사람은 만들 게 없다
     for (const id of userIds) if (!result.has(id) && !audience.some((a) => a.id === id)) result.set(id, 'empty');
@@ -224,6 +257,7 @@ export async function buildFeedsFor(
     const buildOne = async (a: Audience): Promise<BuildResult> => {
       if (Date.now() > deadline) return 'later';
       const exclude = await withSimilarExcluded(a, base);
+      for (const id of todayIds.get(a.id) ?? []) exclude.add(id);
       const want = a.dailyItems;
       const mayMake = !inactive.has(a.id);
       // AI가 막혔거나 오래 안 온 사람이면 이미 요약된 것만 고른다. 요약 안 된 영상은 여기서 요약하지 않으니(videos: 0) 뺀다(summarizable).
@@ -254,7 +288,7 @@ export async function buildFeedsFor(
         if (Date.now() > deadline) break;
       }
       if (!got.length) return Date.now() > deadline ? 'later' : aiBlocked ? 'blocked' : 'empty';
-      return saveFeed(a, ctx.date, reorder(got, a, opts, seen), want, triesOf(a.id));
+      return saveFeed(a, ctx.date, reorder(got, a, opts, seen), want, triesOf(a.id), slot);
     };
 
     await mapLimit(audience, 4, async (a) => {
@@ -274,24 +308,26 @@ export async function buildFeedsFor(
   }
 }
 
-/** 오늘 소식 알림 문구: 1번 소식 제목과 개수. 보여 줄 소식이 없으면 null(빈 알림을 보내지 않는다) */
-async function messageFor(userId: string, date: string): Promise<PushMessage | null> {
+/** 알림 문구: 그 브리핑(출근길·퇴근길)의 첫 소식 제목과 개수. 보여 줄 소식이 없으면 null(빈 알림을 보내지 않는다) */
+async function messageFor(userId: string, date: string, slot: Slot = 'am'): Promise<PushMessage | null> {
   const day = check(await db.from('feed_days').select('visible').eq('user_id', userId).eq('date', date).maybeSingle(), 'feed_days visible') as { visible: number } | null;
   if (!day?.visible) return null;
-  const first = (await db.from('feeds').select('cluster_id').eq('user_id', userId).eq('date', date).order('rank').limit(1).maybeSingle()).data as { cluster_id: number } | null;
+  const rows = check(await db.from('feeds').select('cluster_id,rank').eq('user_id', userId).eq('date', date).eq('slot', slot).lte('rank', day.visible).order('rank'), 'feeds slot') as { cluster_id: number }[];
+  if (!rows.length) return null;
+  const first = rows[0]!;
   const title = first
     ? ((await db.from('summaries').select('title').eq('cluster_id', first.cluster_id).eq('tier', 'basic').maybeSingle()).data as { title: string } | null)?.title
     : null;
-  const n = day.visible;
+  const n = rows.length;
   return {
-    title: '오늘의 소식이 도착했어요',
+    title: slot === 'pm' ? '퇴근길 소식이 도착했어요' : '출근길 소식이 도착했어요',
     body: title ? (n > 1 ? `${title} 외 ${n - 1}개` : title) : `관심사로 고른 소식 ${n}개가 준비됐어요`,
     path: '/today?from=push',
   };
 }
 
 const setStatus = (job: JobRow, patch: Record<string, unknown>) =>
-  db.from('delivery_jobs').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', job.user_id).eq('date', job.date);
+  db.from('delivery_jobs').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', job.user_id).eq('date', job.date).eq('slot', job.slot ?? 'am');
 
 /**
  * 날짜가 지난 대기·보낼 차례 줄을 접는다. 어제 줄을 자정 넘어 만들면 오늘 날짜로 피드를 만들어
@@ -329,12 +365,15 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       await setStatus(job, { status: 'failed', last_error: STALE_NOTE });
     }
   }
-  if (builds.length) {
-    ctx.log(`알림 시각이 된 사람 ${builds.length}명`);
+  // 출근길(am)·퇴근길(pm)을 따로 만든다. 같은 사람이 두 줄 다 가져가졌어도(오전 줄이 늦어진 경우) 오전 것을 먼저 만든다
+  for (const slot of ['am', 'pm'] as const) {
+    const group = builds.filter((j) => (j.slot ?? 'am') === slot);
+    if (!group.length) continue;
+    ctx.log(`${slot === 'pm' ? '퇴근길' : '출근길'} 알림 시각이 된 사람 ${group.length}명`);
     try {
-      const { result, errors, summarized } = await buildFeedsFor(ctx, builds.map((j) => j.user_id), deadline, new Map(builds.map((j) => [j.user_id, j.attempts])));
-      out.summarized = summarized;
-      for (const job of builds) {
+      const { result, errors, summarized } = await buildFeedsFor(ctx, group.map((j) => j.user_id), deadline, new Map(group.map((j) => [j.user_id, j.attempts])), slot);
+      out.summarized += summarized;
+      for (const job of group) {
         const r = result.get(job.user_id) ?? 'empty';
         if (r === 'later') {
           // 이번 실행 시간 안에 못 했다: 다음 실행(1분 뒤)이 잇는다(시도 횟수는 세지 않는다)
@@ -384,7 +423,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       // 같이 가져간 사람 모두에 걸린 실패(후보를 못 읽음 등). 그새 만든 사람은 다음 실행이 배송 피드를 보고 이어서 알린다
       const msg = String((e as Error).message ?? e).slice(0, 300);
       ctx.log(`만들기 실패: ${msg}`);
-      for (const job of builds) {
+      for (const job of group) {
         out.failed++;
         await setStatus(job, { status: job.attempts >= BUILD_TRIES ? 'failed' : 'pending', last_error: msg });
       }
@@ -417,7 +456,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       continue;
     }
     try {
-      const msg = await messageFor(job.user_id, job.date);
+      const msg = await messageFor(job.user_id, job.date, job.slot ?? 'am');
       if (!msg) {
         out.failed++;
         await setStatus(job, { status: 'failed', last_error: '보낼 소식이 없음' });
@@ -427,7 +466,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       if (r.status === 'sent') {
         out.sent++;
         await setStatus(job, { status: 'sent', sent_at: new Date().toISOString(), last_error: null });
-        await db.from('notifications_log').upsert({ user_id: job.user_id, date: job.date, channel: 'push' }, { onConflict: 'user_id,date,channel', ignoreDuplicates: true });
+        await db.from('notifications_log').upsert({ user_id: job.user_id, date: job.date, channel: job.slot === 'pm' ? 'push_pm' : 'push' }, { onConflict: 'user_id,date,channel', ignoreDuplicates: true });
       } else if (r.status === 'retry') {
         await retryLater(job, r.note);
       } else {

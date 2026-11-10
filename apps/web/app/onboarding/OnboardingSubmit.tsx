@@ -11,7 +11,7 @@ import { registerThisBrowser } from "@/lib/web-push";
  * 거절하거나 알림을 못 받는 브라우저면 알림 없이 시작한다. 보내는 동안은 막아 두 번 보내지 않는다.
  * 몇 개 골랐는지만 분석에 남긴다(무엇을 적었는지는 남기지 않는다)
  */
-export function OnboardingSubmit() {
+export function OnboardingSubmit({ label = "고른 분야로 시작하기" }: { label?: string }) {
   const { pending } = useFormStatus();
   const [asking, setAsking] = useState(false);
   /** 권한은 한 번만 묻는다(되돌아와 다시 누르면 바로 보낸다) */
@@ -20,7 +20,7 @@ export function OnboardingSubmit() {
 
   const start = async (e: React.MouseEvent<HTMLButtonElement>) => {
     const form = e.currentTarget.form;
-    const picked = form?.querySelectorAll('input[type="checkbox"]:checked').length ?? 0;
+    const picked = form?.querySelectorAll('input[type="checkbox"]:checked, input[name="section"]').length ?? 0;
     track("onboarding_complete", { topics: picked });
     if (!form || asked.current) return;
     e.preventDefault();
@@ -36,8 +36,8 @@ export function OnboardingSubmit() {
   return (
     <>
       <input ref={push} type="hidden" name="push" defaultValue="" />
-      <button type="submit" disabled={pending || asking} onClick={start} className="btn w-full">
-        {pending || asking ? "시작하는 중" : "고른 분야로 시작하기"}
+      <button type="submit" disabled={pending || asking} onClick={start} className="h-[60px] w-full rounded-full bg-ink text-[16px] font-bold text-paper disabled:opacity-60">
+        {pending || asking ? "시작하는 중" : label}
       </button>
     </>
   );

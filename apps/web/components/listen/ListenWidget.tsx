@@ -17,6 +17,7 @@ import { minutesLabel, PREPARING_SHORT, PREPARING_TEXT } from "@/lib/player/labe
 import { formatClock } from "@/lib/player/machine";
 import { claimDock, releaseDock, setPlayerDocked, useDock } from "@/lib/float-dock";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
+import { SLOT_LABEL } from "@maengo/core/sections";
 import { Queue, Switch } from "./controls";
 import { ListenLimit } from "./ListenLimit";
 import { Script } from "./Script";
@@ -36,7 +37,7 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 export function ListenWidget({ initialCollapsed, inApp = false }: { initialCollapsed: boolean; /** 앱(Capacitor)인지. 서버가 User-Agent로 정한다 */ inApp?: boolean }) {
   const p = usePlayer();
   const profile = useProfile();
-  const { game } = useToday();
+  const { game, data } = useToday();
   const [open, setOpen] = useState(false);
   /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
   const [tab, setTab] = useState<"queue" | "script">("queue");
@@ -98,9 +99,10 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   const locked = !profile.audio && profile.dailyListens <= 0;
   // 이름은 늘 "플레이어". 무엇을 듣는지(플레이리스트·오늘 소식)는 소제목에 쓴다
   const heading = "플레이어";
-  const source = p.playlist ? "플레이리스트" : "오늘 소식";
+  // 오늘 소식은 지금 브리핑 이름으로(2026-11-10 하루 두 번: 출근길·퇴근길)
+  const source = p.playlist ? "플레이리스트" : `${SLOT_LABEL[data.slot]} 브리핑`;
   const total = p.playlist ? p.chapters.length || p.playlist.length : game.total;
-  const doneText = p.playlist ? "플레이리스트를 다 들었어요" : "오늘 소식을 다 들었어요";
+  const doneText = p.playlist ? "플레이리스트를 다 들었어요" : `${source}을 다 들었어요`;
 
   // 접기·펴기. 쿠키는 서버 레이아웃이 읽어 첫 화면부터 맞게 그린다.
   // 키보드로 눌렀으면(click detail 0) 포커스를 바뀐 자리의 버튼으로 옮긴다. 터치·마우스는 옮기지 않는다(포커스 테두리가 남지 않게)
@@ -122,7 +124,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           data-tour="player"
           onClick={(e) => fold(false, e)}
           aria-label={`플레이어 펼치기${playing ? ", 듣는 중" : ""}`}
-          className={`pop tile pointer-events-auto flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${playing ? "border-sky" : ""}`}
+          className={`pop tile pointer-events-auto flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${playing ? "border-mango" : ""}`}
         >
           <span className={`flex size-12 items-center justify-center rounded-full ${locked ? "bg-snow" : "bg-mango-tint"}`}>
             <Mascot mood="listen" className={`size-10 ${locked ? "opacity-60" : ""} ${playing ? "bob" : ""}`} />
@@ -149,11 +151,11 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
     return (
       <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
         <div data-tour="player" className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
-          <Link href="/premium" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
+          <Link href="/premium" aria-label={`${source} 듣기, Premium에서 들을 수 있어요`} className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow">
               <Mascot mood="listen" className="size-10 opacity-60" />
             </span>
-            <span className="min-w-0 truncate text-[15px] font-black text-sub">오늘 소식 전체 듣기</span>
+            <span className="min-w-0 truncate text-[15px] font-bold text-sub">{source} 듣기</span>
             <PremiumBadge />
           </Link>
           {foldButton}
@@ -179,7 +181,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       ? (playing ? "듣는 중" : "멈춤")
       : p.status === "done"
         ? doneText
-        : `${source} ${count}개${minutes && `, ${minutes}`}`;
+        : `소식 ${count}개${minutes && `, ${minutes}`}`;
   const close = () => {
     setOpen(false);
     launcherRef.current?.focus();
@@ -190,14 +192,14 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
 
   // 앱의 꽉 찬 시트에서는 버튼을 조금 키운다(듣기 화면과 같은 크기)
   const big = inApp;
-  const summary = `${source} ${count}개${minutes && `, ${voiceName} 목소리로 ${minutes}`}`;
+  const summary = `${p.playlist ? "플레이리스트" : "소식"} ${count}개${minutes && `, ${voiceName} 목소리로 ${minutes}`}`;
   // 재생 속도. 듣기 화면·글 듣기 막대와 같은 값(누를 때마다 lib/player/rate.ts 순서로 돈다)
   const rateButton = (
     <button
       type="button"
       onClick={p.cycleRate}
       aria-label={`재생 속도 ${p.rate}배, 눌러서 바꾸기`}
-      className="tile min-h-11 min-w-14 shrink-0 px-2 font-round text-[15px] font-black tabular-nums text-sky-dark"
+      className="min-h-11 min-w-14 shrink-0 rounded-full bg-snow px-2 font-round text-[15px] font-black tabular-nums text-ink"
     >
       {p.rate.toFixed(1)}x
     </button>
@@ -205,7 +207,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
 
   const controls = (
     <div className={big ? "px-5 pb-5 pt-2" : "px-4 pb-4 pt-3"}>
-      <p className={`line-clamp-2 font-extrabold leading-snug ${big ? "min-h-[56px] text-[20px]" : "min-h-[44px] text-[15px]"}`}>
+      <p className={`line-clamp-2 font-bold leading-snug tracking-[-0.02em] ${big ? "min-h-[56px] text-[20px]" : "min-h-[44px] text-[15px]"}`}>
         {ch?.title ?? (p.status === "done" ? doneText : first?.title)}
       </p>
       <SeekBar
@@ -220,8 +222,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
       </p>
       {p.preparing && (
-        <div className="mt-2 flex items-center gap-2 rounded-xl bg-sky-tint py-2 pl-3 pr-2">
-          <p role="status" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-sky-dark">
+        <div className="mt-2 flex items-center gap-2 rounded-2xl bg-mango-tint/60 py-2 pl-3 pr-2">
+          <p role="status" className="min-w-0 flex-1 text-[13px] font-semibold leading-relaxed text-ink">
             {PREPARING_TEXT}
           </p>
           <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
@@ -264,7 +266,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   );
 
   const tabs = (
-    <div role="tablist" aria-label="플레이어 보기" className="flex gap-5 border-y-2 border-line px-5">
+    <div role="tablist" aria-label="플레이어 보기" className="flex gap-5 border-y border-line px-5">
       {(
         [
           ["queue", "재생 목록"],
@@ -282,7 +284,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
             setTab(id);
             if (id === "script") track("script_tab_open", { mode: p.playlist ? "playlist" : "today" });
           }}
-          className={`-mb-0.5 border-b-[3px] py-2.5 text-[14px] font-extrabold ${tab === id ? "border-sky text-ink" : "border-transparent text-faint hover:text-sub"}`}
+          className={`-mb-px border-b-2 py-2.5 text-[14px] font-bold ${tab === id ? "border-ink text-ink" : "border-transparent text-faint hover:text-sub"}`}
         >
           {label}
         </button>
@@ -307,13 +309,13 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   );
 
   const footer = (
-    <footer className={`border-t-2 border-line px-4 text-center ${big ? "pb-[max(12px,env(safe-area-inset-bottom))] pt-3" : "py-3"}`}>
+    <footer className={`border-t border-line px-4 text-center ${big ? "pb-[max(12px,env(safe-area-inset-bottom))] pt-3" : "py-3"}`}>
       {p.playlist ? (
-        <button type="button" onClick={p.exitPlaylist} className="text-[14px] font-extrabold text-sky hover:underline">
-          오늘 소식 듣기로 돌아가기
+        <button type="button" onClick={p.exitPlaylist} className="min-h-11 text-[14px] font-semibold text-ink underline underline-offset-4">
+          {SLOT_LABEL[data.slot]} 브리핑으로 돌아가기
         </button>
       ) : (
-        <Link href="/listen" className="text-[14px] font-extrabold text-sky no-underline hover:underline">
+        <Link href="/listen" className="text-[14px] font-semibold text-ink underline underline-offset-4">
           대본 보며 듣기
         </Link>
       )}
@@ -339,8 +341,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           <Mascot mood="listen" className={`size-10 ${playing ? "bob" : ""}`} />
         </span>
         <span className="min-w-0 max-w-[170px]">
-          <span className="block truncate text-[15px] font-black">{ch ? ch.title : heading}</span>
-          <span className={`block truncate text-[12px] font-bold ${p.error ? "text-cherry" : "text-sky"}`}>{sub}</span>
+          <span className="block truncate text-[15px] font-bold tracking-[-0.02em]">{ch ? ch.title : source}</span>
+          <span className={`block truncate text-[12px] font-medium ${p.error ? "text-cherry" : "text-sub"}`}>{sub}</span>
         </span>
       </button>
       <button
@@ -387,10 +389,10 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           aria-labelledby="listen-widget-title"
           className="rise tile pointer-events-auto flex max-h-[min(660px,calc(100dvh-160px-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden shadow-[0_16px_48px_rgb(31_35_64/0.2)] outline-none"
         >
-          <header className="flex items-center gap-3 border-b-2 border-line px-4 py-3">
+          <header className="flex items-center gap-3 border-b border-line px-4 py-3">
             <Mascot mood="listen" className={`size-10 shrink-0 ${playing ? "bob" : ""}`} />
             <div className="min-w-0 flex-1">
-              <h2 id="listen-widget-title" className="text-[16px] font-black">
+              <h2 id="listen-widget-title" className="text-[16px] font-bold">
                 {heading}
               </h2>
               <p className="truncate text-[12px] font-bold text-sub">{summary}</p>

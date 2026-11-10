@@ -12,7 +12,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { track } from "@/lib/analytics";
 
 const ERRORS = {
-  no_more: "최근 한 달 동안 관심사에 맞는 새 소식이 없어요.",
+  no_more: "지금은 더 받을 새 소식이 없어요. 다음 브리핑에서 이어서 드릴게요.",
   blocked: "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요.",
   no_balance: "맹고가 모자라요.",
   busy: "다시 눌러 주세요.",
@@ -86,16 +86,16 @@ export function MoreToday({
     <div className="mt-4">
       {short ? (
         inAppShop ? (
-          <button type="button" onClick={openShop} className="btn w-full">
+          <button type="button" onClick={openShop} className="btn btn-ghost w-full">
             {buyLabel}
           </button>
         ) : (
-          <Link href={buyHref} className="btn w-full">
+          <Link href={buyHref} className="btn btn-ghost w-full">
             {buyLabel}
           </Link>
         )
       ) : (
-        <button type="button" onClick={more} disabled={pending} className="btn w-full">
+        <button type="button" onClick={more} disabled={pending} className="btn btn-ghost w-full">
           <IconPlus className="size-5" />
           {pending ? (slow ? "새 소식 만드는 중" : "받는 중") : "하나 더 받기"}
           {cost > 0 && <span className="font-round text-[14px] opacity-80">{cost}맹고</span>}
@@ -104,11 +104,6 @@ export function MoreToday({
       {error && (
         <p role="alert" className="mt-2 px-1 text-[14px] font-bold text-cherry">
           {ERRORS[error]}
-          {error === "no_more" && (
-            <Link href="/keywords" className="ml-2 underline">
-              관심사 넓히기
-            </Link>
-          )}
           {error === "no_balance" &&
             (inAppShop ? (
               <button type="button" onClick={openShop} className="ml-2 underline">

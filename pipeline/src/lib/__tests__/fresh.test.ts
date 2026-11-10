@@ -8,6 +8,7 @@ const entry = (url: string, at: string | null, extra: Partial<FeedEntry> = {}): 
   author: null,
   publishedAt: at ? new Date(at) : null,
   excerpt: '',
+  image: null,
   videoId: null,
   views: null,
   hnPoints: null,

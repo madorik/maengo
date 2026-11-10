@@ -4,7 +4,7 @@ import { getLibrary, LIBRARY_PAGE_SIZE } from "@/lib/server/feed";
 import { currentProfile } from "@/lib/server/session";
 
 /**
- * GET ?page=2&category=ai&read=unread&bookmark=1&q=… → 보관함 한 쪽(앱의 이어 붙이기, components/library/InfiniteLibrary.tsx).
+ * GET ?page=2&section=economy&read=unread&bookmark=1&q=… → 보관함 한 쪽(앱의 이어 붙이기, components/library/InfiniteLibrary.tsx).
  * 화면(/library)과 같은 getLibrary를 쓰고, 이어 붙일 때 필요한 쪽 번호·쪽 수·날짜 묶음만 돌려준다
  */
 export async function GET(request: NextRequest) {

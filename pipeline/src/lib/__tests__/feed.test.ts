@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseDate, parseFeed } from '../feed';
+import { cleanImageUrl, parseDate, parseFeed } from '../feed';
 import { canonicalUrl } from '../url';
 import { clip } from '../text';
 
@@ -96,4 +96,24 @@ test('글 주소는 http(s)만: javascript:·data:·상대 주소 글은 버린�
     <entry><title>나쁜 글</title><link href="javascript:alert(1)"/></entry>
   </feed>`;
   assert.deepEqual(parseFeed(atom, 'en').map((e) => e.url), ['http://b.com/1']);
+});
+
+test('대표 이미지: media:content·enclosure·본문 첫 img 순으로, http는 https로, 추적 픽셀은 뺀다', () => {
+  const rss = `<?xml version="1.0"?><rss xmlns:media="http://search.yahoo.com/mrss/"><channel>
+    <item><title>미디어</title><link>https://a.com/1</link><media:content url="http://img.a.com/1.jpg" medium="image"/></item>
+    <item><title>첨부</title><link>https://a.com/2</link><enclosure url="https://img.a.com/2.png" type="image/png" length="1"/></item>
+    <item><title>본문</title><link>https://a.com/3</link><description><![CDATA[<img src="https://feeds.feedburner.com/~r/x/1x1.gif"><p>글</p>]]></description>
+      <content:encoded><![CDATA[<p><img src="https://img.a.com/3.webp?w=800&amp;h=400"></p>]]></content:encoded></item>
+    <item><title>없음</title><link>https://a.com/4</link><description>글만</description></item>
+    <item><title>영상 첨부</title><link>https://a.com/5</link><media:content url="https://v.a.com/5.mp4" medium="video"/></item>
+  </channel></rss>`;
+  const got = parseFeed(rss, 'ko').map((e) => e.image);
+  assert.deepEqual(got, ['https://img.a.com/1.jpg', 'https://img.a.com/2.png', 'https://img.a.com/3.webp?w=800&h=400', null, null]);
+});
+
+test('대표 이미지 주소 다듬기: 상대 주소는 원문 기준, 이상한 주소는 버린다', () => {
+  assert.equal(cleanImageUrl('/img/a.jpg', 'https://news.example.com/article/1'), 'https://news.example.com/img/a.jpg');
+  assert.equal(cleanImageUrl('//cdn.example.com/a.jpg'), 'https://cdn.example.com/a.jpg');
+  assert.equal(cleanImageUrl('javascript:alert(1)'), null);
+  assert.equal(cleanImageUrl(''), null);
 });

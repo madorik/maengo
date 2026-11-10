@@ -6,7 +6,7 @@ import type { SummarizeSource } from '@maengo/core/ai';
 import type { Tier } from '@maengo/core/types';
 import { db, check } from '../lib/db';
 import { env } from '../lib/env';
-import { extractArticle, youtubeSeconds } from '../lib/extract';
+import { articleImage, extractArticle, youtubeSeconds } from '../lib/extract';
 import { mapLimit } from '../lib/limit';
 import { dictionary, loadAudience, loadCandidates, withSimilarExcluded } from '../lib/audience';
 import { youtubeIdOf } from '../lib/url';
@@ -39,6 +39,7 @@ interface MemberRow {
   author: string | null;
   published_at: string | null;
   excerpt: string | null;
+  image_url: string | null;
   source_id: number | null;
   views: number | null;
   hn_points: number | null;
@@ -63,7 +64,7 @@ export async function summarizeCluster(
   const members = check(
     await db
       .from('items')
-      .select('id,canonical_url,title,kind,author,published_at,excerpt,source_id,views,hn_points,sources(name,weight,custom)')
+      .select('id,canonical_url,title,kind,author,published_at,excerpt,image_url,source_id,views,hn_points,sources(name,weight,custom)')
       .eq('cluster_id', clusterId),
     'members',
   ) as unknown as MemberRow[];
@@ -111,6 +112,15 @@ export async function summarizeCluster(
         text: body.length >= 200 ? body : m.excerpt ?? '',
       };
     }),
+  );
+  // 원문을 읽은 김에 RSS에 이미지가 없던 글의 대표 이미지(og:image)를 남긴다(상세 화면 사진, 2026-11-10). 못 남겨도 요약은 계속한다
+  await Promise.all(
+    picked
+      .filter((m) => m.kind === 'article' && !m.image_url)
+      .map(async (m) => {
+        const image = articleImage(m.canonical_url);
+        if (image) await db.from('items').update({ image_url: image }).eq('id', m.id).is('image_url', null);
+      }),
   );
 
   const headline = check(

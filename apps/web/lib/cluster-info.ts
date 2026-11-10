@@ -21,6 +21,10 @@ export interface ClusterInfo {
   scenes?: { t: string; label: string }[];
   /** '○○에서도 다뤘어요'(대표 글 말고 다른 출처가 있을 때) */
   coverage?: string;
+  /** 원문 대표 사진(대표 글, 없으면 같은 소식의 다른 글). 영상·없으면 null */
+  photo: { url: string; source: string } | null;
+  /** 이 소식을 다룬 출처 수(대표 글 포함, 같은 출처는 한 번) */
+  sourceCount: number;
   /** 토픽 id → why 문구 */
   why: Map<string, string>;
 }
@@ -48,7 +52,16 @@ export interface ItemRow {
   canonical_url: string;
   kind: 'article' | 'video';
   author: string | null;
+  /** 원문 대표 이미지 주소(2026-11-10, 수집 때 RSS 또는 요약 때 og:image) */
+  image_url?: string | null;
   sources: { name: string } | null;
+}
+
+/** 상세 화면 사진: 대표 글의 이미지, 없으면 같은 소식의 다른 글 이미지. 사진 출처는 그 글의 출처. 영상 소식은 썸네일을 따로 쓴다 */
+function photoOf(rep: ItemRow, list: ItemRow[]): ClusterInfo['photo'] {
+  if (rep.kind !== 'article') return null;
+  const withImage = [rep, ...list.filter((m) => m !== rep && m.kind === 'article')].find((m) => m.image_url);
+  return withImage?.image_url ? { url: withImage.image_url, source: withImage.sources?.name ?? '' } : null;
 }
 export interface RepRow {
   id: number;
@@ -109,6 +122,8 @@ export function assembleClusterInfo(ids: number[], parts: ClusterParts): Map<num
       url: rep.canonical_url,
       sourceLabel: rep.sources?.name ?? '',
       coverage: coverageOf(others),
+      photo: photoOf(rep, list),
+      sourceCount: new Set(list.map((m) => m.sources?.name ?? `#${m.id}`)).size,
       why: new Map([...(why.get(id) ?? new Map())].map(([t, v]) => [t, v.text])),
     });
   }

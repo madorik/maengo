@@ -29,6 +29,9 @@ export const NEWS_SECTIONS: Topic[] = [
   { id: 'life-culture', name: '생활/문화', aliases: ['생활', '문화', '생활 뉴스', '문화 뉴스'] },
   { id: 'it-science', name: 'IT/과학', aliases: ['IT', '과학', 'IT 뉴스', '과학 뉴스'] },
   { id: 'world', name: '세계', aliases: ['국제', '국제 뉴스', '해외 뉴스', '세계 뉴스'] },
+  // 2026-11-10 사용자: 분야는 정치·경제·사회·생활/문화·IT/과학·세계·스포츠·엔터 8개('연예'가 아니라 '엔터'). 맹고-문서/맞춤-소식.md
+  { id: 'sports', name: '스포츠', aliases: ['스포츠 뉴스', '야구', '축구', '골프', '농구', '배구'] },
+  { id: 'entertainment', name: '엔터', aliases: ['연예', '엔터테인먼트', '드라마', '영화', '음악', '방송', 'K팝'] },
 ];
 
 const NEWS_SECTION_IDS: ReadonlySet<string> = new Set(NEWS_SECTIONS.map((t) => t.id));

@@ -13,6 +13,8 @@ export const GEMINI_MODELS = {
   support: 'gemini-3.1-flash-lite',
   /** 글 화면의 맹고 AI(질문 하나에 한 번). 입력 $0.25 / 출력 $1.50, 한 번 약 ₩1 */
   ask: 'gemini-3.1-flash-lite',
+  /** 주간·월간 리포트 정리(사람·기간마다 한 번, pipeline/src/reports.ts). 입력 $0.25 / 출력 $1.50, 주간 한 번 약 ₩4($0.003) */
+  report: 'gemini-3.1-flash-lite',
   /** 음성(Google Cloud TTS 키가 없을 때만). 입력 $0.50 / 오디오 출력 $6(2027-01-01부터 $1 / $12) */
   tts: 'gemini-3.8-flash-lite-tts',
   /** 임베딩. 입력 $0.15 */

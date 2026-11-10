@@ -26,6 +26,7 @@
     "./deliveries": "./src/deliveries.ts",
     "./scheduler": "./src/scheduler.ts",
     "./links": "./src/links.ts",
+    "./reports": "./src/reports.ts",
     "./lock": "./src/lib/lock.ts"
   }
 }

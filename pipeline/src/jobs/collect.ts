@@ -53,6 +53,7 @@ export async function storeEntries(ctx: Ctx, pairs: { source: SourceRow; entry: 
     published_at: new Date(Math.min(entry.publishedAt?.getTime() ?? now, now)).toISOString(),
     // 해커 뉴스 설명은 점수·댓글 링크뿐이라 버린다
     excerpt: source.kind === 'hn' ? null : entry.excerpt || null,
+    image_url: entry.image,
     views: entry.views,
     hn_points: entry.hnPoints,
   }));

@@ -108,7 +108,11 @@ export default async function SettingsPage() {
         </Section>
 
         <Section id="notify" title="알림" action={<PushToggle enabled={profile.pushEnabled} webTokens={webTokens} />}>
-          <NotifyTimePicker current={profile.notifyAt} />
+          {/* 하루 두 번 브리핑(2026-11-10): 출근길·퇴근길 알림 시각. 기본 07:00·18:00, 여기서 바꾼다 */}
+          <p className="mb-2 mt-1 text-[14px] font-semibold text-sub">출근길 브리핑</p>
+          <NotifyTimePicker current={profile.notifyAt} slot="am" />
+          <p className="mb-2 mt-5 text-[14px] font-semibold text-sub">퇴근길 브리핑</p>
+          <NotifyTimePicker current={profile.notifyAtPm} slot="pm" />
         </Section>
 
         <Section id="display" title="화면">

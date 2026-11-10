@@ -5,6 +5,7 @@ import { IconHeadphones } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { demoLoginEnabled } from "@/lib/server/demo";
 import { LoginButtons } from "./LoginButtons";
+import { youtubeInterestsEnabled } from "@/lib/server/youtube-interests";
 
 export const metadata: Metadata = { title: "로그인", robots: { index: false, follow: true } };
 
@@ -34,7 +35,7 @@ export default async function LoginPage({ searchParams }: Props) {
             로그인을 마치지 못했어요. 다시 눌러 주세요.
           </p>
         )}
-        <LoginButtons demo={demoLoginEnabled()} />
+        <LoginButtons demo={demoLoginEnabled()} youtube={youtubeInterestsEnabled()} />
       </form>
       {/* 로그인 없이 이미 만든 음성 소식 몇 개를 들어 본다(app/try, 2026-11-07). 앱은 로그인 전이면 이 화면으로 열려서 여기가 입구다 */}
       <Link

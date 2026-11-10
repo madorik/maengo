@@ -2,6 +2,8 @@ import 'server-only';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { DEFAULT_SITE_ORIGIN } from '@maengo/core/site';
 import { withBase } from '../base-path';
+import type { YoutubeSections } from '../youtube-sections';
+import { YOUTUBE_SCOPE, youtubeInterestsEnabled } from './youtube-interests';
 
 // 구글 로그인을 우리 도메인에서 받는다. Supabase OAuth를 거치면 구글 화면에 "…supabase.co로 이동"이 보여서,
 // 구글 → {도메인}/maengo/auth/google/callback 으로 받고 코드를 ID 토큰으로 바꿔 Supabase signInWithIdToken으로 세션을 만든다.
@@ -73,15 +75,25 @@ export function googleAuthUrl(origin: string, state: string): string {
     client_id: process.env.GOOGLE_CLIENT_ID!,
     redirect_uri: callbackUrl(origin),
     response_type: 'code',
-    scope: 'openid email profile',
+    // 유튜브 구독으로 관심사 찾기(YOUTUBE_INTERESTS=1, 2026-11-10): 같은 로그인 화면에서 유튜브 읽기 권한도 묻는다
+    scope: youtubeInterestsEnabled() ? `openid email profile ${YOUTUBE_SCOPE}` : 'openid email profile',
+    ...(youtubeInterestsEnabled() ? { include_granted_scopes: 'true' } : {}),
     prompt: 'select_account',
     state,
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
 }
 
-/** 구글이 준 코드 → ID 토큰. 실패하면 null */
-export async function exchangeCode(origin: string, code: string): Promise<string | null> {
+export interface GoogleTokens {
+  idToken: string;
+  /** 유튜브 구독을 읽을 때만 쓰고 저장하지 않는다 */
+  accessToken: string | null;
+  /** 사용자가 허락한 범위(공백으로 구분) */
+  scope: string | null;
+}
+
+/** 구글이 준 코드 → ID 토큰(과 접근 토큰). 실패하면 null */
+export async function exchangeCode(origin: string, code: string): Promise<GoogleTokens | null> {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -97,28 +109,30 @@ export async function exchangeCode(origin: string, code: string): Promise<string
     console.error('[auth] 구글 코드 교환 실패', res.status, (await res.text()).slice(0, 200));
     return null;
   }
-  return ((await res.json()) as { id_token?: string }).id_token ?? null;
+  const body = (await res.json()) as { id_token?: string; access_token?: string; scope?: string };
+  return body.id_token ? { idToken: body.id_token, accessToken: body.access_token ?? null, scope: body.scope ?? null } : null;
 }
 
 // gcode = AES-256-GCM(ID 토큰, 확인값 해시, 만료). 키는 SESSION_SECRET에서 만든다
 const gcodeKey = () => createHash('sha256').update(`maengo-gcode.${secret()}`).digest();
 
-export function sealGcode(idToken: string, verifierHash: string): string {
+/** youtube: 시스템 브라우저에서 찾은 유튜브 관심 분야(앱 웹뷰에는 그 브라우저 쿠키가 없어서 같이 싸서 넘긴다) */
+export function sealGcode(idToken: string, verifierHash: string, youtube: YoutubeSections | null = null): string {
   const iv = randomBytes(12);
   const c = createCipheriv('aes-256-gcm', gcodeKey(), iv);
-  const data = Buffer.concat([c.update(JSON.stringify({ t: idToken, v: verifierHash, exp: now() + GCODE_TTL_SEC }), 'utf8'), c.final()]);
+  const data = Buffer.concat([c.update(JSON.stringify({ t: idToken, v: verifierHash, exp: now() + GCODE_TTL_SEC, ...(youtube ? { y: youtube } : {}) }), 'utf8'), c.final()]);
   return b64u(Buffer.concat([iv, c.getAuthTag(), data]));
 }
 
-/** 확인값이 맞고 만료 전이면 ID 토큰, 아니면 null */
-export function openGcode(gcode: string, verifier: string | undefined): string | null {
+/** 확인값이 맞고 만료 전이면 ID 토큰(과 찾은 유튜브 관심 분야), 아니면 null */
+export function openGcode(gcode: string, verifier: string | undefined): { idToken: string; youtube: YoutubeSections | null } | null {
   if (!verifier) return null;
   try {
     const buf = Buffer.from(gcode, 'base64url');
     const d = createDecipheriv('aes-256-gcm', gcodeKey(), buf.subarray(0, 12));
     d.setAuthTag(buf.subarray(12, 28));
-    const p = JSON.parse(Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString('utf8')) as { t: string; v: string; exp: number };
-    return p.exp >= now() && p.v === hashToken(verifier) ? p.t : null;
+    const p = JSON.parse(Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString('utf8')) as { t: string; v: string; exp: number; y?: YoutubeSections };
+    return p.exp >= now() && p.v === hashToken(verifier) ? { idToken: p.t, youtube: p.y ?? null } : null;
   } catch {
     return null;
   }

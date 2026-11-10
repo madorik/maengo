@@ -13,7 +13,7 @@ const noSubscribe = () => () => {};
  * 앱은 구글이 웹뷰 로그인을 막아서 시스템 브라우저로 로그인한 뒤 돌아온다(lib/native/auth.ts).
  * demo가 true면(로컬 개발) 공용 데모 계정으로 들어가는 버튼을 하나 더 둔다
  */
-export function LoginButtons({ demo }: { demo: boolean }) {
+export function LoginButtons({ demo, youtube = false }: { demo: boolean; /** 구글 로그인 때 유튜브 구독으로 관심사 찾기(YOUTUBE_INTERESTS=1) */ youtube?: boolean }) {
   const { pending, data } = useFormStatus();
   const inApp = useSyncExternalStore(noSubscribe, () => isAppUserAgent(navigator.userAgent), () => false);
   const [appBusy, setAppBusy] = useState<Provider | null>(null);
@@ -60,6 +60,7 @@ export function LoginButtons({ demo }: { demo: boolean }) {
         </svg>
         {busy("google") ? "들어가는 중" : "Google로 계속하기"}
       </button>
+      {youtube && <p className="-mt-1 text-center text-[13px] font-medium text-sub">유튜브 구독으로 관심사를 바로 찾아 드려요</p>}
       <button
         {...appProps("apple")}
         name="provider"

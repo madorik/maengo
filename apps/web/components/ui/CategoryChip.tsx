@@ -14,6 +14,7 @@ const TONE: Record<CategoryId, string> = {
   society: "bg-[#E9F0EE] text-[#3E6158] tone [--tone:#3E6158]",
   world: "bg-[#E8EEF9] text-[#2A4F8F] tone [--tone:#2A4F8F]",
   entertainment: "bg-[#F6E8FF] text-[#8A2DB8] tone [--tone:#8A2DB8]",
+  sports: "bg-[#E4F4E8] text-[#1F7A3E] tone [--tone:#1F7A3E]",
   beauty: "bg-[#FFE6EE] text-[#B4325E] tone [--tone:#B4325E]",
   food: "bg-[#F1F4DC] text-[#5E6B12] tone [--tone:#5E6B12]",
   realestate: "bg-[#F3EEE6] text-[#7A5A2E] tone [--tone:#7A5A2E]",

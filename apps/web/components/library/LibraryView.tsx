@@ -6,18 +6,18 @@ import { Bubble } from "@/components/ui/Bubble";
 import { libraryFilterKey, type LibraryFilters } from "@/lib/library-pages";
 import type { LibraryData } from "@/lib/types";
 import { InfiniteLibrary } from "./InfiniteLibrary";
-import { DayGroups } from "./LibraryCards";
+import { DayGroups, LibraryViewToggle } from "./LibraryCards";
 import { LibraryHeader, PickBar, PlaylistPicker } from "./Playlist";
 
-// 보관함: 지금까지 받은 피드 전체. 서버에서 그린다(검색·페이지·카테고리·읽음·북마크는 주소의 ?q=&page=&category=&read=&bookmark=1).
+// 보관함: 지금까지 받은 피드 전체. 서버에서 그린다(검색·페이지·분야·읽음·북마크는 주소의 ?q=&page=&section=&read=&bookmark=1).
 // 웹 브라우저는 쪽 넘기기(‹ 5 / 27 ›), 앱(iOS·안드로이드)은 끝에 가까워지면 다음 쪽을 이어 붙인다(InfiniteLibrary).
 // 앱인지는 서버가 User-Agent로 정해서(page.tsx) 서버 HTML과 첫 그림이 같고, 쪽 넘기기가 잠깐 보였다 사라지지 않는다.
 // '골라 듣기'로 고른 소식을 이어 듣는다(Playlist.tsx, Premium).
 
-function href(page: number, { category, read, bookmark, query }: LibraryFilters): string {
+function href(page: number, { section, read, bookmark, query }: LibraryFilters): string {
   const q = new URLSearchParams();
   if (query) q.set("q", query);
-  if (category) q.set("category", category);
+  if (section) q.set("section", section);
   if (read) q.set("read", read);
   if (bookmark) q.set("bookmark", "1");
   if (page > 1) q.set("page", String(page));
@@ -26,14 +26,14 @@ function href(page: number, { category, read, bookmark, query }: LibraryFilters)
 }
 
 /** 지금 화면의 거르기 */
-const filtersOf = (lib: LibraryData): LibraryFilters => ({ category: lib.category, read: lib.readFilter, bookmark: lib.bookmark, query: lib.query });
+const filtersOf = (lib: LibraryData): LibraryFilters => ({ section: lib.section, read: lib.readFilter, bookmark: lib.bookmark, query: lib.query });
 
 /** 빈 목록일 때 맹고가 하는 말 */
 function emptyMessage(lib: LibraryData): string {
   if (lib.query && lib.matchedTotal === 0) return `‘${lib.query}’로 찾은 소식이 없어요.`;
   if (lib.bookmark) return lib.readFilter === "unread" ? "안 읽은 북마크가 없어요." : "북마크한 소식이 없어요.";
   if (lib.readFilter === "unread") return "안 읽은 소식이 없어요.";
-  return lib.category ? "이 카테고리에는 아직 받은 소식이 없어요." : "아직 받은 소식이 없어요.";
+  return lib.section ? "이 분야에는 아직 받은 소식이 없어요." : "아직 받은 소식이 없어요.";
 }
 
 export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면 이어 붙이기, 웹이면 쪽 넘기기 */ infinite: boolean }) {
@@ -45,21 +45,28 @@ export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면
 
         {lib.total > 0 && <SearchBox lib={lib} />}
 
-        {/* 한 줄 거르기: 전체 · 안 읽음 · 카테고리들(북마크는 위 제목 줄). 안 읽음·북마크·카테고리는 같이 걸 수 있고, 켜진 칸을 다시 누르면 풀린다.
+        {/* 한 줄 거르기: 전체 · 안 읽음 · 분야들(북마크는 위 제목 줄). 안 읽음·북마크·분야는 같이 걸 수 있고, 켜진 칸을 다시 누르면 풀린다.
             '전체'는 북마크까지 푼다. 검색어는 그대로 둔다 */}
         {lib.matchedTotal > 0 && (
           <nav aria-label="거르기" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-2">
             <FilterLink
-              href={href(1, { category: null, read: null, bookmark: false, query: lib.query })}
-              active={!lib.category && !lib.readFilter && !lib.bookmark}
+              href={href(1, { section: null, read: null, bookmark: false, query: lib.query })}
+              active={!lib.section && !lib.readFilter && !lib.bookmark}
               label="전체"
               count={lib.matchedTotal}
             />
             <FilterLink href={href(1, { ...f, read: lib.readFilter === "unread" ? null : "unread" })} active={lib.readFilter === "unread"} label="안 읽음" count={lib.readCounts.unread} />
-            {lib.categories.map((c) => (
-              <FilterLink key={c.id} href={href(1, { ...f, category: lib.category === c.id ? null : c.id })} active={lib.category === c.id} label={c.label} count={c.count} />
+            {lib.sections.map((c) => (
+              <FilterLink key={c.id} href={href(1, { ...f, section: lib.section === c.id ? null : c.id })} active={lib.section === c.id} label={c.label} count={c.count} />
             ))}
           </nav>
+        )}
+
+        {lib.groups.length > 0 && (
+          <div className="mt-4 flex items-center justify-between px-1">
+            <p className="text-[13px] font-semibold text-sub">최신순</p>
+            <LibraryViewToggle />
+          </div>
         )}
 
         {lib.groups.length === 0 ? (
@@ -92,11 +99,11 @@ export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면
   );
 }
 
-/** 제목·요약·출처로 찾기. 엔터(키보드 '검색')로 주소의 ?q=를 바꾼다. 카테고리·읽음·북마크 거르기는 그대로 */
+/** 제목·요약·출처로 찾기. 엔터(키보드 '검색')로 주소의 ?q=를 바꾼다. 분야·읽음·북마크 거르기는 그대로 */
 function SearchBox({ lib }: { lib: LibraryData }) {
   return (
     <Form action="/library" role="search" className="relative mt-4">
-      {lib.category && <input type="hidden" name="category" value={lib.category} />}
+      {lib.section && <input type="hidden" name="section" value={lib.section} />}
       {lib.readFilter && <input type="hidden" name="read" value={lib.readFilter} />}
       {lib.bookmark && <input type="hidden" name="bookmark" value="1" />}
       <label htmlFor="library-q" className="sr-only">
@@ -113,7 +120,7 @@ function SearchBox({ lib }: { lib: LibraryData }) {
         enterKeyHint="search"
         maxLength={40}
         autoComplete="off"
-        className="tile h-12 w-full appearance-none pl-11 pr-12 text-[16px] font-bold placeholder:font-semibold placeholder:text-faint focus:border-sky focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="h-12 w-full appearance-none rounded-full border border-transparent bg-snow pl-11 pr-12 text-[16px] font-medium placeholder:text-sub focus:border-sky focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {lib.query && (
         <Link
@@ -133,12 +140,12 @@ function FilterLink({ href: to, active, label, count }: { href: string; active: 
     <Link
       href={to}
       aria-current={active ? "page" : undefined}
-      className={`tile inline-flex min-h-10 shrink-0 items-center gap-1.5 px-3.5 text-[14px] font-extrabold no-underline ${
-        active ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"
+      className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold no-underline ${
+        active ? "bg-ink text-paper" : "bg-snow text-ink hover:bg-line"
       }`}
     >
       {label}
-      <span className={`font-round text-[13px] ${active ? "" : "text-faint"}`}>{count}</span>
+      <span className={`font-round text-[13px] ${active ? "text-paper/70" : "text-sub"}`}>{count}</span>
     </Link>
   );
 }

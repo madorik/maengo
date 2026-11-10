@@ -11,6 +11,8 @@ export interface FeedEntry {
   author: string | null;
   publishedAt: Date | null;
   excerpt: string;
+  /** 글 대표 이미지(RSS에 붙어 온 것). 상세 화면 사진. 영상·없으면 null */
+  image: string | null;
   videoId: string | null;
   views: number | null;
   hnPoints: number | null;
@@ -98,6 +100,58 @@ export function isWebUrl(raw: string): boolean {
   }
 }
 
+/**
+ * 대표 이미지 주소를 다듬는다(2026-11-10, 상세 화면 사진). http는 https로 올리고(https 화면에서 막히지 않게),
+ * 추적 픽셀처럼 보이는 건 뺀다. 쓸 수 없으면 null
+ */
+export function cleanImageUrl(raw: string | null | undefined, base?: string): string | null {
+  if (!raw) return null;
+  let s = raw.trim().replace(/&amp;/g, '&');
+  if (s.startsWith('//')) s = `https:${s}`;
+  if (base && !/^https?:/i.test(s)) {
+    try {
+      s = new URL(s, base).toString();
+    } catch {
+      return null;
+    }
+  }
+  if (/^http:\/\//i.test(s)) s = `https://${s.slice(7)}`;
+  if (!isWebUrl(s) || s.length > 1000) return null;
+  if (/pixel|beacon|feedburner|doubleclick|\/1x1|spacer|blank\.gif|\/stats?\//i.test(s)) return null;
+  return s;
+}
+
+type Attrs = Record<string, string | undefined>;
+
+function attrUrls(n: Node, ok: (o: Attrs) => boolean = () => true): string[] {
+  const arr = (Array.isArray(n) ? n : n ? [n] : []) as Attrs[];
+  return arr.filter((o) => o && typeof o === 'object' && o['@_url'] && ok(o)).map((o) => o['@_url']!);
+}
+
+const isImageMedia = (o: Attrs) => {
+  const medium = o['@_medium'];
+  const type = o['@_type'] ?? '';
+  return medium === 'image' || type.startsWith('image/') || (!medium && !type && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(o['@_url'] ?? ''));
+};
+
+/** RSS·Atom 항목의 이미지: media:content(이미지) → media:thumbnail → enclosure(이미지) → 본문 첫 img */
+function imageOf(it: any, html: string): string | null {
+  const group = it['media:group'];
+  const candidates = [
+    ...attrUrls(it['media:content'], isImageMedia),
+    ...attrUrls(group?.['media:content'], isImageMedia),
+    ...attrUrls(it['media:thumbnail']),
+    ...attrUrls(group?.['media:thumbnail']),
+    ...attrUrls(it.enclosure, (o) => (o['@_type'] ?? '').startsWith('image/')),
+    /<img[^>]+src=["']([^"']+)["']/i.exec(html)?.[1] ?? '',
+  ];
+  for (const c of candidates) {
+    const url = cleanImageUrl(c);
+    if (url) return url;
+  }
+  return null;
+}
+
 export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
   const doc = parser.parse(xml) as Record<string, any>;
   const out: FeedEntry[] = [];
@@ -113,6 +167,7 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
         author: text(it['dc:creator']) || text(it.author) || null,
         publishedAt: parseDate(text(it.pubDate) || text(it['dc:date']), lang),
         excerpt: clip(htmlToText(desc), 600),
+        image: imageOf(it, `${text(it['content:encoded'])} ${text(it.description)}`),
         videoId: null,
         views: null,
         hnPoints: hnPointsOf(desc),
@@ -133,6 +188,8 @@ export function parseFeed(xml: string, lang: 'ko' | 'en'): FeedEntry[] {
         author: text(e.author) || null,
         publishedAt: parseDate(text(e.published) || text(e.updated), lang),
         excerpt: clip(htmlToText(desc), 600),
+        // 영상 썸네일은 영상 ID로 만든다(웹 youtubeThumbnail)
+        image: videoId ? null : imageOf(e, desc),
         videoId,
         views: videoId ? count(group?.['media:community']?.['media:statistics']?.['@_views']) : null,
         hnPoints: null,

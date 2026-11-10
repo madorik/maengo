@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "맹고 Premium" };
 /**
  * Free·Premium 비교(2026-10-22 사용자 지정, 10-26 가입 선물 줄 빼고 Premium 음성은 '무제한',
  * 10-27 '하루 무료 소식' → '하루 소식'·내 관심 링크 줄 추가, 관심사 개수는 넣지 않음, 10-29 목소리 줄 추가: Premium은 Gemini라 더 자연스럽다,
- * 11-03 맹고 AI 질문 줄 추가).
+ * 11-03 맹고 AI 질문 줄 추가, 11-10 주간 리포트 줄 추가, 월간은 뺐다).
  * 숫자는 plans 표(하루 소식·음성·링크·추가 구매·보관 기간), 맹고 AI 질문만 코드 상수(lib/ask.ts ASK_DAILY)
  */
 function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string; plus: string }[] {
@@ -34,6 +34,7 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
     { label: "목소리", ...both((l) => (l.audio ? "더 자연스러운 AI 목소리" : l.dailyListens > 0 ? "기본" : "불가")) },
     { label: "맹고 AI 질문", free: `하루 ${ASK_DAILY.free}번`, plus: `하루 ${ASK_DAILY.plus}번` },
     { label: "내 관심 링크", ...both((l) => (l.linkLimit > 0 ? `${l.linkLimit}곳` : "불가")) },
+    { label: "주간 리포트", free: "불가", plus: "가능" },
     { label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) },
     { label: "받은 소식 보관", ...both((l) => archiveLabel(l.archiveDays)) },
   ];

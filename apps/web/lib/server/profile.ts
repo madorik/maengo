@@ -18,6 +18,8 @@ export interface Profile {
   /** 관심사 고르기를 마쳤는지. 안 마쳤으면 /onboarding으로 보낸다 */
   onboarded: boolean;
   notifyAt: string;
+  /** 퇴근길(오후) 알림 시각 'HH:MM'(2026-11-10 하루 두 번). 기본 18:00 */
+  notifyAtPm: string;
   /** 푸시 알림을 켰는지(설정 > 알림). 꺼 두면 맹고는 만들어 두되 알리지 않는다 */
   pushEnabled: boolean;
   plan: Plan;
@@ -40,6 +42,7 @@ interface ProfileRow {
   id: string;
   display_name: string | null;
   notify_at: string;
+  notify_at_pm?: string | null;
   push_enabled: boolean;
   plan: Plan;
   premium_until: string | null;
@@ -74,7 +77,7 @@ export async function loadProfile(
 ): Promise<Profile | null> {
   // 플랜 값(plans 표, 1분 캐시)은 프로필과 나란히 읽는다(캐시가 비었을 때 차례로 두 번 오가지 않게)
   const [profileRes, plans] = await Promise.all([
-    db.from('profiles').select('id,display_name,notify_at,push_enabled,plan,premium_until,persona,voice,auto_next,skip_read,playback_rate,onboarded_at,created_at').eq('id', userId).maybeSingle(),
+    db.from('profiles').select('id,display_name,notify_at,notify_at_pm,push_enabled,plan,premium_until,persona,voice,auto_next,skip_read,playback_rate,onboarded_at,created_at').eq('id', userId).maybeSingle(),
     getPlans(),
   ]);
   const row = must(profileRes, 'profiles') as ProfileRow | null;
@@ -99,6 +102,7 @@ export async function loadProfile(
     ...who,
     onboarded: row.onboarded_at !== null,
     notifyAt: row.notify_at.slice(0, 5),
+    notifyAtPm: (row.notify_at_pm ?? '18:00').slice(0, 5),
     pushEnabled: row.push_enabled,
     plan,
     limits: plans.get(plan)!,
@@ -136,5 +140,7 @@ export function entitlements(p: Profile) {
     linkLimit: l.linkLimit,
     canBuyMaengo: l.canBuyMaengo,
     archiveDays: l.archiveDays,
+    /** 주간 리포트(2026-11-10, Premium만. 월간은 뺐다. plans 표 칸 없이 플랜으로 정한다, 맹고-문서/리포트.md) */
+    reports: l.id === 'plus',
   };
 }

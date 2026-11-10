@@ -5,7 +5,7 @@ import { Card, Chips, Section } from "./parts";
 
 // 관리자 운영 탭. 숫자는 admin_stats_ops(supabase/migrations/20261022100000_admin_tabs.sql). 작업·기기는 지금 값, 알림 결과는 기간.
 
-const TASK_LABEL: Record<string, string> = { deliveries: "소식 지급·알림", ingest: "수집", summarize: "요약", daily: "하루 정리", trial_reminder: "체험 끝 알림" };
+const TASK_LABEL: Record<string, string> = { deliveries: "소식 지급·알림", ingest: "수집", summarize: "요약", daily: "하루 정리", trial_reminder: "체험 끝 알림", reports: "주간 리포트", ingest_pm: "오후 수집" };
 const DELIVERY_LABEL: Record<string, string> = {
   pending: "대기",
   building: "만드는 중",

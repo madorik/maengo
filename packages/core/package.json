@@ -22,7 +22,9 @@
     "./josa": "./src/util/josa.ts",
     "./gemini": "./src/ai/gemini.ts",
     "./plans": "./src/plans.ts",
-    "./site": "./src/site.ts"
+    "./report": "./src/report.ts",
+    "./site": "./src/site.ts",
+    "./sections": "./src/sections.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0"

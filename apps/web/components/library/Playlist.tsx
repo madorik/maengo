@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useContext, useState, useTransition } from "react";
+import { createContext, useContext, useEffect, useState, useTransition } from "react";
 import { playlistAdd } from "@/app/actions";
 import { IconBookmark, IconCheck, IconClose, IconHeadphones, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
-import { ON_TILE as BOOKMARK_ON } from "@/components/ui/BookmarkButton";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 
 // 보관함 골라 듣기(Premium). '골라 듣기'를 누르고 카드를 고르면 체크가 붙는다. 듣기·담기는 고른 순서대로(2026-10-15 정리: 위는 선택, 아래는 동작).
@@ -97,7 +96,7 @@ export function LibraryHeader({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-1">
-      <h1 className="text-[28px] font-black tracking-[-0.03em]">
+      <h1 className="text-[26px] font-bold tracking-[-0.035em]">
         보관함 <span className="font-round text-[20px] text-faint">{total}</span>
       </h1>
       {total > 0 && (
@@ -105,7 +104,7 @@ export function LibraryHeader({
           <Link
             href={bookmark.href}
             aria-current={bookmark.on ? "page" : undefined}
-            className={`btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-3.5 text-[14px] ${bookmark.on ? `${BOOKMARK_ON} [--btn-edge:#C85A00]` : ""}`}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold no-underline ${bookmark.on ? "bg-mango-tint text-mango-deep" : "bg-snow text-ink"}`}
           >
             <IconBookmark filled={bookmark.on} className={`size-4 ${bookmark.on ? "text-orange" : ""}`} />
             북마크
@@ -117,7 +116,7 @@ export function LibraryHeader({
               <PremiumBadge />
             </Link>
           ) : (
-            <button type="button" onClick={() => pick.setPicking(true)} className="btn btn-ghost inline-flex min-h-11 items-center gap-1.5 px-3.5 text-[14px]">
+            <button type="button" onClick={() => pick.setPicking(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-ink px-3.5 text-[14px] font-semibold text-paper">
               <IconHeadphones className="size-4" />
               골라 듣기
             </button>
@@ -134,6 +133,12 @@ export function PickBar() {
   const p = usePlayer();
   const [adding, startAdd] = useTransition();
   const n = pick.ids.length;
+  // 고르는 동안은 떠 있는 플레이어를 숨긴다(아래 막대와 겹친다, globals.css html[data-picking])
+  useEffect(() => {
+    const root = document.documentElement;
+    root.toggleAttribute("data-picking", pick.picking);
+    return () => root.removeAttribute("data-picking");
+  }, [pick.picking]);
   if (!pick.picking) return null;
   // 담으면 플레이리스트 화면으로 간다(playlistAdd가 옮겨 준다)
   const add = () => startAdd(() => playlistAdd(pick.ids));
@@ -145,14 +150,21 @@ export function PickBar() {
     <>
       <div aria-hidden="true" className="h-24" />
       {n > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-line bg-paper px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3">
-          <div className="mx-auto flex max-w-[680px] gap-3">
-            <button type="button" onClick={add} disabled={adding} className="btn btn-ghost min-h-12 flex-1 text-[15px]">
-              담기
+        <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
+          <div className="mx-auto flex max-w-[680px] items-center gap-2">
+            {/* 고른 것만 고른 차례대로 이어 듣기(2026-11-10 사용자) */}
+            <button
+              type="button"
+              onClick={play}
+              className="flex h-[60px] flex-1 items-center gap-3 rounded-full bg-ink pl-2 pr-5 text-left text-paper shadow-[0_10px_30px_rgba(31,35,64,0.25)]"
+            >
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink">
+                <IconPlay className="size-[18px]" />
+              </span>
+              <span className="flex-1 text-[16px] font-bold">고른 {n}개 듣기</span>
             </button>
-            <button type="button" onClick={play} className="btn btn-sky inline-flex min-h-12 flex-[2] items-center justify-center gap-1.5 text-[15px]">
-              <IconPlay className="size-4" />
-              {n}개 듣기
+            <button type="button" onClick={add} disabled={adding} className="h-[60px] shrink-0 rounded-full bg-snow px-5 text-[15px] font-semibold text-ink shadow-[0_10px_30px_rgba(31,35,64,0.12)]">
+              담기
             </button>
           </div>
         </div>
@@ -162,7 +174,7 @@ export function PickBar() {
 }
 
 /**
- * 고르는 중에 카드 위에 덮는 고르기 버튼. 고른 카드에는 하늘색 테두리와 체크가 붙는다(카드의 읽음 표시는 data-pick으로 감춘다).
+ * 고르는 중에 카드 위에 덮는 고르기 버튼. 고른 카드에는 망고색 테두리와 고른 차례 번호가 붙는다(2026-11-10, 고른 차례대로 듣는다)(카드의 읽음 표시는 data-pick으로 감춘다).
  * 덮개는 글자 위에 얹히므로 옅게 비치는 색만 쓴다(섞기 모드 multiply는 다크에서 카드를 거의 검게 만든다)
  */
 export function PickTarget({ id, title }: { id: number; title: string }) {
@@ -176,12 +188,12 @@ export function PickTarget({ id, title }: { id: number; title: string }) {
       aria-pressed={on}
       aria-label={title}
       onClick={() => pick.toggle(id)}
-      className={`absolute inset-0 z-10 rounded-2xl disabled:cursor-not-allowed ${on ? "bg-sky/10 ring-2 ring-sky ring-inset" : "enabled:hover:bg-ink/[0.04]"}`}
+      className={`absolute inset-0 z-10 rounded-2xl disabled:cursor-not-allowed ${on ? "bg-mango/10 ring-2 ring-mango ring-inset" : "enabled:hover:bg-ink/[0.04]"}`}
     >
       <span
-        className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 ${on ? "border-sky bg-sky text-white" : "border-line bg-paper"}`}
+        className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 ${on ? "border-mango bg-mango text-ink" : "border-line bg-paper"}`}
       >
-        {on && <IconCheck className="size-5 [stroke-width:3.5]" />}
+        {on && <span className="font-round text-[14px] font-black">{pick.ids.indexOf(id) + 1}</span>}
       </span>
     </button>
   );

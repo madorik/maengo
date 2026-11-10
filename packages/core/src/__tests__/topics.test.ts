@@ -46,9 +46,9 @@ test('조사: 한글 받침, 영문·숫자는 읽는 소리로', () => {
   assert.equal(josa('k8s', '을', '를'), 'k8s를');
 });
 
-test('관심 분야 5개와 상세 관심사, 뉴스 분야 6개', () => {
+test('관심 분야 5개와 상세 관심사, 뉴스 분야 8개(2026-11-10 스포츠·엔터)', () => {
   assert.deepEqual(TOPIC_GROUPS.map((t) => t.name), ['AI', '주식', '코인', '반도체·로봇', 'Tech']);
-  assert.deepEqual(NEWS_SECTIONS.map((t) => t.name), ['정치', '경제', '사회', '생활/문화', 'IT/과학', '세계']);
+  assert.deepEqual(NEWS_SECTIONS.map((t) => t.name), ['정치', '경제', '사회', '생활/문화', 'IT/과학', '세계', '스포츠', '엔터']);
   // 뉴스 분야는 상세 관심사 없이 헤드라인만 받는다
   for (const n of NEWS_SECTIONS) assert.equal(childrenOf(n.id).length, 0, n.id);
   assert.ok(isNewsSection('politics') && !isNewsSection('ai') && !isNewsSection('bitcoin'));

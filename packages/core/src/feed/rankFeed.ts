@@ -1,3 +1,4 @@
+import { usesSections, withSectionTopics } from '../sections';
 import { isLinkTopicId } from '../topics/links';
 import type { FeedbackKind } from '../types';
 import { impactBoost, impactOf, MAJOR_FIRST_HOURS, type Impact } from './impact';
@@ -59,7 +60,19 @@ export function todaysTopics(weights: Record<string, number>, visible: number, d
   const interests = Object.keys(weights).filter((t) => !isLinkTopicId(t) && (weights[t] ?? 0) > 0).sort();
   if (interests.length <= visible) return null;
   const start = Math.floor(Date.parse(`${day}T00:00:00Z`) / 86_400_000) % interests.length;
-  return Array.from({ length: visible }, (_, i) => interests[(start + i) % interests.length]!);
+  const rotated = Array.from({ length: interests.length }, (_, i) => interests[(start + i) % interests.length]!);
+  // 분야로 고르는 사람(2026-11-10)이고 비중이 다르면 큰 비중부터 자리를 주고, 같은 비중끼리만 날마다 돌린다
+  if (usesSections(weights) && !equalWeights(weights, interests)) rotated.sort((a, b) => weights[b]! - weights[a]!);
+  return rotated.slice(0, visible);
+}
+
+function equalWeights(weights: Record<string, number>, interests: string[]): boolean {
+  return interests.every((t) => weights[t] === weights[interests[0]!]);
+}
+
+/** 분야로 고르는 사람이면 소식의 토픽에 분야를 덧붙인다(sections.ts withSectionTopics). 아니면 그대로 */
+function topicsFor(topics: RankCandidate['topics'], weights: Record<string, number>): RankCandidate['topics'] {
+  return usesSections(weights) ? withSectionTopics(topics) : topics;
 }
 
 /** 하루 소식 중 내 관심 링크 글의 상한: 절반(올림). Premium 10개면 5개 */
@@ -87,7 +100,7 @@ export function baseScore(c: RankCandidate): number {
  */
 export function bestTopic(topics: RankCandidate['topics'], weights: Record<string, number>): string | null {
   let best = { topicId: '', value: 0 };
-  for (const t of topics) {
+  for (const t of topicsFor(topics, weights)) {
     if (t.relevance < MIN_RELEVANCE) continue;
     const value = (weights[t.topicId] ?? 0) * t.relevance;
     if (value > best.value) best = { topicId: t.topicId, value };
@@ -104,17 +117,30 @@ export function perTopicShare(limit: number, weights: Record<string, number>): n
   return Math.max(1, Math.ceil(limit / Math.max(1, interests)));
 }
 
+/**
+ * 관심사별 몫. 예전 사람들(분야가 아닌 관심사)과 비중이 모두 같으면 perTopicShare 그대로. 분야로 고르는 사람이고 비중이 다르면 비중에 비례해 나눈다(올림, 적어도 1).
+ * 경제 1.2·IT/과학 1·나머지 0.3이면 하루 5개 중 경제·IT/과학은 2개까지, 나머지 분야는 1개까지
+ */
+export function topicShares(limit: number, weights: Record<string, number>): (topicId: string) => number {
+  const interests = Object.keys(weights).filter((t) => !isLinkTopicId(t) && (weights[t] ?? 0) > 0);
+  const even = perTopicShare(limit, weights);
+  if (!interests.length || !usesSections(weights) || equalWeights(weights, interests)) return () => even;
+  const sum = interests.reduce((a, t) => a + weights[t]!, 0);
+  return (topicId) => (isLinkTopicId(topicId) ? even : Math.max(1, Math.ceil((limit * (weights[topicId] ?? 0)) / sum)));
+}
+
 export function rankFeed(
   candidates: RankCandidate[],
   weights: Record<string, number>,
   exclude: ReadonlySet<number>,
-  { limit = 5, visible = limit, maxPerTopic = perTopicShare(visible, weights), maxVideos = 3, maxLinks = Infinity, day, prior = [] }: RankOptions = {},
+  { limit = 5, visible = limit, maxPerTopic, maxVideos = 3, maxLinks = Infinity, day, prior = [] }: RankOptions = {},
 ): RankedItem[] {
+  const shareOf = maxPerTopic !== undefined ? () => maxPerTopic : topicShares(visible, weights);
   const scored: (RankedItem & SimilarityKey & { isVideo: boolean; major: boolean })[] = [];
   for (const c of candidates) {
     if (exclude.has(c.id) || isStaleMarketQuote(c)) continue;
     let relevance = 0;
-    for (const t of c.topics) if (t.relevance >= MIN_RELEVANCE) relevance += (weights[t.topicId] ?? 0) * t.relevance;
+    for (const t of topicsFor(c.topics, weights)) if (t.relevance >= MIN_RELEVANCE) relevance += (weights[t.topicId] ?? 0) * t.relevance;
     const topicId = bestTopic(c.topics, weights);
     if (relevance <= 0 || !topicId) continue;
     const major = impactOf(c) === 'major' && c.ageHours <= MAJOR_FIRST_HOURS;
@@ -151,11 +177,11 @@ export function rankFeed(
   // 전체를 점수순으로 다시 섞으면 제약을 풀어 채운 같은 관심사 소식이 앞으로 와서 관심사별 몫이 깨진다(2026-10-23)
   // 큰 소식을 맨 먼저: 관심사 차례보다 앞서지만 관심사별 몫은 지키고, 하루 소식의 절반(올림)까지만
   const maxMajors = Math.ceil(visible / 2);
-  fill((s) => s.major && majors < maxMajors && (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s) && distinct(s));
+  fill((s) => s.major && majors < maxMajors && (perTopic.get(s.topicId) ?? 0) < shareOf(s.topicId) && underCaps(s) && distinct(s));
   // 관심사가 받는 수보다 많으면 오늘 차례인 관심사에 먼저 하나씩(점수순)
   const todays = day ? new Set(todaysTopics(weights, visible, day)) : null;
   if (todays?.size) fill((s) => todays.has(s.topicId) && !perTopic.has(s.topicId) && underCaps(s) && distinct(s));
-  fill((s) => (perTopic.get(s.topicId) ?? 0) < maxPerTopic && underCaps(s) && distinct(s));
+  fill((s) => (perTopic.get(s.topicId) ?? 0) < shareOf(s.topicId) && underCaps(s) && distinct(s));
   fill((s) => underCaps(s) && distinct(s));
   fill(distinct);
   fill(() => true);

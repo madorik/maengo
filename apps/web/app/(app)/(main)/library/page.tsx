@@ -1,4 +1,4 @@
-import { isCategory } from "@maengo/core/categories";
+import { isSection } from "@maengo/core/sections";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { LibraryView } from "@/components/library/LibraryView";
@@ -9,7 +9,7 @@ import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "보관함" };
 
-type Props = { searchParams: Promise<{ page?: string; category?: string; read?: string; bookmark?: string; q?: string }> };
+type Props = { searchParams: Promise<{ page?: string; section?: string; read?: string; bookmark?: string; q?: string }> };
 
 export default async function LibraryPage({ searchParams }: Props) {
   const profile = await requireProfile();
@@ -18,7 +18,7 @@ export default async function LibraryPage({ searchParams }: Props) {
   const infinite = isAppUserAgent((await headers()).get("user-agent"));
   const lib = await getLibrary(profile, {
     page: infinite ? 1 : Number(sp.page) || 1,
-    category: isCategory(sp.category) ? sp.category : null,
+    section: isSection(sp.section) ? sp.section : null,
     read: sp.read === "unread" ? "unread" : null,
     bookmark: sp.bookmark === "1",
     query: parseLibraryQuery(sp.q),

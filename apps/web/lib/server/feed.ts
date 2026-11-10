@@ -1,13 +1,14 @@
 import 'server-only';
 import { articleToken } from './share-token';
 import { cache } from 'react';
-import { CATEGORIES, isCategory, type CategoryId } from '@maengo/core/categories';
+import { isCategory, type CategoryId } from '@maengo/core/categories';
 import { excludesCluster, feedbackDelta, linkCap, popularityBoost, rankDistinct, WEIGHT_MAX, WEIGHT_MIN, type Impact, type RankCandidate, type SimilarityKey } from '@maengo/core/feed';
 import { assembleClusterInfo, partsOfEmbedded, TIERS, type ClusterInfo, type EmbeddedCluster, type ItemRow, type RepRow, type SummaryRow, type WhyRow } from '../cluster-info';
 import { libraryTerms } from '../library-search';
 import { beforeNotify, kstDate, kstDayLabel, kstGreetingDate, notifyTimeLabel, publishedLabel } from '@maengo/core/kst';
 import { daysBefore } from '@maengo/core/plans';
 import { isLinkTopicId, rankingWeights, whyLead } from '@maengo/core/topics';
+import { briefingSlot, isSection, SECTIONS, sectionOf, sectionOfTopic, type BriefingSlot, type SectionId } from '@maengo/core/sections';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
 import type { FeedbackKind } from '@maengo/core/types';
 import type { FeedItem, LibraryData, LibraryEntry, LibraryReadFilter, ProfileView, TodayData } from '../types';
@@ -26,10 +27,39 @@ import { recentSignupGift, refundMaengo, spendMaengo, syncWallet } from './walle
 const MAX_DAILY = 10;
 const HOUR = 3600_000;
 
+/** 글을 소리 내어 읽는 데 걸리는 시간(초, 어림값). 지금 음성은 초당 약 7.4자(2026-11-10 운영 DB 실측) */
+function readSeconds(text: string): number {
+  return Math.max(5, Math.round(text.replace(/\s+/g, ' ').trim().length / 7.4));
+}
+
+/**
+ * 지금 보여 줄 브리핑(2026-11-10 하루 두 번). 오전이면 출근길, 오후면 퇴근길. 퇴근길 소식이 아직 없으면(오후 배송 전) 출근길을 계속 보여 준다
+ */
+function displaySlot(rows: readonly FeedRow[], now = new Date()): BriefingSlot {
+  // 로컬 확인용: 개발 서버에서만 DEV_BRIEFING_SLOT=am|pm으로 시각과 관계없이 볼 브리핑을 고른다
+  const forced = process.env.NODE_ENV !== 'production' ? process.env.DEV_BRIEFING_SLOT : undefined;
+  const wanted = forced === 'am' || forced === 'pm' ? forced : briefingSlot(now);
+  return wanted === 'pm' && rows.some((r) => r.slot === 'pm') ? 'pm' : 'am';
+}
+
+let collectedMemo: { at: number; value: { articles: number; sources: number } | null } | null = null;
+
+/** 지난 24시간 모은 글 수와 출처 수(오늘 화면의 '언론 N곳, 기사 N건'). 5분 동안 같은 값을 쓴다 */
+async function collectedLastDay(): Promise<{ articles: number; sources: number } | null> {
+  if (collectedMemo && Date.now() - collectedMemo.at < 5 * 60_000) return collectedMemo.value;
+  const since = new Date(Date.now() - 24 * HOUR).toISOString();
+  const { data, error } = await db.from('items').select('source_id').gte('fetched_at', since).limit(20000);
+  const value = error ? null : { articles: data.length, sources: new Set(data.map((r) => (r as { source_id: number | null }).source_id).filter((v) => v != null)).size };
+  collectedMemo = { at: Date.now(), value };
+  return value;
+}
+
 interface FeedRow {
   rank: number;
   clusterId: number;
   topicId: string;
+  /** 어느 브리핑에서 받았는지(2026-11-10). 예전 줄은 am */
+  slot?: 'am' | 'pm';
 }
 
 interface FeedDay {
@@ -153,17 +183,18 @@ async function buildToday(profile: Profile, date: string): Promise<FeedRow[]> {
 }
 
 /** 피드 줄 그대로(feeds 표) */
-const FEED_COLS = 'rank,cluster_id,topic_id';
+const FEED_COLS = 'rank,cluster_id,topic_id,slot';
 /**
  * 피드 줄에 소식 내용(요약·why·묶인 글)을 같이 받는다(PostgREST embed). 전엔 피드를 읽고 나서 소식 내용을 또 읽어 DB를 두 번 오갔다(2026-10-19).
  * clusters↔items는 외래 키가 둘(items.cluster_id, clusters.rep_item_id)이라 어느 쪽인지 적어 준다
  */
-const FEED_WITH_INFO = `${FEED_COLS},clusters!inner(rep_item_id,summaries(cluster_id,tier,title,short,body,category,author,published_at,scenes),cluster_why(cluster_id,topic_id,tier,why),items!items_cluster_id_fkey(id,cluster_id,canonical_url,kind,author,sources(name)))`;
+const FEED_WITH_INFO = `${FEED_COLS},clusters!inner(rep_item_id,summaries(cluster_id,tier,title,short,body,category,author,published_at,scenes),cluster_why(cluster_id,topic_id,tier,why),items!items_cluster_id_fkey(id,cluster_id,canonical_url,kind,author,image_url,sources(name)))`;
 
 interface FeedRowRaw {
   rank: number;
   cluster_id: number;
   topic_id: string;
+  slot?: 'am' | 'pm';
   clusters?: EmbeddedCluster | null;
 }
 
@@ -178,7 +209,7 @@ async function readDay(userId: string, date: string, { withInfo = false } = {}):
   const d = must(day, 'feed_days') as { visible: number; extra: number } | null;
   if (!d) return null;
   const raw = must(feeds, 'feeds') as unknown as FeedRowRaw[];
-  const rows = raw.map((r) => ({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id }));
+  const rows = raw.map((r) => ({ rank: r.rank, clusterId: r.cluster_id, topicId: r.topic_id, slot: r.slot ?? 'am' }));
   const info = withInfo ? assembleClusterInfo(rows.map((r) => r.clusterId), partsOfEmbedded(raw)) : undefined;
   return { date, rows, visible: d.visible, extra: d.extra, info };
 }
@@ -295,7 +326,7 @@ export async function receiveMore(profile: Profile): Promise<MoreResult> {
   };
   try {
     if (fresh) {
-      const { error } = await db.from('feeds').insert({ user_id: profile.id, date, rank: row!.rank, cluster_id: row!.clusterId, topic_id: row!.topicId });
+      const { error } = await db.from('feeds').insert({ user_id: profile.id, date, rank: row!.rank, cluster_id: row!.clusterId, topic_id: row!.topicId, slot: displaySlot(day.rows) });
       if (error) {
         await undo();
         return { ok: false, error: 'busy' };
@@ -444,7 +475,7 @@ async function clusterInfo(ids: number[]): Promise<Map<number, ClusterInfo>> {
     db.from('summaries').select('cluster_id,tier,title,short,body,category,author,published_at,scenes').in('cluster_id', ids).in('tier', TIERS),
     db.from('cluster_why').select('cluster_id,topic_id,tier,why').in('cluster_id', ids).in('tier', TIERS),
     db.from('clusters').select('id,rep_item_id').in('id', ids),
-    db.from('items').select('id,cluster_id,canonical_url,kind,author,sources(name)').in('cluster_id', ids),
+    db.from('items').select('id,cluster_id,canonical_url,kind,author,image_url,sources(name)').in('cluster_id', ids),
   ]);
   return assembleClusterInfo(ids, {
     summaries: must(summaries, 'summaries') as SummaryRow[],
@@ -471,6 +502,13 @@ function toItem(row: FeedRow, date: string, c: ClusterInfo, now: Date, names: Ma
     coverage: c.coverage,
     url: c.url,
     thumbnail: videoId ? youtubeThumbnail(videoId) : null,
+    photo: c.photo,
+    slot: row.slot ?? 'am',
+    // 화면의 분야는 소식 자신의 분류가 먼저(랭킹 토픽은 이 사람 비중에 따라 달라서 '저출생'이 경제로 보이기도 했다)
+    section: sectionOf({ category: c.category }) ?? sectionOf({ topicIds: [row.topicId] }),
+    sourceCount: c.sourceCount,
+    shortSeconds: readSeconds(c.short),
+    fullSeconds: readSeconds([c.title, ...c.body].join(' ')),
     short: c.short,
     body: c.body,
     scenes: c.scenes,
@@ -566,11 +604,26 @@ async function batchRanToday(date: string): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
+/**
+ * 받은 소식 중 가장 많은 언론이 다룬 것(2곳 이상)을 맨 위로(2026-11-10 사용자 '받은 이슈 중에 가장 헤드라인이 될 수 있는 게 가장 상위로').
+ * 나머지 차례는 그대로. 플레이어도 이 차례로 듣는다
+ */
+function headlineFirst(items: FeedItem[]): FeedItem[] {
+  let best = -1;
+  items.forEach((it, i) => {
+    if ((it.sourceCount ?? 0) >= 2 && (best === -1 || (it.sourceCount ?? 0) > (items[best]!.sourceCount ?? 0))) best = i;
+  });
+  return best <= 0 ? items : [items[best]!, ...items.slice(0, best), ...items.slice(best + 1)];
+}
+
 export async function getTodayData(profile: Profile): Promise<TodayData> {
   const day = await todayFeed(profile);
   // 가입 선물은 지갑을 처음 만들 때 들어가므로 지갑을 읽은 뒤에 본다
   const walletAndGift = syncWallet(profile.id).then(async (w) => [w, await recentSignupGift(profile.id, profile.createdAt)] as const);
-  const [items, { reads, feedback }, [wallet, signupGift]] = await Promise.all([itemsFor(profile, visibleRows(day), day.date, day.info), readsAndFeedback(profile.id), walletAndGift]);
+  const [allItems, { reads, feedback }, [wallet, signupGift], collected] = await Promise.all([itemsFor(profile, visibleRows(day), day.date, day.info), readsAndFeedback(profile.id), walletAndGift, collectedLastDay()]);
+  // 지금 브리핑(출근길·퇴근길)의 소식만 보여 준다. 다른 브리핑 소식은 보관함에 있다
+  const slot = displaySlot(day.rows);
+  const items = headlineFirst(allItems.filter((i) => (i.slot ?? 'am') === slot));
   const dailyLimit = entitlements(profile).dailyItems;
   // 비었는데 '오늘 소식 받기'가 돌고 있으면(다른 탭·기기, 만드는 중에 화면을 옮겼다 돌아옴) 받기 버튼 대신 만드는 중으로
   const emptyReason = items.length
@@ -605,6 +658,8 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     listenedToday: reads.filter((r) => r.listened_at && kstDate(new Date(r.listened_at)) === kstDate()).map((r) => r.cluster_id),
     feedback: Object.fromEntries(feedback.map((f) => [f.cluster_id, f.kind])),
     bookmarks: reads.filter((r) => r.starred).map((r) => r.cluster_id),
+    slot,
+    collected,
   };
 }
 
@@ -633,11 +688,27 @@ export async function widgetToday(profile: Profile): Promise<{ date: string; not
 
 export const LIBRARY_PAGE_SIZE = 10;
 
+/** 보관함 소식의 원문 대표 사진(대표 글의 것이 먼저, 없으면 같은 소식 다른 글). 못 읽으면 빈 표 */
+export async function storyPhotos(ids: number[]): Promise<Map<number, { url: string; source: string }>> {
+  const out = new Map<number, { url: string; source: string }>();
+  if (!ids.length) return out;
+  const [{ data: reps }, { data: items }] = await Promise.all([
+    db.from('clusters').select('id,rep_item_id').in('id', ids),
+    db.from('items').select('id,cluster_id,image_url,sources(name)').in('cluster_id', ids).not('image_url', 'is', null),
+  ]);
+  const rep = new Map((reps ?? []).map((c) => [c.id as number, c.rep_item_id as number | null]));
+  const rows = (items ?? []) as unknown as { id: number; cluster_id: number; image_url: string; sources: { name: string } | null }[];
+  rows.sort((a, b) => Number(b.id === rep.get(b.cluster_id)) - Number(a.id === rep.get(a.cluster_id)));
+  for (const it of rows) if (!out.has(it.cluster_id)) out.set(it.cluster_id, { url: it.image_url, source: it.sources?.name ?? '' });
+  return out;
+}
+
 /** library_page(DB 함수)가 돌려주는 값 */
 interface LibraryPageRow {
   total: number;
   matched_total: number;
   category_counts: Record<string, number>;
+  section_counts: Record<string, number>;
   in_category: number;
   consumed: number;
   bookmarked: number;
@@ -652,6 +723,7 @@ interface LibraryPageRow {
     title: string;
     short: string;
     category: string;
+    section: string | null;
     author: string | null;
     published_at: string | null;
     kind: 'article' | 'video';
@@ -664,7 +736,8 @@ interface LibraryPageRow {
 }
 
 /**
- * 보관함: 지금까지 받은 피드 전체(최신순)를 카테고리·읽음·북마크·검색어로 거르고 쪽으로 나눈다. 들은 것도 읽음으로 친다.
+ * 보관함: 지금까지 받은 피드 전체(최신순)를 분야·읽음·북마크·검색어로 거르고 쪽으로 나눈다.
+ * 분야(2026-11-10)는 DB가 글 종류로 정한다(오늘 화면과 같은 규칙, 20261110150000_sports_category_library_sections.sql). 들은 것도 읽음으로 친다.
  * 거르기·개수 세기·쪽 나누기는 DB(library_page, 20261019120000_library_page.sql)가 하고 요청한 쪽만 받는다
  * (2026-10-19 사용자 결정: 전체를 읽어 메모리에서 거르지 않는다)
  */
@@ -672,7 +745,7 @@ export async function getLibrary(
   profile: Profile,
   {
     page,
-    category,
+    section,
     read,
     bookmark = false,
     query = null,
@@ -680,7 +753,7 @@ export async function getLibrary(
     syncToday = true,
   }: {
     page: number;
-    category: CategoryId | null;
+    section: SectionId | null;
     read: LibraryReadFilter | null;
     /** 북마크한 소식만 */
     bookmark?: boolean;
@@ -701,7 +774,8 @@ export async function getLibrary(
       p_user: profile.id,
       p_today: today,
       p_from: archiveFrom(profile, today),
-      p_category: category,
+      p_category: null,
+      p_section: section,
       p_unread: read === 'unread',
       p_terms: libraryTerms(query),
       p_page: page,
@@ -712,8 +786,11 @@ export async function getLibrary(
     'library_page',
   ) as unknown as LibraryPageRow;
 
+  // 썸네일: 소식마다 원문 대표 사진 하나(대표 글이 먼저, 2026-11-10)
+  const photos = await storyPhotos(r.entries.map((e) => e.cluster_id));
   const groups: LibraryData['groups'] = [];
   for (const e of r.entries) {
+    const category = isCategory(e.category) ? e.category : 'etc';
     const entry: LibraryEntry = {
       clusterId: e.cluster_id,
       token: articleToken(e.cluster_id),
@@ -727,6 +804,8 @@ export async function getLibrary(
       publishedLabel: e.published_at ? publishedLabel(e.published_at, now) : '',
       read: e.read,
       listened: e.listened,
+      photo: photos.get(e.cluster_id) ?? null,
+      section: e.section && isSection(e.section) ? e.section : sectionOf({ category }),
     };
     const last = groups.at(-1);
     if (last?.date === e.date) last.entries.push(entry);
@@ -738,7 +817,7 @@ export async function getLibrary(
     filteredTotal: r.filtered_total,
     page: r.page,
     pageCount: r.page_count,
-    category,
+    section,
     readFilter: read,
     bookmark,
     query,
@@ -746,7 +825,7 @@ export async function getLibrary(
     readCounts: { all: r.in_category, unread: r.in_category - r.consumed },
     bookmarkCount: r.bookmarked,
     pickIds: r.pick_ids,
-    categories: CATEGORIES.filter((c) => r.category_counts[c.id]).map((c) => ({ id: c.id, label: c.label, count: r.category_counts[c.id]! })),
+    sections: SECTIONS.filter((s) => r.section_counts?.[s.id]).map((s) => ({ id: s.id, label: s.label, count: r.section_counts[s.id]! })),
     groups,
   };
 }
@@ -885,10 +964,40 @@ export async function setFeedback(profile: Profile, clusterId: number, kind: Fee
  * 보관 기간은 보관함과 같다: 소식이 보관함에서 빠지면(prune_archive가 reads를 지운다) 북마크도 같이 사라진다
  */
 export async function setBookmark(profile: Profile, clusterId: number, on: boolean) {
+  const { data: prev } = await db.from('reads').select('starred').eq('user_id', profile.id).eq('cluster_id', clusterId).maybeSingle();
+  const was = Boolean((prev as { starred: boolean | null } | null)?.starred);
   must(
     await db.from('reads').upsert({ user_id: profile.id, cluster_id: clusterId, starred: on }, { onConflict: 'user_id,cluster_id' }),
     'reads bookmark',
   );
+  if (on !== was) await nudgeSection(profile, clusterId, on ? NUDGE.bookmark : -NUDGE.bookmark);
+}
+
+/**
+ * 행동으로 분야 비중 맞추기(2026-11-10 사용자: 키워드를 고르게 하지 않고 맹고가 알아서). 분야로 고르는 사람만:
+ * 글을 처음 열면 +0.05, 처음 끝까지 들으면 +0.08, 북마크 +0.1(풀면 되돌림). 덜 받기·더 받기는 setFeedback이 대표 토픽(분야)에 준다.
+ * 비중은 WEIGHT_MIN~WEIGHT_MAX 안에서만 움직인다. 실패해도 읽음·북마크 기록은 그대로 둔다
+ */
+const NUDGE = { read: 0.05, listen: 0.08, bookmark: 0.1 } as const;
+
+async function nudgeSection(profile: Profile, clusterId: number, delta: number): Promise<void> {
+  try {
+    const weights = await weightsOf(profile.id);
+    if (!Object.keys(weights).some(isSection)) return;
+    const topicId = (await findRow(profile, clusterId))?.row.topicId ?? null;
+    let section = topicId ? sectionOfTopic(topicId) : null;
+    if (!section) {
+      const { data } = await db.from('summaries').select('category').eq('cluster_id', clusterId).eq('tier', 'basic').maybeSingle();
+      const cat = (data as { category: string } | null)?.category;
+      section = cat && isCategory(cat) ? sectionOf({ category: cat }) : null;
+    }
+    if (!section || weights[section] === undefined) return;
+    const next = Math.min(WEIGHT_MAX, Math.max(WEIGHT_MIN, weights[section]! + delta));
+    if (next === weights[section]) return;
+    await db.from('user_topics').update({ weight: Math.round(next * 1000) / 1000, source: 'feedback' }).eq('user_id', profile.id).eq('topic_id', section);
+  } catch (e) {
+    console.error('nudgeSection', (e as Error).message);
+  }
 }
 
 export async function markRead(profile: Profile, clusterId: number, { read, listened }: { read?: boolean; listened?: boolean }) {
@@ -909,4 +1018,7 @@ export async function markRead(profile: Profile, clusterId: number, { read, list
     ),
     'reads upsert',
   );
+  // 처음 연 것·처음 들은 것만 분야 비중을 올린다(같은 소식을 다시 열어도 한 번만)
+  const delta = (read && !cur?.read_at ? NUDGE.read : 0) + (listened && !cur?.listened_at ? NUDGE.listen : 0);
+  if (delta) await nudgeSection(profile, clusterId, delta);
 }

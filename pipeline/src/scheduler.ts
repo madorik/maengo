@@ -13,6 +13,7 @@ import { env } from './lib/env';
 import { afterTaskFailure, afterTaskSuccess, type TaskRow } from './lib/retry';
 import { TRIAL_PUSH_MS } from './lib/trial';
 import { flushUsage, recordUsage } from './lib/usage';
+import { runReports } from './reports';
 import { remindTrialEnding } from './trial-reminder';
 
 // 서버 스케줄러(Supabase pg_cron이 5분마다 웹 /api/cron/scheduler를 부른다). 하루 한 번(06:00 KST) 수집·임베딩·묶기·태그·중복 합치기와 하루 정리만 한다.
@@ -22,6 +23,7 @@ import { remindTrialEnding } from './trial-reminder';
 // Vercel 함수는 300초까지라 한 번에 약 4분 예산을 두고, 다 못 한 작업은 놓아줘 다음 실행이 이어받는다.
 // 작업이 실패하면 30분 뒤 다시(하루 세 번까지, lib/retry.ts). 관리자 화면 알림 종에 띄운다(apps/web/lib/server/admin-alerts.ts).
 // trial_reminder(하루 한 번 12:00 KST): 내일 무료 체험이 끝나는 사람에게 푸시 한 번(trial-reminder.ts).
+// reports(하루 한 번 08:00 KST): Premium 주간·월간 리포트를 만들고 푸시 한 번(reports.ts, 2026-11-10).
 // 작업이 '다 못 했다'(unfinished)고 하면 성공으로 적지 않고 놓아줘 다음 실행(5분 뒤)이 바로 잇는다(차례 시각은 그대로).
 
 /** 이 시각까지만 새 작업을 시작한다(시작 후 4분) */
@@ -32,9 +34,9 @@ const BUDGET_MS = 240_000;
  */
 const AI_HARD_MS = 280_000;
 /** 작업마다 최소 이만큼은 남아 있어야 시작한다(수집은 출처 79곳에 약 10초, 임베딩은 300개에 수십 초, 체험 끝 알림은 한 사람 보낼 시간) */
-const MIN_LEFT_MS: Record<string, number> = { daily: 0, trial_reminder: TRIAL_PUSH_MS, ingest: 60_000, summarize: 60_000 };
+const MIN_LEFT_MS: Record<string, number> = { daily: 0, trial_reminder: TRIAL_PUSH_MS, reports: 60_000, ingest: 60_000, ingest_pm: 60_000, summarize: 60_000 };
 /** 가벼운 하루 정리를 먼저, 무거운 요약은 마지막에 */
-const ORDER = ['daily', 'trial_reminder', 'ingest', 'summarize'];
+const ORDER = ['daily', 'trial_reminder', 'reports', 'ingest', 'ingest_pm', 'summarize'];
 
 /** claim_scheduler_tasks가 돌려주는 줄(표 전체 칸) */
 type Task = TaskRow & { name: string; config: Record<string, number> };
@@ -110,9 +112,11 @@ async function runTask(task: Task, now: Date, deadline: number, hooks: Scheduler
     return { stats: { ...premium, archive, pruned } };
   }
   if (task.name === 'trial_reminder') return remindTrialEnding(now, deadline);
+  if (task.name === 'reports') return runReports(now, deadline);
   const ctx = makeCtx(now, deadline, task.config);
   try {
-    if (task.name === 'ingest') {
+    // 오후 수집(ingest_pm, 15:00 KST)은 퇴근길 브리핑 몫(2026-11-10). 하는 일은 오전 수집과 같다
+    if (task.name === 'ingest' || task.name === 'ingest_pm') {
       await collect(ctx);
       await embed(ctx);
       await cluster(ctx);

@@ -69,6 +69,14 @@ const episodeBuilds = (g.__maengoEpisodeBuilds ??= new Map());
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 24);
 
+/** 8비트(부호 없음) PCM을 16비트(부호 있음, 리틀 엔디언)로 */
+function pcm8to16(pcm: Uint8Array): Uint8Array {
+  const out = new Uint8Array(pcm.length * 2);
+  const view = new DataView(out.buffer);
+  for (let i = 0; i < pcm.length; i++) view.setInt16(i * 2, (pcm[i]! - 128) << 8, true);
+  return out;
+}
+
 function scriptOf(item: FeedItem): ScriptLine[] {
   return templateScript({ model: '', title: item.title, short: item.short, body: item.body });
 }
@@ -204,6 +212,8 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
           if (basic) return basic;
           speech = await speak(basicTts);
         }
+        // 키 없는 로컬 개발의 더미 신호음은 8비트라 16비트로 늘려 MP3로 만든다(운영 음성은 늘 16비트)
+        if (speech.bitsPerSample === 8) speech = { ...speech, pcm: pcm8to16(speech.pcm), bitsPerSample: 16 };
         if (speech.bitsPerSample !== 16) throw new Error('16비트 PCM만 MP3로 바꿀 수 있어요');
         pcm = speech.pcm;
         sampleRate = speech.sampleRate;

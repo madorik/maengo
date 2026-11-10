@@ -1,3 +1,4 @@
+import type { SectionId } from '@maengo/core/sections';
 import type { CategoryId } from '@maengo/core/categories';
 import type { LinkError } from '@maengo/core/topics';
 import type { Chapter, FeedbackKind, Persona, Plan, Voice } from '@maengo/core/types';
@@ -24,6 +25,18 @@ export interface FeedItem {
   url: string;
   /** 유튜브 썸네일. 영상 ID를 알 수 없으면 null */
   thumbnail: string | null;
+  /** 원문 대표 사진(글 소식, 2026-11-10). 상세 화면·오늘 노선·보관함 썸네일. 없으면 null·없음 */
+  photo?: { url: string; source: string } | null;
+  /** 어느 브리핑에서 받았는지(2026-11-10 하루 두 번): am 출근길, pm 퇴근길 */
+  slot?: 'am' | 'pm';
+  /** 분야 8개 중 하나(정치·경제·사회·생활/문화·IT/과학·세계·스포츠·엔터). 못 정하면 null */
+  section?: string | null;
+  /** 이 소식을 다룬 출처 수(대표 글 포함). 2곳 이상이면 '언론 N곳' */
+  sourceCount?: number;
+  /** 한 줄 요약을 읽는 데 걸리는 시간(초, 어림값). 한 줄 듣기 길이 표시 */
+  shortSeconds?: number;
+  /** 전체 요약을 읽는 데 걸리는 시간(초, 어림값). '자세히' 길이 표시 */
+  fullSeconds?: number;
   /** 목록에 보이는 요약 */
   short: string;
   /** 상세 화면의 전체 글(문단) */
@@ -64,6 +77,10 @@ export interface TodayData {
   feedback: Record<number, FeedbackKind>;
   /** 북마크한 소식(reads.starred). 보관함 거르기는 DB가 하고, 이건 글 화면 버튼과 보관함 카드 표시에 쓴다 */
   bookmarks: number[];
+  /** 지금 보여 주는 브리핑(2026-11-10): 오전에 열면 출근길(am), 오후에 열면 퇴근길(pm). 퇴근길 소식이 아직 없으면 출근길 */
+  slot: 'am' | 'pm';
+  /** 지난 24시간 모은 글 수와 출처 수(오늘 화면 '언론 N곳, 기사 N건에서 골랐어요'). 못 셌으면 null */
+  collected: { articles: number; sources: number } | null;
 }
 
 export interface ProfileView {
@@ -118,6 +135,10 @@ export interface LibraryEntry {
   publishedLabel: string;
   read: boolean;
   listened: boolean;
+  /** 원문 대표 사진 주소(2026-11-10 보관함 썸네일). 없으면 null */
+  photo?: { url: string; source: string } | null;
+  /** 분야 8개 중 하나. 못 정하면 null */
+  section?: string | null;
 }
 
 /** 보관함 거르기: 안 읽은 소식만(2026-10-15 '읽음' 칸은 뺌) */
@@ -126,11 +147,12 @@ export type LibraryReadFilter = 'unread';
 export interface LibraryData {
   /** 지금까지 받은 소식 전체 수 */
   total: number;
-  /** 카테고리로 거른 뒤의 수 */
+  /** 분야·읽음·북마크로 거른 뒤의 수 */
   filteredTotal: number;
   page: number;
   pageCount: number;
-  category: CategoryId | null;
+  /** 분야 거르기(주소의 ?section=, 2026-11-10 글 종류 대신 분야 8개). null이면 전체 */
+  section: SectionId | null;
   /** 읽음 거르기(주소의 ?read=). null이면 전체 */
   readFilter: LibraryReadFilter | null;
   /** 북마크한 소식만(주소의 ?bookmark=1). 안 읽음·카테고리와 같이 걸 수 있다 */
@@ -145,8 +167,8 @@ export interface LibraryData {
   bookmarkCount: number;
   /** 골라 듣기 '전체': 지금 거른 소식 전부(모든 쪽, 최신순). 안 읽은 것만 고르려면 '안 읽음'으로 거른 뒤 전체 */
   pickIds: number[];
-  /** 받은 소식에 있는 카테고리와 개수 */
-  categories: { id: CategoryId; label: string; count: number }[];
+  /** 받은 소식에 있는 분야와 개수(분야 순서대로) */
+  sections: { id: SectionId; label: string; count: number }[];
   /** 이 페이지의 소식을 피드 날짜별로 묶은 것 */
   groups: { date: string; label: string; entries: LibraryEntry[] }[];
 }

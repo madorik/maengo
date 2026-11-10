@@ -21,6 +21,7 @@ import { ListenBar } from "./ListenBar";
 import { ShareButton } from "./ShareButton";
 import { useItemAudio } from "./useItemAudio";
 import { useTodayAudio } from "./useTodayAudio";
+import { ArticlePhoto } from "./ArticlePhoto";
 import { VideoThumb } from "./VideoThumb";
 
 // 좋아요 = 이 분야 가중치를 올린다(more), 싫어요 = 가중치를 내리고 이 소식을 다시 주지 않는다(skip).
@@ -137,6 +138,7 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
         </p>
 
         {item.kind === "video" && <VideoThumb item={item} />}
+        {item.kind === "article" && <ArticlePhoto item={item} />}
 
         {/* 맹고가 말풍선으로 요약을 건넨다 */}
         <section aria-label="요약" className="mt-6 flex items-start gap-2">

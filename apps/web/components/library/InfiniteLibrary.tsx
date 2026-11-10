@@ -51,10 +51,10 @@ type Props = LibraryFilters & {
   filteredTotal: number;
 };
 
-export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, category, read, bookmark, query }: Props) {
+export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, section, read, bookmark, query }: Props) {
   const router = useRouter();
   const { bfcacheId } = router;
-  const cacheKey = `${bfcacheId}|${libraryFilterKey({ category, read, bookmark, query })}`;
+  const cacheKey = `${bfcacheId}|${libraryFilterKey({ section, read, bookmark, query })}`;
   const sig = librarySignature({ filteredTotal, pageCount, groups });
   // 첫 화면(하이드레이션)에서는 saved가 늘 비어 있어 서버 HTML과 같게 그린다. 되살리는 건 화면을 옮겨 다시 그릴 때뿐이다
   const [restored] = useState(() => {
@@ -115,7 +115,7 @@ export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, catego
       request.current = ctrl;
       setStatus("loading");
       try {
-        const res = await fetch(withBase(`/api/library?${libraryPageSearch(next, { category, read, bookmark, query })}`), { cache: "no-store", signal: ctrl.signal });
+        const res = await fetch(withBase(`/api/library?${libraryPageSearch(next, { section, read, bookmark, query })}`), { cache: "no-store", signal: ctrl.signal });
         // 로그인이 풀렸으면 다시 받아도 소용없다: 화면을 새로 그리면 서버가 로그인으로 보낸다
         if (res.status === 401) {
           signedOut.current = true;
@@ -135,7 +135,7 @@ export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, catego
         busy.current = false;
       }
     },
-    [category, read, bookmark, query, router],
+    [section, read, bookmark, query, router],
   );
 
   const hasMore = loaded.page < loaded.pageCount;

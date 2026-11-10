@@ -17,7 +17,7 @@
 
 /*
   맹고 2차 디자인: 듀오링고식. 흰 바탕 + 두툼한 3D 버튼 + 망고 캐릭터.
-  망고 노랑 = 주 행동(계속·시작), 잎 초록 = 완료, 하늘 파랑 = 듣기.
+  망고 노랑 = 주 행동(계속·시작), 잎 초록 = 완료, 남색 = 듣기(2026-11-10 하늘 파랑에서 바꿈).
   버튼 글자 대비를 지키려고 노랑 위에는 남색 글자, 초록·파랑은 진한 톤을 쓴다.
 */
 @theme {
@@ -44,11 +44,13 @@
   /* 오류(내 관심 링크를 못 가져올 때). 흰 바탕 글자 대비 4.5:1 이상 */
   --color-cherry: #D92D3A;
 
-  --color-sky: #1A8FE0;
-  --color-sky-dark: #1270B3;
-  --color-sky-tint: #E1F2FF;
+  /* 예전 듣기 색(하늘 파랑). 2026-11-10 새 방향(망고·남색·흰색)에서 파랑을 빼고 남색 글자·연한 망고 바탕으로 바꿨다.
+     이름은 쓰는 곳이 많아 그대로 둔다 */
+  --color-sky: #1F2340;
+  --color-sky-dark: #1F2340;
+  --color-sky-tint: #FFF4D6;
 
-  --color-focus: #1A8FE0;
+  --color-focus: #1F2340;
 }
 
 /* 다크 값. 같은 묶음을 두 번 쓴다(직접 고른 다크, 시스템이 다크이고 밝게를 고르지 않음) */
@@ -67,8 +69,10 @@
   --color-leaf-dark: #7FE0A8;
   --color-leaf-tint: #123323;
   --color-cherry: #FF6B76;
-  --color-sky-dark: #7CC4F7;
-  --color-sky-tint: #13304A;
+  --color-sky: #FFC23D;
+  --color-sky-dark: #F4B740;
+  --color-sky-tint: #3A2F14;
+  --color-focus: #FFC23D;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -86,8 +90,10 @@
     --color-leaf-dark: #7FE0A8;
     --color-leaf-tint: #123323;
     --color-cherry: #FF6B76;
-    --color-sky-dark: #7CC4F7;
-    --color-sky-tint: #13304A;
+    --color-sky: #FFC23D;
+    --color-sky-dark: #F4B740;
+    --color-sky-tint: #3A2F14;
+    --color-focus: #FFC23D;
   }
 }
 
@@ -108,8 +114,9 @@
   --color-leaf-dark: #17683A;
   --color-leaf-tint: #DDF7E5;
   --color-cherry: #D92D3A;
-  --color-sky-dark: #1270B3;
-  --color-sky-tint: #E1F2FF;
+  --color-sky: #1F2340;
+  --color-sky-dark: #1F2340;
+  --color-sky-tint: #FFF4D6;
 }
 
 /* 카테고리·관심 분야 칩(TONE에 연한 바탕 + 진한 글자 hex): 다크에서는 글자색(--tone)을 옅게 깐 바탕에 밝은 글자. 유틸리티보다 앞서도록 레이어 밖에 둔다 */
@@ -164,7 +171,8 @@
 }
 
 @layer components {
-  /* 눌리는 3D 버튼. 아래 그림자만큼 내려앉는다 */
+  /* 버튼(2026-11-10 새 방향: 듀오링고식 3D 띠를 빼고 납작한 알약 모양, 누르면 살짝 작아진다).
+     --btn-edge는 예전 띠 색. 지금은 쓰지 않지만 변형 클래스가 함께 바꾸던 값이라 남겨 둔다 */
   .btn {
     --btn-face: var(--color-mango);
     --btn-edge: var(--color-mango-dark);
@@ -176,23 +184,27 @@
     gap: 0.5rem;
     min-height: 52px;
     padding: 0 22px;
-    border: 2px solid transparent;
-    border-radius: 16px;
+    border: 1px solid transparent;
+    border-radius: 9999px;
     background: var(--btn-face);
     color: var(--btn-text);
-    font-weight: 800;
+    font-weight: 700;
     font-size: 16px;
+    letter-spacing: -0.02em;
     text-decoration: none;
-    box-shadow: 0 4px 0 var(--btn-edge);
-    transform: translateY(0);
-    transition: transform 80ms ease-out, box-shadow 80ms ease-out, filter 150ms;
+    transform: scale(1);
+    transition: transform 120ms ease-out, filter 150ms;
   }
   .btn:hover:not(:disabled) {
     filter: brightness(1.04);
   }
   .btn:active:not(:disabled) {
-    transform: translateY(4px);
-    box-shadow: 0 0 0 var(--btn-edge);
+    transform: scale(0.97);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn:active:not(:disabled) {
+      transform: none;
+    }
   }
   .btn:disabled {
     --btn-face: var(--color-line);
@@ -204,14 +216,15 @@
     --btn-edge: #17683A;
     --btn-text: #fff;
   }
+  /* 재생 버튼 등. 새 방향(망고·남색·흰색)에서 파랑 대신 남색 */
   .btn-sky {
-    --btn-face: var(--color-sky);
-    --btn-edge: #1270B3;
-    --btn-text: #fff;
+    --btn-face: var(--color-ink);
+    --btn-edge: var(--color-ink);
+    --btn-text: var(--color-paper);
   }
   .btn-ink {
-    --btn-face: #111;
-    --btn-edge: #000;
+    --btn-face: #1F2340;
+    --btn-edge: #1F2340;
     --btn-text: #fff;
   }
   .btn-ink:where([data-theme="dark"] *) {
@@ -238,12 +251,16 @@
     border-color: var(--color-line);
   }
 
-  /* 선택지·카드: 두꺼운 테두리, 아래가 더 두껍다 */
+  /* 선택지·카드: 얇은 테두리 하나(2026-11-10, 예전엔 아래가 두꺼운 3D 테두리) */
   .tile {
-    border: 2px solid var(--color-line);
-    border-bottom-width: 4px;
-    border-radius: 16px;
+    border: 1px solid var(--color-line);
+    border-radius: 20px;
     background: var(--color-paper);
+  }
+
+  /* 보관함에서 골라 듣기로 고르는 동안은 떠 있는 플레이어를 숨긴다(아래 '고른 n개 듣기' 막대와 겹친다) */
+  html[data-picking] [data-tour="player"] {
+    visibility: hidden;
   }
 
   /* 형광펜이 줄마다 끊기지 않게 */

@@ -12,7 +12,7 @@ const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"))
 const SAVE_AFTER_MS = 600;
 
 /** 설정 > 알림 시간: 알람처럼 오전/오후·시·분 바퀴(2026-10-17 사용자 결정). 하루 아무 때나 1분 단위, 멈추면 저장한다 */
-export function NotifyTimePicker({ current }: { current: string }) {
+export function NotifyTimePicker({ current, slot = "am" }: { current: string; /** 출근길(am)·퇴근길(pm) 알림(2026-11-10) */ slot?: "am" | "pm" }) {
   const [value, setValue] = useState(current);
   const [state, action] = useActionState<NotifyResult | null, FormData>(async (prev, fd) => {
     const r = await saveNotifyAt(prev, fd);
@@ -29,6 +29,7 @@ export function NotifyTimePicker({ current }: { current: string }) {
     timer.current = window.setTimeout(() => {
       const fd = new FormData();
       fd.set("notifyAt", next);
+      fd.set("slot", slot);
       startTransition(() => action(fd));
     }, SAVE_AFTER_MS);
   };
@@ -38,7 +39,7 @@ export function NotifyTimePicker({ current }: { current: string }) {
     <>
       {/* 바퀴는 한 줄 전체(듣기 모드 칸과 같은 너비). iOS 알람처럼 오전/오후·시·분이 1/3씩, 콜론은 시와 분 사이 경계.
           '알림 시간' 글자는 두지 않는다(2026-10-17 사용자 결정) */}
-      <div role="group" aria-label="알림 시간" className="tile relative grid grid-cols-3">
+      <div role="group" aria-label={slot === "pm" ? "퇴근길 알림 시간" : "출근길 알림 시간"} className="tile relative grid grid-cols-3">
         {/* 고른 줄 띠 */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 rounded-xl bg-snow" style={{ height: WHEEL_ROW }} />
         <WheelColumn

@@ -1,240 +1,324 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
-import { IconCheck, IconClose, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
+import { useEffect, useSyncExternalStore } from "react";
+import { IconPause, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
-import { BookmarkButton } from "@/components/ui/BookmarkButton";
-import { CategoryChip } from "@/components/ui/CategoryChip";
-import { SourceChip } from "@/components/ui/SourceChip";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
-import { useItemAudio } from "@/components/article/useItemAudio";
 import { requestPlayerOpen } from "@/lib/float-dock";
-import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
-import { TTS_ERROR_LABEL } from "@/lib/player/tts-error";
-import { useArrivalHighlight, useMoreArrival, type Arrival } from "./arrival";
+import { SECTION_LABEL, SLOT_LABEL, isSection } from "@maengo/core/sections";
+import { useMoreArrival } from "./arrival";
+import { CommuteMango } from "./CommuteMango";
 import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
 import { MoreToday } from "./MoreToday";
 import { SignupGift } from "./SignupGift";
-import { VoiceMaking } from "./VoiceMaking";
+import { Thumb } from "./Thumb";
 import { startTour, useTourSeen } from "./FeatureTour";
 import type { FeedItem } from "@/lib/types";
 
-/** 오늘 목록: 제목·요약·출처·작성자·작성일. 누르면 전체 글로. notice는 맨 위 결제 안내 띠(서버가 그린다, today/page.tsx) */
+/**
+ * 오늘 화면(2026-11-10 G안): 오전에 열면 출근길, 오후에 열면 퇴근길 브리핑. 맨 위에 걸리는 시간과 '언론 N곳, 기사 N건에서 골랐어요',
+ * 남색 듣기 막대, 아래는 노선(소식이 정거장, 망고가 지금 위치) 또는 사진 카드. 퇴근길은 남색 바탕.
+ * 사용자가 고른 보기(노선·카드)는 이 기기에 남긴다. notice는 맨 위 결제 안내 띠(서버가 그린다, today/page.tsx)
+ */
 export function TodayList({ notice }: { notice?: React.ReactNode }) {
-  const { data, game } = useToday();
-  // '하나 더 받기'로 막 붙은 소식(스크롤하고 잠깐 짚는다)
-  const { arrival, expect, settle } = useMoreArrival(data.items.map((i) => i.clusterId));
-  // 플랜의 하루 소식 중 오늘 받은 수. 지갑으로 더 받은 건 세지 않는다(설정 > 플랜의 하루 소식과 같은 셈)
+  const { data, game, consumed } = useToday();
+  const player = usePlayer();
+  const { expect, settle } = useMoreArrival(data.items.map((i) => i.clusterId));
   const received = Math.min(data.items.length, data.dailyLimit);
-  // 하루 소식에서 아직 못 받은 수. 있으면 '남은 소식 N개 받기'(맹고 없이), 다 받았으면 목록 아래 '하나 더 받기'(1맹고)
   const remaining = data.dailyLimit - received;
-  // 처음 온 회원(가입 선물이 있는 7일): 기능 안내(화면을 옮겨 가며, FeatureTour)가 먼저, 끝나면 가입 축하 팝업('무료로 시작해보기', 2026-11-06 사용자 결정).
-  // 짚을 소식 카드가 있을 때만 시작한다
   const tourSeen = useTourSeen();
   const newMember = !!data.signupGift;
   useEffect(() => {
     if (newMember && game.total > 0 && !tourSeen) startTour();
   }, [newMember, game.total, tourSeen]);
+  const view = useView();
+  const pm = data.slot === "pm";
+  const slotLabel = SLOT_LABEL[data.slot];
+  // 인사 날짜 끝의 때(아침·저녁 등)는 떼고 출근길·퇴근길을 붙인다(저녁에 출근길 브리핑을 보면 "저녁 출근길"이 되지 않게)
+  const day = data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|오후|저녁|밤)$/, "");
+  // 걸리는 시간: 플레이어가 브리핑 음성 정보를 받았으면 그 길이(플레이어 막대와 같은 값), 아니면 글자 수 어림값
+  // 걸리는 시간: 플레이어가 브리핑 음성 정보를 받았으면 그 길이(플레이어 막대와 같은 값), 아니면 글자 수 어림값.
+  // 소식마다 걸리는 시간도 같은 값으로(합이 머리의 시간과 맞게)
+  const chapterSec = new Map(player.playlist ? [] : player.chapters.map((c) => [c.clusterId, Math.round((c.endMs - c.startMs) / 1000)] as const));
+  const items = data.items.map((i) => (chapterSec.has(i.clusterId) ? { ...i, fullSeconds: chapterSec.get(i.clusterId) } : i));
+  const seconds = items.reduce((a, i) => a + (i.fullSeconds ?? 0), 0);
+  // 망고의 자리: 하나도 안 들었으면 출발(-1), 들은 게 있으면 아직 안 들은 첫 소식, 다 들었으면 도착(소식 수)
+  const firstLeft = data.items.findIndex((i) => !consumed(i.clusterId));
+  const current = !data.items.some((i) => consumed(i.clusterId)) ? -1 : firstLeft === -1 ? data.items.length : firstLeft;
+
   return (
-    <div className="mx-auto max-w-[640px] px-4 pt-5 lg:pt-8">
-      <div className="min-w-0">
+    <div className={pm ? "min-h-dvh bg-[#1F2340] text-white" : ""}>
+      <div className="mx-auto max-w-[640px] px-4 pb-28 pt-5 lg:pt-8">
         {notice}
         {data.signupGift && tourSeen && <SignupGift gift={data.signupGift} />}
-        <section aria-labelledby="today-title" className="keep-light rounded-2xl bg-mango px-5 pb-4 pt-4 shadow-[0_4px_0_var(--color-mango-dark)]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13px] font-extrabold text-ink/70">{data.greetingDate}</p>
-              <h1 id="today-title" className="mt-0.5 text-[24px] font-black tracking-[-0.03em]">
-                {/* 비었을 때는 개수 없이 */}
-                오늘의 소식{game.total > 0 && ` ${game.total}개`}
+
+        <section aria-labelledby="briefing-title" className="px-1.5">
+          <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>
+            {day} {slotLabel}
+          </p>
+          {game.total > 0 ? (
+            <>
+              <h1 id="briefing-title" className="mt-1 flex items-baseline gap-2.5">
+                <span className="font-round text-[36px] font-black tracking-[-0.02em]">{durationLabel(seconds)}</span>
+                <span className={`text-[15px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>소식 {data.items.length}개</span>
               </h1>
-            </div>
-            {game.total > 0 && <ListenAll />}
-          </div>
-          {game.total > 0 && (
-            <p className="mt-1 text-[14px] font-semibold leading-snug text-ink/80">
-              관심사 {data.topicNames.join(", ")}에서 골랐어요
-            </p>
+              {data.collected && data.collected.articles > 0 && (
+                <p className={`mt-1 text-[13px] ${pm ? "text-white/65" : "text-sub"}`}>
+                  언론 {data.collected.sources.toLocaleString()}곳, 기사 {data.collected.articles.toLocaleString()}건에서 골랐어요.
+                </p>
+              )}
+            </>
+          ) : (
+            <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
+              {slotLabel} 브리핑
+            </h1>
           )}
-          {/* 오늘 받은 소식 / 플랜의 하루 소식(2026-10-20 사용자 결정, 읽음 기준에서 바꿈) */}
-          {game.total > 0 && (
-            <div className="mt-4 flex items-center gap-3">
-              <ProgressBar value={received / data.dailyLimit} tone="leaf" label="오늘 받은 소식" className="h-4 flex-1" track="bg-white/60" />
-              <span className="font-round text-[17px] font-black tabular-nums">{`${received}/${data.dailyLimit}`}</span>
-            </div>
-          )}
-          {game.total > 0 && remaining > 0 && <FillToday remaining={remaining} onExpect={expect} onSettle={settle} />}
         </section>
 
-        {game.total > 0 ? (
-          <ol className="mt-6 flex flex-col gap-4" aria-label="오늘의 소식">
-            {data.items.map((item, i) => (
-              <ArticleCard key={item.clusterId} item={item} arrival={arrival?.id === item.clusterId ? arrival : null} first={i === 0} />
-            ))}
-          </ol>
-        ) : (
-          <MakeToday reason={data.emptyReason} notifyLabel={data.notifyLabel} />
-        )}
+        {game.total > 0 && <ListenBar pm={pm} label={`${slotLabel} 브리핑 듣기`} />}
+        {game.total > 0 && remaining > 0 && <FillToday remaining={remaining} onExpect={expect} onSettle={settle} />}
 
-        {game.allDone && <AllDone notifyLabel={data.notifyLabel} />}
+        {game.total > 0 ? (
+          <>
+            <div className="mt-6 flex items-center justify-between px-1.5">
+              <h2 className="text-[15px] font-bold">{slotLabel} 노선</h2>
+              <ViewToggle view={view.value} onChange={view.set} pm={pm} />
+            </div>
+            {view.value === "card" ? (
+              <CardGrid items={items} pm={pm} consumed={consumed} />
+            ) : (
+              <Route items={items} pm={pm} current={current} consumed={consumed} />
+            )}
+          </>
+        ) : (
+          <div className="mt-4">
+            <MakeToday reason={data.emptyReason} notifyLabel={data.notifyLabel} />
+          </div>
+        )}
 
         {game.total > 0 && remaining === 0 && <MoreToday cost={data.moreCost} kept={data.wallet} onExpect={expect} onSettle={settle} />}
-
-        {/* 화면 읽기 도구에만: 터치로 '하나 더 받기'를 눌렀을 때(키보드면 새 소식 제목으로 초점이 간다) */}
-        <p role="status" className="sr-only">
-          {arrival && !arrival.focus ? `새 소식 ${arrival.count}개` : ""}
-        </p>
       </div>
     </div>
   );
 }
 
-/** 오늘 소식을 다 읽거나 들었을 때 목록 끝('하나 더 받기' 위)에 붙는 작은 축하 카드 */
-function AllDone({ notifyLabel }: { notifyLabel: string }) {
-  return (
-    <div className="tile mt-4 flex items-center gap-3 border-leaf-bright/40 bg-leaf-tint p-4">
-      <Mascot mood="cheer" className="pop size-14 shrink-0" />
-      <div className="min-w-0">
-        <p className="text-[17px] font-black leading-snug tracking-[-0.02em] text-leaf-dark">오늘 소식 다 봤어요</p>
-        <p className="mt-0.5 text-[14px] font-semibold text-ink/70">내일 {notifyLabel}에 새 소식이 와요</p>
-      </div>
-    </div>
-  );
+/** 걸리는 시간: 3분 넘으면 '약 N분', 그 안이면 'N분 N초' */
+function durationLabel(seconds: number): string {
+  if (seconds >= 180) return `약 ${Math.round(seconds / 60)}분`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m ? `${m}분 ${s}초` : `${s}초`;
 }
 
-function ArticleCard({ item, arrival, first = false }: { item: FeedItem; arrival: Arrival | null; /** 기능 안내(FeatureTour)가 짚는 첫 카드 */ first?: boolean }) {
-  const { consumed, listenAccess, listened } = useToday();
-  const p = usePlayer();
-  const done = consumed(item.clusterId);
-  // Premium이거나 Free의 오늘 듣기 몫(plans.daily_listens, 11-06부터 하루 3개)이면 들을 수 있다. 몫을 다 쓴 Free는 잠금(결제 페이지로)
-  const access = listenAccess(item.clusterId);
-  const free = access === "free";
-  // '하나 더 받기'로 막 붙은 소식이면 이 카드로 스크롤하고 잠깐 짚는다
-  const cardRef = useRef<HTMLLIElement>(null);
-  const titleRef = useRef<HTMLAnchorElement>(null);
-  useArrivalHighlight(arrival, cardRef, titleRef);
-  // 플레이어 목록에서의 자리. 번호가 아니라 소식으로 찾는다(듣는 동안 새로 받은 소식은 듣기가 끝날 때까지 플레이어 목록에 없다)
-  const at = p.chapters.findIndex((c) => c.clusterId === item.clusterId);
-  // 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 플레이어로, 아니면 이 소식 하나만 만들어 듣는다(플레이리스트를 듣는 중이면 하나만).
-  // 에피소드 정보를 받기 전에 누른 글 하나 듣기는 정보가 와도 끊지 않는다(lib/player/route.ts)
-  const single = useItemAudio(item.clusterId, p.enabled || free);
-  const singleBusy = singleStarted(single.ctl);
-  const viaPlayer = viaTodayPlayer({
-    inPlayer: at >= 0,
-    playlist: !!p.playlist,
-    audioReady: p.audioReady,
-    playerBusy: p.preparing || p.status !== "idle",
-    singleBusy,
-  });
-  // 플레이어가 이어받으면(전체 듣기 등) 글 하나 듣기는 접는다
-  const cancelSingle = single.ctl.cancel;
-  useEffect(() => {
-    if (viaPlayer && singleBusy) cancelSingle?.();
-  }, [viaPlayer, singleBusy, cancelSingle]);
-  const current = viaPlayer ? p.cur === at && p.status !== "done" : single.ctl.state === "playing" || single.ctl.state === "paused";
-  const preparing = viaPlayer ? current && p.preparing : !!single.ctl.preparing;
-  const playing = !preparing && (viaPlayer ? current && p.status === "playing" : single.ctl.state === "playing");
-  const listen = () => {
-    // 음성을 기다리는 중에 누르면 그만둔다(다 만들어져도 저절로 시작하지 않게)
-    if (preparing) return viaPlayer ? p.cancel() : single.ctl.cancel?.();
-    if (viaPlayer) return playing ? p.pause() : p.playOne(at);
-    return playing ? single.ctl.pause() : single.ctl.play();
+function clock(seconds?: number): string {
+  if (!seconds) return "";
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+const VIEW_KEY = "maengo:today-view";
+const viewListeners = new Set<() => void>();
+function readView(): "route" | "card" {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "card" ? "card" : "route";
+  } catch {
+    return "route";
+  }
+}
+
+/** 노선·카드 보기. 이 기기에 남긴다(처음은 노선) */
+function useView(): { value: "route" | "card"; set: (v: "route" | "card") => void } {
+  const value = useSyncExternalStore(
+    (cb) => {
+      viewListeners.add(cb);
+      return () => viewListeners.delete(cb);
+    },
+    readView,
+    () => "route" as const,
+  );
+  return {
+    value,
+    set: (v) => {
+      try {
+        localStorage.setItem(VIEW_KEY, v);
+      } catch {}
+      for (const l of viewListeners) l();
+    },
   };
+}
 
+function ViewToggle({ view, onChange, pm }: { view: "route" | "card"; onChange: (v: "route" | "card") => void; pm: boolean }) {
+  const base = "flex h-8 w-9 items-center justify-center rounded-full";
+  const on = pm ? "bg-white/20" : "bg-paper shadow-[0_0_0_1px_var(--color-line)]";
+  const stroke = (active: boolean) => (active ? (pm ? "#FFFFFF" : "#1F2340") : pm ? "rgba(255,255,255,0.6)" : "#6B7089");
   return (
-    <li ref={cardRef} data-tour={first ? "card" : undefined} className={`tile relative p-4 transition-colors hover:bg-snow sm:p-5 ${current ? "border-sky" : ""}`}>
-      <div className="flex items-center gap-2 text-[13px] font-extrabold">
-        <CategoryChip category={item.category} />
-        <SourceChip item={item} />
-        {item.coverage && item.kind === "article" && <span className="hidden truncate font-bold text-sub sm:inline">{item.coverage}</span>}
-        <span className="ml-auto inline-flex shrink-0 items-center gap-1">
-          {/* 음성을 만드는 동안은 머리 대신 카드 안 진행 카드(VoiceMaking)로 알린다 */}
-          {!viaPlayer && single.ctl.error ? (
-            <span className="text-cherry">{TTS_ERROR_LABEL}</span>
-          ) : preparing ? null : playing ? (
-            <span className="text-sky">듣는 중</span>
-          ) : done ? (
-            <span className="inline-flex items-center gap-1 text-leaf">
-              <IconCheck className="size-4 [stroke-width:3]" />
-              읽음
+    <div role="group" aria-label="보기 방식" className={`flex gap-0.5 rounded-full p-[3px] ${pm ? "bg-white/10" : "bg-snow"}`}>
+      <button type="button" aria-pressed={view === "route"} aria-label="노선으로 보기" onClick={() => onChange("route")} className={`${base} ${view === "route" ? on : ""}`}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={stroke(view === "route")} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M7 4v16" />
+          <circle cx="7" cy="7" r="2" fill="currentColor" />
+          <circle cx="7" cy="17" r="2" fill="currentColor" />
+          <path d="M12 7h8M12 17h8" />
+        </svg>
+      </button>
+      <button type="button" aria-pressed={view === "card"} aria-label="카드로 보기" onClick={() => onChange("card")} className={`${base} ${view === "card" ? on : ""}`}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={stroke(view === "card")} strokeWidth="2" aria-hidden="true">
+          <rect x="4" y="4" width="7" height="7" rx="2" />
+          <rect x="13" y="4" width="7" height="7" rx="2" />
+          <rect x="4" y="13" width="7" height="7" rx="2" />
+          <rect x="13" y="13" width="7" height="7" rx="2" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function sectionLabel(item: FeedItem): string | null {
+  return item.section && isSection(item.section) ? SECTION_LABEL[item.section] : null;
+}
+
+function Meta({ item, pm }: { item: FeedItem; pm: boolean }) {
+  const label = sectionLabel(item);
+  return (
+    <p className={`mt-1 flex gap-2 text-[12px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>
+      {label && <span className={`font-semibold ${pm ? "text-white" : "text-ink"}`}>{label}</span>}
+      {(item.sourceCount ?? 0) >= 2 && <span>언론 {item.sourceCount}곳</span>}
+      {item.fullSeconds ? <span className="tabular-nums">{clock(item.fullSeconds)}</span> : null}
+    </p>
+  );
+}
+
+/** 노선: 출발 → 소식(정거장) → 도착. 지나온 구간은 흐리게, 망고는 지금 들을 차례인 정거장에 */
+function Route({ items, pm, current, consumed }: { items: FeedItem[]; pm: boolean; current: number; consumed: (id: number) => boolean }) {
+  const line = "#FFC23D";
+  const passed = pm ? "rgba(255,255,255,0.22)" : "#D5D8E0";
+  const at = current;
+  const headline = (items[0]?.sourceCount ?? 0) >= 2;
+  return (
+    <ol aria-label="노선" className="mt-3 px-1">
+      <li className="flex h-12 items-center gap-3">
+        <div aria-hidden="true" className="relative h-12 w-8 shrink-0">
+          <span className="absolute bottom-0 left-[13px] top-6 w-1.5" style={{ background: at >= 0 ? passed : line }} />
+          {at === -1 ? (
+            <span className="absolute -left-1 top-0">
+              <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
             </span>
-          ) : null}
-          {/* 북마크는 카드 링크 위로 올라와 그 자리에서 켜고 끈다(보관함 카드와 같다) */}
-          <BookmarkButton item={item} variant="card" where="today" />
-        </span>
-      </div>
-      <h2 className="mt-2.5 text-[18px] font-black leading-snug tracking-[-0.02em]">
-        {/* 카드 전체를 덮는 링크. 듣기 버튼만 그 위에 올라온다 */}
-        <Link ref={titleRef} href={`/article/${item.token}`} className={`no-underline after:absolute after:inset-0 after:rounded-2xl ${done ? "text-sub" : ""}`}>
-          {item.title}
-        </Link>
-      </h2>
-      <p className="mt-2 text-[15px] font-medium leading-relaxed text-sub">{item.short}</p>
-      <div className="mt-3 flex items-center gap-3">
-        <p className="min-w-0 truncate text-[13px]">
-          <span className="font-extrabold">{item.author}</span>
-          <span className="ml-2 font-semibold text-faint">{item.publishedLabel}</span>
-        </p>
-        {access === null ? (
-          // Free가 오늘 몫을 다 썼으면: 듣기 자리는 두고, 누르면 결제 페이지로(막힌 기능에서 안내하는 자리)
-          <Link
-            href="/premium"
-            aria-label={`${item.title} 듣기, Premium에서 쓸 수 있어요`}
-            className="relative z-10 ml-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border-2 border-line px-3 text-[14px] font-extrabold text-sub no-underline hover:bg-snow"
-          >
-            <IconSpeaker className="size-5" />
-            듣기
-            <PremiumBadge />
-          </Link>
-        ) : (p.enabled || free) && (
-          <button
-            type="button"
-            onClick={listen}
-            // 글 하나로 들을 때는 에피소드 정보와 관계없이 바로 누를 수 있다(정보를 받는 동안 깜빡이거나, 못 받았을 때 막히지 않게)
-            disabled={viaPlayer && !p.ready}
-            aria-label={preparing ? `${item.title} 음성 만들기 취소` : playing ? `${item.title} 그만 듣기` : `${item.title} 듣기`}
-            className="btn btn-ghost relative z-10 ml-auto min-h-11 shrink-0 px-3 text-[14px]"
-          >
-            {preparing ? <IconClose className="size-4 text-sub" /> : playing ? <IconPause className="size-4 text-sky" /> : <IconSpeaker className="size-5 text-sky" />}
-            {preparing ? "취소" : playing ? "멈춤" : "듣기"}
-            {/* 오늘 몫을 쓰게 되는 처음 듣는 소식(상세의 '이 글 듣기'와 같다) */}
-            {free && !listened.has(item.clusterId) && !preparing && !playing && (
-              <span className="rounded-full bg-sky-tint px-1.5 py-0.5 text-[11px] font-black text-sky-dark">오늘 무료</span>
-            )}
-          </button>
-        )}
-      </div>
-      {preparing && <VoiceMaking />}
-    </li>
+          ) : (
+            <span className="absolute left-[10px] top-[18px] size-3 rounded-full" style={{ background: passed }} />
+          )}
+        </div>
+        <span className={`text-[12px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>출발</span>
+      </li>
+      {items.map((item, i) => {
+        const done = consumed(item.clusterId);
+        const here = i === at;
+        const big = i === 0;
+        return (
+          <li key={item.clusterId} className="flex gap-3" data-tour={i === 0 ? "card" : undefined}>
+            <div aria-hidden="true" className="relative w-8 shrink-0">
+              <span className="absolute left-[13px] top-0 h-7 w-1.5" style={{ background: i <= at ? passed : line }} />
+              <span className="absolute bottom-0 left-[13px] top-7 w-1.5" style={{ background: i < at ? passed : line }} />
+              {here ? (
+                <span className="absolute -left-1 top-2">
+                  <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
+                </span>
+              ) : (
+                <span
+                  className={`absolute rounded-full ${big ? "left-[6px] top-[18px] size-5 border-[5px]" : "left-[9px] top-[21px] size-3.5 border-4"}`}
+                  style={{ borderColor: i < at ? passed : line, background: i < at ? passed : pm ? "#1F2340" : "#FFFFFF" }}
+                />
+              )}
+            </div>
+            <Link
+              href={`/article/${item.token}`}
+              className={`flex min-w-0 flex-1 items-center gap-3 py-2.5 no-underline ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-[#FFF6DD] px-3") : ""}`}
+            >
+              <div className="min-w-0 flex-1">
+                {big && headline && (
+                  <span className={`mb-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pm ? "bg-mango/20 text-mango" : "bg-mango-tint text-mango-deep"}`}>가장 많이 다룬 소식</span>
+                )}
+                <p
+                  className={`${big ? "text-[17px] font-bold" : "text-[15px] font-semibold"} leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}
+                >
+                  {item.title}
+                </p>
+                <Meta item={item} pm={pm} />
+              </div>
+              <Thumb item={item} className={big ? "size-[72px] rounded-2xl" : "size-[52px] rounded-[14px]"} />
+            </Link>
+          </li>
+        );
+      })}
+      <li className="flex h-12 items-center gap-3">
+        <div aria-hidden="true" className="relative h-12 w-8 shrink-0">
+          <span className="absolute left-[13px] top-0 h-3 w-1.5" style={{ background: at >= items.length ? passed : line }} />
+          {at >= items.length ? (
+            <span className="absolute -left-1 top-1">
+              <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
+            </span>
+          ) : (
+            <span className={`absolute left-[5px] top-[10px] flex size-[22px] items-center justify-center rounded-[7px] ${pm ? "bg-mango" : "bg-ink"}`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={pm ? "#1F2340" : "#FFC23D"} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12.5l4.5 4.5L19 7.5" />
+              </svg>
+            </span>
+          )}
+        </div>
+        <span className="text-[12px] font-bold">도착</span>
+        <span className={`text-[12px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>{pm ? "집에 가기 전에 끝나요" : "회사 도착 전에 끝나요"}</span>
+      </li>
+    </ol>
+  );
+}
+
+/** 사진 카드 보기: 2열, 사진이 없으면 분야 이름 칸 */
+function CardGrid({ items, pm, consumed }: { items: FeedItem[]; pm: boolean; consumed: (id: number) => boolean }) {
+  return (
+    <ul aria-label="소식" className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5">
+      {items.map((item, i) => {
+        const done = consumed(item.clusterId);
+        const label = sectionLabel(item);
+        return (
+          <li key={item.clusterId} data-tour={i === 0 ? "card" : undefined} className={i === 0 && (item.sourceCount ?? 0) >= 2 ? "col-span-2" : ""}>
+            <Link href={`/article/${item.token}`} className="block no-underline">
+              <div className={`relative overflow-hidden rounded-2xl ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "aspect-video" : "aspect-[4/3]"} ${pm ? "bg-white/10" : "bg-snow"}`}>
+                <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-semibold ${pm ? "text-white/50" : "text-faint"}`}>{label}</span>
+                <Thumb item={item} className="absolute inset-0 size-full" />
+              </div>
+              <Meta item={item} pm={pm} />
+              <p className={`mt-0.5 line-clamp-3 text-[15px] font-semibold leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}>{item.title}</p>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
 /**
- * 오늘 카드의 '전체 듣기': 오늘 소식 전체를 플레이어로 듣고, 플레이어 창을 재생 목록으로 편다(2026-11-09 사용자 결정).
- * 플레이리스트를 듣던 중이면 오늘로 바꾼다. 오늘을 듣는 중이면 일시정지.
- * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다(2026-11-09). 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
+ * 듣기 막대(오늘 브리핑 전체 듣기): 플레이어로 듣고 창을 재생 목록으로 편다. 듣는 중이면 일시정지.
+ * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다. 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
  */
-function ListenAll() {
+function ListenBar({ pm, label }: { pm: boolean; label: string }) {
   const p = usePlayer();
   const { data, listenAccess } = useToday();
-  const cls = "btn btn-ink mt-1 inline-flex min-h-11 shrink-0 items-center gap-1.5 px-4 text-[14px] no-underline";
+  const shell = `mt-4 flex h-[60px] w-full items-center gap-3 rounded-full pl-2 pr-5 text-left no-underline ${pm ? "bg-white text-ink" : "bg-ink text-white"}`;
+  const knob = "flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink";
   if (!p.enabled || !data.items.some((i) => listenAccess(i.clusterId) !== null)) {
     return (
-      <Link href="/premium" data-tour="listen-all" aria-label="오늘 소식 전체 듣기, Premium에서 들을 수 있어요" className={cls}>
-        <IconPlay className="size-4" />
-        전체 듣기
+      <Link href="/premium" data-tour="listen-all" aria-label={`${label}, Premium에서 들을 수 있어요`} className={shell}>
+        <span className={knob}>
+          <IconPlay className="size-[18px]" />
+        </span>
+        <span className="flex-1 text-[16px] font-bold">{label}</span>
         <PremiumBadge />
       </Link>
     );
   }
   const playingToday = !p.playlist && p.status === "playing";
-  // 음성 정보를 받기 전에도 누를 수 있다: 받는 대로 시작하고(그동안 도는 고리), 못 받았으면 다시 받아 시작한다
   return (
     <button
       type="button"
@@ -246,11 +330,11 @@ function ListenAll() {
         requestPlayerOpen();
       }}
       aria-busy={p.starting || undefined}
-      aria-label={playingToday ? "오늘 소식 듣기 일시정지" : "오늘 소식 전체 듣기"}
-      className={cls}
+      aria-label={playingToday ? `${label} 일시정지` : label}
+      className={shell}
     >
-      {p.starting ? <Spinner /> : playingToday ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
-      {playingToday ? "일시정지" : "전체 듣기"}
+      <span className={knob}>{p.starting ? <Spinner /> : playingToday ? <IconPause className="size-[18px]" /> : <IconPlay className="size-[18px]" />}</span>
+      <span className="flex-1 text-[16px] font-bold">{playingToday ? "듣는 중" : label}</span>
     </button>
   );
 }

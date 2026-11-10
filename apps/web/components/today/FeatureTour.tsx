@@ -16,7 +16,7 @@ import { stripBase } from "@/lib/base-path";
 const TOUR_KEY = "maengo_feature_tour_seen";
 const STATE_KEY = "maengo_feature_tour_state";
 
-type Page = "today" | "article" | "keywords" | "settings";
+type Page = "today" | "article" | "settings";
 type Step = { page: Page; target: string; title: string; body: string };
 
 function steps(audio: boolean, dailyListens: number): Step[] {
@@ -24,13 +24,13 @@ function steps(audio: boolean, dailyListens: number): Step[] {
     {
       page: "today",
       target: '[data-tour="listen-all"]',
-      title: "오늘 소식을 귀로 들어요",
-      // Free도 하루 몫 안에서 전체 듣기를 쓴다(2026-11-09)
+      title: "브리핑을 귀로 들어요",
+      // Free도 하루 몫 안에서 전체 듣기를 쓴다(2026-11-09). 2026-11-10 하루 두 번(출근길·퇴근길) 브리핑으로
       body: audio
-        ? "전체 듣기를 누르면 오늘 소식을 처음부터 차례로 읽어 드려요. 출퇴근길이나 손이 바쁠 때 좋아요."
+        ? "브리핑 듣기를 누르면 소식을 처음부터 차례로 읽어 드려요. 출퇴근길이나 손이 바쁠 때 좋아요."
         : dailyListens > 0
-          ? `전체 듣기를 누르면 오늘 소식을 차례로 읽어 드려요. Free는 하루 ${dailyListens}개까지 들을 수 있어요.`
-          : "전체 듣기는 Premium에서 돼요.",
+          ? `브리핑 듣기를 누르면 소식을 차례로 읽어 드려요. Free는 하루 ${dailyListens}개까지 들을 수 있어요.`
+          : "브리핑 듣기는 Premium에서 돼요.",
     },
     {
       page: "today",
@@ -51,16 +51,10 @@ function steps(audio: boolean, dailyListens: number): Step[] {
       body: "이 버튼을 누르면 지금 보는 소식에 대해 무엇이든 물어볼 수 있어요. 말로 물어도 돼요.",
     },
     {
-      page: "keywords",
-      target: "#topics",
-      title: "관심 분야를 고르고 바꿔요",
-      body: "내 관심 키워드에서 관심 분야를 더하거나 빼고, 목록에 없는 키워드도 적을 수 있어요. 고른 것에서만 소식을 골라요.",
-    },
-    {
       page: "settings",
       target: "#notify",
       title: "소식 받는 시간을 정해요",
-      body: "정한 시각에 매일 새 소식을 보내 드려요.",
+      body: "출근길·퇴근길 브리핑을 정한 시각에 보내 드려요.",
     },
   ];
 }
@@ -131,7 +125,7 @@ function isPinned(el: HTMLElement): boolean {
   return false;
 }
 
-const PATHS: Partial<Record<Page, string>> = { today: "/today", keywords: "/keywords", settings: "/settings" };
+const PATHS: Partial<Record<Page, string>> = { today: "/today", settings: "/settings" };
 const pathOf = (page: Page, article: string | null) => PATHS[page] ?? article ?? "/today";
 
 type Rect = { top: number; left: number; width: number; height: number };

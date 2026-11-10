@@ -289,12 +289,7 @@ export function MakeToday({ reason, notifyLabel }: { reason: TodayData["emptyRea
           <p className="text-[15px] font-bold leading-relaxed">오늘은 더 받을 수 없어요. 내일 다시 시도해 주세요.</p>
         ) : state.kind === "empty" ? (
           <>
-            <p className="text-[15px] font-bold leading-relaxed">
-              방금 새 소식까지 모아 봤지만 최근 사흘 동안 이 관심사 소식이 없었어요. 관심사를 더하면 바로 다시 찾아 드릴게요.
-            </p>
-            <Link href="/keywords" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
-              관심사 넓히기
-            </Link>
+            <p className="text-[15px] font-bold leading-relaxed">방금 새 소식까지 모아 봤지만 최근 사흘 동안 새 소식이 없었어요. 다음 브리핑에서 다시 찾아 드릴게요.</p>
           </>
         ) : (
           <>

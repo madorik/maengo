@@ -34,7 +34,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
         <button
           type="button"
           onClick={retry}
-          style={{ minHeight: 48, padding: "0 24px", border: 0, borderRadius: 16, background: "#1A8FE0", color: "#fff", fontSize: 16, fontWeight: 800 }}
+          style={{ minHeight: 48, padding: "0 24px", border: 0, borderRadius: 16, background: "#1F2340", color: "#fff", fontSize: 16, fontWeight: 800 }}
         >
           다시 시도
         </button>

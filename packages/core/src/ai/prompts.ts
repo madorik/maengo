@@ -10,7 +10,7 @@ const newsList = NEWS_SECTIONS.map((g) => g.name).join('·');
 const CATEGORY_HINT =
   'AI 모델·도구 이야기면 ai, 그 밖의 개발·인프라·보안과 반도체·로봇·전기차는 tech, 주식·증시·금리와 경제 전반은 finance, 코인·가상자산은 crypto, ' +
   '국회·정부·정당·선거는 politics, 사건·사고·법원·교육·노동 같은 국내 사회 소식은 society, 다른 나라 정세·외교·전쟁은 world, ' +
-  '가수·배우·방송·공연은 entertainment, 건강·여행·음식·생활 정보는 life, 과학 연구는 science';
+  '가수·배우·방송·공연은 entertainment, 경기·선수·구단 같은 스포츠는 sports, 건강·여행·음식·생활 정보는 life, 과학 연구는 science';
 
 export const SUMMARIZE_SYSTEM = `너는 '맹고'의 편집자다. 맹고는 매일 아침 사용자가 고른 관심 분야의 소식을 한국어로 전한다.
 입력은 같은 소식을 다룬 글 1~3개(제목, 출처, 출처 신뢰도, 있으면 조회수·해커 뉴스 점수, 본문 일부)다. 영상이면 영상을 직접 본다.
