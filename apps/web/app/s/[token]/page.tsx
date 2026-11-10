@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { IconExternal } from "@/components/icons";
+import { IconChevronRight, IconExternal } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { PublicPage, StartBand } from "@/components/public/PublicPage";
 import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { sharedItem } from "@/lib/server/shared-item";
 import { decodeShareToken, sharePath } from "@/lib/server/share-token";
+import { topicsPath } from "@/lib/public-topics";
 import { SITE_NAME, appUrl } from "@/lib/site";
 
 // 공유받은 소식(2026-10-23). 앱·웹의 '공유'가 이 주소를 보낸다(components/article/ShareButton.tsx, 주소는 actions.ts shareLinkFor).
+// 1분 요약·분야·지난 소식 목록의 카드를 누르면 여는 1분 요약 전체 글도 이 화면이다(2026-11-10 사용자, components/public/TopicItem.tsx).
 // 주소는 소식 번호가 아니라 암호화한 토큰(2026-11-08, lib/server/share-token.ts). 번호를 바꿔 다른 글을 보지 못하고, 옛 숫자 주소는 없는 페이지다.
 // 로그인 없이 제목·한 줄 요약·전체 글(2026-11-08 사용자)·원문 링크가 보이고, 아래에 맹고 시작하기를 둔다. 검색에는 내지 않는다.
 // 요약은 거의 바뀌지 않아서 하루마다 새로 그린다(처음 열 때 그리고 저장해 둔다).
@@ -80,6 +83,14 @@ export default async function SharedItemPage({ params }: Props) {
           <IconExternal className="size-4" />
           <span className="sr-only">(새 탭에서 열림)</span>
         </a>
+
+        {/* 1분 요약 목록에서 카드를 눌러 들어온 사람도, 공유받은 사람도 다른 소식으로 이어 가게(2026-11-10) */}
+        <p className="mt-8">
+          <Link href={topicsPath()} className="inline-flex min-h-11 items-center gap-1 text-[15px] font-extrabold text-sky-dark no-underline hover:underline">
+            다른 소식도 1분 요약으로 보기
+            <IconChevronRight className="size-4" />
+          </Link>
+        </p>
       </article>
 
       <StartBand title="관심 분야 소식을 매일 아침 받아 보세요" body="맹고가 고른 분야 소식만 요약해서 보내 드려요. 음성으로도 들을 수 있어요." />

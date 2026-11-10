@@ -5,9 +5,10 @@ import { MIN_RELEVANCE, popularityBoost, rankFeed, type Impact, type RankCandida
 import { childrenOf } from '@maengo/core/topics';
 import { PUBLIC_DETAILS, PUBLIC_TOPICS, type PublicDetail, type PublicTopic } from '../public-topics';
 import { db, must } from './db';
+import { sharePath } from './share-token';
 
 // 공개 분야 페이지(/topics/…)의 소식. 로그인한 사람의 피드와 같은 요약(basic)과 랭킹(rankFeed)을 쓰되 사람마다 다른 것(why·읽음)은 빼고,
-// 제목·한 줄 요약·원문 링크만 보인다. 다시 쓴 전체 글은 공개하지 않는다.
+// 목록엔 제목·한 줄 요약·원문 링크만 보인다. 카드를 누르면 다시 쓴 전체 글(/s/<토큰>, 검색엔 안 냄)이 열린다(2026-11-10 사용자).
 // 사용자가 넣은 출처(내 관심 링크, sources.custom)의 글은 대표 글로도, 출처 목록에도 쓰지 않는다.
 
 const DAY = 24 * 3600_000;
@@ -33,6 +34,10 @@ export interface PublicTopicItem {
   coverage?: string;
   /** 발행일(없으면 처음 본 날), ISO */
   date: string;
+  /** 카드를 누르면 여는 1분 요약 전체 글(/s/<토큰>, 공유 페이지와 같은 화면, 2026-11-10 사용자) */
+  href: string;
+  /** 지난 소식에서: 이 소식이 가장 가깝게 붙은 공개 분야 id(여러 분야를 섞어 보일 때 이름표) */
+  field?: string;
 }
 
 export interface PublicTopicDigest {
@@ -113,9 +118,11 @@ export function publicTopicDigest(topic: PublicTopic): Promise<PublicTopicDigest
 
 /**
  * 1분 요약(/topics) 첫 목록: 공개 분야마다의 이번 주 순서를 그대로 두고 분야를 번갈아 limit개까지 섞는다(같은 소식은 한 번만).
- * 분야를 고르지 않아도 바로 보이게(2026-11-10 사용자)
+ * 분야를 고르지 않아도 바로 보이게(2026-11-10 사용자). /topics는 지난 소식 쪽·기간이 주소에 있어 요청마다 그려서, 이 목록은 한 시간 들고 있는다
  */
-export async function publicMixedDigest(limit = 12): Promise<{ items: { item: PublicTopicItem; topic: PublicTopic }[]; updatedAt: string | null }> {
+export const publicMixedDigest = unstable_cache(mixedDigest, ['public-mixed-v2'], { revalidate: 3600 });
+
+async function mixedDigest(limit = 12): Promise<{ items: { item: PublicTopicItem; topic: PublicTopic }[]; updatedAt: string | null }> {
   const digests = await Promise.all(PUBLIC_TOPICS.map(async (topic) => ({ topic, d: await publicTopicDigest(topic) })));
   const seen = new Set<number>();
   const items: { item: PublicTopicItem; topic: PublicTopic }[] = [];
@@ -222,6 +229,7 @@ async function digest(ids: ReadonlySet<string>, listDays: number, limit: number,
         sourceLabel: rep.sources!.name,
         coverage: others.length === 0 ? undefined : others.length === 1 ? `${others[0]}에서도 다뤘어요` : `${others[0]} 외 ${others.length - 1}곳에서도 다뤘어요`,
         date: dateOf(s),
+        href: sharePath(clusterId),
       };
     }),
     sources,
@@ -248,7 +256,7 @@ interface ArchiveRow {
   title: string;
   short: string;
   published_at: string | null;
-  clusters: { first_seen_at: string; rep_item_id: number | null; items: ItemRow[] };
+  clusters: { first_seen_at: string; rep_item_id: number | null; cluster_topics: { topic_id: string; relevance: number }[]; items: ItemRow[] };
 }
 
 /** 하루의 시작(한국 시각 0시)을 ISO로. day는 'YYYY-MM-DD' */
@@ -261,7 +269,7 @@ const archiveQuery = unstable_cache(
       let q = db
         .from('summaries')
         .select(
-          'cluster_id,title,short,published_at,clusters!inner(first_seen_at,rep_item_id,cluster_topics!inner(topic_id),items!items_cluster_id_fkey!inner(id,cluster_id,canonical_url,kind,sources!inner(name,custom)))',
+          'cluster_id,title,short,published_at,clusters!inner(first_seen_at,rep_item_id,cluster_topics!inner(topic_id,relevance),items!items_cluster_id_fkey!inner(id,cluster_id,canonical_url,kind,sources!inner(name,custom)))',
           { count: 'exact', head },
         )
         .eq('tier', 'basic')
@@ -291,7 +299,9 @@ const archiveQuery = unstable_cache(
         const members = s.clusters.items;
         const rep = members.find((m) => m.id === s.clusters.rep_item_id) ?? members[0]!;
         const others = [...new Set(members.filter((m) => m !== rep).map((m) => m.sources!.name).filter((n) => n !== rep.sources!.name))];
+        const top = [...s.clusters.cluster_topics].sort((a, b) => b.relevance - a.relevance)[0];
         return {
+          field: top ? fieldOf(top.topic_id) : undefined,
           clusterId: s.cluster_id,
           title: s.title,
           short: s.short,
@@ -300,17 +310,25 @@ const archiveQuery = unstable_cache(
           sourceLabel: rep.sources!.name,
           coverage: others.length === 0 ? undefined : others.length === 1 ? `${others[0]}에서도 다뤘어요` : `${others[0]} 외 ${others.length - 1}곳에서도 다뤘어요`,
           date: s.published_at ?? s.clusters.first_seen_at,
+          href: sharePath(s.cluster_id),
         };
       }),
     };
   },
-  ['public-archive-v1'],
+  ['public-archive-v3'],
   { revalidate: 3600 },
 );
 
-/** 분야(세부 주제까지)나 세부 주제 하나의 지난 소식 한 쪽. from·to는 한국 날짜 'YYYY-MM-DD'(둘 다 포함) */
-export function publicArchive(topic: PublicTopic | PublicDetail, opts: { page: number; from?: string; to?: string }): Promise<PublicArchive> {
-  const ids = 'group' in topic ? [topic.id] : [topic.id, ...childrenOf(topic.id).map((c) => c.id)];
+/** 세부 주제 id → 공개 분야 id */
+const fieldOf = (topicId: string) => PUBLIC_DETAILS.find((d) => d.id === topicId)?.group.id ?? topicId;
+
+/**
+ * 지난 소식 한 쪽. topic이 없으면 공개 분야 다섯 개 전부(1분 요약 아래, 2026-11-10 사용자 '그냥 전체 보여지게해'),
+ * 분야면 그 세부 주제까지, 세부 주제면 그 주제만. from·to는 한국 날짜 'YYYY-MM-DD'(둘 다 포함)
+ */
+export function publicArchive(topic: PublicTopic | PublicDetail | null, opts: { page: number; from?: string; to?: string }): Promise<PublicArchive> {
+  const groups = topic ? ('group' in topic ? null : [topic]) : PUBLIC_TOPICS;
+  const ids = groups ? groups.flatMap((g) => [g.id, ...childrenOf(g.id).map((c) => c.id)]) : [topic!.id];
   return archiveQuery(ids, opts.page, opts.from ?? null, opts.to ?? null);
 }
 
