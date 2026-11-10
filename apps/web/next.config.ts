@@ -41,6 +41,9 @@ const nextConfig: NextConfig = {
   // API·서비스 워커는 리다이렉트를 안 따르는 곳(cron·결제 웹훅)이 있어 vercel.json에서 /maengo로 이어 준다.
   async redirects() {
     return [
+      // 지난 소식 주소(2026-11-10에 한 시간 남짓 열었다가 같은 날 분야·주제 페이지의 목록 하나로 합침). 쪽·기간(?page=&from=&to=)은 그대로 넘어간다
+      { source: "/topics/:slug/archive", destination: "/topics/:slug", permanent: true },
+      { source: "/topics/:slug/:detail/archive", destination: "/topics/:slug/:detail", permanent: true },
       { source: "/", destination: BASE_PATH, basePath: false, permanent: false },
       { source: "/:path((?!maengo|api/|_next/|push-sw\\.js).*)", destination: `${BASE_PATH}/:path`, basePath: false, permanent: false },
     ];

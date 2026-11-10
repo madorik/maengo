@@ -401,7 +401,7 @@ export async function Landing() {
           </ol>
         </section>
 
-        {/* 고를 수 있는 관심 분야. 분야마다 이번 주 소식을 보여 주는 공개 페이지로 잇는다 */}
+        {/* 고를 수 있는 관심 분야. 분야마다 소식 목록을 보여 주는 공개 페이지로 잇는다 */}
         <section id="topics" aria-labelledby="topics-title" className="mx-auto max-w-[1100px] scroll-mt-20 px-5 pb-16 md:pb-24">
           <h2 id="topics-title" className="text-center text-[28px] font-black tracking-[-0.03em] md:text-[36px]">
             고를 수 있는 관심 분야

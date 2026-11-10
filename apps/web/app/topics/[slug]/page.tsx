@@ -1,43 +1,29 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArchiveLinkCard } from "@/components/public/ArchiveView";
+import { itemListLd, listMetadata, NewsList } from "@/components/public/NewsList";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
-import { dayLabel, TopicItem } from "@/components/public/TopicItem";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
-import { detailPath, detailsLine, detailsOf, PUBLIC_TOPICS, publicTopicBySlug, topicsPath, type PublicTopic } from "@/lib/public-topics";
+import { kstToday, parseArchiveQuery, type ArchiveQuery } from "@/lib/public-archive";
+import { detailsLine, PUBLIC_TOPICS, publicTopicBySlug, topicsPath, type PublicTopic } from "@/lib/public-topics";
 import { getPlans } from "@/lib/server/plans";
-import { publicArchive, publicTopicDigest, type PublicTopicItem } from "@/lib/server/public-topics";
-import { APP_STORE_ID, SITE_NAME, appUrl, ogImages, organizationId } from "@/lib/site";
+import { publicArchive, publicTopicDigest, type PublicArchive } from "@/lib/server/public-topics";
+import { SITE_NAME, appUrl, organizationId } from "@/lib/site";
 
-// 공개 분야 페이지. 지난 7일 이 분야 소식(제목·한 줄 요약·원문 링크)과 출처를 보여 준다.
-// 수집은 하루 한 번(06시)이지만 요약은 그 뒤로도 이어지므로 한 시간마다 새로 그린다.
+// 공개 분야 페이지. 이 분야(세부 주제까지) 소식 전부를 최신순 목록 하나로(2026-11-10 사용자 '이번주, 지난 주 구분하지말고 전체 리스트 하나로',
+// components/public/NewsList.tsx), 출처, 묻고 답하기. 쪽·기간이 주소(?page=&from=&to=)에 있어 요청마다 그리고, 목록·출처는 public-topics.ts가 한 시간 들고 있다.
 // 없는 분야는 아래 notFound()가 404로 답한다. dynamicParams = false로 막으면 basePath 밖 주소를 /maengo로 넘기는
 // next.config.ts의 리다이렉트와 엮여 같은 주소로 끝없이 307을 낸다(2026-10-18 확인)
-export const revalidate = 3600;
-
-export function generateStaticParams() {
-  return PUBLIC_TOPICS.map((t) => ({ slug: t.slug }));
-}
-
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const title = (t: PublicTopic) => `${t.name} 소식, 매일 아침 요약`;
 const description = (t: PublicTopic) =>
-  `${t.name} 분야(${detailsLine(t, 4)}) 소식을 매일 아침 AI로 요약해서 음성 지원해줘요. 지난 7일 동안 맹고가 고른 ${t.name} 소식과 출처를 모았어요.`;
+  `${t.name} 분야(${detailsLine(t, 4)}) 소식을 매일 아침 AI로 요약해서 음성 지원해줘요. 맹고가 요약한 ${t.name} 소식을 최신순으로 모두 모았어요.`;
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const topic = publicTopicBySlug((await params).slug);
   if (!topic) return {};
-  const url = appUrl(topicsPath(topic.slug));
-  return {
-    title: title(topic),
-    description: description(topic),
-    alternates: { canonical: url },
-    itunes: { appId: APP_STORE_ID },
-    openGraph: { type: "website", locale: "ko_KR", siteName: SITE_NAME, title: `${title(topic)} | ${SITE_NAME}`, description: description(topic), url, images: ogImages() },
-    twitter: { card: "summary_large_image", title: `${title(topic)} | ${SITE_NAME}`, description: description(topic), images: ogImages() },
-  };
+  return listMetadata(topic, { title: title(topic), description: description(topic) }, parseArchiveQuery(await searchParams));
 }
 
 /**
@@ -67,16 +53,18 @@ function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number;
   ];
 }
 
-export default async function TopicPage({ params }: Props) {
+export default async function TopicPage({ params, searchParams }: Props) {
   const topic = publicTopicBySlug((await params).slug);
   if (!topic) notFound();
-  const [{ items, sources, updatedAt }, plans, archive] = await Promise.all([publicTopicDigest(topic), getPlans(), publicArchive(topic, { page: 1 })]);
+  const query = parseArchiveQuery(await searchParams);
+  const [{ sources }, plans, archive] = await Promise.all([publicTopicDigest(topic), getPlans(), publicArchive(topic, query)]);
+  if (query.page > 1 && archive.items.length === 0) notFound();
   const others = PUBLIC_TOPICS.filter((t) => t.slug !== topic.slug);
   const faq = topicFaq(topic, sources, plans.get("free")!, plans.get("plus")!.dailyItems);
 
   return (
     <PublicPage>
-      <TopicJsonLd topic={topic} items={items} faq={faq} />
+      <TopicJsonLd topic={topic} archive={archive} query={query} faq={faq} />
       <div className="mx-auto max-w-[760px] px-5 pt-6">
         <nav aria-label="현재 위치" className="text-[13px] font-bold text-sub">
           <ol className="flex flex-wrap items-center gap-1.5">
@@ -105,36 +93,12 @@ export default async function TopicPage({ params }: Props) {
             맹고의 {topic.name} 분야는 {detailsLine(topic)} 소식을 다뤄요. 매일 아침 6시에 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI로 요약해서 음성
             지원해줘요.
           </p>
-          {/* 세부 주제마다 페이지가 있다(2026-11-10, app/topics/[slug]/[detail]) */}
-          {detailsOf(topic).length > 0 && (
-            <ul aria-label={`${topic.name} 세부 주제`} className="mt-5 flex flex-wrap gap-2">
-              {detailsOf(topic).map((d) => (
-                <li key={d.id}>
-                  <Link href={detailPath(d)} className="inline-flex min-h-9 items-center rounded-xl bg-snow px-3 py-1.5 text-[14px] font-extrabold text-ink no-underline hover:bg-line hover:underline">
-                    {d.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
         </header>
 
-        <section aria-labelledby="recent-title" className="mt-14">
-          <h2 id="recent-title" className="text-[24px] font-black tracking-[-0.03em] md:text-[28px]">
-            지난 7일 {topic.name} 소식
-          </h2>
-          <p className="mt-1 text-[14px] font-semibold text-sub">{updatedAt ? `맹고가 고른 순서예요 · ${dayLabel(updatedAt)} 업데이트` : "맹고가 고른 순서예요"}</p>
-          {items.length > 0 ? (
-            <ol className="mt-6 flex flex-col gap-3">
-              {items.map((it) => (
-                <TopicItem key={it.clusterId} item={it} />
-              ))}
-            </ol>
-          ) : (
-            <p className="tile mt-6 p-5 text-[15px] font-semibold text-sub">이번 주에 고른 {topic.name} 소식이 아직 없어요. 내일 아침에 다시 모아요.</p>
-          )}
-          {archive.total > 0 && <ArchiveLinkCard topic={topic} total={archive.total} />}
-        </section>
+        {/* 소식 목록. 위 칩으로 세부 주제 페이지(/topics/<분야>/<주제>)로 좁힌다 */}
+        <div className="mt-10">
+          <NewsList scope={topic} archive={archive} query={query} today={kstToday()} />
+        </div>
 
         {sources.length > 0 && (
           <section aria-labelledby="sources-title" className="mt-14">
@@ -193,8 +157,8 @@ export default async function TopicPage({ params }: Props) {
   );
 }
 
-/** 검색엔진용: 이 페이지(모음), 위치(맹고 > 1분 요약 > 분야), 소식 목록(원문 주소), 자주 묻는 질문 */
-function TopicJsonLd({ topic, items, faq }: { topic: PublicTopic; items: PublicTopicItem[]; faq: [string, string][] }) {
+/** 검색엔진용: 이 페이지(모음), 위치(맹고 > 1분 요약 > 분야), 이 쪽의 소식 목록(원문 주소), 자주 묻는 질문 */
+function TopicJsonLd({ topic, archive, query, faq }: { topic: PublicTopic; archive: PublicArchive; query: ArchiveQuery; faq: [string, string][] }) {
   const url = appUrl(topicsPath(topic.slug));
   return (
     <JsonLd
@@ -209,12 +173,7 @@ function TopicJsonLd({ topic, items, faq }: { topic: PublicTopic; items: PublicT
           isPartOf: { "@id": `${appUrl("/")}#website` },
           publisher: { "@id": organizationId() },
           about: { "@type": "Thing", name: topic.name },
-          mainEntity: {
-            "@type": "ItemList",
-            itemListOrder: "https://schema.org/ItemListOrderDescending",
-            numberOfItems: items.length,
-            itemListElement: items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.title, url: it.url })),
-          },
+          mainEntity: itemListLd(archive, query),
         },
         {
           "@context": "https://schema.org",

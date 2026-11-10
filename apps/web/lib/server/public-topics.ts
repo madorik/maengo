@@ -111,36 +111,21 @@ const recent = cache(async () => {
 
 const dateOf = (s: SummaryRow) => s.published_at ?? s.clusters.first_seen_at;
 
-/** 한 분야의 공개 소식(지난 7일, 최대 12개)과 출처 목록 */
-export function publicTopicDigest(topic: PublicTopic): Promise<PublicTopicDigest> {
-  return digest(new Set([topic.id, ...childrenOf(topic.id).map((c) => c.id)]), LIST_DAYS, LIST_LIMIT, 3);
-}
-
 /**
- * 1분 요약(/topics) 첫 목록: 공개 분야마다의 이번 주 순서를 그대로 두고 분야를 번갈아 limit개까지 섞는다(같은 소식은 한 번만).
- * 분야를 고르지 않아도 바로 보이게(2026-11-10 사용자). /topics는 지난 소식 쪽·기간이 주소에 있어 요청마다 그려서, 이 목록은 한 시간 들고 있는다
+ * 한 분야의 공개 소식(지난 7일, 최대 12개, 이슈도 순)과 출처 목록. 페이지 목록은 2026-11-10부터 지난 소식(publicArchive)이고 이건 출처 목록에 쓴다.
+ * 분야·주제 페이지가 요청마다 그려져서 한 시간 들고 있는다
  */
-export const publicMixedDigest = unstable_cache(mixedDigest, ['public-mixed-v2'], { revalidate: 3600 });
-
-async function mixedDigest(limit = 12): Promise<{ items: { item: PublicTopicItem; topic: PublicTopic }[]; updatedAt: string | null }> {
-  const digests = await Promise.all(PUBLIC_TOPICS.map(async (topic) => ({ topic, d: await publicTopicDigest(topic) })));
-  const seen = new Set<number>();
-  const items: { item: PublicTopicItem; topic: PublicTopic }[] = [];
-  for (let i = 0; items.length < limit && digests.some(({ d }) => i < d.items.length); i++) {
-    for (const { topic, d } of digests) {
-      const it = d.items[i];
-      if (!it || seen.has(it.clusterId) || items.length >= limit) continue;
-      seen.add(it.clusterId);
-      items.push({ item: it, topic });
-    }
-  }
-  const updatedAt = digests.map(({ d }) => d.updatedAt).filter((x): x is string => !!x).sort().at(-1) ?? null;
-  return { items, updatedAt };
+export function publicTopicDigest(topic: PublicTopic): Promise<PublicTopicDigest> {
+  return cachedDigest([topic.id, ...childrenOf(topic.id).map((c) => c.id)], LIST_DAYS, LIST_LIMIT, 3);
 }
 
-/** 세부 주제 하나의 공개 소식(지난 30일, 최대 15개)과 출처 목록 */
+const cachedDigest = unstable_cache((ids: string[], listDays: number, limit: number, maxPerTopic: number) => digest(new Set(ids), listDays, limit, maxPerTopic), ['public-digest-v1'], {
+  revalidate: 3600,
+});
+
+/** 세부 주제 하나의 공개 소식(지난 30일, 최대 15개)과 출처 목록(분야처럼 출처 목록에 쓴다) */
 export function publicDetailDigest(detail: PublicDetail): Promise<PublicTopicDigest> {
-  return digest(new Set([detail.id]), DETAIL_DAYS, DETAIL_LIMIT, DETAIL_LIMIT);
+  return cachedDigest([detail.id], DETAIL_DAYS, DETAIL_LIMIT, DETAIL_LIMIT);
 }
 
 /** 세부 주제마다 지난 30일 소식 수(랭킹이 받는 관련도 이상)와 마지막 요약 시각. 사이트맵·noindex 판단에 쓴다(가볍게, 이미 읽은 것만) */
@@ -238,7 +223,8 @@ async function digest(ids: ReadonlySet<string>, listDays: number, limit: number,
 }
 
 /**
- * 지난 소식(2026-11-10 사용자 결정 '지난 소식, 공개는 지금처럼', 맹고-문서/검색-노출.md): 지금까지 요약한 이 분야(주제) 소식 전부를
+ * 소식 목록(2026-11-10 사용자 결정 '지난 소식, 공개는 지금처럼' → '이번주, 지난 주 구분하지말고 전체 리스트 하나로', 맹고-문서/검색-노출.md):
+ * 1분 요약·분야·세부 주제 페이지의 목록. 지금까지 요약한 이 분야(주제) 소식 전부를
  * 맹고가 모은 날 최신순으로 한 쪽에 ARCHIVE_PAGE_SIZE개씩. 공개 범위는 위 목록과 같다(제목·한 줄 요약·출처·원문 링크).
  * 요약된 묶음은 지우지 않아서(데이터-보존-정책.md) 처음 요약한 날까지 거슬러 볼 수 있다. 사용자가 넣은 출처 글만 있는 소식은 뺀다.
  * 같은 조건은 한 시간 동안 다시 읽지 않는다(검색 로봇이 쪽을 넘겨도 DB를 매번 읽지 않게)

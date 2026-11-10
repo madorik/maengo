@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { archivePath, detailPath, PUBLIC_DETAILS, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
+import { detailPath, PUBLIC_DETAILS, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
 import { DETAIL_MIN_ITEMS, publicDetailStats, publicTopicsUpdatedAt } from "@/lib/server/public-topics";
 import { LANDING_UPDATED_ON, LEGAL_EFFECTIVE_ON, PRIVACY_UPDATED_ON, appUrl } from "@/lib/site";
 
@@ -19,12 +19,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...PUBLIC_DETAILS.flatMap((d) => {
       const st = details.get(d.id);
       return st && st.count >= DETAIL_MIN_ITEMS ? [{ url: appUrl(detailPath(d)), lastModified: st.updatedAt, changeFrequency: "daily" as const, priority: 0.6 }] : [];
-    }),
-    // 지난 소식(2026-11-10): 첫 쪽만 넣는다(다음 쪽은 쪽 넘기기 링크로 찾아간다). 세부 주제는 위와 같은 기준(지난 30일 소식이 그만큼 있으면 전체는 그 이상)
-    ...PUBLIC_TOPICS.map((t) => ({ url: appUrl(archivePath(t)), lastModified: updated.get(t.slug) ?? LANDING_UPDATED_ON, changeFrequency: "daily" as const, priority: 0.5 })),
-    ...PUBLIC_DETAILS.flatMap((d) => {
-      const st = details.get(d.id);
-      return st && st.count >= DETAIL_MIN_ITEMS ? [{ url: appUrl(archivePath(d)), lastModified: st.updatedAt, changeFrequency: "daily" as const, priority: 0.4 }] : [];
     }),
     legal("/terms", 0.3),
     legal("/privacy", 0.3),
