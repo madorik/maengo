@@ -17,3 +17,10 @@
 8. 인앱 상품(Play): `node play-products.mjs`(판매자 계정이 있어야 한다)
 
 키는 모두 저장소 밖 `~/.maengo/`에 있다: App Store Connect API 키(`AuthKey_<키 ID>_Connect.p8`)와 키 ID·Issuer ID·앱 ID(`store-api.json`), Play 서비스 계정 JSON(`play-service-account.json`). 공개 저장소라 값은 여기 적지 않는다.
+
+### 2026-11-10 개편판에서 쓴 방법
+- 원본: 운영 빌드 대신 **로컬 개발 서버(:3000, 로컬 DB 데모 계정)**에서 `node raw2.mjs <원본폴더> 393 852 3 ios <main|pm|onboarding>`(안드로이드는 `360 800 3 android`).
+  - 개발 표시(N)는 숨긴다.
+  - `pm`은 `.env.development.local`의 `DEV_BRIEFING_SLOT=pm`, `onboarding`은 데모 계정 `onboarded_at`을 비운 뒤 찍는다.
+  - 맹고 AI 화면과 주간 리포트 정리에 Gemini가 필요하다. 찍는 동안만 개발 서버에 키를 넣었다.
+- iOS 새 버전: `node asc-version.mjs 1.3.3 "<새 기능>"`(제출 준비 중 버전을 만든다) → `upload.mjs … asc` → 빌드 처리 확인 `node asc-build-state.mjs 10`(읽기만)
