@@ -1,10 +1,11 @@
-import Link from "next/link";
+import { AuthLink } from "@/components/landing/AuthLink";
 import { IconChevronRight, IconDoc, IconExternal, IconPlay } from "@/components/icons";
 import type { PublicTopicItem } from "@/lib/server/public-topics";
+import { SignupHint } from "./SignupHint";
 
 // 공개 분야·세부 주제·지난 소식 페이지의 소식 카드(제목·한 줄 요약·출처·날짜·원문 링크).
-// 카드를 누르면 맹고가 다시 쓴 1분 요약 전체 글(/s/<토큰>, 공유 페이지와 같은 화면, 검색엔 안 냄)이 열린다(2026-11-10 사용자).
-// 원문 링크는 카드 위에 따로 눌리게 둔다
+// 카드를 누르면 로그인 전에는 가입(로그인) 화면으로, 로그인했으면 맹고가 다시 쓴 1분 요약 전체 글(/s/<토큰>)이 열린다
+// (2026-11-10 사용자: 상세 정보를 누르면 회원가입으로 유도). 원문 링크는 카드 위에 따로 눌리게 둔다
 
 export const dayLabel = (iso: string) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" }).format(new Date(iso));
 
@@ -24,15 +25,17 @@ export function TopicItem({ item: it, label }: { item: PublicTopicItem; /** 여�
       </p>
       <h3 className="mt-2 text-[18px] font-black leading-snug tracking-[-0.02em]">
         {/* 카드 전체가 눌리게 제목 링크를 카드 크기로 늘린다 */}
-        <Link href={it.href} className="text-ink no-underline after:absolute after:inset-0 after:rounded-[inherit] after:content-[''] hover:underline">
-          {it.title}
-        </Link>
+        <AuthLink
+          signedOut={{ href: "/login", label: it.title }}
+          signedIn={{ href: it.href, label: it.title }}
+          className="text-ink no-underline after:absolute after:inset-0 after:rounded-[inherit] after:content-[''] hover:underline"
+        />
       </h3>
       {/* 목록에선 요약 한 줄만(2026-11-10 사용자), 전체는 눌러서 */}
       <p className="mt-1.5 line-clamp-1 text-[15px] font-medium leading-relaxed text-sub">{it.short}</p>
       <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
         <span aria-hidden="true" className="inline-flex min-h-9 items-center gap-0.5 text-[14px] font-extrabold text-ink">
-          1분 요약 읽기
+          <SignupHint />
           <IconChevronRight className="size-4" />
         </span>
         <a href={it.url} target="_blank" rel="noopener" className="relative z-10 inline-flex min-h-9 items-center gap-1 text-[14px] font-extrabold text-sky-dark no-underline hover:underline">

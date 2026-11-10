@@ -11,12 +11,12 @@ import { appUrl, organizationId } from "@/lib/site";
 
 // 1분 요약(머리 메뉴, 2026-11-10 사용자: '관심 분야 선택하는게 너무 길어. … 바로 보여지게해' → 이름은 요약된 소식이라는 게 보이게 '1분 요약'으로, 같은 날 A안).
 // 공개 분야 다섯 개의 소식 전부를 최신순 목록 하나로(같은 날 '이번주, 지난 주 구분하지말고 전체 리스트 하나로', components/public/NewsList.tsx).
-// 목록엔 제목·한 줄 요약·출처·원문 링크, 카드를 누르면 1분 요약 전체 글(/s/<토큰>). 쪽·기간이 주소(?page=&from=&to=)에 있어 요청마다 그리고,
+// 목록엔 제목·한 줄 요약·출처·원문 링크, 카드를 누르면 로그인 전엔 가입(로그인) 화면, 로그인했으면 1분 요약 전체 글(/s/<토큰>, 2026-11-10 사용자). 쪽·기간이 주소(?page=&from=&to=)에 있어 요청마다 그리고,
 // 목록은 public-topics.ts가 한 시간 들고 있다. 분야 카드는 아래에
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const TITLE = "AI·주식·코인·반도체 뉴스 1분 요약";
-const DESCRIPTION = `맹고가 AI로 요약한 ${PUBLIC_TOPICS.map((t) => t.name).join(", ")} 소식을 최신순으로 모두 모았어요. 소식마다 두 줄 요약과 원문 링크가 있고, 누르면 1분 요약 전체를 읽을 수 있어요.`;
+const DESCRIPTION = `맹고가 AI로 요약한 ${PUBLIC_TOPICS.map((t) => t.name).join(", ")} 소식을 최신순으로 모두 모았어요. 소식마다 한 줄 요약과 원문 링크가 있고, 가입하면 1분 요약 전체를 읽을 수 있어요.`;
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   return listMetadata(null, { title: TITLE, description: DESCRIPTION }, parseArchiveQuery(await searchParams));
@@ -45,7 +45,7 @@ export default async function TopicsPage({ searchParams }: Props) {
       <div className="mx-auto max-w-[760px] px-5 pt-10 md:pt-14">
         <h1 className="text-[34px] font-black leading-[1.2] tracking-[-0.04em] md:text-[44px]">1분 요약</h1>
         <p className="mt-3 text-[16px] font-medium leading-relaxed text-sub md:text-[17px]">
-          맹고가 요약한 소식을 최신순으로 모두 모았어요. 소식을 누르면 1분 요약 전체를 읽을 수 있어요.
+          맹고가 요약한 소식을 최신순으로 모두 모았어요. 가입하면 1분 요약 전체를 읽을 수 있어요.
         </p>
 
         <div className="mt-6">
