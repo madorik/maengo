@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/lib/server/admin";
 import { replyInquiry, setInquiryStatus, type ReplyResult } from "@/lib/server/inquiry";
 import { draftInquiryReply } from "@/lib/server/inquiry-draft";
+import { translateInquiry } from "@/lib/server/inquiry-translate";
 import { requireProfile } from "@/lib/server/session";
 
-// 관리자 > 문의 탭: 답장 보내기, AI로 다시 쓰기, 답장 안 함·다시 열기. 관리자만(ADMIN_EMAILS)
+// 관리자 > 문의 탭: 답장 보내기, AI로 다시 쓰기, 답장 안 함·다시 열기, 한국어로 번역. 관리자만(ADMIN_EMAILS)
 
 async function adminOnly() {
   const profile = await requireProfile();
@@ -39,4 +40,12 @@ export async function redraftInquiryAction(_prev: ReplyResult | null, formData: 
   if (!draft) return { ok: false, error: "AI가 답장을 쓰지 못했어요. 잠시 뒤 다시 눌러 주세요." };
   revalidatePath("/admin");
   return { ok: true };
+}
+
+/** 한국어가 아닌 문의를 한국어로(문의 내용 아래 '한국어로 번역', components/admin/InquiryBody.tsx) */
+export async function translateInquiryAction(id: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  await adminOnly();
+  if (!Number.isInteger(id) || id <= 0) return { ok: false, error: "문의를 찾지 못했어요." };
+  const text = await translateInquiry(id);
+  return text ? { ok: true, text } : { ok: false, error: "번역하지 못했어요. 잠시 뒤 다시 눌러 주세요." };
 }

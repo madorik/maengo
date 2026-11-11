@@ -2,6 +2,7 @@ import { closeInquiryAction } from "@/app/admin/inquiry-actions";
 import type { AdminRange } from "@/lib/admin-range";
 import { categoryLabel, STATUS_LABEL } from "@/lib/inquiry";
 import { inquiryList, type InquiryView } from "@/lib/server/inquiry";
+import { InquiryBody } from "./InquiryBody";
 import { InquiryReplyForm } from "./InquiryReplyForm";
 import { Note, Section } from "./parts";
 
@@ -37,7 +38,8 @@ function Item({ q }: { q: InquiryView }) {
           {q.member ? `회원 ${q.member}` : "비회원"} · 답장 주소 <span className="break-all font-bold text-ink">{q.replyTo}</span>
           {q.mailStatus !== "sent" && <span className="ml-1 font-extrabold text-orange">· 운영자 메일 못 감</span>}
         </p>
-        <p className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-snow px-3 py-2.5 text-[14px] font-medium leading-relaxed">{q.body}</p>
+        {/* 한국어가 아닌 문의면 아래에 '한국어로 번역' */}
+        <InquiryBody id={q.id} body={q.body} />
         <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
           {Object.entries(q.meta).map(([k, v]) => (
             <div key={k} className="contents">

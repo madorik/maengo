@@ -104,3 +104,14 @@ export function lineBreakSentences(text: string): string {
     .filter(Boolean)
     .join('\n\n');
 }
+
+/**
+ * 문의가 한국어가 아닌 글로 보이는지(관리자 > 문의의 '한국어로 번역' 버튼, 2026-11-11 사용자: 영어 문의가 많다).
+ * 글자 가운데 한글이 30% 안 되고 로마자 등 다른 글자가 열 자 넘으면 번역할 글로 본다
+ */
+export function looksForeign(text: string): boolean {
+  const letters = [...text].filter((c) => /\p{L}/u.test(c));
+  if (letters.length < 10) return false;
+  const hangul = letters.filter((c) => /\p{Script=Hangul}/u.test(c)).length;
+  return hangul / letters.length < 0.3;
+}
