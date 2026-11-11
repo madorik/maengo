@@ -196,7 +196,7 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
 
 /**
  * 맞춤 체크(2026-11-11 사용자: 체크가 눈에 안 띈다. 사용자 맞춤 체크 항목이어야 한다. 이름은 넣지 않는다 — 이름이 너무 많다).
- * 망고색 블록: 내 맞춤 정보로 짚은 소식(예: 국내 주식 → 금리 인상의 영향) → 생활 속 확인할 것. 둘 다 없으면 그리지 않는다.
+ * 조용한 정보 칸: 내 맞춤 정보·읽던 소식으로 짚은 영향(예: 국내 주식 → 금리 인상의 영향) → 생활 속 확인할 것. 둘 다 없으면 그리지 않는다.
  * 내 맞춤 정보 질문은 여기서 묻지 않는다(대놓고 묻지 말라는 사용자 결정, components/context/ContextAsk.tsx)
  */
 function MatchCheck({ insight }: { insight: BriefingInsight }) {
@@ -205,51 +205,57 @@ function MatchCheck({ insight }: { insight: BriefingInsight }) {
   const checks = insight.checks.slice(0, 1);
   if (!personal.length && !checks.length) return null;
   const tokenOf = (id: number) => data.items.find((i) => i.clusterId === id)?.token;
+  // 조용한 정보 칸(2026-11-11 사용자: 망고색 블록은 너무 튀고 메인 소식처럼 보인다 → 테두리도 없이). 망고색은 체크 표시와 근거 글자에만
   return (
-    <section aria-labelledby="match-title" className="-mx-1.5 mt-4 rounded-[24px] bg-mango px-3 pb-3 pt-4 text-[#1F2340]">
-      <h2 id="match-title" className="px-1.5 text-[15px] font-bold tracking-[-0.02em]">
+    <section aria-labelledby="match-title" className="mt-7">
+      <h2 id="match-title" className="flex items-center gap-1.5 text-[15px] font-bold tracking-[-0.02em]">
+        <IconCheck className="size-4 text-mango-deep [stroke-width:3]" />
         맞춤 체크
       </h2>
-      <div className="mt-3 flex flex-col gap-2">
+      <ul className="mt-1 divide-y divide-line">
         {personal.map((x) => {
           const token = tokenOf(x.id);
           const body = (
             <>
-              <span className="inline-flex rounded-full bg-[#1F2340] px-2.5 py-1 text-[12px] font-bold text-mango">{x.about}</span>
-              <span className="mt-2 block text-[17px] font-bold leading-snug tracking-[-0.025em]">{x.title}</span>
-              <span className="mt-1 block text-[14px] leading-relaxed text-[#1F2340]/80">{x.text}</span>
+              <span className="block text-[12px] font-semibold text-mango-deep">{x.about}</span>
+              <span className="mt-1 block text-[16px] font-bold leading-snug tracking-[-0.02em] text-ink">{x.title}</span>
+              <span className="mt-1 block text-[14px] leading-relaxed text-sub">{x.text}</span>
             </>
           );
-          return token ? (
-            <Link key={x.title} href={`/article/${token}`} className="block rounded-[18px] bg-white px-4 py-3.5 no-underline">
-              {body}
-            </Link>
-          ) : (
-            <div key={x.title} className="rounded-[18px] bg-white px-4 py-3.5">
-              {body}
-            </div>
+          return (
+            <li key={x.title}>
+              {token ? (
+                <Link href={`/article/${token}`} className="block py-3.5 no-underline">
+                  {body}
+                </Link>
+              ) : (
+                <div className="py-3.5">{body}</div>
+              )}
+            </li>
           );
         })}
         {checks.map((c) => {
           const token = tokenOf(c.id);
-          const cls = "flex items-start gap-2.5 rounded-[18px] bg-white/60 px-4 py-3 text-[14px] font-medium leading-relaxed no-underline";
+          const cls = "flex items-start gap-2.5 py-3.5 text-[14px] font-medium leading-relaxed text-ink no-underline";
           const body = (
             <>
-              <IconCheck className="mt-[3px] size-4 shrink-0 text-[#1F2340] [stroke-width:3]" />
+              <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-mango" aria-hidden="true" />
               <span>{c.text}</span>
             </>
           );
-          return token ? (
-            <Link key={c.text} href={`/article/${token}`} className={cls}>
-              {body}
-            </Link>
-          ) : (
-            <p key={c.text} className={cls}>
-              {body}
-            </p>
+          return (
+            <li key={c.text}>
+              {token ? (
+                <Link href={`/article/${token}`} className={cls}>
+                  {body}
+                </Link>
+              ) : (
+                <p className={cls}>{body}</p>
+              )}
+            </li>
           );
         })}
-      </div>
+      </ul>
     </section>
   );
 }

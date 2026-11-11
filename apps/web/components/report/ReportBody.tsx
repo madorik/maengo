@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReportData, ReportGroup, ReportPeriod } from "@maengo/core/report";
-import { IconChevronRight } from "@/components/icons";
+import { IconCheck, IconChevronRight } from "@/components/icons";
 import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 import { articleToken } from "@/lib/server/share-token";
 import { ReportAppHint } from "./ReportAppHint";
@@ -129,21 +129,22 @@ export function ReportBody({ period, data }: { period: ReportPeriod; data: Repor
   );
 }
 
-/** 맞춤 체크: 내 맞춤 정보로 짚은 이번 주(남색 블록, 위 총평의 망고색과 나눈다). 근거 소식을 누르면 글 화면 */
+/** 맞춤 체크: 내 맞춤 정보·읽은 소식으로 짚은 이번 주. 오늘 화면과 같은 조용한 정보 칸(2026-11-11 사용자: 색이 튀고 메인 소식처럼 보인다). 근거 소식을 누르면 글 화면 */
 function PersonalCheck({ personal, items }: { personal: NonNullable<ReportData["digest"]["personal"]>; items: ReportData["items"] }) {
   if (!personal.length) return null;
   return (
-    <section aria-labelledby="report-match" className="keep-light rounded-[24px] bg-[#1F2340] px-3 pb-3 pt-4 text-white">
-      <h2 id="report-match" className="px-1.5 text-[17px] font-bold tracking-[-0.02em] text-mango">
+    <section aria-labelledby="report-match">
+      <h2 id="report-match" className="flex items-center gap-1.5 text-[17px] font-bold tracking-[-0.02em]">
+        <IconCheck className="size-4 text-mango-deep [stroke-width:3]" />
         맞춤 체크
       </h2>
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-1 divide-y divide-line">
         {personal.map((x) => (
-          <article key={x.title} className="rounded-[18px] bg-white px-4 pb-2 pt-3.5 text-[#1F2340]">
-            <span className="inline-flex rounded-full bg-mango px-2.5 py-1 text-[12px] font-bold">{x.about}</span>
-            <h3 className="mt-2 text-[17px] font-bold leading-snug tracking-[-0.025em]">{x.title}</h3>
-            <p className="mt-1 text-[14px] leading-relaxed text-[#1F2340]/80">{x.text}</p>
-            <ItemLinks ids={x.ids} items={items} className="mt-2 border-t-2 border-[#1F2340]/10" />
+          <article key={x.title} className="py-3.5">
+            <span className="block text-[12px] font-semibold text-mango-deep">{x.about}</span>
+            <h3 className="mt-1 text-[16px] font-bold leading-snug tracking-[-0.02em]">{x.title}</h3>
+            <p className="mt-1 text-[14px] leading-relaxed text-sub">{x.text}</p>
+            <ItemLinks ids={x.ids} items={items} className="mt-2 border-t-2 border-line" />
           </article>
         ))}
       </div>
