@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { AppQr } from "@/components/app-install/AppQr";
 import { IconClose } from "@/components/icons";
@@ -9,16 +8,17 @@ import { useProfile } from "@/components/providers/ProfileProvider";
 import { isAppUserAgent } from "@/lib/app-client";
 import { hiddenRecently, hideFor7Days } from "@/lib/app-install";
 import { AccountMenu } from "./AccountMenu";
+import { HomeLink } from "./HomeLink";
 import { NavLinks } from "./NavLinks";
 
 /** 데스크톱 왼쪽 메뉴(모바일은 위쪽 막대의 ☰로 여는 MobileNav) */
 export function SideNav() {
   return (
     <div className="sticky top-0 hidden h-dvh flex-col border-r-2 border-line px-4 py-7 lg:flex">
-      <Link href="/" aria-label="맹고 소개" className="flex items-center gap-2 px-3 no-underline">
+      <HomeLink className="flex items-center gap-2 px-3 no-underline">
         <MangoIcon className="size-9" />
         <span className="text-[28px] font-black tracking-[-0.04em] text-mango-deep">맹고</span>
-      </Link>
+      </HomeLink>
       <div className="mt-8">
         <NavLinks />
       </div>
