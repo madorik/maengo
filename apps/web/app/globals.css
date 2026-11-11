@@ -362,17 +362,19 @@
   }
 }
 
-/* 브리핑을 듣는 동안 노선 위 망고가 통통 튄다(components/today/TodayList.tsx Route). 빠르기는 재생 속도에 맞춘 --ride-dur */
+/* 브리핑을 듣는 동안 노선 위 망고가 소리에 맞춰 살짝 커졌다 작아진다(2026-11-11 사용자, components/today/TodayList.tsx Route).
+   빠르기는 재생 속도에 맞춘 --ride-dur. 커질 때 빠르게, 돌아올 때 천천히(소리가 울리는 느낌) */
 .mango-ride {
-  animation: ride var(--ride-dur, 0.7s) ease-in-out infinite;
+  transform-origin: 50% 60%;
+  animation: ride var(--ride-dur, 0.8s) ease-out infinite;
 }
 @keyframes ride {
   0%,
   100% {
-    transform: translateY(0) rotate(-3deg);
+    transform: scale(1);
   }
-  50% {
-    transform: translateY(-3px) rotate(3deg);
+  30% {
+    transform: scale(1.14);
   }
 }
 @media (prefers-reduced-motion: reduce) {

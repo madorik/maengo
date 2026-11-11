@@ -209,20 +209,6 @@ function CardPlay({ playing, title, onClick, className = "" }: { playing: boolea
   );
 }
 
-/** '듣는 중' 표시(망고색 알약 + 작은 파동) */
-function ListeningBadge({ className = "" }: { className?: string }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full bg-mango px-2 py-0.5 text-[11px] font-bold text-[#1F2340] ${className}`}>
-      <span aria-hidden="true" className="inline-flex h-2.5 items-center gap-[2px]">
-        {[0.6, 1, 0.75].map((h, i) => (
-          <span key={i} className="wave-bar block w-[2px] rounded-full bg-current" style={{ height: `${h * 100}%`, animationDelay: `${i * 0.15}s` }} />
-        ))}
-      </span>
-      듣는 중
-    </span>
-  );
-}
-
 /** 자동으로 올릴 때 위쪽 막대(모바일 머리말)에 가리지 않게 남기는 자리 */
 const FOLLOW_MARGIN = "scroll-mt-[calc(68px+env(safe-area-inset-top))] lg:scroll-mt-6";
 
@@ -302,7 +288,7 @@ function Meta({ item, pm }: { item: FeedItem; pm: boolean }) {
 /**
  * 노선: 출발 → 소식(정거장) → 도착. 지나온 구간은 흐리게, 망고는 지금 들을 차례인 정거장에.
  * 브리핑을 듣는 동안(ride)은 망고가 재생 위치를 따라 다음 정거장 쪽으로 움직인다(2026-11-11 사용자).
- * 소리가 나는 동안은 통통 튀고(재생 속도가 빠르면 더 빨리), 듣는 소식 카드엔 '듣는 중'.
+ * 소리가 나는 동안은 소리에 맞춰 커졌다 작아진다(재생 속도가 빠르면 더 빨리). 듣는 카드에 글씨는 쓰지 않는다.
  * 망고를 끌어 다른 정거장에 놓거나 정거장(점)을 누르면 그 소식부터 듣는다(onPick, 2026-11-11 사용자).
  * 망고는 한 마리를 노선 위에 띄워 두고 자리만 옮긴다(정거장마다 그리지 않는다: 끌기·움직임이 이어지게)
  */
@@ -380,13 +366,9 @@ function Route({
             {/* 카드: 글(제목·요약 정보)과 사진은 글 화면으로, 사진 모서리(사진이 없으면 그 자리)의 버튼은 재생·일시정지 */}
             <div className={`flex min-w-0 flex-1 items-center gap-3 ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-mango-tint px-3") : ""}`}>
               <Link href={`/article/${item.token}`} aria-current={listening ? "true" : undefined} className="min-w-0 flex-1 py-2.5 no-underline">
-                {((big && headline) || (listening && ride?.playing)) && (
-                  <span className="mb-1.5 flex flex-wrap gap-1.5">
-                    {listening && ride?.playing && <ListeningBadge />}
-                    {big && headline && (
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pm ? "bg-mango/20 text-mango" : "bg-mango-tint text-mango-deep"}`}>가장 많이 다룬 소식</span>
-                    )}
-                  </span>
+                {/* 듣는 중은 글씨로 쓰지 않는다(줄이 늘어 보기 불편, 2026-11-11 사용자): 노선의 망고가 그 자리에서 커졌다 작아진다 */}
+                {big && headline && (
+                  <span className={`mb-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pm ? "bg-mango/20 text-mango" : "bg-mango-tint text-mango-deep"}`}>가장 많이 다룬 소식</span>
                 )}
                 {/* 제목은 두 줄까지, 넘치면 …(2026-11-10 사용자) */}
                 <p
@@ -445,7 +427,7 @@ function Route({
           <span className="absolute -inset-2" />
           <span
             className={`block ${ride?.playing && drag.y === null ? "mango-ride" : ""} ${drag.y !== null ? "scale-110" : ""} transition-transform`}
-            style={{ "--ride-dur": `${(0.7 / (rate || 1)).toFixed(2)}s` } as React.CSSProperties}
+            style={{ "--ride-dur": `${(0.8 / (rate || 1)).toFixed(2)}s` } as React.CSSProperties}
           >
             <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
           </span>
@@ -559,7 +541,6 @@ function CardGrid({
                 >
                   <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-semibold ${pm ? "text-white/50" : "text-faint"}`}>{label}</span>
                   <Thumb item={item} className="absolute inset-0 size-full" />
-                  {listening && ride?.playing && <ListeningBadge className="absolute left-2 top-2 shadow-sm" />}
                 </div>
               </Link>
               {onToggle && <CardPlay playing={listening && !!ride?.playing} title={item.title} onClick={() => onToggle(i)} className="absolute bottom-2 right-2" />}
