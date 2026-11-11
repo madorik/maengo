@@ -43,6 +43,11 @@ function setLeaving(v: Leaving) {
   listeners.forEach((l) => l());
 }
 
+/** 맞춤 정보 질문 알림이 떠 있는지(주간 리포트 알림이 겹치지 않게 기다린다, components/report/ReportToast.tsx) */
+export function useContextToastOpen(): boolean {
+  return useSyncExternalStore(subscribe, () => leaving !== null, () => false);
+}
+
 /** 질문 한 줄(묻는 말 + 고르기 + ✕). 답하면 이어 묻는 질문으로 바뀌고, 없으면 onDone */
 function QuestionRow({ q: first, day, onDone, tone }: { q: PickedQuestion; day: string; onDone: () => void; tone: "inline" | "toast" }) {
   const [q, setQ] = useState(first);

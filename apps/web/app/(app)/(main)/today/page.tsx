@@ -13,7 +13,7 @@ import { requireProfile } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "오늘 소식" };
 
-// 오늘 목록은 (app) 레이아웃이 읽은 오늘 피드(TodayProvider)로 그린다. 결제 안내 띠와 리포트 안내 카드(Premium, 2026-11-10),
+// 오늘 목록은 (app) 레이아웃이 읽은 오늘 피드(TodayProvider)로 그린다. 결제 안내 띠와 리포트 알림(Premium, 2026-11-10. 11-11부터 아래쪽 알림이라 자리를 먹지 않는다),
 // 오늘의 흐름(2026-11-11, 처음 열 때 만드는 데 몇 초)은 따로 읽어 기다리지 않고(Suspense) 끼워 넣는다
 export default function TodayPage() {
   return (
