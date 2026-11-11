@@ -362,6 +362,25 @@
   }
 }
 
+/* 브리핑을 듣는 동안 노선 위 망고가 통통 튄다(components/today/TodayList.tsx Route). 빠르기는 재생 속도에 맞춘 --ride-dur */
+.mango-ride {
+  animation: ride var(--ride-dur, 0.7s) ease-in-out infinite;
+}
+@keyframes ride {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(3deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mango-ride {
+    animation: none;
+  }
+}
+
 @keyframes bob {
   0%,
   100% {
