@@ -66,6 +66,15 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
   const { listenAccess } = useToday();
   const canListen = player.enabled && data.items.some((i) => listenAccess(i.clusterId) !== null);
   const pick = canListen ? (index: number) => items[index] && player.playFrom(items[index].clusterId) : undefined;
+  // 카드마다 재생·일시정지(2026-11-11 사용자: 버튼이 위에만 있어 불편). 듣는 카드면 멈춤·이어서, 다른 카드면 그 소식부터
+  const toggle = canListen
+    ? (index: number) => {
+        const it = items[index];
+        if (!it) return;
+        if (ride?.index === index) return ride.playing ? player.pause() : player.play();
+        player.playFrom(it.clusterId);
+      }
+    : undefined;
 
   return (
     <div className={pm ? "min-h-dvh bg-[#1F2340] text-white" : ""}>
@@ -118,9 +127,9 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
               </div>
             </div>
             {view.value === "card" ? (
-              <CardGrid items={items} pm={pm} consumed={consumed} ride={ride} />
+              <CardGrid items={items} pm={pm} consumed={consumed} ride={ride} onToggle={toggle} />
             ) : (
-              <Route items={items} pm={pm} current={current} consumed={consumed} ride={ride} rate={player.rate} onPick={pick} />
+              <Route items={items} pm={pm} current={current} consumed={consumed} ride={ride} rate={player.rate} onPick={pick} onToggle={toggle} />
             )}
           </>
         ) : (
@@ -184,6 +193,20 @@ function useFollowListening(ride: Ride | null) {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   }, [index, playing]);
+}
+
+/** 소식 카드의 재생·일시정지(망고색 동그라미, 사진 위에서도 보이게 그림자) */
+function CardPlay({ playing, title, onClick, className = "" }: { playing: boolean; title: string; onClick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={playing ? `${title} 일시정지` : `${title} 듣기`}
+      className={`flex size-9 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340] shadow-[0_2px_8px_rgb(31_35_64/0.28)] active:scale-95 motion-reduce:active:scale-100 ${className}`}
+    >
+      {playing ? <IconPause className="size-4" /> : <IconPlay className="ml-0.5 size-4" />}
+    </button>
+  );
 }
 
 /** '듣는 중' 표시(망고색 알약 + 작은 파동) */
@@ -291,6 +314,7 @@ function Route({
   ride,
   rate,
   onPick,
+  onToggle,
 }: {
   items: FeedItem[];
   pm: boolean;
@@ -300,6 +324,8 @@ function Route({
   rate: number;
   /** 이 소식부터 듣기. 없으면(들을 수 없는 계정) 망고를 옮기지 못한다 */
   onPick?: (index: number) => void;
+  /** 카드의 재생·일시정지 버튼. 없으면 버튼을 그리지 않는다 */
+  onToggle?: (index: number) => void;
 }) {
   const line = "#FFC23D";
   const passed = pm ? "rgba(255,255,255,0.22)" : "#D5D8E0";
@@ -351,12 +377,9 @@ function Route({
                 />
               )}
             </div>
-            <Link
-              href={`/article/${item.token}`}
-              aria-current={listening ? "true" : undefined}
-              className={`flex min-w-0 flex-1 items-center gap-3 py-2.5 no-underline ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-mango-tint px-3") : ""}`}
-            >
-              <div className="min-w-0 flex-1">
+            {/* 카드: 글(제목·요약 정보)과 사진은 글 화면으로, 사진 모서리(사진이 없으면 그 자리)의 버튼은 재생·일시정지 */}
+            <div className={`flex min-w-0 flex-1 items-center gap-3 ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-mango-tint px-3") : ""}`}>
+              <Link href={`/article/${item.token}`} aria-current={listening ? "true" : undefined} className="min-w-0 flex-1 py-2.5 no-underline">
                 {((big && headline) || (listening && ride?.playing)) && (
                   <span className="mb-1.5 flex flex-wrap gap-1.5">
                     {listening && ride?.playing && <ListeningBadge />}
@@ -372,9 +395,21 @@ function Route({
                   {item.title}
                 </p>
                 <Meta item={item} pm={pm} />
+              </Link>
+              <div className="group/media relative flex shrink-0 items-center">
+                <Link href={`/article/${item.token}`} tabIndex={-1} aria-hidden="true" className="block">
+                  <Thumb item={item} className={big ? "aspect-[3/2] w-[108px] rounded-2xl" : "aspect-[3/2] w-[84px] rounded-xl"} />
+                </Link>
+                {onToggle && (
+                  <CardPlay
+                    playing={listening && !!ride?.playing}
+                    title={item.title}
+                    onClick={() => onToggle(i)}
+                    className="group-has-[img]/media:absolute group-has-[img]/media:bottom-1.5 group-has-[img]/media:right-1.5 group-has-[img]/media:size-8"
+                  />
+                )}
               </div>
-              <Thumb item={item} className={big ? "aspect-[3/2] w-[108px] rounded-2xl" : "aspect-[3/2] w-[84px] rounded-xl"} />
-            </Link>
+            </div>
           </li>
         );
       })}
@@ -490,7 +525,19 @@ function useStops(ref: React.RefObject<HTMLOListElement | null>, count: number):
 }
 
 /** 사진 카드 보기: 2열, 사진이 없으면 분야 이름 칸 */
-function CardGrid({ items, pm, consumed, ride }: { items: FeedItem[]; pm: boolean; consumed: (id: number) => boolean; ride: Ride | null }) {
+function CardGrid({
+  items,
+  pm,
+  consumed,
+  ride,
+  onToggle,
+}: {
+  items: FeedItem[];
+  pm: boolean;
+  consumed: (id: number) => boolean;
+  ride: Ride | null;
+  onToggle?: (index: number) => void;
+}) {
   return (
     <ul aria-label="소식" className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5">
       {items.map((item, i) => {
@@ -504,14 +551,20 @@ function CardGrid({ items, pm, consumed, ride }: { items: FeedItem[]; pm: boolea
             data-tour={i === 0 ? "card" : undefined}
             className={`${FOLLOW_MARGIN} ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "col-span-2" : ""}`}
           >
+            {/* 사진(글 화면으로) 오른쪽 아래에 재생·일시정지 */}
+            <div className="relative">
+              <Link href={`/article/${item.token}`} tabIndex={-1} aria-hidden="true" className="block no-underline">
+                <div
+                  className={`relative overflow-hidden rounded-2xl ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "aspect-video" : "aspect-[4/3]"} ${pm ? "bg-white/10" : "bg-snow"} ${listening ? "ring-[3px] ring-mango" : ""}`}
+                >
+                  <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-semibold ${pm ? "text-white/50" : "text-faint"}`}>{label}</span>
+                  <Thumb item={item} className="absolute inset-0 size-full" />
+                  {listening && ride?.playing && <ListeningBadge className="absolute left-2 top-2 shadow-sm" />}
+                </div>
+              </Link>
+              {onToggle && <CardPlay playing={listening && !!ride?.playing} title={item.title} onClick={() => onToggle(i)} className="absolute bottom-2 right-2" />}
+            </div>
             <Link href={`/article/${item.token}`} aria-current={listening ? "true" : undefined} className="block no-underline">
-              <div
-                className={`relative overflow-hidden rounded-2xl ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "aspect-video" : "aspect-[4/3]"} ${pm ? "bg-white/10" : "bg-snow"} ${listening ? "ring-[3px] ring-mango" : ""}`}
-              >
-                <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-semibold ${pm ? "text-white/50" : "text-faint"}`}>{label}</span>
-                <Thumb item={item} className="absolute inset-0 size-full" />
-                {listening && ride?.playing && <ListeningBadge className="absolute left-2 top-2 shadow-sm" />}
-              </div>
               <Meta item={item} pm={pm} />
               <p className={`mt-0.5 line-clamp-2 text-[15px] font-semibold leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}>{item.title}</p>
             </Link>
