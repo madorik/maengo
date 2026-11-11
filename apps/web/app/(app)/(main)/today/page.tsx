@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BillingBanner } from "@/components/premium/BillingBanner";
 import { ReportBanner } from "@/components/report/ReportBanner";
-import { BriefingInsightView, InsightFallback } from "@/components/today/BriefingInsight";
+import { BriefingHero, InsightFallback } from "@/components/today/BriefingInsight";
 import { TodayList } from "@/components/today/TodayList";
-import { SLOT_LABEL } from "@maengo/core/sections";
 import { briefingInsight } from "@/lib/server/briefing-insight";
 import { getTodayData } from "@/lib/server/feed";
 import { billingNoticeOf } from "@/lib/billing/notice";
@@ -37,7 +36,7 @@ export default function TodayPage() {
   );
 }
 
-/** 오늘의 흐름(받은 소식을 엮은 한 장, Free·Premium). 못 만들면(키 없음·실패·소식이 하나뿐) 아무것도 그리지 않는다 */
+/** 오늘 화면 머리: 오늘의 흐름(받은 소식을 엮은 한 장, Free·Premium)의 한 줄이 큰 제목. 못 만들면(키 없음·실패·소식이 하나뿐) '출근길 브리핑' 제목만 */
 async function TodayInsight() {
   const profile = await requireProfile();
   const data = await getTodayData(profile);
@@ -45,9 +44,7 @@ async function TodayInsight() {
     console.error("[today] 오늘의 흐름 실패", String((e as Error)?.message ?? e).slice(0, 200));
     return null;
   });
-  if (!insight) return null;
-  const slot = data.slot ?? "am";
-  return <BriefingInsightView insight={insight} pm={slot === "pm"} label={`오늘 ${SLOT_LABEL[slot]} 흐름`} />;
+  return <BriefingHero insight={insight} />;
 }
 
 /** 무료 체험이 이틀 안에 끝나거나 갱신 결제가 실패했으면 맨 위에 결제 안내 띠. 구독을 못 읽으면 띠 없이(오늘 목록은 그대로) */

@@ -6,7 +6,6 @@ import { IconPause, IconPlay } from "@/components/icons";
 import { usePlayer, type PlayerApi } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
-import { CountUp } from "@/components/ui/CountUp";
 import { Spinner } from "@/components/ui/Spinner";
 import { SECTION_LABEL, SLOT_LABEL, isSection } from "@maengo/core/sections";
 import { useMoreArrival } from "./arrival";
@@ -86,27 +85,9 @@ export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** �
           <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>
             {day} {slotLabel}
           </p>
+          {/* 큰 제목은 오늘의 흐름 한 줄(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다). 서버가 만들어 끼운다(today/page.tsx) */}
           {game.total > 0 ? (
-            <>
-              <h1 id="briefing-title" className="mt-1 flex items-baseline gap-2.5">
-                {/* 걸리는 시간·언론 수·기사 수는 0부터 올라간다(2026-11-11 사용자) */}
-                <span className="font-round text-[36px] font-black tracking-[-0.02em]">
-                  {seconds >= 180 ? (
-                    <>
-                      약 <CountUp id="today-minutes" value={Math.round(seconds / 60)} />분
-                    </>
-                  ) : (
-                    durationLabel(seconds)
-                  )}
-                </span>
-                <span className={`text-[15px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>소식 {data.items.length}개</span>
-              </h1>
-              {data.collected && data.collected.articles > 0 && (
-                <p className={`mt-1 text-[13px] ${pm ? "text-white/65" : "text-sub"}`}>
-                  언론 <CountUp id="today-sources" value={data.collected.sources} />곳, 기사 <CountUp id="today-articles" value={data.collected.articles} />건에서 골랐어요.
-                </p>
-              )}
-            </>
+            insight
           ) : (
             <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
               {slotLabel} 브리핑
@@ -114,9 +95,7 @@ export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** �
           )}
         </section>
 
-        {/* 오늘의 흐름: 받은 소식을 엮은 한 장(2026-11-11). 듣기 전에 오늘 무슨 일이 있는지 */}
-        {game.total > 0 && insight}
-        {game.total > 0 && <ListenBar pm={pm} label={`${slotLabel} 브리핑 듣기`} />}
+        {game.total > 0 && <ListenBar pm={pm} label={`${slotLabel} 브리핑 듣기`} seconds={seconds} />}
         {game.total > 0 && remaining > 0 && <FillToday remaining={remaining} onExpect={expect} onSettle={settle} />}
 
         {game.total > 0 ? (
@@ -146,12 +125,9 @@ export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** �
   );
 }
 
-/** 걸리는 시간: 3분 넘으면 '약 N분', 그 안이면 'N분 N초' */
-function durationLabel(seconds: number): string {
-  if (seconds >= 180) return `약 ${Math.round(seconds / 60)}분`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m ? `${m}분 ${s}초` : `${s}초`;
+/** 듣기 막대의 걸리는 시간: 1분 넘으면 'N분', 그 안이면 'N초' */
+function shortDuration(seconds: number): string {
+  return seconds >= 60 ? `${Math.round(seconds / 60)}분` : `${seconds}초`;
 }
 
 function clock(seconds?: number): string {
@@ -602,7 +578,7 @@ function ReplayButton({ pm }: { pm: boolean }) {
  * 들은 게 있으면 '이어 듣기', 다 들었고 쉬는 중이면 '처음부터 다시 듣기'(useBriefingReplay).
  * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다. 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
  */
-function ListenBar({ pm, label }: { pm: boolean; label: string }) {
+function ListenBar({ pm, label, seconds }: { pm: boolean; label: string; /** 브리핑을 다 듣는 데 걸리는 시간(초). 막대 오른쪽에 작게 */ seconds: number }) {
   const p = usePlayer();
   const { canListen, playingToday, heardAny, replay, fromStart } = useBriefingReplay();
   const shell = `mt-4 flex h-[60px] w-full items-center gap-3 rounded-full pl-2 pr-5 text-left no-underline ${pm ? "bg-white text-[#1F2340]" : "bg-ink text-paper"}`;
@@ -637,8 +613,12 @@ function ListenBar({ pm, label }: { pm: boolean; label: string }) {
         {p.starting ? <Spinner /> : playingToday ? <IconPause className="size-[18px]" /> : replay ? <IconReplay className="size-[18px]" /> : <IconPlay className="size-[18px]" />}
       </span>
       <span className="flex-1 text-[16px] font-bold">{text}</span>
-      {/* 듣는 동안 음성 파동(2026-11-10 사용자) */}
-      {playingToday && <SoundWave className={pm ? "text-mango-deep" : "text-mango"} />}
+      {/* 듣는 동안 음성 파동(2026-11-10 사용자), 쉬는 동안은 걸리는 시간을 작게 */}
+      {playingToday ? (
+        <SoundWave className={pm ? "text-mango-deep" : "text-mango"} />
+      ) : (
+        seconds > 0 && <span className="text-[14px] font-semibold tabular-nums opacity-60">{shortDuration(seconds)}</span>
+      )}
     </button>
   );
 }
