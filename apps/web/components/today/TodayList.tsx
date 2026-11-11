@@ -521,7 +521,7 @@ function CardGrid({
                   className={`relative overflow-hidden rounded-2xl ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "aspect-video" : "aspect-[4/3]"} ${pm ? "bg-white/10" : "bg-snow"} ${listening ? "ring-[3px] ring-mango" : ""}`}
                 >
                   <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-semibold ${pm ? "text-white/50" : "text-faint"}`}>{label}</span>
-                  <Thumb item={item} className="absolute inset-0 size-full" />
+                  <Thumb item={item} size="card" className="absolute inset-0 size-full" />
                 </div>
               </Link>
               {onToggle && <CardPlay playing={listening && !!ride?.playing} title={item.title} onClick={() => onToggle(i)} className="absolute bottom-2 right-2" />}

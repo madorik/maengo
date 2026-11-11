@@ -1,3 +1,4 @@
+import { isNotPhoto } from './photo';
 import { isCategory, type CategoryId } from '@maengo/core/categories';
 import type { Tier } from '@maengo/core/types';
 
@@ -60,7 +61,8 @@ export interface ItemRow {
 /** 상세 화면 사진: 대표 글의 이미지, 없으면 같은 소식의 다른 글 이미지. 사진 출처는 그 글의 출처. 영상 소식은 썸네일을 따로 쓴다 */
 function photoOf(rep: ItemRow, list: ItemRow[]): ClusterInfo['photo'] {
   if (rep.kind !== 'article') return null;
-  const withImage = [rep, ...list.filter((m) => m !== rep && m.kind === 'article')].find((m) => m.image_url);
+  // 링크 카드·로고는 사진이 아니라 건너뛴다(lib/photo.ts)
+  const withImage = [rep, ...list.filter((m) => m !== rep && m.kind === 'article')].find((m) => m.image_url && !isNotPhoto(m.image_url));
   return withImage?.image_url ? { url: withImage.image_url, source: withImage.sources?.name ?? '' } : null;
 }
 export interface RepRow {

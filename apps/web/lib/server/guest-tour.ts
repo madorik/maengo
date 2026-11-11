@@ -1,4 +1,5 @@
 import 'server-only';
+import { isNotPhoto } from '../photo';
 import { cache } from 'react';
 import { isCategory } from '@maengo/core/categories';
 import { youtubeId, youtubeThumbnail } from '@maengo/core/youtube';
@@ -62,7 +63,8 @@ export const guestTour = cache(async (): Promise<GuestItem[]> => {
     if (!rep) return [];
     // 썸네일: 대표 글 사진 → 같은 소식의 다른 글 사진 → 유튜브 썸네일
     const vid = rep.kind === 'video' ? youtubeId(rep.canonical_url) : null;
-    const photo = rep.image_url ?? (byCluster.get(clusterId) ?? []).find((m) => m.image_url)?.image_url ?? (vid ? youtubeThumbnail(vid) : null);
+    const real = (u: string | null) => (u && !isNotPhoto(u) ? u : null);
+    const photo = real(rep.image_url) ?? (byCluster.get(clusterId) ?? []).map((m) => real(m.image_url)).find(Boolean) ?? (vid ? youtubeThumbnail(vid) : null);
     return [
       {
         clusterId,

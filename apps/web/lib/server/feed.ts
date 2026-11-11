@@ -1,4 +1,5 @@
 import 'server-only';
+import { isNotPhoto } from '../photo';
 import { articleToken } from './share-token';
 import { cache } from 'react';
 import { isCategory, type CategoryId } from '@maengo/core/categories';
@@ -699,7 +700,7 @@ export async function storyPhotos(ids: number[]): Promise<Map<number, { url: str
   const rep = new Map((reps ?? []).map((c) => [c.id as number, c.rep_item_id as number | null]));
   const rows = (items ?? []) as unknown as { id: number; cluster_id: number; image_url: string; sources: { name: string } | null }[];
   rows.sort((a, b) => Number(b.id === rep.get(b.cluster_id)) - Number(a.id === rep.get(a.cluster_id)));
-  for (const it of rows) if (!out.has(it.cluster_id)) out.set(it.cluster_id, { url: it.image_url, source: it.sources?.name ?? '' });
+  for (const it of rows) if (!out.has(it.cluster_id) && !isNotPhoto(it.image_url)) out.set(it.cluster_id, { url: it.image_url, source: it.sources?.name ?? '' });
   return out;
 }
 

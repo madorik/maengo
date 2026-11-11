@@ -7,6 +7,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useCallName } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { CountUp } from "@/components/ui/CountUp";
+import { PhotoImg } from "@/components/ui/PhotoImg";
 import { Sheet } from "@/components/ui/Sheet";
 import { SECTION_LABEL, isSection } from "@maengo/core/sections";
 import { SLOT_LABEL } from "@maengo/core/sections";
@@ -175,8 +176,7 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
                   {photos.length > 0 && (
                     <span className="flex -space-x-2">
                       {photos.map((src) => (
-                        // eslint-disable-next-line @next/next/no-img-element -- 원문 사진 주소(언론사마다 달라 next/image 허용 목록에 넣을 수 없다)
-                        <img key={src} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className={`size-7 rounded-full object-cover ring-2 ${tone.ring}`} />
+                        <PhotoImg key={src} src={src} className={`size-7 rounded-full ring-2 ${tone.ring}`} />
                       ))}
                     </span>
                   )}
@@ -309,8 +309,7 @@ function FlowDetail({ flow, onClose }: { flow: BriefingInsight["flows"][number];
                   <span className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-sub">{i.short}</span>
                 </span>
                 {photo && (
-                  // eslint-disable-next-line @next/next/no-img-element -- 원문 사진 주소(언론사마다 달라 next/image 허용 목록에 넣을 수 없다)
-                  <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" className="aspect-[3/2] w-[84px] shrink-0 rounded-xl object-cover" />
+                  <PhotoImg src={photo} className="aspect-[3/2] w-[84px] rounded-xl" />
                 )}
               </Link>
             </li>

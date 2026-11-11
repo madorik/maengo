@@ -143,7 +143,7 @@ function EntryCard({ entry: e }: { entry: LibraryEntry }) {
     <li className="group relative">
       <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-snow">
         <span className="absolute inset-0 flex items-center justify-center text-[13px] font-semibold text-faint">{label}</span>
-        <Thumb item={{ photo: e.photo, thumbnail: null }} className="absolute inset-0 size-full" />
+        <Thumb item={{ photo: e.photo, thumbnail: null }} size="card" className="absolute inset-0 size-full" />
         <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-paper/90 group-has-[[data-pick]]:invisible">
           <BookmarkButton item={e} variant="card" />
         </span>
