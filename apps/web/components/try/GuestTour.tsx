@@ -9,6 +9,7 @@ import { Mascot } from "@/components/Mascot";
 import { SeekBar } from "@/components/listen/SeekBar";
 import { CommuteMango } from "@/components/today/CommuteMango";
 import { Thumb } from "@/components/today/Thumb";
+import { SoundWave } from "@/components/listen/SoundWave";
 import { Confetti } from "@/components/ui/Confetti";
 import { Sheet } from "@/components/ui/Sheet";
 import { Spinner } from "@/components/ui/Spinner";
@@ -256,6 +257,7 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
             {playing ? <IconPause className="size-[18px]" /> : <IconPlay className="size-[18px]" />}
           </span>
           <span className="flex-1 text-[16px] font-bold">{playing ? "듣는 중" : p.cur >= 0 ? "이어 듣기" : "브리핑 들어 보기"}</span>
+          {playing && <SoundWave className="text-mango" />}
           <span className="text-[13px] font-medium tabular-nums opacity-65">
             {p.heard.size > 0 ? `${p.heard.size}/${n}` : `첫 소식 ${koDuration(firstMs)}`}
           </span>

@@ -16,6 +16,7 @@ import { FillToday } from "./FillToday";
 import { MoreToday } from "./MoreToday";
 import { SignupGift } from "./SignupGift";
 import { Thumb } from "./Thumb";
+import { SoundWave } from "@/components/listen/SoundWave";
 import { startTour, useTourSeen } from "./FeatureTour";
 import type { FeedItem } from "@/lib/types";
 
@@ -346,6 +347,8 @@ function ListenBar({ pm, label }: { pm: boolean; label: string }) {
     >
       <span className={knob}>{p.starting ? <Spinner /> : playingToday ? <IconPause className="size-[18px]" /> : <IconPlay className="size-[18px]" />}</span>
       <span className="flex-1 text-[16px] font-bold">{playingToday ? "듣는 중" : label}</span>
+      {/* 듣는 동안 음성 파동(2026-11-10 사용자) */}
+      {playingToday && <SoundWave className={pm ? "text-mango-deep" : "text-mango"} />}
     </button>
   );
 }

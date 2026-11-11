@@ -342,6 +342,26 @@
   }
 }
 
+/* 듣는 중 음성 파동(components/listen/SoundWave.tsx) */
+.wave-bar {
+  transform-origin: center;
+  animation: wave 0.9s ease-in-out infinite;
+}
+@keyframes wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wave-bar {
+    animation: none;
+  }
+}
+
 @keyframes bob {
   0%,
   100% {
