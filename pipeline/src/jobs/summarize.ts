@@ -201,6 +201,42 @@ export async function summarizeCluster(
   return 'ok';
 }
 
+/**
+ * 분야 몫(2026-11-10 사용자 '온보딩에 스포츠·엔터가 없다'): 최근 48시간 안에 요약된 소식이 없는 분야마다 가장 큰 소식 하나.
+ * 요약은 배송 때 그 사람 소식만 만들어서, 받는 회원이 없는 분야는 요약이 안 생겨 온보딩 '끌리는 소식' 고르기에 타일이 빠진다
+ */
+function showcasePicks(candidates: Awaited<ReturnType<typeof loadCandidates>>, day: string): number[] {
+  const out: number[] = [];
+  for (const section of SECTION_IDS) {
+    const inSection = candidates.filter((c) => c.topics.some((t) => t.topicId === section));
+    if (inSection.some((c) => c.summarized && c.ageHours <= 48)) continue;
+    const best = rankFeed(inSection.filter((c) => !c.summarized && !c.isVideo), { [section]: 1 }, new Set(), { limit: 1, visible: 1, day })[0];
+    if (best && !out.includes(best.clusterId)) out.push(best.clusterId);
+  }
+  return out;
+}
+
+/**
+ * 수집(ingest·ingest_pm) 끝에 분야 몫만 요약한다(2026-11-11). summarize 작업은 꺼 두어서(scheduler.ts) 위 몫이 돌지 않았다.
+ * 하루 많아야 분야 수 × 수집 횟수(8 × 2)번이고, 요약된 소식이 이미 있는 분야는 건너뛴다
+ */
+export async function summarizeSectionShowcase(ctx: Ctx): Promise<void> {
+  const candidates = await loadCandidates(ctx);
+  const picks = showcasePicks(candidates, ctx.date);
+  let ok = 0;
+  for (const id of picks) {
+    if (ctx.budget?.deadline && Date.now() > ctx.budget.deadline) break;
+    try {
+      if ((await summarizeCluster(ctx, id, 'basic', { videos: 0 })) === 'ok') ok++;
+    } catch (e) {
+      if (e instanceof GeminiQuotaError) break;
+      ctx.log(`  분야 몫 요약 실패 #${id}: ${String((e as Error).message ?? e).slice(0, 160)}`);
+    }
+  }
+  ctx.stats.showcase = { picked: picks.length, ok };
+  ctx.log(`showcase: 분야 몫 ${picks.length}개 중 ${ok}개 요약`);
+}
+
 export async function summarize(ctx: Ctx) {
   const audience = await loadAudience(ctx);
   // 내 관심 링크의 유튜브 채널 영상을 먼저(채널당 하루 1편·1시간·한 사람 90분·하루 상한). 실패해도 글 요약은 이어 간다
@@ -219,15 +255,8 @@ export async function summarize(ctx: Ctx) {
       if (!c.summarized) needed.set(r.clusterId, Math.max(needed.get(r.clusterId) ?? 0, r.score));
     }
   }
-  // 분야 몫(2026-11-10 사용자 '온보딩에 스포츠·엔터가 없다'): 받는 회원이 없는 분야는 요약할 소식이 안 생겨 온보딩 고르기에 타일이 빠진다.
-  // 최근 48시간 안에 요약된 소식이 없는 분야는 이번 실행에서 가장 큰 소식 하나를 꼭 요약한다(있으면 건너뛰어 하루 몇 개 안 된다)
-  const showcase: number[] = [];
-  for (const section of SECTION_IDS) {
-    const inSection = candidates.filter((c) => c.topics.some((t) => t.topicId === section));
-    if (inSection.some((c) => c.summarized && c.ageHours <= 48)) continue;
-    const best = rankFeed(inSection.filter((c) => !c.summarized && !c.isVideo), { [section]: 1 }, new Set(), { limit: 1, visible: 1, day: ctx.date })[0];
-    if (best && !showcase.includes(best.clusterId)) showcase.push(best.clusterId);
-  }
+  // 분야 몫(아래 showcasePicks). 받는 회원이 없는 분야도 요약된 소식이 하나는 있게
+  const showcase = showcasePicks(candidates, ctx.date);
   const limit = ctx.budget?.summarizeLimit ?? env.summarizeLimit;
   const byUsers = [...needed].sort((a, b) => b[1] - a[1]).map(([id]) => id).filter((id) => !showcase.includes(id));
   const queue = [...showcase, ...byUsers].slice(0, Math.max(limit, showcase.length));

@@ -4,7 +4,7 @@ import { cluster } from './jobs/cluster';
 import { collect } from './jobs/collect';
 import { dedupe } from './jobs/dedupe';
 import { embed } from './jobs/embed';
-import { summarize } from './jobs/summarize';
+import { summarize, summarizeSectionShowcase } from './jobs/summarize';
 import { tag } from './jobs/tag';
 import type { Ctx } from './lib/ctx';
 import { check, db, selectAll } from './lib/db';
@@ -121,6 +121,12 @@ async function runTask(task: Task, now: Date, deadline: number, hooks: Scheduler
       await embed(ctx);
       await cluster(ctx);
       await tag(ctx);
+      // 받는 회원이 없는 분야도 요약된 소식이 하나는 있게(온보딩 고르기, 2026-11-11). 실패해도 수집은 성공으로 둔다
+      try {
+        await summarizeSectionShowcase(ctx);
+      } catch (e) {
+        ctx.log(`showcase 실패: ${String((e as Error).message ?? e).slice(0, 200)}`);
+      }
       // 배송이 그사이 만든 요약으로 같은 소식 묶음을 합친다(요약 임베딩이 드는 몇 건만)
       await dedupe(ctx);
     } else if (task.name === 'summarize') {
