@@ -54,51 +54,72 @@ export function OnboardingFlow({ picks, youtube = null }: { picks: OnboardingPic
       />
     );
 
+  // 2026-11-11 사용자 '선택 페이지가 너무 별로, 선택하고 싶어지지도 않는다': 사진을 꽉 채운 카드 위에 분야 이름을 크게, 제목은 아래 두 줄로.
+  // 분야만 훑어봐도 고를 수 있게. 고른 카드는 망고 테두리·체크, 아래 버튼은 처음부터 남색이고 고른 수를 바로 보인다
+  const n = picked.length;
   return (
     <div className="mx-auto flex h-dvh max-w-[560px] flex-col">
-      <h1 className="shrink-0 px-5 pt-[max(28px,env(safe-area-inset-top))] text-[23px] font-bold leading-snug tracking-[-0.04em]">끌리는 소식을 눌러 주세요</h1>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-36 pt-4">
+      <header className="flex shrink-0 items-center gap-3 px-5 pb-1 pt-[max(24px,env(safe-area-inset-top))]">
+        <Mascot mood="listen" className="size-14 shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-[23px] font-bold leading-snug tracking-[-0.04em]">어떤 소식이 끌리세요?</h1>
+          <p className="mt-0.5 text-[14px] font-medium text-sub">2개 이상 고르면 맹고가 관심사를 찾아 드려요</p>
+        </div>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-40 pt-3">
         <div className="grid grid-cols-2 gap-3">
-          {picks.map((p) => {
+          {picks.map((p, i) => {
             const on = picked.includes(p.clusterId);
             return (
               <button
                 key={p.clusterId}
                 type="button"
                 aria-pressed={on}
+                aria-label={`${p.sectionLabel}: ${p.title}`}
                 onClick={() => setPicked((cur) => (on ? cur.filter((x) => x !== p.clusterId) : [...cur, p.clusterId]))}
-                className={`block rounded-[20px] border-2 p-1.5 text-left ${on ? "border-mango bg-mango-tint/50" : "border-transparent bg-snow"}`}
+                className={`relative block aspect-[4/5] overflow-hidden rounded-[22px] text-left transition-transform duration-150 active:scale-[0.97] motion-reduce:transition-none ${
+                  on ? "ring-[3px] ring-mango ring-offset-2 ring-offset-paper" : ""
+                } ${i === 0 ? "" : ""} bg-[#1F2340]`}
               >
-                <span className="relative block h-24 overflow-hidden rounded-[14px] bg-line">
-                  <span className="absolute inset-0 flex items-center justify-center text-[14px] font-semibold text-sub">{p.sectionLabel}</span>
-                  {p.photo && (
-                    // eslint-disable-next-line @next/next/no-img-element -- 언론사 사진은 원문 주소에서 바로
-                    <img src={p.photo} alt="" referrerPolicy="no-referrer" className="absolute inset-0 size-full object-cover" />
-                  )}
+                {p.photo && (
+                  // eslint-disable-next-line @next/next/no-img-element -- 언론사 사진은 원문 주소에서 바로
+                  <img src={p.photo} alt="" referrerPolicy="no-referrer" className="absolute inset-0 size-full object-cover" />
+                )}
+                {/* 글자가 읽히게 위·아래를 어둡게 */}
+                <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,17,35,0.62)_0%,rgba(15,17,35,0)_36%,rgba(15,17,35,0)_46%,rgba(15,17,35,0.88)_100%)]" />
+                <span className="absolute left-3.5 top-3 text-[20px] font-bold tracking-[-0.03em] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">{p.sectionLabel}</span>
+                <span className="absolute inset-x-3.5 bottom-3 line-clamp-2 text-[13px] font-semibold leading-[1.4] tracking-[-0.02em] text-white/90">{p.title}</span>
+                <span
+                  aria-hidden="true"
+                  className={`absolute right-2.5 top-2.5 flex size-7 items-center justify-center rounded-full border-2 transition-colors ${on ? "border-mango bg-mango" : "border-white/70 bg-black/10"}`}
+                >
                   {on && (
-                    <span aria-hidden="true" className="absolute right-2 top-2 flex size-[26px] items-center justify-center rounded-full bg-mango shadow-[0_2px_6px_rgba(31,35,64,0.25)]">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F2340" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12.5l4.5 4.5L19 7.5" />
-                      </svg>
-                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F2340" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12.5l4.5 4.5L19 7.5" />
+                    </svg>
                   )}
                 </span>
-                <span className="mx-1 mt-2 block text-[12px] font-semibold text-sub">{p.sectionLabel}</span>
-                <span className="mx-1 mb-1 mt-0.5 line-clamp-3 block text-[14px] font-semibold leading-[1.42] tracking-[-0.02em]">{p.title}</span>
               </button>
             );
           })}
         </div>
       </div>
-      <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-paper via-paper to-transparent px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-6">
+      <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-paper via-paper to-transparent px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-8">
         <div className="mx-auto max-w-[528px]">
-          {picked.length >= 2 ? (
-            <button type="button" onClick={() => setStep("finding")} className="flex h-[60px] w-full items-center justify-center gap-1.5 rounded-full bg-ink text-[16px] font-bold text-paper">
-              <span className="font-round font-black text-mango">{picked.length}</span>개로 내 관심사 찾기
-            </button>
-          ) : (
-            <p className="flex h-[60px] items-center justify-center rounded-full bg-snow text-[15px] font-semibold text-sub">2개 이상 골라 주세요</p>
-          )}
+          <button
+            type="button"
+            disabled={n < 2}
+            onClick={() => setStep("finding")}
+            className="flex h-[60px] w-full items-center justify-center gap-1.5 rounded-full bg-ink text-[16px] font-bold text-paper disabled:bg-snow disabled:text-sub disabled:shadow-[0_0_0_1px_var(--color-line)]"
+          >
+            {n >= 2 ? (
+              <>
+                <span className="font-round font-black text-mango">{n}</span>개로 내 관심사 찾기
+              </>
+            ) : (
+              `${2 - n}개만 더 골라 주세요`
+            )}
+          </button>
           <form action={completeOnboarding} className="mt-1 flex justify-center">
             <input type="hidden" name="mode" value="sections" />
             <button type="submit" className="min-h-11 px-3 text-[14px] font-semibold text-sub underline underline-offset-4">
