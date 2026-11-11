@@ -144,11 +144,11 @@ export async function Landing() {
       <LandingJsonLd faq={FAQ} premiumKrw={plus.priceKrw} />
       <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1100px] items-center justify-between gap-3 px-5">
-          {/* 앱 머리말과 같은 '맹고 | 내 관심 뉴스 요약'. 좁은 휴대폰에서는 뒤 문구를 숨겨 메뉴가 한 줄에 들어가게 한다 */}
+          {/* 앱 머리말과 같은 '맹고 | 오늘 뉴스, 내게 미칠 영향은?'. 좁은 휴대폰에서는 뒤 문구를 숨겨 메뉴가 한 줄에 들어가게 한다 */}
           <Link href="/" className="flex min-w-0 items-center gap-2.5 no-underline">
             <span className="text-[22px] font-bold tracking-[-0.035em] text-ink">맹고</span>
             <span aria-hidden="true" className="h-4 w-px bg-line-dark max-[519px]:hidden" />
-            <span className="text-[15px] font-medium text-sub max-[519px]:hidden">내 관심 뉴스 요약</span>
+            <span className="text-[15px] font-medium text-sub max-[519px]:hidden">오늘 뉴스, 내게 미칠 영향은?</span>
           </Link>
           <nav aria-label="소개 메뉴" className="flex items-center gap-1 whitespace-nowrap">
             <Link href={topicsPath()} className={navLink}>
