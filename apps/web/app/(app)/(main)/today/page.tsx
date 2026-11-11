@@ -6,7 +6,7 @@ import { BriefingHero, InsightFallback } from "@/components/today/BriefingInsigh
 import { TodayList } from "@/components/today/TodayList";
 import { briefingInsight } from "@/lib/server/briefing-insight";
 import { getTodayData } from "@/lib/server/feed";
-import { getUserContext, pickQuestion } from "@/lib/server/user-context";
+import { getUserContext } from "@/lib/server/user-context";
 import { billingNoticeOf } from "@/lib/billing/notice";
 import { subscriptionView } from "@/lib/server/billing";
 import { requireProfile } from "@/lib/server/session";
@@ -45,10 +45,8 @@ async function TodayInsight() {
     console.error("[today] 오늘의 흐름 실패", String((e as Error)?.message ?? e).slice(0, 200));
     return null;
   });
-  // 내 맞춤 정보 질문(오늘 소식과 관계있고 아직 모르는 것 하나, 2026-11-11). 흐름이 있을 때만(맞춤 체크 블록 안에 묻는다)
-  const briefing = `${data.date}:${data.slot ?? "am"}`;
-  const question = insight ? pickQuestion(ctx, data.items, briefing) : null;
-  return <BriefingHero insight={insight} question={question} briefing={briefing} />;
+  // 내 맞춤 정보 질문은 여기서 대놓고 묻지 않는다(2026-11-11 사용자). 기사 아래·기사에서 넘어갈 때 한 번(components/context/ContextAsk.tsx)
+  return <BriefingHero insight={insight} />;
 }
 
 /** 무료 체험이 이틀 안에 끝나거나 갱신 결제가 실패했으면 맨 위에 결제 안내 띠. 구독을 못 읽으면 띠 없이(오늘 목록은 그대로) */

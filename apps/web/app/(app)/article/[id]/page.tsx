@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ArticleView } from "@/components/article/ArticleView";
+import { kstDate } from "@maengo/core/kst";
+import { pickQuestion } from "@/lib/context";
 import { findFeedItem } from "@/lib/server/feed";
+import { getUserContext } from "@/lib/server/user-context";
 import { articleToken, decodeArticleToken } from "@/lib/server/share-token";
 import { requireProfile } from "@/lib/server/session";
 
@@ -27,7 +30,10 @@ export default async function ArticlePage({ params, searchParams }: Props) {
     }
     notFound();
   }
-  const found = await findFeedItem(profile, id);
+  const [found, ctx] = await Promise.all([findFeedItem(profile, id), getUserContext(profile.id).catch(() => ({}))]);
   if (!found) notFound();
-  return <ArticleView key={id} item={found.item} isToday={found.isToday} />;
+  // 이 소식과 관계있고 아직 모르는 내 맞춤 정보 질문(기사 아래 작은 줄, 하루에 하나, 2026-11-11)
+  const day = kstDate();
+  const question = pickQuestion(ctx, [found.item], day);
+  return <ArticleView key={id} item={found.item} isToday={found.isToday} question={question} day={day} />;
 }

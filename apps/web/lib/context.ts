@@ -134,7 +134,7 @@ export function contextChip(ctx: UserContext, key: string): string | null {
   return q.options.find((o) => o.value === v)?.label ?? null;
 }
 
-/** 이번 브리핑에 이미 새 질문을 했는지 남기는 줄(값: '날짜:am|pm') */
+/** 오늘 이미 새 질문에 답했는지 남기는 줄(값: 한국 날짜 YYYY-MM-DD). 새 질문은 하루에 하나 */
 export const ASKED = "_asked";
 
 export interface PickedQuestion {
@@ -144,19 +144,28 @@ export interface PickedQuestion {
   options: { value: string; label: string }[];
 }
 
-/** 오늘 소식과 관계있고 아직 모르는 질문 하나(없으면 null). briefing은 "날짜:am|pm" */
-export function pickQuestion(ctx: UserContext, items: FeedItem[], briefing: string): PickedQuestion | null {
+/**
+ * 이 소식(들)과 관계있고 아직 모르는 질문 하나(없으면 null). day는 한국 날짜(새 질문은 하루에 하나, 이어 묻는 질문은 바로).
+ * 2026-11-11 사용자: 대놓고 묻지 말고 기사를 다 읽었을 때·다른 화면으로 넘어갈 때 귀찮지 않을 만큼만(components/context/ContextAsk.tsx)
+ */
+export function pickQuestion(ctx: UserContext, items: FeedItem[], day: string): PickedQuestion | null {
   const text = items.map((i) => `${i.title} ${i.short}`).join("\n");
-  const askedNow = ctx[ASKED]?.value === briefing;
+  const askedNow = ctx[ASKED]?.value === day;
   const skipUntil = Date.now() - SKIP_DAYS * 86_400_000;
   for (const q of CONTEXT_QUESTIONS) {
     const have = ctx[q.key];
     if (have && (have.value !== SKIP || Date.parse(have.updatedAt) > skipUntil)) continue;
     if (q.after && ctx[q.after.key]?.value !== q.after.value) continue;
-    // 새 질문은 브리핑마다 하나. 이어 묻는 질문은 바로
+    // 새 질문은 하루에 하나. 이어 묻는 질문은 바로
     if (!q.after && askedNow) continue;
     if (!q.trigger.test(text)) continue;
     return { key: q.key, ask: q.ask, about: q.about, options: q.options.map((o) => ({ value: o.value, label: o.label })) };
   }
   return null;
+}
+
+/** 이 답 뒤에 바로 이어 묻는 질문(주식 해요 → 국내·미국, 무주택 → 청약). 없으면 null */
+export function followUpOf(key: string, value: string): PickedQuestion | null {
+  const q = CONTEXT_QUESTIONS.find((c) => c.after?.key === key && c.after.value === value);
+  return q ? { key: q.key, ask: q.ask, about: q.about, options: q.options.map((o) => ({ value: o.value, label: o.label })) } : null;
 }

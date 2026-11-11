@@ -7,6 +7,7 @@ import { AppAdAttribution } from "@/components/app/AppAdAttribution";
 import { AppPushSync } from "@/components/app/AppPushSync";
 import { AppWidgetSync } from "@/components/app/AppWidgetSync";
 import { ListenAppNudge } from "@/components/app-install/ListenAppNudge";
+import { ContextToastHost } from "@/components/context/ContextAsk";
 import { ItemAudioHost } from "@/components/app/ItemAudioHost";
 import { ListenWidget } from "@/components/listen/ListenWidget";
 import { TourHost } from "@/components/today/FeatureTour";
@@ -46,6 +47,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <PlayerProvider profile={view}>
             {children}
             <ListenWidget initialCollapsed={listenCollapsed} inApp={inApp} />
+            {/* 기사에서 못 보고 넘어간 내 맞춤 정보 질문을 다음 화면 아래쪽에 한 번(2026-11-11) */}
+            <ContextToastHost />
             {/* 휴대폰 웹에서 화면이 꺼져 브리핑 듣기가 멈췄을 때 앱을 한 번 권한다 */}
             {!inApp && <ListenAppNudge />}
             {/* 글 하나 듣기의 잠금 화면 버튼·속도·목소리(화면을 옮겨도 이어지는 소리, lib/player/item-audio.ts) */}

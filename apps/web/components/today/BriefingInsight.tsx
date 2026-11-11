@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { answerContextAction } from "@/app/(app)/context-actions";
+import { useState } from "react";
 import { IconCheck, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
@@ -14,9 +12,6 @@ import { SECTION_LABEL, isSection } from "@maengo/core/sections";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight } from "@/lib/server/briefing-insight";
-import type { PickedQuestion } from "@/lib/server/user-context";
-import { SKIP } from "@/lib/context";
-import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * 오늘 화면 머리(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다 → 오늘의 흐름 한 줄이 큰 제목, 'OO님에게 맞춤 인사이트'라고 부른다).
@@ -24,17 +19,7 @@ import { Spinner } from "@/components/ui/Spinner";
  * 못 만들었으면 예전처럼 날짜 줄 → '출근길 브리핑' → 언론·기사 수.
  * 흐름은 서버가 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts). 만드는 동안은 같은 모양의 회색 줄(InsightFallback)
  */
-export function BriefingHero({
-  insight,
-  question = null,
-  briefing = "",
-}: {
-  insight: BriefingInsight | null;
-  /** 오늘 소식과 관계있는 내 맞춤 정보 질문(없으면 null, lib/server/user-context.ts pickQuestion) */
-  question?: PickedQuestion | null;
-  /** '날짜:am|pm'(새 질문은 브리핑마다 하나) */
-  briefing?: string;
-}) {
+export function BriefingHero({ insight }: { insight: BriefingInsight | null }) {
   const { data } = useToday();
   const pm = data.slot === "pm";
   const slotLabel = SLOT_LABEL[data.slot ?? "am"];
@@ -58,7 +43,7 @@ export function BriefingHero({
       <Basis insight={insight} pm={pm} />
       <Collected pm={pm} withDate />
       <Flows insight={insight} pm={pm} />
-      <MatchCheck insight={insight} question={question} briefing={briefing} />
+      <MatchCheck insight={insight} />
     </>
   );
 }
@@ -193,16 +178,16 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
 
 /**
  * OO님 맞춤 체크(2026-11-11 사용자: 체크가 눈에 안 띈다. 사용자 맞춤 체크 항목이어야 한다).
- * 망고색 블록: 내 맞춤 정보로 짚은 소식(예: 국내 주식 → 금리 인상의 영향) → 생활 속 확인할 것 → 오늘 소식과 관계있는 질문 하나(딸깍).
- * 셋 다 없으면 그리지 않는다
+ * 망고색 블록: 내 맞춤 정보로 짚은 소식(예: 국내 주식 → 금리 인상의 영향) → 생활 속 확인할 것. 둘 다 없으면 그리지 않는다.
+ * 내 맞춤 정보 질문은 여기서 묻지 않는다(대놓고 묻지 말라는 사용자 결정, components/context/ContextAsk.tsx)
  */
-function MatchCheck({ insight, question, briefing }: { insight: BriefingInsight; question: PickedQuestion | null; briefing: string }) {
+function MatchCheck({ insight }: { insight: BriefingInsight }) {
   const { data } = useToday();
   const { displayName } = useProfile();
   const name = displayName?.trim() || "회원";
   const personal = insight.personal ?? [];
   const checks = insight.checks.slice(0, 1);
-  if (!personal.length && !checks.length && !question) return null;
+  if (!personal.length && !checks.length) return null;
   const tokenOf = (id: number) => data.items.find((i) => i.clusterId === id)?.token;
   return (
     <section aria-labelledby="match-title" className="-mx-1.5 mt-4 rounded-[24px] bg-mango px-3 pb-3 pt-4 text-[#1F2340]">
@@ -248,49 +233,8 @@ function MatchCheck({ insight, question, briefing }: { insight: BriefingInsight;
             </p>
           );
         })}
-        {question && <AskCard key={question.key} q={question} briefing={briefing} />}
       </div>
     </section>
-  );
-}
-
-/** 내 맞춤 정보 질문(딸깍). 답하면 다시 그려 맞춤 체크가 그 답으로 바뀌고, 이어 묻는 질문이 있으면 바로 나온다 */
-function AskCard({ q, briefing }: { q: PickedQuestion; briefing: string }) {
-  const router = useRouter();
-  const [picked, setPicked] = useState<string | null>(null);
-  const [busy, start] = useTransition();
-  const answer = (value: string) =>
-    start(async () => {
-      setPicked(value);
-      const res = await answerContextAction(q.key, value, briefing);
-      if (res.ok) router.refresh();
-      else setPicked(null);
-    });
-  return (
-    <div className="rounded-[18px] bg-[#1F2340] px-4 pb-3 pt-3.5 text-white">
-      <p className="text-[12px] font-semibold text-mango">{q.about}이 있어서 여쭤봐요</p>
-      <p className="mt-1 text-[18px] font-bold tracking-[-0.025em]">{q.ask}</p>
-      <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={q.ask}>
-        {q.options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            disabled={busy}
-            aria-pressed={picked === o.value}
-            onClick={() => answer(o.value)}
-            className={`flex min-h-11 items-center gap-2 rounded-full px-4 text-[15px] font-bold active:scale-95 motion-reduce:active:scale-100 ${picked === o.value ? "bg-mango text-[#1F2340]" : "bg-white/12 text-white"}`}
-          >
-            {busy && picked === o.value && <Spinner />}
-            {o.label}
-          </button>
-        ))}
-      </div>
-      <div className="mt-1 flex justify-end">
-        <button type="button" disabled={busy} onClick={() => answer(SKIP)} className="min-h-10 px-1 text-[13px] font-semibold text-white/60">
-          나중에
-        </button>
-      </div>
-    </div>
   );
 }
 

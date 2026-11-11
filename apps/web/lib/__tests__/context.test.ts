@@ -1,25 +1,25 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { contextFacts, pickQuestion, type UserContext } from '../context';
+import { contextFacts, followUpOf, pickQuestion, type UserContext } from '../context';
 import type { FeedItem } from '../types';
 
 const item = (title: string, short = ''): FeedItem => ({ title, short } as FeedItem);
 const at = (value: string, updatedAt = new Date().toISOString()) => ({ value, updatedAt });
-const B = '2026-11-11:am';
+const B = '2026-11-11';
 
 test('주식 소식이 있고 모르면 "주식 하세요?"를 묻는다', () => {
   assert.equal(pickQuestion({}, [item('코스피 5000선 공방')], B)?.key, 'stock');
 });
 
-test('주식을 한다고 하면 같은 브리핑에서 바로 국내·미국을 이어 묻는다', () => {
+test('주식을 한다고 하면 같은 날에도 바로 국내·미국을 이어 묻는다', () => {
   const ctx: UserContext = { stock: at('yes'), _asked: at(B) };
   assert.equal(pickQuestion(ctx, [item('코스피 5000선 공방')], B)?.key, 'stock_market');
 });
 
-test('새 질문은 브리핑마다 하나만', () => {
+test('새 질문은 하루에 하나만', () => {
   const ctx: UserContext = { stock: at('no'), _asked: at(B) };
   assert.equal(pickQuestion(ctx, [item('코스피 급락'), item('비트코인 10만 달러')], B), null);
-  assert.equal(pickQuestion(ctx, [item('비트코인 10만 달러')], '2026-11-11:pm')?.key, 'crypto');
+  assert.equal(pickQuestion(ctx, [item('비트코인 10만 달러')], '2026-11-12')?.key, 'crypto');
 });
 
 test('관계있는 소식이 없으면 묻지 않는다', () => {
@@ -40,4 +40,10 @@ test('인사이트에 주는 사정: 답한 것만, 이어 묻는 답은 앞 답
     '변동금리 대출이 있어요',
   ]);
   assert.deepEqual(contextFacts({ stock: at('no'), stock_market: at('kr') }), ['주식은 안 해요']);
+});
+
+test('이어 묻는 질문', () => {
+  assert.equal(followUpOf('stock', 'yes')?.key, 'stock_market');
+  assert.equal(followUpOf('stock', 'no'), null);
+  assert.equal(followUpOf('home', 'none')?.key, 'apply');
 });

@@ -13,6 +13,8 @@ import { Bubble } from "@/components/ui/Bubble";
 import { BookmarkButton } from "@/components/ui/BookmarkButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { FeedItem } from "@/lib/types";
+import type { PickedQuestion } from "@/lib/context";
+import { ContextAskInline } from "@/components/context/ContextAsk";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { singleStarted, viaTodayPlayer } from "@/lib/player/route";
 import { useDock } from "@/lib/float-dock";
@@ -37,7 +39,18 @@ const CHOICES: { kind: FeedbackKind; label: string; Icon: typeof IconThumbUp }[]
  * 오늘 글은 오늘 전체 음성이 이미 있거나 전체 듣기가 돌고 있으면 오늘 플레이어로 듣는다.
  * 그 밖(지난 글, 아직 전체 음성이 없는 오늘 글)은 그 글 하나짜리 파일로 듣는다. 글 하나 들으려고 오늘 소식 전부의 음성을 만들지 않게.
  */
-export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isToday: boolean }) {
+export function ArticleView({
+  item: fromServer,
+  isToday,
+  question = null,
+  day = "",
+}: {
+  item: FeedItem;
+  isToday: boolean;
+  /** 이 소식과 관계있는 내 맞춤 정보 질문(기사 아래 작은 줄, components/context/ContextAsk.tsx) */
+  question?: PickedQuestion | null;
+  day?: string;
+}) {
   const { data, feedback, markRead, setFeedback, listenAccess, listened } = useToday();
   const index = isToday ? data.items.findIndex((i) => i.clusterId === fromServer.clusterId) : -1;
   // 오늘 글은 플랜 전환 등으로 바뀐 최신 내용을 쓴다
@@ -161,6 +174,9 @@ export function ArticleView({ item: fromServer, isToday }: { item: FeedItem; isT
             </p>
           ))}
         </article>
+
+        {/* 끝까지 읽은 자리에서 귀찮지 않게 한 번(하루에 하나): 내 맞춤 정보 질문 */}
+        <ContextAskInline question={question} day={day} />
 
         {item.scenes && (
           <section aria-labelledby="scenes-title" className="tile mt-8 p-4">
