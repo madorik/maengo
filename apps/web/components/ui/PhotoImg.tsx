@@ -28,12 +28,14 @@ export function PhotoImg({ src, size = "list", className }: { src: string; size?
   }, [near]);
 
   if (stage === 2) return null;
-  if (!near) return <span ref={ref} aria-hidden="true" className={`block shrink-0 ${className}`} />;
+  // data-photo: 사진 자리(받기 전 빈 자리 포함). 재생 단추가 이걸 보고 사진 가운데에 얹힌다(TodayList)
+  if (!near) return <span ref={ref} data-photo="" aria-hidden="true" className={`block shrink-0 ${className}`} />;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 언론사마다 주소가 달라 next/image 허용 목록에 넣을 수 없고, 최적화(복사본)를 만들지 않으려고
     <img
       src={stage === 0 && small ? small : src}
       alt=""
+      data-photo=""
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setStage((s) => (s === 0 ? 1 : 2))}

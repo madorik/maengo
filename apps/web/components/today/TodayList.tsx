@@ -176,13 +176,14 @@ function useFollowListening(ride: Ride | null) {
 }
 
 /** 소식 카드의 재생·일시정지(망고색 동그라미, 사진 위에서도 보이게 그림자) */
-function CardPlay({ playing, title, onClick, className = "" }: { playing: boolean; title: string; onClick: () => void; className?: string }) {
+function CardPlay({ playing, title, onClick, className = "", overlay = false }: { playing: boolean; title: string; onClick: () => void; className?: string; overlay?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={playing ? `${title} 일시정지` : `${title} 듣기`}
-      className={`flex size-9 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340] shadow-[0_2px_8px_rgb(31_35_64/0.28)] active:scale-95 motion-reduce:active:scale-100 ${className}`}
+      // 재생 단추: 망고색 대신 남색·흰 아이콘(2026-11-11 사용자: 주황색 넣지 말고 사진 가운데로). 사진 위(overlay)에서는 반투명
+      className={`flex size-9 shrink-0 items-center justify-center rounded-full text-white shadow-[0_2px_8px_rgb(31_35_64/0.25)] active:scale-95 motion-reduce:active:scale-100 ${overlay ? "bg-[#1F2340]/65 backdrop-blur-[2px]" : "bg-[#1F2340]"} ${className}`}
     >
       {playing ? <IconPause className="size-4" /> : <IconPlay className="ml-0.5 size-4" />}
     </button>
@@ -367,7 +368,7 @@ function Route({
                     playing={listening && !!ride?.playing}
                     title={item.title}
                     onClick={() => onToggle(i)}
-                    className="group-has-[img]/media:absolute group-has-[img]/media:bottom-1.5 group-has-[img]/media:right-1.5 group-has-[img]/media:size-8"
+                    className="group-has-[[data-photo]]/media:absolute group-has-[[data-photo]]/media:left-1/2 group-has-[[data-photo]]/media:top-1/2 group-has-[[data-photo]]/media:size-8 group-has-[[data-photo]]/media:-translate-x-1/2 group-has-[[data-photo]]/media:-translate-y-1/2 group-has-[[data-photo]]/media:bg-[#1F2340]/65 group-has-[[data-photo]]/media:backdrop-blur-[2px]"
                   />
                 )}
               </div>
@@ -520,11 +521,12 @@ function CardGrid({
                 <div
                   className={`relative overflow-hidden rounded-2xl ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "aspect-video" : "aspect-[4/3]"} ${pm ? "bg-white/10" : "bg-snow"} ${listening ? "ring-[3px] ring-mango" : ""}`}
                 >
-                  <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-semibold ${pm ? "text-white/50" : "text-faint"}`}>{label}</span>
+                  {/* 사진이 없을 때 자리 글자(분야). 가운데 재생 단추 아래로 */}
+                  <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-semibold ${onToggle ? "pt-[84px]" : ""} ${pm ? "text-white/50" : "text-faint"}`}>{label}</span>
                   <Thumb item={item} size="card" className="absolute inset-0 size-full" />
                 </div>
               </Link>
-              {onToggle && <CardPlay playing={listening && !!ride?.playing} title={item.title} onClick={() => onToggle(i)} className="absolute bottom-2 right-2" />}
+              {onToggle && <CardPlay playing={listening && !!ride?.playing} title={item.title} onClick={() => onToggle(i)} overlay className="absolute left-1/2 top-1/2 size-11 -translate-x-1/2 -translate-y-1/2" />}
             </div>
             <Link href={`/article/${item.token}`} aria-current={listening ? "true" : undefined} className="block no-underline">
               <Meta item={item} pm={pm} />
