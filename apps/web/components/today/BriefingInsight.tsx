@@ -1,9 +1,14 @@
 "use client";
 
-import { IconCheck } from "@/components/icons";
+import Link from "next/link";
+import { useState } from "react";
+import { IconCheck, IconPlay } from "@/components/icons";
+import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { CountUp } from "@/components/ui/CountUp";
+import { Sheet } from "@/components/ui/Sheet";
+import { SECTION_LABEL, isSection } from "@maengo/core/sections";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight } from "@/lib/server/briefing-insight";
@@ -35,6 +40,7 @@ export function BriefingHero({ insight }: { insight: BriefingInsight | null }) {
       <h1 id="briefing-title" className="mt-1.5 text-[25px] font-bold leading-[1.3] tracking-[-0.035em] text-balance">
         {insight.headline}
       </h1>
+      <Basis insight={insight} pm={pm} />
       <Collected pm={pm} withDate />
       <Flows insight={insight} pm={pm} />
     </>
@@ -46,6 +52,23 @@ function ForYou({ pm }: { pm: boolean }) {
   const { displayName } = useProfile();
   const name = displayName?.trim() || "회원";
   return <p className={`text-[13px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>{name}님에게 맞춤 인사이트</p>;
+}
+
+/**
+ * 무엇을 바탕으로 엮었는지(2026-11-11 사용자: 나한테 맞춤인지 확인이 안 된다). 서버가 DB에서 센 값(자주 보는 분야, 최근 7일 읽거나 들은 소식 수)
+ * 예: 'OO님이 자주 보는 경제·IT/과학 분야와 이번 주 본 소식 12개를 바탕으로 엮었어요.'
+ */
+function Basis({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
+  const { displayName } = useProfile();
+  const b = insight.basis;
+  if (!b || (!b.sections.length && !b.recent)) return null;
+  const name = displayName?.trim() || "회원";
+  const parts = [b.sections.length ? `자주 보는 ${b.sections.join("·")} 분야` : "", b.recent ? `이번 주 본 소식 ${b.recent}개` : ""].filter(Boolean);
+  return (
+    <p className={`mt-2 text-[14px] font-medium leading-snug ${pm ? "text-white/85" : "text-ink/80"}`}>
+      {name}님이 {parts.join("와 ")}를 바탕으로 엮었어요.
+    </p>
+  );
 }
 
 /** '11월 11일 수요일 출근길'(때를 가리키는 끝말은 떼고 출근길·퇴근길을 붙인다) */
@@ -90,25 +113,16 @@ function photosOf(ids: number[], items: FeedItem[]): string[] {
 /** 카드 바탕을 번갈아(남색·망고·흰색). 퇴근길(남색 바탕)은 망고·반투명·흰색 */
 const TONES = {
   am: [
-    { card: "bg-[#1F2340] text-white", sub: "text-white/75", count: "text-mango", ring: "ring-[#1F2340]" },
-    { card: "bg-mango text-[#1F2340]", sub: "text-[#1F2340]/75", count: "text-[#1F2340]", ring: "ring-mango" },
-    { card: "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]", sub: "text-sub", count: "text-mango-deep", ring: "ring-paper" },
+    { card: "bg-[#1F2340] text-white", sub: "text-white/75", count: "text-mango", ring: "ring-[#1F2340]", tag: "bg-white/12 text-mango" },
+    { card: "bg-mango text-[#1F2340]", sub: "text-[#1F2340]/75", count: "text-[#1F2340]", ring: "ring-mango", tag: "bg-[#1F2340]/10 text-[#1F2340]" },
+    { card: "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]", sub: "text-sub", count: "text-mango-deep", ring: "ring-paper", tag: "bg-mango-tint text-mango-deep" },
   ],
   pm: [
-    { card: "bg-mango text-[#1F2340]", sub: "text-[#1F2340]/75", count: "text-[#1F2340]", ring: "ring-mango" },
-    { card: "bg-white/10 text-white", sub: "text-white/70", count: "text-mango", ring: "ring-[#2B2F4E]" },
-    { card: "bg-white text-[#1F2340]", sub: "text-[#1F2340]/70", count: "text-mango-deep", ring: "ring-white" },
+    { card: "bg-mango text-[#1F2340]", sub: "text-[#1F2340]/75", count: "text-[#1F2340]", ring: "ring-mango", tag: "bg-[#1F2340]/10 text-[#1F2340]" },
+    { card: "bg-white/10 text-white", sub: "text-white/70", count: "text-mango", ring: "ring-[#2B2F4E]", tag: "bg-white/12 text-mango" },
+    { card: "bg-white text-[#1F2340]", sub: "text-[#1F2340]/70", count: "text-mango-deep", ring: "ring-white", tag: "bg-mango-tint text-mango-deep" },
   ],
 } as const;
-
-/** 소식 카드로 내려가 잠깐 빛낸다(노선·카드 보기 모두 data-cluster) */
-function goToStory(id: number) {
-  const el = document.querySelector<HTMLElement>(`[data-cluster="${id}"]`);
-  if (!el) return;
-  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-  el.animate?.([{ backgroundColor: "rgb(255 194 61 / 0.32)" }, { backgroundColor: "rgb(255 194 61 / 0)" }], { duration: 1600, easing: "ease-out", delay: reduce ? 0 : 350 });
-}
 
 /**
  * 흐름 카드(2026-11-11 사용자: 회색 상자·노란 막대 목록은 너무 구리다 → 옆으로 넘기는 카드).
@@ -117,6 +131,9 @@ function goToStory(id: number) {
  */
 function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
   const { data } = useToday();
+  /** 열어 본 흐름(상세 시트) */
+  const [open, setOpen] = useState<number | null>(null);
+  const opened = open === null ? null : insight.flows[open];
   return (
     <>
       <ul aria-label="오늘의 흐름" className="-mx-5 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-5 px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -125,8 +142,15 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
           const photos = photosOf(f.ids, data.items);
           return (
             <li key={f.title} className="w-[80%] max-w-[300px] shrink-0 snap-start">
-              <button type="button" onClick={() => goToStory(f.ids[0]!)} className={`flex h-full w-full flex-col rounded-[22px] px-5 pb-4 pt-5 text-left ${tone.card}`}>
-                <span className="text-[19px] font-bold leading-[1.3] tracking-[-0.035em] text-balance">{f.title}</span>
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                onClick={() => setOpen(k)}
+                className={`flex h-full w-full flex-col rounded-[22px] px-5 pb-4 pt-4 text-left active:scale-[0.98] motion-reduce:active:scale-100 ${tone.card}`}
+              >
+                {/* 이 사람과의 연결(회원 기록에서, 없으면 안 그린다) */}
+                {f.tag && <span className={`mb-2.5 inline-flex self-start rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone.tag}`}>{f.tag}</span>}
+                <span className={`text-[19px] font-bold leading-[1.3] tracking-[-0.035em] text-balance ${f.tag ? "" : "mt-1"}`}>{f.title}</span>
                 <span className={`mt-2 line-clamp-3 text-[14px] leading-[1.55] ${tone.sub}`}>{f.text}</span>
                 <span className="mt-auto flex items-center gap-2 pt-4">
                   {photos.length > 0 && (
@@ -137,25 +161,112 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
                       ))}
                     </span>
                   )}
-                  <span className={`text-[13px] font-semibold ${tone.count}`}>소식 {f.ids.length}개</span>
+                  <span className={`text-[13px] font-semibold ${tone.count}`}>소식 {f.ids.length}개 · 자세히</span>
                 </span>
               </button>
             </li>
           );
         })}
       </ul>
-      {insight.checks.map((c) => (
-        <button
-          key={c.text}
-          type="button"
-          onClick={() => goToStory(c.id)}
-          className={`-mx-1.5 mt-3 flex w-[calc(100%+0.75rem)] items-start gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-medium leading-relaxed ${pm ? "bg-mango/15 text-white" : "bg-mango-tint text-ink"}`}
-        >
-          <IconCheck className={`mt-[3px] size-4 shrink-0 [stroke-width:3] ${pm ? "text-mango" : "text-mango-deep"}`} />
-          <span>{c.text}</span>
-        </button>
-      ))}
+      {/* 확인할 것: 오늘 화면엔 가장 중요한 하나만(둘이면 화면을 너무 차지한다). 누르면 근거 소식의 상세로 */}
+      {insight.checks.slice(0, 1).map((c) => {
+        const item = data.items.find((i) => i.clusterId === c.id);
+        const cls = `-mx-1.5 mt-3 flex w-[calc(100%+0.75rem)] items-start gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-medium leading-relaxed no-underline ${pm ? "bg-mango/15 text-white" : "bg-mango-tint text-ink"}`;
+        const body = (
+          <>
+            <IconCheck className={`mt-[3px] size-4 shrink-0 [stroke-width:3] ${pm ? "text-mango" : "text-mango-deep"}`} />
+            <span>{c.text}</span>
+          </>
+        );
+        return item ? (
+          <Link key={c.text} href={`/article/${item.token}`} className={cls}>
+            {body}
+          </Link>
+        ) : (
+          <p key={c.text} className={cls}>
+            {body}
+          </p>
+        );
+      })}
+      <Sheet title={opened?.title ?? ""} open={!!opened} onClose={() => setOpen(null)}>
+        {opened && <FlowDetail flow={opened} onClose={() => setOpen(null)} />}
+      </Sheet>
     </>
+  );
+}
+
+/**
+ * 흐름 상세(시트, 2026-11-11 사용자: 누르면 상세를 볼 수 있어야 한다).
+ * 왜 OO님에게(회원 기록 근거) → 흐름 설명 → 지켜볼 것 → 묶인 소식(누르면 소식 상세) → 이 흐름부터 듣기
+ */
+function FlowDetail({ flow, onClose }: { flow: BriefingInsight["flows"][number]; onClose: () => void }) {
+  const { data, listenAccess } = useToday();
+  const { displayName } = useProfile();
+  const p = usePlayer();
+  const name = displayName?.trim() || "회원";
+  const related = flow.ids.map((id) => data.items.find((i) => i.clusterId === id)).filter((i): i is FeedItem => !!i);
+  const canListen = p.enabled && related.some((i) => listenAccess(i.clusterId) !== null);
+  return (
+    <div className="pb-2">
+      {flow.why && (
+        <div className="rounded-2xl bg-mango-tint px-4 py-3">
+          <p className="text-[12px] font-bold text-mango-deep">왜 {name}님에게</p>
+          <p className="mt-1 text-[15px] font-medium leading-relaxed text-ink">{flow.why}</p>
+        </div>
+      )}
+      <p className="mt-4 text-[16px] leading-[1.7] text-ink">{flow.text}</p>
+      {!!flow.watch?.length && (
+        <div className="mt-5">
+          <p className="text-[13px] font-bold text-sub">지켜볼 것</p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {flow.watch.map((w) => (
+              <li key={w} className="flex gap-2 text-[15px] leading-relaxed text-ink">
+                <span aria-hidden="true" className="mt-[9px] size-1.5 shrink-0 rounded-full bg-mango" />
+                <span>{w}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="mt-6 text-[13px] font-bold text-sub">묶인 소식 {related.length}개</p>
+      <ul className="mt-2 flex flex-col">
+        {related.map((i) => {
+          const section = i.section && isSection(i.section) ? SECTION_LABEL[i.section] : null;
+          const photo = i.photo?.url ?? i.thumbnail;
+          return (
+            <li key={i.clusterId} className="border-t border-line first:border-t-0">
+              <Link href={`/article/${i.token}`} onClick={onClose} className="flex items-start gap-3 py-3 no-underline">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-semibold text-sub">
+                    {section}
+                    {(i.sourceCount ?? 0) >= 2 && ` · 언론 ${i.sourceCount}곳`}
+                  </span>
+                  <span className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-ink">{i.title}</span>
+                  <span className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-sub">{i.short}</span>
+                </span>
+                {photo && (
+                  // eslint-disable-next-line @next/next/no-img-element -- 원문 사진 주소(언론사마다 달라 next/image 허용 목록에 넣을 수 없다)
+                  <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" className="aspect-[3/2] w-[84px] shrink-0 rounded-xl object-cover" />
+                )}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      {canListen && related[0] && (
+        <button
+          type="button"
+          onClick={() => {
+            // 듣기는 누른 손짓 안에서 건다(iOS). 시트를 닫으면 오늘 화면이 듣는 소식으로 내려간다
+            p.playFrom(related[0]!.clusterId);
+            onClose();
+          }}
+          className="btn btn-ink mt-4 w-full gap-2"
+        >
+          <IconPlay className="size-[18px]" />이 흐름부터 듣기
+        </button>
+      )}
+    </div>
   );
 }
 

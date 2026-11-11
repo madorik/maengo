@@ -40,7 +40,7 @@ export default function TodayPage() {
 async function TodayInsight() {
   const profile = await requireProfile();
   const data = await getTodayData(profile);
-  const insight = await briefingInsight(profile.id, data).catch((e: unknown) => {
+  const insight = await briefingInsight(profile, data).catch((e: unknown) => {
     console.error("[today] 오늘의 흐름 실패", String((e as Error)?.message ?? e).slice(0, 200));
     return null;
   });
