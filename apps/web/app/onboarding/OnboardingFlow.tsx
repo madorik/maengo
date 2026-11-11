@@ -1,57 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/Mascot";
-import { SECTIONS, SECTION_LABEL, type SectionId } from "@maengo/core/sections";
+import { SECTIONS, type SectionId } from "@maengo/core/sections";
 import { completeOnboarding } from "@/app/actions";
 import type { OnboardingPick } from "@/lib/server/onboarding-picks";
-import { OnboardingSubmit } from "./OnboardingSubmit";
 import type { YoutubeSections } from "@/lib/youtube-sections";
+import { track } from "@/lib/analytics";
+import { registerThisBrowser } from "@/lib/web-push";
 
 /**
  * 온보딩(2026-11-10 사용자 '키워드를 고르게 하지 말고 맹고가 찾아 주기'):
- *   1. 분야마다 하나씩 뽑은 오늘 소식 중 끌리는 것을 누른다(2개 이상)
- *   2. 찾는 중(잠깐)
- *   3. 찾았어요: 고른 분야를 앞에(세부 관심사와 함께), 나머지 분야는 이슈도가 높은 소식만. '이대로 시작하기'로 분야 비중을 저장한다
- * 건너뛰면 모든 분야를 같게 두고(분야마다 하루 하나씩 돌아가며) 시작한다. 고른 비중은 듣고 넘기는 행동으로 계속 맞춘다
+ *   1. 분야마다 하나씩 뽑은 소식 중 끌리는 것을 누른다(2개 이상)
+ *   2. 찾는 중(잠깐) — 그동안 분야 비중을 저장하고 오늘 화면으로 간다
+ * '찾았어요' 결과 화면은 뺐다(2026-11-11 사용자 '이 페이지는 없어도 돼'). 유튜브 구독으로 찾았으면 고르기 없이 찾는 중부터.
+ * 건너뛰면 모든 분야를 같게 두고 시작한다. 고른 비중은 듣고 넘기는 행동으로 계속 맞춘다
  */
 export function OnboardingFlow({ picks, youtube = null }: { picks: OnboardingPick[]; youtube?: YoutubeSections | null }) {
-  // 유튜브 구독으로 찾았으면 결과부터('다시 고르기'를 누르면 소식 고르기로)
-  const [step, setStep] = useState<"pick" | "finding" | "result">(youtube ? "result" : "pick");
-  const [fromYoutube, setFromYoutube] = useState(!!youtube);
+  // 유튜브 구독으로 찾았으면 고르기 없이 찾는 중부터(그 비중으로 저장)
+  const [step, setStep] = useState<"pick" | "finding">(youtube ? "finding" : "pick");
   const [picked, setPicked] = useState<number[]>([]);
+  /** 알림 권한을 받아 이 기기를 등록했는지(서버가 알림을 켠 채로 시작한다, actions.ts finishOnboarding) */
+  const [pushOn, setPushOn] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const chosen = picks.filter((p) => picked.includes(p.clusterId));
+  const weights = youtube ? new Map(Object.entries(youtube.weights) as [SectionId, number][]) : sectionWeights(chosen);
+  // 찾는 중을 잠깐 보여 준 뒤 저장한다(completeOnboarding이 오늘 화면으로 보낸다)
   useEffect(() => {
     if (step !== "finding") return;
-    const t = window.setTimeout(() => setStep("result"), 1600);
+    const t = window.setTimeout(() => formRef.current?.requestSubmit(), 1600);
     return () => window.clearTimeout(t);
   }, [step]);
-  const chosen = picks.filter((p) => picked.includes(p.clusterId));
-  const weights = sectionWeights(chosen);
 
-  if (step === "finding") return <Finding picked={new Set(chosen.map((c) => c.section))} />;
-  if (step === "result" && fromYoutube && youtube) {
-    const yw = new Map(Object.entries(youtube.weights) as [SectionId, number][]);
-    const details = new Map(Object.entries(youtube.channels) as [SectionId, string[]][]);
+  if (step === "finding")
     return (
-      <Result
-        weights={yw}
-        detailsOf={(id) => details.get(id) ?? []}
-        lead="유튜브 구독 채널에서 찾았어요"
-        onBack={() => {
-          setFromYoutube(false);
-          setStep("pick");
-        }}
-      />
-    );
-  }
-  if (step === "result")
-    return (
-      <Result
-        weights={weights}
-        detailsOf={(id) => [...new Set(chosen.filter((c) => c.section === id && c.detail).map((c) => c.detail!))]}
-        lead="이 순서로 먼저 들려 드릴게요"
-        onBack={() => setStep("pick")}
-      />
+      <>
+        <Finding picked={new Set(weights.keys())} />
+        <form ref={formRef} action={completeOnboarding} hidden>
+          <input type="hidden" name="mode" value="sections" />
+          <input type="hidden" name="push" value={pushOn ? "on" : ""} />
+          {[...weights].map(([id, w]) => (
+            <input key={id} type="hidden" name="section" value={`${id}:${w.toFixed(2)}`} />
+          ))}
+        </form>
+      </>
     );
 
   // 2026-11-11 사용자 '선택 페이지가 너무 별로, 선택하고 싶어지지도 않는다': 사진을 꽉 채운 카드 위에 분야 이름을 크게, 제목은 아래 두 줄로.
@@ -108,8 +101,17 @@ export function OnboardingFlow({ picks, youtube = null }: { picks: OnboardingPic
         <div className="mx-auto max-w-[528px]">
           <button
             type="button"
-            disabled={n < 2}
-            onClick={() => setStep("finding")}
+            disabled={n < 2 || asking}
+            onClick={async () => {
+              // 누를 때 알림 권한을 묻고(앱은 기기 창, 웹은 브라우저 창) 허용하면 이 기기를 등록한다. 예전 '이대로 시작하기'(OnboardingSubmit)가 하던 일
+              track("onboarding_complete", { topics: n });
+              setAsking(true);
+              const r = await registerThisBrowser().catch(() => ({ ok: false as const }));
+              track("notify_toggle", { on: r.ok, group: "onboarding" });
+              setPushOn(r.ok);
+              setAsking(false);
+              setStep("finding");
+            }}
             className="flex h-[60px] w-full items-center justify-center gap-1.5 rounded-full bg-ink text-[16px] font-bold text-paper disabled:bg-snow disabled:text-sub disabled:shadow-[0_0_0_1px_var(--color-line)]"
           >
             {n >= 2 ? (
@@ -166,72 +168,5 @@ function Finding({ picked }: { picked: Set<string> }) {
         관심사를 찾고 있어요
       </h1>
     </div>
-  );
-}
-
-function Result({ weights, detailsOf, lead, onBack }: { weights: Map<SectionId, number>; detailsOf: (id: SectionId) => string[]; lead: string; onBack: () => void }) {
-  const ranked = [...weights.entries()].sort((a, b) => b[1] - a[1]);
-  const rest = SECTIONS.filter((s) => !weights.has(s.id));
-  const max = Math.max(...ranked.map(([, w]) => w), 1);
-  return (
-    <form action={completeOnboarding} className="mx-auto flex min-h-dvh max-w-[560px] flex-col px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-[max(40px,env(safe-area-inset-top))]">
-      <input type="hidden" name="mode" value="sections" />
-      {ranked.map(([id, w]) => (
-        <input key={id} type="hidden" name="section" value={`${id}:${w.toFixed(2)}`} />
-      ))}
-      <div className="flex items-center gap-3.5 px-2">
-        <Mascot mood="cheer" className="pop size-16 shrink-0" />
-        <div>
-          <h1 className="text-[26px] font-bold tracking-[-0.04em]">찾았어요!</h1>
-          <p className="mt-0.5 text-[14px] font-medium text-sub">{lead}</p>
-        </div>
-      </div>
-      <ol aria-label="찾은 관심사" className="mt-6 rounded-3xl bg-snow px-4 py-1.5">
-        {ranked.map(([id, w], i) => {
-          const details = detailsOf(id);
-          const level = Math.max(1, Math.round((w / max) * 4));
-          return (
-            <li key={id} className="flex items-center gap-3 border-b border-line py-3.5">
-              <span className="w-[18px] font-round text-[15px] font-black text-mango-dark">{i + 1}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[17px] font-bold">{SECTION_LABEL[id]}</p>
-                {details.length > 0 && (
-                  <p className="mt-1 flex flex-wrap gap-1.5">
-                    {details.map((d) => (
-                      <span key={d} className="rounded-full bg-paper px-2.5 py-0.5 text-[12px] font-semibold text-sub">
-                        {d}
-                      </span>
-                    ))}
-                  </p>
-                )}
-              </div>
-              <span role="img" aria-label={`관심 정도 4단계 중 ${level}`} className="flex h-[18px] items-end gap-[3px]">
-                {[8, 11, 14, 18].map((h, k) => (
-                  <span key={h} className={`w-1.5 rounded-sm ${k < level ? "bg-mango" : "bg-line"}`} style={{ height: h }} />
-                ))}
-              </span>
-            </li>
-          );
-        })}
-        {rest.length > 0 && (
-          <li className="py-3.5">
-            <p className="text-[13px] font-semibold text-sub">이슈도가 높은 소식만</p>
-            <p className="mt-2 flex flex-wrap gap-1.5">
-              {rest.map((s) => (
-                <span key={s.id} className="rounded-full bg-paper px-3 py-1 text-[13px] font-semibold text-sub">
-                  {s.label}
-                </span>
-              ))}
-            </p>
-          </li>
-        )}
-      </ol>
-      <div className="mt-auto flex flex-col gap-1 pt-6">
-        <OnboardingSubmit label="이대로 시작하기" />
-        <button type="button" onClick={onBack} className="min-h-11 text-[14px] font-semibold text-sub">
-          다시 고르기
-        </button>
-      </div>
-    </form>
   );
 }

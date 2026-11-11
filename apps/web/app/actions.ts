@@ -145,7 +145,7 @@ async function saveSectionWeights(userId: string, entries: string[]) {
 
 /** 온보딩 마치기: 알림을 켤 수 있으면 켜고, 온보딩 끝으로 표시하고 오늘(또는 체험 안내)로 */
 async function finishOnboarding(userId: string, formData: FormData): Promise<never> {
-  // '시작하기'를 누를 때 알림 권한을 받아 이 기기를 등록했으면(OnboardingSubmit) 알림을 켠 채로 시작한다(2026-10-23 사용자 결정).
+  // 온보딩에서 '내 관심사 찾기'를 누를 때 알림 권한을 받아 이 기기를 등록했으면(OnboardingFlow) 알림을 켠 채로 시작한다(2026-10-23 사용자 결정).
   // 설정의 알림 켜기와 같이 등록된 기기가 있을 때만 켠다. 시간은 기본값(출근길 오전 7시·퇴근길 오후 6시), 설정에서 바꾼다
   const profile = { id: userId };
   let pushEnabled = false;
