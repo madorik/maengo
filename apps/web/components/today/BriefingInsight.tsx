@@ -337,7 +337,8 @@ function FlowDetail({ flow, onClose }: { flow: BriefingInsight["flows"][number];
 export function InsightFallback() {
   const { data } = useToday();
   const pm = data.slot === "pm";
-  const bar = `rounded-full motion-safe:animate-pulse ${pm ? "bg-white/15" : "bg-line"}`;
+  // 로딩 뼈대와 같은 빛 지나가기(globals.css sk·sk-night, 2026-11-11 로딩 A안)
+  const bar = `rounded-full ${pm ? "sk-night" : "sk"}`;
   return (
     <>
       <ForYou pm={pm} />
@@ -350,15 +351,18 @@ export function InsightFallback() {
       </h1>
       <Collected pm={pm} withDate />
       <div aria-hidden="true" className="-mx-5 mt-4 flex gap-3 overflow-hidden px-5">
-        {[0, 1].map((k) => (
-          <div key={k} className={`w-[80%] max-w-[300px] shrink-0 rounded-[22px] px-5 pb-5 pt-5 ${pm ? "bg-white/10" : "bg-snow"}`}>
-            <div className={`h-5 w-3/5 ${bar}`} />
-            <div className={`mt-3 h-3 w-full ${bar}`} />
-            <div className={`mt-2 h-3 w-11/12 ${bar}`} />
-            <div className={`mt-2 h-3 w-3/5 ${bar}`} />
-            <div className={`mt-6 h-3 w-1/4 ${bar}`} />
-          </div>
-        ))}
+        {[0, 1].map((k) => {
+          const inner = `rounded-full ${pm ? "sk-night" : k === 0 ? "sk-ink" : "sk-mango"}`;
+          return (
+            <div key={k} className={`w-[80%] max-w-[300px] shrink-0 rounded-[22px] px-5 pb-5 pt-5 ${pm ? "bg-white/10" : k === 0 ? "sk-card-ink" : "bg-mango-tint"}`}>
+              <div className={`h-5 w-3/5 ${inner}`} />
+              <div className={`mt-3 h-3 w-full ${inner}`} />
+              <div className={`mt-2 h-3 w-11/12 ${inner}`} />
+              <div className={`mt-2 h-3 w-3/5 ${inner}`} />
+              <div className={`mt-6 h-3 w-1/4 ${inner}`} />
+            </div>
+          );
+        })}
       </div>
     </>
   );
