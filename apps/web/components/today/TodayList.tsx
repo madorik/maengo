@@ -25,7 +25,7 @@ import type { FeedItem } from "@/lib/types";
  * 남색 듣기 막대, 아래는 노선(소식이 정거장, 망고가 지금 위치) 또는 사진 카드. 퇴근길은 남색 바탕.
  * 사용자가 고른 보기(노선·카드)는 이 기기에 남긴다. notice는 맨 위 결제 안내 띠(서버가 그린다, today/page.tsx)
  */
-export function TodayList({ notice }: { notice?: React.ReactNode }) {
+export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** 오늘의 흐름(서버가 Suspense로 끼운다, today/page.tsx) */ insight?: React.ReactNode }) {
   const { data, game, consumed } = useToday();
   const player = usePlayer();
   const { expect, settle } = useMoreArrival(data.items.map((i) => i.clusterId));
@@ -114,6 +114,8 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
           )}
         </section>
 
+        {/* 오늘의 흐름: 받은 소식을 엮은 한 장(2026-11-11). 듣기 전에 오늘 무슨 일이 있는지 */}
+        {game.total > 0 && insight}
         {game.total > 0 && <ListenBar pm={pm} label={`${slotLabel} 브리핑 듣기`} />}
         {game.total > 0 && remaining > 0 && <FillToday remaining={remaining} onExpect={expect} onSettle={settle} />}
 
@@ -344,7 +346,7 @@ function Route({
         const here = i === at;
         const big = i === 0;
         return (
-          <li key={item.clusterId} data-stop="28" data-listen-index={i} className={`flex gap-3 ${FOLLOW_MARGIN}`} data-tour={i === 0 ? "card" : undefined}>
+          <li key={item.clusterId} data-stop="28" data-listen-index={i} data-cluster={item.clusterId} className={`flex gap-3 ${FOLLOW_MARGIN}`} data-tour={i === 0 ? "card" : undefined}>
             <div className="relative w-8 shrink-0">
               <span aria-hidden="true" className="absolute left-[13px] top-0 h-7 w-1.5" style={{ background: i <= at ? passed : line }} />
               <span aria-hidden="true" className="absolute bottom-0 left-[13px] top-7 w-1.5" style={{ background: i < at ? passed : line }} />
@@ -530,6 +532,7 @@ function CardGrid({
           <li
             key={item.clusterId}
             data-listen-index={i}
+            data-cluster={item.clusterId}
             data-tour={i === 0 ? "card" : undefined}
             className={`${FOLLOW_MARGIN} ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "col-span-2" : ""}`}
           >
