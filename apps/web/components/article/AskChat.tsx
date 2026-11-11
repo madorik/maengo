@@ -363,7 +363,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
           className="flex items-end gap-2"
         >
           <label htmlFor="ask-text" className="sr-only">
-            맹고 AI에게 물어볼 말
+            이 소식에 대해 물어볼 말
           </label>
           <textarea
             id="ask-text"

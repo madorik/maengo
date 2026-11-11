@@ -28,7 +28,7 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
  * 재생·멈춤은 펼치지 않고 버튼에서 바로 할 수 있다. 플레이어는 (app) 레이아웃에 있어 화면을 옮겨도 이어진다.
  * 플레이리스트를 듣는 동안은 "플레이리스트"로 바뀌고, 맨 아래 버튼으로 오늘 소식 듣기로 돌아온다.
  * ✕로 작은 망고 버튼으로 접고, 그 버튼을 누르면 다시 편다. 접어 둔 상태는 쿠키에 두어 다음에 열어도 그대로다.
- * 글 화면은 아래 '이 글 듣기' 막대가 있어서 플레이어가 돌고 있을 때만 띄운다. 그 밖에는 그 자리를 맹고 AI 버튼(components/article/AskDock.tsx)에 준다
+ * 글 화면에는 띄우지 않는다(2026-11-11, 예전엔 플레이어가 돌 때만 띄웠다). 그 자리는 물어보기 버튼(components/article/AskDock.tsx)이 쓴다
  * (2026-11-03 사용자 결정). 띄웠는지는 lib/float-dock.ts로 알려 맹고 AI 버튼이 그 위로 올라가게 하고, 두 창은 한 번에 하나만 편다.
  * 앱(inApp)에서는 창 대신 화면을 꽉 채우는 시트(components/ui/Sheet.tsx full)로 연다(2026-10-19 사용자 결정): 끌어 내리기·안드로이드 뒤로 가기로 닫힌다.
  * 오늘 카드의 '전체 듣기'를 누르면 접혀 있어도 펴서 재생 목록 탭으로 연다(2026-11-09 사용자 결정, lib/float-dock.ts requestPlayerOpen).
@@ -68,9 +68,9 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   }, [open]);
 
   const playing = p.status === "playing";
-  // 글 화면에서는 플레이어가 돌고 있을 때(재생·멈춤·음성 기다림)만 띄운다
-  const live = playing || p.status === "paused" || p.preparing;
-  const hidden = pathname.startsWith("/listen") || (!game.total && !p.playlist) || (onArticle && !live);
+  // 글 화면에서는 띄우지 않는다(2026-11-11 사용자: 브리핑을 듣다 글을 열면 물어보기와 플레이어 버튼 둘이 떠서 플레이어는 가린다).
+  // 글 화면에서는 아래 '이 글 듣기' 막대로 듣고 멈춘다. 브리핑은 그대로 이어서 들린다
+  const hidden = pathname.startsWith("/listen") || (!game.total && !p.playlist) || onArticle;
   useEffect(() => {
     setPlayerDocked(!hidden);
   }, [hidden]);

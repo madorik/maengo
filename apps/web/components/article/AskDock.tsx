@@ -69,12 +69,15 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
       aria-expanded={open}
       aria-haspopup={inApp ? "dialog" : undefined}
       aria-controls={open && !inApp ? "ask-window" : undefined}
-      aria-label={open && !inApp ? "맹고 AI 창 닫기" : "맹고 AI에게 물어보기"}
-      className={`pop tile pointer-events-auto relative flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${open ? "border-mango" : ""}`}
+      aria-label={open && !inApp ? "물어보기 창 닫기" : "이 소식에 대해 물어보기"}
+      className={`pop tile pointer-events-auto relative flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${open ? "border-mango" : ""}`}
     >
-      {/* AI 반짝이(2026-11-11 사용자: 맹고 얼굴 대신 제미나이 같은 AI 아이콘, 'AI' 꼬리표는 반짝이가 대신해서 뺌) */}
-      <span className="flex size-12 items-center justify-center rounded-full bg-snow">
-        <AiSparkle className="size-8" />
+      {/* AI 반짝이 + '물어보기'(2026-11-11 사용자: 맹고 얼굴 대신 제미나이 같은 AI 아이콘, 'AI'라고 쓰지 말고 '물어보기') */}
+      <span className="flex size-11 items-center justify-center rounded-full bg-snow">
+        <AiSparkle className="size-7" />
+      </span>
+      <span aria-hidden="true" className="text-[15px] font-bold tracking-[-0.02em]">
+        물어보기
       </span>
     </button>
   );
@@ -82,7 +85,7 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
   if (inApp) {
     return (
       <>
-        <Sheet title="맹고 AI" open={open} onClose={() => setOpen(false)}>
+        <Sheet title="물어보기" open={open} onClose={() => setOpen(false)}>
           {open && (
             <>
               <p className="-mt-1 mb-3 truncate text-[13px] font-bold text-sub">{item.title}</p>
@@ -110,11 +113,11 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
             </span>
             <div className="min-w-0 flex-1">
               <h2 id="ask-window-title" className="text-[16px] font-black">
-                맹고 AI
+                물어보기
               </h2>
               <p className="truncate text-[12px] font-bold text-sub">{item.title}</p>
             </div>
-            <button type="button" aria-label="맹고 AI 창 닫기" onClick={close} className="flex size-11 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
+            <button type="button" aria-label="물어보기 창 닫기" onClick={close} className="flex size-11 shrink-0 items-center justify-center rounded-xl text-faint hover:bg-snow hover:text-sub">
               <IconChevronDown className="size-6" />
             </button>
           </header>

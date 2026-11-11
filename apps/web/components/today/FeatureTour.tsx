@@ -47,7 +47,7 @@ function steps(audio: boolean, dailyListens: number): Step[] {
     {
       page: "article",
       target: '[data-tour="ask"]',
-      title: "궁금한 건 맹고 AI에게 물어요",
+      title: "궁금한 건 바로 물어봐요",
       body: "이 버튼을 누르면 지금 보는 소식에 대해 무엇이든 물어볼 수 있어요. 말로 물어도 돼요.",
     },
     {
