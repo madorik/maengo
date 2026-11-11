@@ -1,14 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { MangoIcon } from "@/components/MangoIcon";
 import { IconClose } from "@/components/icons";
 import { track } from "@/lib/analytics";
-import { hiddenRecently, hideFor7Days, installHref, isIosSafari, isMobileWeb } from "@/lib/app-install";
+import { hiddenRecently, hideFor7Days, installHref, isIosSafari, isMobileWeb, markNudgeClosed, markNudgeShown, nudgeAllowed } from "@/lib/app-install";
 
 // 휴대폰 웹의 로그인 전 화면 맨 위 띠(2026-11-11, lib/app-install.ts). 소개·둘러보기·공유받은 소식·분야 페이지에만.
 // iPhone 사파리는 애플 기본 배너가 같은 자리에 떠서 숨긴다. 닫으면 7일 동안 안 보인다.
+// 다른 앱 권유와 합쳐 하루 한 번(이 화면을 처음 그릴 때 정한다), 닫은 것도 같이 센다(두 번 닫으면 30일 쉼, lib/app-install.ts).
 // 화면 흐름 안에 둔다(고정하지 않는다): 내리면 같이 사라지고 각 화면의 붙는 머리말이 맨 위에 남는다.
 const KEY = "maengo_app_banner_closed";
 const PUBLIC = /^\/($|try$|s\/|topics(\/|$))/;
@@ -25,10 +26,19 @@ function whereOf(pathname: string): string {
 
 export function AppBanner() {
   const pathname = usePathname();
-  // 서버와 첫 그림은 띠 없이(기기·닫은 기록은 브라우저에서만 안다)
-  const can = useSyncExternalStore(noSubscribe, () => isMobileWeb() && !isIosSafari(navigator.userAgent) && !hiddenRecently(KEY), () => false);
+  // 서버와 첫 그림은 띠 없이(기기·닫은 기록은 브라우저에서만 안다). 띄울지는 처음 한 번만 정한다(띄우며 '오늘 보였음'을 남겨도 스스로 사라지지 않게)
+  const decided = useRef<boolean | null>(null);
+  const can = useSyncExternalStore(
+    noSubscribe,
+    () => (decided.current ??= isMobileWeb() && !isIosSafari(navigator.userAgent) && !hiddenRecently(KEY) && nudgeAllowed()),
+    () => false,
+  );
   const [closed, setClosed] = useState(false);
-  if (!can || closed || !PUBLIC.test(pathname)) return null;
+  const visible = can && !closed && PUBLIC.test(pathname);
+  useEffect(() => {
+    if (visible) markNudgeShown();
+  }, [visible]);
+  if (!visible) return null;
   const where = whereOf(pathname);
   return (
     <div className="flex items-center gap-3 border-b border-line bg-paper px-4 py-2.5">
@@ -45,6 +55,7 @@ export function AppBanner() {
         aria-label="닫기"
         onClick={() => {
           hideFor7Days(KEY);
+          markNudgeClosed();
           setClosed(true);
         }}
         className="-mr-2 flex size-9 shrink-0 items-center justify-center rounded-full text-sub"

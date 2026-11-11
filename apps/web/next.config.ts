@@ -7,6 +7,8 @@ const BASE_PATH = "/maengo";
 
 const nextConfig: NextConfig = {
   basePath: BASE_PATH,
+  // 개발 서버만: 안드로이드 에뮬레이터(호스트 = 10.0.2.2)에서 띄운 앱이 개발 서버의 스크립트를 받게(2026-11-11 알림 등록 확인). 운영 빌드엔 영향 없음
+  allowedDevOrigins: ["10.0.2.2"],
   // packages/core·pipeline은 빌드 없이 TS 소스를 그대로 내보낸다(pipeline은 "오늘 맹고 받기"가 쓴다)
   transpilePackages: ["@maengo/core", "@maengo/pipeline"],
   // 공유한 소식의 카드 이미지(app/s/[id]/opengraph-image.tsx)는 요청 때 그려서 글꼴·아이콘 파일을 함수에 같이 넣어야 한다.

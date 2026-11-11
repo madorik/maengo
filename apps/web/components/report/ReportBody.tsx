@@ -3,6 +3,7 @@ import type { ReportData, ReportGroup, ReportPeriod } from "@maengo/core/report"
 import { IconChevronRight } from "@/components/icons";
 import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 import { articleToken } from "@/lib/server/share-token";
+import { ReportAppHint } from "./ReportAppHint";
 
 // 주간 리포트 한 편. 위에서부터 총평·숫자 → 맞춤 체크 → 다음 주 지켜볼 것 → 분야별 정리 → 많이 본 분야 → 자주 나온 키워드 → 놓친 주요 소식.
 // 숫자·막대는 DB에서 센 값, 총평·맞춤 체크·다음 주 지켜볼 것·분야별 정리·자주 나온 키워드는 Gemini가 쓴 것(pipeline/src/reports.ts). 맹고-문서/리포트.md
@@ -121,6 +122,9 @@ export function ReportBody({ period, data }: { period: ReportPeriod; data: Repor
           </ul>
         </Block>
       )}
+
+      {/* 웹 회원에게: 다음 리포트는 앱 알림으로(앱 안·앱을 쓰는 회원에겐 안 보인다) */}
+      <ReportAppHint />
     </div>
   );
 }

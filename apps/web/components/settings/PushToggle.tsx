@@ -7,7 +7,7 @@ import { track } from "@/lib/analytics";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { Toggle } from "@/components/ui/Switch";
 import { appPushRegisteredHere, isAppUserAgent } from "@/lib/app-client";
-import { installHref, isMobileWeb } from "@/lib/app-install";
+import { installHref, isMobileWeb, SAME_ACCOUNT } from "@/lib/app-install";
 import { registeredHere, registerThisBrowser, type RegisterResult } from "@/lib/web-push";
 
 const FAIL: Record<Extract<RegisterResult, { ok: false }>["reason"], string> = {
@@ -81,13 +81,16 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
       )}
       {appInstead && !usesApp && (
         <div className="mt-2 flex basis-full items-center justify-between gap-3">
-          <p className="text-[14px] font-medium text-sub">휴대폰에서는 맹고 앱으로 알림을 받아요</p>
+          <p className="text-[14px] font-medium text-sub">
+            휴대폰 알림은 맹고 앱으로 받아요
+            <span className="mt-0.5 block text-[13px]">{SAME_ACCOUNT}</span>
+          </p>
           <a
             href={installHref("push_settings")}
             onClick={() => track("app_install_click", { where: "push_settings" })}
             className="btn btn-ink min-h-9 shrink-0 px-4 text-[14px]"
           >
-            앱 받기
+            알림 받기
           </a>
         </div>
       )}

@@ -54,9 +54,11 @@ const available = () => Capacitor.isPluginAvailable("FirebaseMessaging");
 export async function registerApp(): Promise<RegisterResult> {
   if (!available()) return { ok: false, reason: "update" };
   try {
-    let perm = await FirebaseMessaging.checkPermissions();
+    // 1.3.1 안드로이드(R8이 권한 선언을 지운 빌드)는 권한 확인이 빈 값이다 → 앱 업데이트 안내
+    let perm = (await FirebaseMessaging.checkPermissions()) as { receive?: string } | undefined;
+    if (!perm?.receive) return { ok: false, reason: "update" };
     if (perm.receive !== "granted") perm = await FirebaseMessaging.requestPermissions();
-    if (perm.receive !== "granted") return { ok: false, reason: "denied" };
+    if (perm?.receive !== "granted") return { ok: false, reason: "denied" };
     await ensureChannel();
     const { token } = await FirebaseMessaging.getToken();
     return (await save(token)) ? { ok: true } : { ok: false, reason: "failed" };
@@ -75,7 +77,9 @@ export async function registerApp(): Promise<RegisterResult> {
 export async function registerAppOnce(): Promise<void> {
   if (!available() || stored()) return;
   try {
-    const perm = await FirebaseMessaging.checkPermissions();
+    const perm = (await FirebaseMessaging.checkPermissions()) as { receive?: string } | undefined;
+    // 1.3.1 안드로이드는 빈 값(권한을 물을 수 없다). 업데이트 뒤에 다시 본다(묻는 기록을 남기지 않는다)
+    if (!perm?.receive) return;
     if (perm.receive === "granted") {
       await ensureChannel();
       await save((await FirebaseMessaging.getToken()).token);
@@ -88,6 +92,20 @@ export async function registerAppOnce(): Promise<void> {
     return;
   }
   await registerApp();
+}
+
+/**
+ * 알림 권한을 물을 수 있는지(오늘 화면의 '알림 받기' 권유, components/app/AppPushOffer.tsx).
+ * 1.3.1 안드로이드는 R8이 권한 선언을 지워 권한 확인이 빈 값이라 물을 수 없다(1.3.2에서 고침) → false. 이미 거절했어도 false(설정에서 직접 켠다)
+ */
+export async function canAskPush(): Promise<boolean> {
+  if (!available()) return false;
+  try {
+    const perm = (await FirebaseMessaging.checkPermissions()) as { receive?: unknown } | undefined;
+    return typeof perm?.receive === "string" && perm.receive !== "denied";
+  } catch {
+    return false;
+  }
 }
 
 /** 알림을 끄면(서버는 그 사람의 토큰을 모두 지운다) 이 기기도 다시 등록하지 않게 잊는다 */

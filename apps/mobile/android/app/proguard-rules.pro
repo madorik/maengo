@@ -26,3 +26,10 @@
 -renamesourcefileattribute SourceFile
 # 앱의 Capacitor 플러그인(MaengoMedia·MaengoReview·MaengoWidget)은 Capacitor 소비자 규칙(extends Plugin)이 지킨다.
 # 웹뷰 다리(@JavascriptInterface)는 기본 규칙(proguard-android-optimize.txt)이 지킨다
+
+# Capacitor 플러그인의 권한 선언(@CapacitorPlugin(permissions = @Permission(...)))을 R8이 지우지 않게(2026-11-11).
+# 1.3.1(R8 처음 켬)에서 FirebaseMessaging.checkPermissions()가 빈 값을 돌려줘 알림 권한을 묻지도 등록하지도 못했다(안드로이드 기기 등록 0건).
+# Capacitor 소비자 규칙은 플러그인 클래스만 지키고 주석(annotation) 형식은 지키지 않는다
+-keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault,*Annotation*
+-keep @interface com.getcapacitor.annotation.** { *; }
+-keep class com.getcapacitor.annotation.** { *; }

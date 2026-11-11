@@ -27,7 +27,8 @@ const config: CapacitorConfig = {
   },
   // 웹이 앱 요청을 알아보는 표시(apps/web/lib/app-client.ts)
   ios: { appendUserAgent: `MaengoApp/${version} (ios)` },
-  android: { appendUserAgent: `MaengoApp/${version} (android)` },
+  // 시험 빌드만: CAP_WEBVIEW_DEBUG=1이면 릴리스 빌드에서도 크롬으로 웹뷰를 들여다본다(알림 등록 확인용, 2026-11-11). 운영 빌드엔 켜지 않는다
+  android: { appendUserAgent: `MaengoApp/${version} (android)`, ...(process.env.CAP_WEBVIEW_DEBUG === "1" ? { webContentsDebuggingEnabled: true } : {}) },
   // @capacitor-firebase/messaging의 SwiftPM 패키지 이름 충돌을 피한다(플러그인 README, Capacitor CLI 8.4+)
   experimental: { ios: { spm: { packageOptions: { "@capacitor-firebase/messaging": { symlink: true } } } } },
   plugins: {

@@ -49,8 +49,8 @@ function AppQrCard() {
     <div className="relative mb-4 flex items-center gap-3 rounded-2xl border border-line p-3">
       <AppQr spot="side" size={68} />
       <p className="min-w-0 pr-4 text-[13px] font-semibold leading-snug">
-        출퇴근길엔 휴대폰으로
-        <span className="mt-0.5 block font-medium text-sub">찍어서 앱 받기</span>
+        출퇴근길 알림은 휴대폰으로
+        <span className="mt-0.5 block font-medium text-sub">찍으면 앱을 받아요</span>
       </p>
       <button
         type="button"

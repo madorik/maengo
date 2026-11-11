@@ -5,6 +5,8 @@ import { after } from "next/server";
 import { AnalyticsSession } from "@/components/AnalyticsSession";
 import { AppAdAttribution } from "@/components/app/AppAdAttribution";
 import { AppPushSync } from "@/components/app/AppPushSync";
+import { AppPushOffer } from "@/components/app/AppPushOffer";
+import { WebAppNudges } from "@/components/app-install/WebAppNudges";
 import { AppWidgetSync } from "@/components/app/AppWidgetSync";
 import { ListenAppNudge } from "@/components/app-install/ListenAppNudge";
 import { ContextToastHost } from "@/components/context/ContextAsk";
@@ -51,6 +53,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <ContextToastHost />
             {/* 휴대폰 웹에서 화면이 꺼져 브리핑 듣기가 멈췄을 때 앱을 한 번 권한다 */}
             {!inApp && <ListenAppNudge />}
+            {/* 웹 회원에게 다음 날 돌아왔을 때·브리핑을 다 들었을 때 앱을 한 번 권한다(모든 권유 합쳐 하루 한 번, 2026-11-11) */}
+            {!inApp && <WebAppNudges pushEnabled={profile.pushEnabled} />}
+            {/* 앱에서 알림을 안 켠 회원에게 오늘 화면에서 한 번 묻는다(1.3.1 안드로이드는 권한 버그로 못 켰다, 2026-11-11) */}
+            {inApp && !profile.pushEnabled && <AppPushOffer />}
             {/* 글 하나 듣기의 잠금 화면 버튼·속도·목소리(화면을 옮겨도 이어지는 소리, lib/player/item-audio.ts) */}
             <ItemAudioHost />
             {/* 처음 온 회원의 기능 안내: 오늘 → 소식 → 설정으로 화면을 옮겨 가며 이어진다(오늘 화면이 시작한다) */}

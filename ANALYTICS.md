@@ -59,7 +59,7 @@
 | `try_ask` | 둘러보기 맹고 AI(물으면 답 대신 가입 권유) | `action`(open: 창을 엶, send: 질문을 보냄, signup: 가입하고 물어보기) |
 | `report_open` | 리포트를 열 때(리포트마다 한 번, 2026-11-10부터, Premium) | `kind`(week·month) |
 | `report_make` | 리포트 '지금 만들기' | `kind`(week·month) |
-| `app_install_click` | 웹에서 앱 받기를 누를 때(2026-11-11, `lib/app-install.ts`). 누르면 `/go/app`이 기기를 보고 App Store·Play로 보낸다. PC QR은 휴대폰이 찍어 바로 가므로 이 이벤트 대신 Vercel 로그 `go/app`(from=qr_landing·qr_side)과 Play 획득 보고서(utm_source=maengo_web)로 센다 | `where`(banner_landing·banner_share·banner_try·banner_topics·push_settings·listen_stopped) |
+| `app_install_click` | 웹에서 앱 받기를 누를 때(2026-11-11, `lib/app-install.ts`). 누르면 `/go/app`이 기기를 보고 App Store·Play로 보낸다. PC QR은 휴대폰이 찍어 바로 가므로 이 이벤트 대신 Vercel 로그 `go/app`(from=qr_landing·qr_side)과 Play 획득 보고서(utm_source=maengo_web)로 센다 | `where`(banner_landing·banner_share·banner_try·banner_topics·push_settings·listen_stopped, 11-11 더함: return_next_day 다음 날 다시 왔을 때·after_listen 브리핑을 다 들었을 때·report_end 리포트 맨 아래) |
 
 ## 볼 것(GA4 탐색)
 
