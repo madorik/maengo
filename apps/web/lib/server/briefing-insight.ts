@@ -2,7 +2,7 @@ import 'server-only';
 import { GEMINI_MODELS } from '@maengo/core/ai';
 import { geminiChatJson } from '@maengo/core/gemini';
 import { SECTION_LABEL, isSection, type SectionId } from '@maengo/core/sections';
-import { contextFacts, type UserContext } from '../context';
+import { contextFacts, personalOn, type UserContext } from '../context';
 import type { TodayData } from '../types';
 import type { Profile } from './profile';
 import { userTopics } from './topics';
@@ -117,9 +117,11 @@ export async function briefingInsight(profile: Profile, data: TodayData, ctx: Us
   const items = briefingItems(data);
   if (items.length < 2) return null;
   const slot = data.slot ?? 'am';
-  const facts = contextFacts(ctx);
-  // 소식 목록이나 내 맞춤 정보가 바뀌면 다시 만든다(맞춤 체크가 그 답으로 바뀌어야 해서)
-  const ids = `${items.map((i) => i.clusterId).join(',')}${facts.length ? `|${facts.join(';')}` : ''}`;
+  // 설정에서 맞춤 인사이트를 껐으면 회원 정보를 보내지 않는다(소식 요약만으로, 개인정보 처리방침 5조)
+  const allowed = personalOn(ctx);
+  const facts = allowed ? contextFacts(ctx) : [];
+  // 소식 목록이나 내 맞춤 정보·켜고 끄기가 바뀌면 다시 만든다(맞춤 체크가 그 답으로 바뀌어야 해서)
+  const ids = `${items.map((i) => i.clusterId).join(',')}${facts.length ? `|${facts.join(';')}` : ''}${allowed ? '' : '|off'}`;
   const { data: row, error } = await db.from('briefing_insights').select('ids,data').eq('user_id', userId).eq('date', data.date).eq('slot', slot).maybeSingle();
   if (error) console.error('[insight] 읽기 실패', error.message);
   if (row && row.ids === ids && (row.data as BriefingInsight)?.v === VERSION) return row.data as BriefingInsight;
@@ -129,7 +131,7 @@ export async function briefingInsight(profile: Profile, data: TodayData, ctx: Us
   const key = `${userId}:${data.date}:${slot}:${ids}`;
   const running = making.get(key);
   if (running) return running;
-  const job = personalOf(profile, items.map((i) => i.clusterId), facts)
+  const job = (allowed ? personalOf(profile, items.map((i) => i.clusterId), facts) : Promise.resolve(NO_PERSONAL))
     .then((personal) => make(items, personal))
     .then(async (made) => {
       if (made) {
@@ -144,6 +146,9 @@ export async function briefingInsight(profile: Profile, data: TodayData, ctx: Us
   making.set(key, job);
   return job;
 }
+
+/** 맞춤 인사이트를 끈 회원: 회원 정보 없이 소식 요약만 */
+const NO_PERSONAL: Personal = { facts: [], sections: [], keywords: [], recent: [], recentCount: 0 };
 
 /** 회원 기록: 자주 보는 분야(비중 높은 차례 셋), 직접 넣은 키워드, 최근 7일 끝까지 듣거나 연 소식·북마크(오늘 브리핑 소식은 뺀다) */
 async function personalOf(profile: Profile, todayIds: number[], facts: string[]): Promise<Personal> {

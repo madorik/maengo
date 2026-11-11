@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/server/session";
 import { SKIP, followUpOf, type PickedQuestion } from "@/lib/context";
-import { setUserContext } from "@/lib/server/user-context";
+import { setPersonalInsight, setUserContext } from "@/lib/server/user-context";
 
 // 내 맞춤 정보 답하기·바꾸기·지우기(lib/context.ts). 오늘 화면의 맞춤 체크 질문과 '내 관심 키워드' 화면이 부른다
 
@@ -29,4 +29,13 @@ export async function clearContextAction(key: string): Promise<{ ok: boolean }> 
     revalidatePath("/keywords");
   }
   return { ok };
+}
+
+/** 설정 > 맞춤 인사이트 켜고 끄기 */
+export async function setPersonalInsightAction(on: boolean): Promise<{ ok: boolean }> {
+  const profile = await requireProfile();
+  await setPersonalInsight(profile.id, on);
+  revalidatePath("/today");
+  revalidatePath("/settings");
+  return { ok: true };
 }

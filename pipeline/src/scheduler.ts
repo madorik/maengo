@@ -109,7 +109,11 @@ async function runTask(task: Task, now: Date, deadline: number, hooks: Scheduler
     const archive = check(await db.rpc('prune_archive'), 'prune_archive');
     // 오래된 벡터·행 정리(무료 DB 500MB 안에 머물게, 마이그레이션 20261017150000)
     const pruned = check(await db.rpc('prune_storage'), 'prune_storage');
-    return { stats: { ...premium, archive, pruned } };
+    // 오늘의 흐름·맞춤 체크는 만든 날부터 30일(개인정보 처리방침 3조, 2026-11-11)
+    const insightCut = new Date(now.getTime() + 9 * 3600_000 - 30 * 86_400_000).toISOString().slice(0, 10);
+    const { count: insights, error: insightError } = await db.from('briefing_insights').delete({ count: 'exact' }).lt('date', insightCut);
+    if (insightError) console.error('[daily] briefing_insights 정리 실패', insightError.message);
+    return { stats: { ...premium, archive, pruned, insights: insights ?? 0 } };
   }
   if (task.name === 'trial_reminder') return remindTrialEnding(now, deadline);
   if (task.name === 'reports') return runReports(now, deadline);

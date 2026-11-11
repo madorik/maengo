@@ -139,8 +139,9 @@ export const LEGAL_EFFECTIVE_DATE = koDate(LEGAL_EFFECTIVE_ON);
  * 개인정보 처리방침만의 시행일(2026-11-10부터 약관과 나눔). 처리방침 12조에 '시행 7일 전부터 서비스 안에 알린다'고 했으므로
  * 고친 날(PRIVACY_UPDATED_ON)에 올리고 7일 뒤를 시행일로 한다. 시행일 전에는 처리방침 맨 위에 바뀌는 점 안내가 보인다
  */
-export const PRIVACY_UPDATED_ON = "2026-11-10";
-export const PRIVACY_EFFECTIVE_ON = "2026-11-17";
+// 2026-11-11: 내 맞춤 정보·오늘의 흐름을 더하며 11-17 예정판(Google 신호)과 합쳐 바로 시행(사용자 결정: 실사용자가 거의 없어 7일 알림 없이)
+export const PRIVACY_UPDATED_ON = "2026-11-11";
+export const PRIVACY_EFFECTIVE_ON = "2026-11-11";
 export const PRIVACY_PREVIOUS_ON = "2026-11-06";
 
 /**

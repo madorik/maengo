@@ -1,5 +1,5 @@
 import 'server-only';
-import { ASKED, CONTEXT_QUESTIONS, QUESTION_BY_KEY, SKIP, type UserContext } from '../context';
+import { ASKED, CONTEXT_QUESTIONS, PERSONAL_OFF, QUESTION_BY_KEY, SKIP, type UserContext } from '../context';
 import { db, must } from './db';
 
 // 내 맞춤 정보 읽기·쓰기와 오늘 물을 질문 고르기(lib/context.ts, 2026-11-11).
@@ -28,6 +28,12 @@ export async function setUserContext(userId: string, key: string, value: string 
   }
   if (day && !q.after) must(await db.from('user_context').upsert({ user_id: userId, key: ASKED, value: day, updated_at: now }, { onConflict: 'user_id,key' }), 'user_context asked');
   return true;
+}
+
+/** '맞춤 인사이트' 켜고 끄기(설정). 끄면 회원 정보를 오늘의 흐름에 쓰지 않고 질문도 하지 않는다. 이미 받은 답은 그대로 둔다(지우기는 내 맞춤 정보에서) */
+export async function setPersonalInsight(userId: string, on: boolean): Promise<void> {
+  if (on) must(await db.from('user_context').delete().eq('user_id', userId).eq('key', PERSONAL_OFF), 'user_context personal on');
+  else must(await db.from('user_context').upsert({ user_id: userId, key: PERSONAL_OFF, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' }), 'user_context personal off');
 }
 
 export { pickQuestion, type PickedQuestion } from '../context';

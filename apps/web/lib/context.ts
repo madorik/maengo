@@ -169,3 +169,10 @@ export function followUpOf(key: string, value: string): PickedQuestion | null {
   const q = CONTEXT_QUESTIONS.find((c) => c.after?.key === key && c.after.value === value);
   return q ? { key: q.key, ask: q.ask, about: q.about, options: q.options.map((o) => ({ value: o.value, label: o.label })) } : null;
 }
+
+/** '맞춤 인사이트' 끔(설정, 개인정보 처리방침 5조의 국외 이전 거부 방법). 값 '1'이면 끔: 질문하지 않고, 오늘의 흐름에 회원 정보를 보내지 않는다 */
+export const PERSONAL_OFF = "_personal_off";
+
+export function personalOn(ctx: UserContext): boolean {
+  return ctx[PERSONAL_OFF]?.value !== "1";
+}

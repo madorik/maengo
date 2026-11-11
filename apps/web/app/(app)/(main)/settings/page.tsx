@@ -13,6 +13,9 @@ import { WalletHistory } from "@/components/settings/WalletHistory";
 import { billingNoticeOf } from "@/lib/billing/notice";
 import { subscriptionView } from "@/lib/server/billing";
 import { PushToggle } from "@/components/settings/PushToggle";
+import { PersonalInsightToggle } from "@/components/settings/PersonalInsightToggle";
+import { personalOn } from "@/lib/context";
+import { getUserContext } from "@/lib/server/user-context";
 import { Section } from "@/components/settings/Section";
 import { demoRebuildFeed, demoReset } from "@/app/actions";
 import { dailyMaengoUsage, toProfileView } from "@/lib/server/feed";
@@ -40,6 +43,7 @@ export default async function SettingsPage() {
     subscriptionView(profile.id),
   ]);
   const view = toProfileView(profile);
+  const ctx = await getUserContext(profile.id).catch(() => ({}));
   const notice = billingNoticeOf(sub);
   const pastDue = notice?.kind === "past_due" ? notice : null;
   const ua = (await headers()).get("user-agent");
@@ -113,6 +117,17 @@ export default async function SettingsPage() {
           <NotifyTimePicker current={profile.notifyAt} slot="am" />
           <p className="mb-2 mt-5 text-[14px] font-semibold text-sub">퇴근길 브리핑</p>
           <NotifyTimePicker current={profile.notifyAtPm} slot="pm" />
+        </Section>
+
+        {/* 맞춤 인사이트(2026-11-11): 끄면 내 맞춤 정보·최근 본 소식을 오늘의 흐름에 쓰지 않는다(개인정보 처리방침 5조 국외 이전 거부 방법) */}
+        <Section id="personal" title="맞춤 인사이트" action={<PersonalInsightToggle on={personalOn(ctx)} />}>
+          <p className="mt-1 text-[14px] leading-relaxed text-sub">
+            내 맞춤 정보와 최근 본 소식으로 오늘의 흐름과 맞춤 체크를 짚어 드려요. 끄면 소식 요약만으로 만들어요. 알려 준 정보는{" "}
+            <Link href="/keywords#my-context" className="font-semibold text-ink underline underline-offset-2">
+              내 맞춤 정보
+            </Link>
+            에서 바꾸거나 지워요.
+          </p>
         </Section>
 
         <Section id="display" title="화면">
