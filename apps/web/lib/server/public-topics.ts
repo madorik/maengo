@@ -79,31 +79,40 @@ async function inChunks<T>(ids: number[], size: number, read: (chunk: number[]) 
   return out;
 }
 
-/** 지난 30일 요약된 소식과, 그 소식에 붙은 공개 분야 토픽. 한 번 그릴 때 한 번만 읽는다 */
-const recent = cache(async () => {
-  const since = new Date(Date.now() - SOURCE_DAYS * DAY).toISOString();
-  const summaries = must(
-    await db
-      .from('summaries')
-      .select('cluster_id,title,short,impact,published_at,created_at,clusters!inner(first_seen_at,size,is_video,skip_reason,rep_item_id,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight,lang)))')
-      .eq('tier', 'basic')
-      .gte('clusters.first_seen_at', since)
-      .is('clusters.skip_reason', null)
-      .order('created_at', { ascending: false }),
-    'public summaries',
-  ) as unknown as SummaryRow[];
+type TagRow = { cluster_id: number; topic_id: string; relevance: number };
 
-  const topicIds = PUBLIC_TOPICS.flatMap((t) => [t.id, ...childrenOf(t.id).map((c) => c.id)]);
-  const tags = await inChunks(
-    summaries.map((s) => s.cluster_id),
-    200,
-    async (ids) =>
-      must(await db.from('cluster_topics').select('cluster_id,topic_id,relevance').in('cluster_id', ids).in('topic_id', topicIds), 'public cluster_topics') as {
-        cluster_id: number;
-        topic_id: string;
-        relevance: number;
-      }[],
-  );
+/**
+ * 지난 30일 요약된 소식과, 그 소식에 붙은 공개 분야 토픽(DB에서 읽은 그대로). 10분 동안 다시 읽지 않는다(2026-11-11 성능 5번).
+ * 전에는 분야·세부 주제 정리(cachedDigest, 27가지)가 한 시간마다 따로 새로 만들 때마다 이 무거운 읽기(평균 0.27초)를 했다. 30일 소식이 400여 개(약 0.3MB)라 데이터 캐시에 들어간다
+ */
+const recentRaw = unstable_cache(
+  async (): Promise<{ summaries: SummaryRow[]; tags: TagRow[] }> => {
+    const since = new Date(Date.now() - SOURCE_DAYS * DAY).toISOString();
+    const summaries = must(
+      await db
+        .from('summaries')
+        .select('cluster_id,title,short,impact,published_at,created_at,clusters!inner(first_seen_at,size,is_video,skip_reason,rep_item_id,rep:items!clusters_rep_item_id_fkey(views,hn_points,published_at,sources(weight,lang)))')
+        .eq('tier', 'basic')
+        .gte('clusters.first_seen_at', since)
+        .is('clusters.skip_reason', null)
+        .order('created_at', { ascending: false }),
+      'public summaries',
+    ) as unknown as SummaryRow[];
+    const topicIds = PUBLIC_TOPICS.flatMap((t) => [t.id, ...childrenOf(t.id).map((c) => c.id)]);
+    const tags = await inChunks(
+      summaries.map((s) => s.cluster_id),
+      200,
+      async (ids) => must(await db.from('cluster_topics').select('cluster_id,topic_id,relevance').in('cluster_id', ids).in('topic_id', topicIds), 'public cluster_topics') as TagRow[],
+    );
+    return { summaries, tags };
+  },
+  ['public-recent-v1'],
+  { revalidate: 600 },
+);
+
+/** 위 자료와 소식마다 붙은 토픽 표. 한 번 그릴 때 한 번만 만든다 */
+const recent = cache(async () => {
+  const { summaries, tags } = await recentRaw();
   const topicsOf = new Map<number, { topicId: string; relevance: number }[]>();
   for (const t of tags) (topicsOf.get(t.cluster_id) ?? topicsOf.set(t.cluster_id, []).get(t.cluster_id)!).push({ topicId: t.topic_id, relevance: t.relevance });
   return { summaries, topicsOf };

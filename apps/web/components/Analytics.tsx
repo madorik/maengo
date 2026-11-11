@@ -5,6 +5,7 @@ import { GA4_MEASUREMENT_ID, INTERNAL_DEVICE_KEY, LIVE_HOSTS } from "@/lib/analy
 import { BASE_PATH } from "@/lib/base-path";
 
 // Google 태그 관리자(TODO.md 2번). 운영에서 NEXT_PUBLIC_GTM_ID(GTM-로 시작)가 있을 때만 싣는다. 이벤트는 lib/analytics.ts의 track()
+// gtm.js(GA 태그까지 약 300KB)는 첫 화면을 그리는 동안 받지 않고 브라우저가 한가할 때(늦어도 3초 뒤) 붙인다(2026-11-11 성능 3번). 그 사이 이벤트는 dataLayer에 쌓였다가 실리면 나간다
 const GTM_ID = /^GTM-[A-Z0-9]+$/.test(process.env.NEXT_PUBLIC_GTM_ID?.trim() ?? "") ? process.env.NEXT_PUBLIC_GTM_ID!.trim() : null;
 
 /**
@@ -23,7 +24,7 @@ export function Analytics() {
       <NaverAnalytics />
       {GTM_ID && process.env.NODE_ENV === "production" ? (
         <Script id="gtm" strategy="afterInteractive">
-          {`(function(){${gate}(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_ID}');})();`}
+          {`(function(){${gate}(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var load=function(){var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);};if(w.requestIdleCallback)w.requestIdleCallback(load,{timeout:3000});else w.setTimeout(load,1500);})(window,document,'script','dataLayer','${GTM_ID}');})();`}
         </Script>
       ) : null}
     </>

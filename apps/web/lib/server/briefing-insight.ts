@@ -30,6 +30,8 @@ export interface BriefingInsight {
 // 4: 회원을 부르지 않는다(2026-11-11 사용자: 맞춤 체크에 이름 빼자, 이름이 너무 많다)
 // 5: 맞춤 체크를 알려 준 사정이 없어도 읽던 소식·자주 보는 분야로 만든다(2026-11-11 사용자: 맞춤 체크가 없어졌다, 핵심은 읽던 소식 기반의 영향)
 const VERSION = 5;
+/** 미리 만들기(lib/server/insight-prewarm.ts)가 이미 새 형식으로 만들어 뒀는지 볼 때 쓴다 */
+export const INSIGHT_VERSION = VERSION;
 
 /** 회원 기록(흐름을 이 사람에게 잇는 근거). 지어내지 않게 이것만 준다 */
 interface Personal {
