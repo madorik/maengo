@@ -23,7 +23,7 @@
   - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice`·`charged`·`product`·`items`·`heard`·`where`·`signed_in` ← 같은 이름의 변수(뒤의 넷은 둘러보기, 2026-11-07)
   - 사용자 속성: `plan` ← `{{dlv - plan}}`, `platform` ← `{{dlv - platform}}`
   - 트리거: 맞춤 이벤트, 이벤트 이름 정규식 일치
-    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|bookmark|ask|purchase_start|purchase_complete|try_start|try_complete|try_trial_click|try_ask|report_open|report_make)$`
+    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|bookmark|ask|purchase_start|purchase_complete|try_start|try_complete|try_trial_click|try_ask|report_open|report_make|app_install_click)$`
 - 이벤트를 새로 넣으면 `lib/analytics.ts`의 `AnalyticsEvent`, 이 문서, `gtm-import.json`의 정규식을 같이 고치고 GTM에 다시 게시한다
 
 ## 이벤트
@@ -58,6 +58,7 @@
 | `try_ask` | 둘러보기 맹고 AI(물으면 답 대신 가입 권유) | `action`(open: 창을 엶, send: 질문을 보냄, signup: 가입하고 물어보기) |
 | `report_open` | 리포트를 열 때(리포트마다 한 번, 2026-11-10부터, Premium) | `kind`(week·month) |
 | `report_make` | 리포트 '지금 만들기' | `kind`(week·month) |
+| `app_install_click` | 웹에서 앱 받기를 누를 때(2026-11-11, `lib/app-install.ts`). 누르면 `/go/app`이 기기를 보고 App Store·Play로 보낸다. PC QR은 휴대폰이 찍어 바로 가므로 이 이벤트 대신 Vercel 로그 `go/app`(from=qr_landing·qr_side)과 Play 획득 보고서(utm_source=maengo_web)로 센다 | `where`(banner_landing·banner_share·banner_try·banner_topics·push_settings·listen_stopped) |
 
 ## 볼 것(GA4 탐색)
 

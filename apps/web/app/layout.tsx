@@ -3,11 +3,12 @@ import { Nunito } from "next/font/google";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
 import { Analytics } from "@/components/Analytics";
+import { AppBanner } from "@/components/app-install/AppBanner";
 import { GuestVisit } from "@/components/GuestVisit";
 import { NativeShell } from "@/components/NativeShell";
 import { NavProgress } from "@/components/NavProgress";
 import { ThemeSync } from "@/components/ThemeSync";
-import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, appUrl } from "@/lib/site";
+import { APP_STORE_ID, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, appUrl } from "@/lib/site";
 import { PAPER, THEME_SCRIPT } from "@/lib/theme";
 
 // 한글은 Pretendard(글자 범위별로 필요한 조각만 받는다), 숫자는 둥근 Nunito.
@@ -45,6 +46,8 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false, email: false, address: false },
   verification,
   appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
+  // iPhone 사파리 위쪽의 애플 기본 앱 배너(받기·열기). 다른 브라우저는 components/app-install/AppBanner.tsx가 띠를 보인다(2026-11-11)
+  itunes: { appId: APP_STORE_ID },
 };
 
 export const viewport: Viewport = {
@@ -65,6 +68,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body>
         <NavProgress />
+        {/* 휴대폰 웹의 로그인 전 화면 맨 위 앱 받기 띠 */}
+        <AppBanner />
         {children}
         <NativeShell />
         <ThemeSync />

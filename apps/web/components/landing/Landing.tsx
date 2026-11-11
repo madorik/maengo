@@ -27,6 +27,7 @@ import {
   organizationJsonLd,
 } from "@/lib/site";
 import { getPlans, monthlyPrice } from "@/lib/server/plans";
+import { AppQr } from "@/components/app-install/AppQr";
 import { AuthLink } from "./AuthLink";
 import articleShot from "./app-article.webp";
 import foundShot from "./app-found.webp";
@@ -203,11 +204,18 @@ export async function Landing() {
               <AuthLink signedOut={TRY} signedIn={OPEN} className="btn btn-ink min-h-14 px-8 text-[17px]" />
               <AuthLink signedOut={START} signedIn={null} className="btn btn-ghost min-h-14 px-6 text-[16px]" />
             </div>
-            {/* 스토어 링크(앱은 이 페이지 대신 로그인·오늘로 가므로 앱 안에는 안 보인다, proxy.ts) */}
-            <p className="mt-5 flex flex-wrap gap-x-5 gap-y-1">
-              <StoreLink href={APP_STORE_URL} label="App Store에서 iPhone 앱 받기" />
-              {PLAY_STORE_URL && <StoreLink href={PLAY_STORE_URL} label="Google Play에서 Android 앱 받기" />}
-            </p>
+            {/* 스토어 링크(앱은 이 페이지 대신 로그인·오늘로 가므로 앱 안에는 안 보인다, proxy.ts).
+                PC(넓은 화면)는 QR을 앞에 둔다: 출퇴근길에 쓰는 건 휴대폰이라 찍어서 바로 받게(2026-11-11) */}
+            <div className="mt-6 flex items-center gap-4">
+              <AppQr spot="landing" size={92} className="hidden lg:block" />
+              <div className="min-w-0">
+                <p className="hidden text-[15px] font-bold lg:block">휴대폰 카메라로 찍으면 앱을 받아요</p>
+                <p className="flex flex-wrap gap-x-5 gap-y-1 lg:mt-1">
+                  <StoreLink href={APP_STORE_URL} label="App Store에서 iPhone 앱 받기" />
+                  {PLAY_STORE_URL && <StoreLink href={PLAY_STORE_URL} label="Google Play에서 Android 앱 받기" />}
+                </p>
+              </div>
+            </div>
           </div>
 
           <div aria-hidden="true" className="mx-auto flex w-full max-w-[460px] items-start justify-center gap-3 sm:gap-4 md:order-1">

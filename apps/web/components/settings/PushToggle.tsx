@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { setPushEnabled } from "@/app/actions";
 import { track } from "@/lib/analytics";
+import { useProfile } from "@/components/providers/ProfileProvider";
 import { Toggle } from "@/components/ui/Switch";
 import { appPushRegisteredHere, isAppUserAgent } from "@/lib/app-client";
+import { installHref, isMobileWeb } from "@/lib/app-install";
 import { registeredHere, registerThisBrowser, type RegisterResult } from "@/lib/web-push";
 
 const FAIL: Record<Extract<RegisterResult, { ok: false }>["reason"], string> = {
@@ -36,6 +38,9 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
   // 앱: 다른 기기에서 켰고 이 앱 기기는 아직 안 받는 경우 '이 기기에서도 받기'
   const inApp = useSyncExternalStore(noSubscribe, () => isAppUserAgent(navigator.userAgent), () => false);
   const appHere = useSyncExternalStore(noSubscribe, appPushRegisteredHere, () => true);
+  // 휴대폰 브라우저인데 웹 알림이 없는 곳(iPhone 사파리·카카오톡 안 등)은 앱으로 받는다(2026-11-11, lib/app-install.ts). 앱을 연 적 있으면 안 보인다
+  const { usesApp } = useProfile();
+  const appInstead = useSyncExternalStore(noSubscribe, () => isMobileWeb() && !("PushManager" in window), () => false);
 
   const toggle = (next: boolean) =>
     start(async () => {
@@ -43,7 +48,8 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
       if (next) {
         const r = await registerThisBrowser();
         if (!r.ok) {
-          setError(r.reason === "denied" && isAppUserAgent(navigator.userAgent) ? APP_DENIED : FAIL[r.reason]);
+          // 앱 받기 안내가 아래에 보이는 중이면 PC 브라우저용 안내는 띄우지 않는다
+          if (!(r.reason === "unsupported" && appInstead && !usesApp)) setError(r.reason === "denied" && isAppUserAgent(navigator.userAgent) ? APP_DENIED : FAIL[r.reason]);
           return;
         }
       }
@@ -71,6 +77,18 @@ export function PushToggle({ enabled, webTokens }: { enabled: boolean; webTokens
           <button type="button" onClick={addHere} className="btn btn-ghost min-h-11 px-4 text-[14px]">
             {inApp ? "이 기기에서도 받기" : "이 브라우저에서도 받기"}
           </button>
+        </div>
+      )}
+      {appInstead && !usesApp && (
+        <div className="mt-2 flex basis-full items-center justify-between gap-3">
+          <p className="text-[14px] font-medium text-sub">휴대폰에서는 맹고 앱으로 알림을 받아요</p>
+          <a
+            href={installHref("push_settings")}
+            onClick={() => track("app_install_click", { where: "push_settings" })}
+            className="btn btn-ink min-h-9 shrink-0 px-4 text-[14px]"
+          >
+            앱 받기
+          </a>
         </div>
       )}
       <p aria-live="polite" className="mt-2 basis-full text-[14px] font-bold text-cherry empty:hidden">

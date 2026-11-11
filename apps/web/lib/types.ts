@@ -108,6 +108,8 @@ export interface ProfileView {
   aiProvider: 'dummy' | 'gemini';
   /** 관리자(/admin)에 들어갈 수 있는지(lib/server/admin.ts isAdmin: ADMIN_EMAILS의 이메일, 로컬은 데모 계정). 계정 메뉴에 '관리자'를 보인다 */
   admin: boolean;
+  /** 맹고 앱을 연 적이 있는지(앱 안이면 늘 true). 웹의 앱 받기 안내를 숨긴다(lib/app-install.ts). (app) 레이아웃이 채운다 */
+  usesApp?: boolean;
 }
 
 export interface EpisodeData {

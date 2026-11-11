@@ -27,3 +27,13 @@ export async function recordVisit(userId: string, platform: Platform): Promise<v
   if (seen.size > 10_000) seen.clear();
   seen.set(key, date);
 }
+
+/**
+ * 이 회원이 맹고 앱(iOS·Android)을 연 적이 있는지(접속 기록, 2026-11-11). 웹 화면의 앱 받기 안내(QR·알림·듣기)를 앱 쓰는 사람에겐 숨긴다.
+ * 실패하면 false(안내가 한 번 더 보일 뿐이다). visits 기본 키가 (user_id, date, platform)이라 user_id로 바로 찾는다
+ */
+export async function usedApp(userId: string): Promise<boolean> {
+  const { data, error } = await db.from('visits').select('platform').eq('user_id', userId).in('platform', ['ios', 'android']).limit(1);
+  if (error) console.error('visits usedApp', error.message);
+  return !!data?.length;
+}

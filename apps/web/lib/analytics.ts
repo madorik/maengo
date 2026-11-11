@@ -31,7 +31,8 @@ export type AnalyticsEvent =
   | "try_trial_click"
   | "try_ask"
   | "report_open"
-  | "report_make";
+  | "report_make"
+  | "app_install_click";
 
 type Params = Record<string, string | number | boolean | null | undefined>;
 

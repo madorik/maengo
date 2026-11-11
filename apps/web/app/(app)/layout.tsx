@@ -6,6 +6,7 @@ import { AnalyticsSession } from "@/components/AnalyticsSession";
 import { AppAdAttribution } from "@/components/app/AppAdAttribution";
 import { AppPushSync } from "@/components/app/AppPushSync";
 import { AppWidgetSync } from "@/components/app/AppWidgetSync";
+import { ListenAppNudge } from "@/components/app-install/ListenAppNudge";
 import { ItemAudioHost } from "@/components/app/ItemAudioHost";
 import { ListenWidget } from "@/components/listen/ListenWidget";
 import { TourHost } from "@/components/today/FeatureTour";
@@ -17,7 +18,7 @@ import { appInfoOf, isAppUserAgent } from "@/lib/app-client";
 import { isInternalAccount } from "@/lib/server/admin";
 import { getTodayData, toProfileView } from "@/lib/server/feed";
 import { requireOnboarded } from "@/lib/server/session";
-import { recordVisit } from "@/lib/server/visits";
+import { recordVisit, usedApp } from "@/lib/server/visits";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 
 // 로그인해야 보이는 화면은 사람마다 내용이 달라서 검색에 노출하지 않는다.
@@ -30,11 +31,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // DAU·MAU용 접속 기록(웹·iOS·Android). 화면을 늦추지 않게 응답을 보낸 뒤에 쓴다. after 안에서는 headers()를 못 읽어 먼저 읽는다
   const platform = appInfoOf(ua)?.platform ?? "web";
   if (!profile.demo) after(() => recordVisit(profile.id, platform));
-  const view = toProfileView(profile);
-  const today = await getTodayData(profile);
-  const listenCollapsed = (await cookies()).get(LISTEN_COLLAPSED_COOKIE)?.value === "1";
-  // 앱(User-Agent에 MaengoApp/)은 플레이어를 열면 화면을 꽉 채운다(2026-10-19 사용자 결정). 서버에서 정해야 첫 그림이 서버 HTML과 같다
   const inApp = isAppUserAgent(ua);
+  // 앱을 연 적 있는 회원은 웹에서 앱 받기 안내를 보지 않는다(lib/app-install.ts). 오늘 데이터와 같이 읽는다
+  const [today, usesApp] = await Promise.all([getTodayData(profile), inApp ? true : usedApp(profile.id)]);
+  const view = { ...toProfileView(profile), usesApp };
+  const listenCollapsed = (await cookies()).get(LISTEN_COLLAPSED_COOKIE)?.value === "1";
+  // 앱(User-Agent에 MaengoApp/)은 플레이어를 열면 화면을 꽉 채운다(2026-10-19 사용자 결정, inApp). 서버에서 정해야 첫 그림이 서버 HTML과 같다
   return (
     <ProfileProvider profile={view}>
       {/* key를 주지 않는다: 피드가 바뀌어도 플레이어를 새로 만들지 않게(TodayProvider가 안에서 합친다) */}
@@ -44,6 +46,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <PlayerProvider profile={view}>
             {children}
             <ListenWidget initialCollapsed={listenCollapsed} inApp={inApp} />
+            {/* 휴대폰 웹에서 화면이 꺼져 브리핑 듣기가 멈췄을 때 앱을 한 번 권한다 */}
+            {!inApp && <ListenAppNudge />}
             {/* 글 하나 듣기의 잠금 화면 버튼·속도·목소리(화면을 옮겨도 이어지는 소리, lib/player/item-audio.ts) */}
             <ItemAudioHost />
             {/* 처음 온 회원의 기능 안내: 오늘 → 소식 → 설정으로 화면을 옮겨 가며 이어진다(오늘 화면이 시작한다) */}
