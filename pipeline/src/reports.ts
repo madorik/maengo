@@ -272,15 +272,17 @@ async function makeDigest(period: ReportPeriod, start: string, groups: string[],
       timeoutMs: DIGEST_TIMEOUT_MS,
       onUsage: recordUsage,
     });
+    // 맞춤 체크의 근거: 알려 준 사정이나 읽거나 들은 소식(✓). 맞춤 인사이트를 껐으면 둘 다 보내지 않아 근거가 없다
+    const basis = facts.length > 0 || sent.some((i) => i.consumed);
     const digest = cleanDigest(
       raw,
       groups,
       picked.map((i) => i.id),
-      facts.length > 0,
+      basis,
     );
     if (!digest) throw new Error('리포트 정리 모양이 맞지 않음');
     // 사정이 있는데 맞춤 체크가 비면 왜 비었는지 남긴다(모델이 안 줬는지, 걸렀는지)
-    if (facts.length && !digest.personal?.length) {
+    if (basis && !digest.personal?.length) {
       const got = (raw as { personal?: { title?: unknown; text?: unknown }[] } | null)?.personal;
       console.warn('[reports] 맞춤 체크 없음', Array.isArray(got) && got.length ? `걸러짐 ${got.length}개: ${got.map((x) => `${String(x?.title ?? '')} / ${String(x?.text ?? '')}`.slice(0, 120)).join(' | ')}` : '모델이 빈 배열');
     }

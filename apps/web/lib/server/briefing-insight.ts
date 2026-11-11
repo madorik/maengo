@@ -28,7 +28,8 @@ export interface BriefingInsight {
 }
 
 // 4: 회원을 부르지 않는다(2026-11-11 사용자: 맞춤 체크에 이름 빼자, 이름이 너무 많다)
-const VERSION = 4;
+// 5: 맞춤 체크를 알려 준 사정이 없어도 읽던 소식·자주 보는 분야로 만든다(2026-11-11 사용자: 맞춤 체크가 없어졌다, 핵심은 읽던 소식 기반의 영향)
+const VERSION = 5;
 
 /** 회원 기록(흐름을 이 사람에게 잇는 근거). 지어내지 않게 이것만 준다 */
 interface Personal {
@@ -56,17 +57,21 @@ const SYSTEM = `너는 출퇴근길 직장인에게 오늘 받은 소식을 엮�
 - checks: 0~2개. 이 소식들 때문에 사람이 실제로 해 볼 만한 생활 속 일이 있을 때만. "증권사 앱을 쓴다면 해킹 공지를 확인하고 비밀번호를 바꿔 보세요"처럼 '~라면 ~해 보세요' 꼴로 50자 안팎. id는 근거 소식 하나. 할 일이 없으면 빈 배열.
   · 되는 것: 보안 공지 확인·비밀번호 변경, 신청·접수 기한, 바뀌는 제도·요금·일정 확인, 리콜·서비스 중단 확인 같은 일.
   · 안 되는 것: 주식·코인·부동산을 사고팔거나 비중·포트폴리오를 바꾸라는 말, 시장을 지켜보라는 막연한 말.
-- personal: 0~3개. '회원이 직접 알려 준 사정'이 있을 때만, 그 사정을 가진 사람에게 오늘 소식이 무슨 뜻인지 짚는다. 이 기능의 핵심이다.
+- personal: 1~3개. 이 기능의 핵심이다. 회원이 관심 가지고 보던 것을 바탕으로 오늘 소식이 이 회원에게 어떤 영향을 주는지 짚는다.
+  · 근거는 [회원 정보]에 있는 것만: ① 회원이 직접 알려 준 사정(있으면 먼저) ② 최근 7일 끝까지 듣거나 열어 본 소식·북마크 ③ 자주 보는 분야·직접 넣은 키워드.
   · 예: 사정 "국내 주식을 해요" + 소식 "기준금리 인상" → title "금리가 오르면 주가엔 부담", text "금리가 오르면 기업의 이자 부담이 커지고 예금 매력이 높아져 국내 주가에 부담이 될 수 있어요. 오늘 발표 뒤 시장 반응을 확인해 보세요."
   · 예: 사정 "변동금리 대출이 있어요" + 소식 "금리 동결" → "다음 금리 변경 때까지 이자는 그대로일 가능성이 커요."
   · 예: 사정 "통신사는 SKT를 써요" + 소식 "SKT 유심 정보 유출" → title "내 유심도 확인해 볼 때", text "SKT 가입자 유심 정보가 새어 나갔을 수 있어요. 유심 보호 서비스에 가입돼 있는지 확인해 보세요."
   · 예: 사정 "자가용으로 출퇴근해요" + 소식 "국제 유가 급등" → "기름값이 오르면 출퇴근 주유비가 늘 수 있어요. 다음 주 주유소 가격 흐름을 확인해 보세요."
   · 예: 사정 "야구는 LG 트윈스를 응원해요" + 소식 "LG, 한국시리즈 진출" → title "LG가 한국시리즈에 올랐어요", text "응원하는 팀이 한국시리즈에 나가요. 예매 일정을 확인해 보세요."
-  · id: 근거 소식 하나. about: 근거 사정의 짧은 이름(예: "국내 주식", "변동금리 대출", "무주택·청약", "SKT", "자가용 출퇴근", "LG 트윈스"). title: 20자 안팎. text: 1~2문장(90자 안팎).
-  · 회원이 알려 준 사정이 있고 그 사정과 닿는 소식(주식·코인·금리·대출·환율·집·지역·일·출퇴근·차·통신사·휴대폰·자녀·나이대·연금·응원 팀·운동·OTT·반려동물 등)이 하나라도 있으면 반드시 1개 이상 만든다. 사정마다 가장 크게 닿는 소식 하나씩.
-  · text는 '이 소식이 이 사정을 가진 사람에게 어떻게 닿는지'를 영향이 오는 길(이자·환율·수요·실적·규제 등)로 설명한다. 덧붙이는 확인은 정보 확인까지만(발표 일정, 관련 공시·공지, 내 대출의 금리 조건, 통신사·제조사 공지, 리콜 대상 여부, 예매·신청 일정 등).
+  · 예(읽던 소식): 최근 끝까지 들은 "HBM 공급 경쟁 본격화" + 오늘 "삼성전자·SK하이닉스 급락" → about "읽던 반도체 소식", title "지켜보던 HBM 경쟁의 다음 장", text "지난주 들은 HBM 공급 경쟁이 이번 급락의 배경이에요. 다음 실적 발표에서 HBM 물량 전망을 확인해 보세요."
+  · 예(북마크): 북마크한 "증권사 해킹 잇따라" + 오늘 "미래에셋증권 개인정보 유출" → about "북마크한 해킹 소식", title "보안 사고가 또 이어졌어요", text "지난번 저장한 해킹 소식에 이어 이번엔 미래에셋증권이에요. 쓰는 증권사 앱의 보안 공지를 확인해 보세요."
+  · 예(분야): 자주 보는 "부동산" + 오늘 "주담대 금리 인상" → about "자주 보는 부동산", title "대출 문턱이 높아져요", text "주택담보대출 금리가 오르면 집을 사려는 사람의 이자 부담이 커져요. 은행별 금리 공지를 확인해 보세요."
+  · id: 근거 오늘 소식 하나. about: 근거의 짧은 이름 16자 안팎(사정이면 "국내 주식"·"변동금리 대출"·"SKT"·"자가용 출퇴근", 읽던 소식이면 "읽던 반도체 소식"·"북마크한 해킹 소식", 분야면 "자주 보는 경제"). title: 20자 안팎. text: 1~2문장(90자 안팎).
+  · [회원 정보]에 근거가 하나라도 있으면 반드시 1개 이상 만든다. 사정마다, 이어지는 읽던 소식마다 가장 크게 닿는 오늘 소식 하나씩. 사정(주식·코인·금리·대출·환율·집·지역·일·출퇴근·차·통신사·휴대폰·자녀·나이대·연금·응원 팀·운동·OTT·반려동물 등)이 있으면 그것부터.
+  · text는 '이 소식이 이 사람에게 어떻게 닿는지'를 영향이 오는 길(이자·환율·수요·실적·규제·요금·일정 등)로 설명한다. 덧붙이는 확인은 정보 확인까지만(발표 일정, 관련 공시·공지, 내 대출의 금리 조건, 통신사·제조사 공지, 리콜 대상 여부, 예매·신청 일정 등).
   · 하지 않는 말: 사라·팔라, 비중·쏠림을 줄이라, 투자를 점검·대비하라, 수익·손실을 장담하는 말.
-  · 사정과 상관없는 소식으로 억지로 만들지 않는다. 회원이 알려 준 사정이 없으면 빈 배열.
+  · 근거가 없는 연결은 지어내지 않는다. [회원 정보]가 모두 '없음'이면 빈 배열.
 
 지켜야 할 것
 - 입력 소식의 요약에 있는 사실만 쓴다. 숫자·날짜·이름을 지어내지 않는다. 확실하지 않으면 쓰지 않는다.
@@ -208,7 +213,9 @@ async function make(items: TodayData['items'], personal: Personal): Promise<Brie
       timeoutMs: 25_000,
       onUsage: logUsage,
     });
-    const made = clean(out, new Set(items.map((i) => i.clusterId)), personal.facts.length > 0);
+    // 맞춤 체크의 근거: 알려 준 사정이나 회원 기록(최근 본 소식·자주 보는 분야·키워드)이 하나라도 있으면. 맞춤 인사이트를 껐으면 모두 비어 있다
+    const basis = personal.facts.length > 0 || personal.recent.length > 0 || personal.sections.length > 0 || personal.keywords.length > 0;
+    const made = clean(out, new Set(items.map((i) => i.clusterId)), basis);
     return made && { ...made, v: VERSION, basis: { sections: personal.sections, recent: personal.recentCount } };
   } catch (e) {
     console.error('[insight] 만들기 실패', String((e as Error)?.message ?? e).slice(0, 200));
@@ -221,7 +228,7 @@ async function make(items: TodayData['items'], personal: Personal): Promise<Brie
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '');
 
 /** 모양을 맞추고 입력에 없는 소식 번호는 버린다. 흐름이 하나도 안 남으면 null */
-function clean(out: { headline?: unknown; flows?: unknown; checks?: unknown; personal?: unknown }, known: Set<number>, hasFacts: boolean): BriefingInsight | null {
+function clean(out: { headline?: unknown; flows?: unknown; checks?: unknown; personal?: unknown }, known: Set<number>, hasBasis: boolean): BriefingInsight | null {
   const flows = (Array.isArray(out.flows) ? out.flows : [])
     .map((f: { title?: unknown; text?: unknown; ids?: unknown; tag?: unknown; why?: unknown; watch?: unknown }) => ({
       title: str(f?.title, 30),
@@ -238,15 +245,15 @@ function clean(out: { headline?: unknown; flows?: unknown; checks?: unknown; per
     .map((c: { text?: unknown; id?: unknown }) => ({ text: str(c?.text, 100), id: Number(c?.id) }))
     .filter((c) => c.text && known.has(c.id) && !INVESTING.test(c.text))
     .slice(0, 2);
-  // 맞춤 체크는 회원이 알려 준 사정이 있을 때만(없는데 나오면 지어낸 것)
-  const personalChecks = hasFacts
+  // 맞춤 체크는 근거(알려 준 사정·회원 기록)가 있을 때만(없는데 나오면 지어낸 것)
+  const personalChecks = hasBasis
     ? (Array.isArray(out.personal) ? out.personal : [])
         .map((x: { id?: unknown; about?: unknown; title?: unknown; text?: unknown }) => ({ id: Number(x?.id), about: str(x?.about, 20), title: str(x?.title, 40), text: str(x?.text, 200) }))
         .filter((x) => known.has(x.id) && x.title && x.text && !INVESTING.test(`${x.title} ${x.text}`))
         .slice(0, 3)
     : [];
   // 사정이 있는데 맞춤 체크가 비면 왜 비었는지 남긴다(모델이 안 줬는지, 걸렀는지)
-  if (hasFacts && !personalChecks.length) {
+  if (hasBasis && !personalChecks.length) {
     const raw = Array.isArray(out.personal) ? (out.personal as { title?: unknown; text?: unknown }[]) : [];
     console.warn('[insight] 맞춤 체크 없음', raw.length ? `걸러짐 ${raw.length}개: ${raw.map((x) => `${String(x?.title ?? '')} / ${String(x?.text ?? '')}`.slice(0, 120)).join(' | ')}` : '모델이 빈 배열');
   }

@@ -99,8 +99,8 @@ export interface ReportDigest {
   /** 여러 소식에 거듭 나온 말(최대 5개). 화면에서 내 관심사에 없는 말이면 '내 키워드로 넣기' */
   keywords: { word: string; ids: number[] }[];
   /**
-   * 맞춤 체크(2026-11-11 사용자: 주간 리포트도 맞춤형 인사이트로): 회원이 알려 준 사정(내 맞춤 정보)에 이번 주 소식이 무슨 뜻이었는지, 최대 3개.
-   * 사정이 없거나 설정에서 맞춤 인사이트를 껐으면 없다. 이 칸이 생기기 전 리포트에도 없다
+   * 맞춤 체크(2026-11-11 사용자: 주간 리포트도 맞춤형 인사이트로): 회원이 알려 준 사정(내 맞춤 정보)과 읽거나 들은 소식을 바탕으로 이번 주 소식이 무슨 뜻이었는지, 최대 3개.
+   * 근거(사정·읽은 소식)가 없거나 설정에서 맞춤 인사이트를 껐으면 없다. 이 칸이 생기기 전 리포트에도 없다
    */
   personal?: { about: string; title: string; text: string; ids: number[] }[];
   /** 다음 주 지켜볼 것(소식에 나온 발표·일정·수치), 최대 3개. 이 칸이 생기기 전 리포트에는 없다 */
@@ -157,13 +157,14 @@ export const DIGEST_SYSTEM = `회원이 한 기간 동안 맹고에서 받은 [�
 - keywords: 여러 소식에 거듭 나온 구체적인 말(회사·제품·기술·사건·인물) 3~5개.
   - word: 2~14자 명사. 분야 이름(AI, 주식 같은 것)이나 '실적', '출시', '전망'처럼 막연한 말은 쓰지 않는다.
   - ids: 그 말이 나온 소식 번호 1~3개.
-- personal: [회원이 알려 준 사정]이 있을 때만 0~3개. 이번 주 소식이 그 사정을 가진 사람에게 무슨 뜻이었는지 짚는다. 이 리포트에서 가장 중요한 칸이다.
-  - about: 근거 사정의 짧은 이름(예: "국내 주식", "변동금리 대출", "자가용 출퇴근", "SKT", "LG 트윈스").
+- personal: 1~3개. 이 리포트에서 가장 중요한 칸이다. 회원이 관심 가지고 보던 것을 바탕으로 이번 주 소식이 이 회원에게 어떤 영향이었는지 짚는다. 근거는 [회원이 알려 준 사정](있으면 먼저)과 ✓ 표시(읽거나 들은) 소식뿐이다.
+  - about: 근거의 짧은 이름(사정이면 "국내 주식"·"변동금리 대출"·"자가용 출퇴근"·"SKT", 읽은 소식이면 "읽던 반도체 소식"·"들은 금리 소식").
   - title: 20자 안팎. text: 두 문장, 60~130자, 해요체. 영향이 오는 길(이자·환율·수요·실적·규제·요금·일정 등)을 말하고, 덧붙이는 말은 확인할 것(공지·일정·내 조건)까지만.
   - ids: 근거 소식 번호 1~3개.
   - 예: 사정 "국내 주식을 해요" + 이번 주 "반도체주 급락", "코스피 5000선 공방" → about "국내 주식", title "반도체가 흔든 한 주", text "AI 투자 위축 우려로 삼성전자·SK하이닉스가 크게 떨어지며 코스피가 출렁였어요. 다음 주 미국 물가 발표가 분위기를 가를 수 있어요."
   - 예: 사정 "자가용으로 출퇴근해요" + 이번 주 "국제 유가 급등" → about "자가용 출퇴근", title "주유비가 오를 수 있어요", text "국제 유가가 오르면 몇 주 뒤 주유소 가격에 반영돼요. 다음 주 주유소 가격 흐름을 확인해 보세요."
-  - 사정마다 이번 주에 가장 크게 닿은 흐름 하나씩. 사정과 닿는 소식이 하나라도 있으면 반드시 1개 이상, 닿는 소식이 없는 사정은 억지로 만들지 않는다. 사정이 없으면 빈 배열.
+  - 사정마다, 이어서 읽은 흐름마다 이번 주에 가장 크게 닿은 것 하나씩. 사정이나 ✓ 소식이 하나라도 있으면 반드시 1개 이상. 근거 없는 연결은 지어내지 않는다. 사정도 ✓ 소식도 없으면 빈 배열.
+  - 예(읽은 소식): ✓ "HBM 공급 경쟁 본격화"를 읽었고 이번 주 "삼성전자 급락" → about "읽던 반도체 소식", title "지켜보던 HBM 경쟁이 주가로", text "읽어 온 HBM 공급 경쟁이 이번 주 반도체주 급락으로 이어졌어요. 다음 주 실적 발표에서 HBM 물량 전망을 확인해 보세요."
   - 사라·팔라, 비중·포트폴리오를 바꾸라, 투자를 점검·대비하라는 말과 수익·손실 장담은 하지 않는다.
 - next: 다음 주에 지켜볼 것 0~3개. 소식 요약에 나온 발표·일정·수치만(예: "19일 미국 물가 발표", "한국은행 기준금리 결정"). text 40자 안팎, ids 근거 소식 번호 1~2개. 없으면 빈 배열.
 - ✓ 표시가 있는 소식은 회원이 읽거나 들은 것이다. 흐름과 키워드를 고를 때 조금 더 무게를 둔다.
@@ -235,7 +236,7 @@ function ids(v: unknown, known: Set<number>, max: number): number[] {
  * 모델 답을 화면에 넣을 수 있게 다듬는다: 모르는 분야·번호는 버리고, 길이를 맞추고, 분야 이름과 같은 키워드는 뺀다.
  * 총평이 없거나 분야 정리가 하나도 안 남으면 null(부른 쪽이 실패로 본다)
  */
-export function cleanDigest(raw: unknown, groups: string[], itemIds: number[], hasFacts = false): ReportDigest | null {
+export function cleanDigest(raw: unknown, groups: string[], itemIds: number[], hasBasis = false): ReportDigest | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as { headline?: unknown; sections?: unknown; keywords?: unknown; personal?: unknown; next?: unknown };
   const known = new Set(itemIds);
@@ -263,9 +264,9 @@ export function cleanDigest(raw: unknown, groups: string[], itemIds: number[], h
     if (keywords.length === 5) break;
   }
 
-  // 맞춤 체크: 사정을 알려 준 회원만(없는데 나오면 지어낸 것), 투자 권유 말은 버린다
+  // 맞춤 체크: 근거(알려 준 사정·읽은 소식)가 있을 때만(없는데 나오면 지어낸 것), 투자 권유 말은 버린다
   const personal: NonNullable<ReportDigest['personal']> = [];
-  for (const x of hasFacts && Array.isArray(r.personal) ? r.personal : []) {
+  for (const x of hasBasis && Array.isArray(r.personal) ? r.personal : []) {
     const o = x as { about?: unknown; title?: unknown; text?: unknown; ids?: unknown };
     const about = str(o?.about).slice(0, 20);
     const title = str(o?.title);
