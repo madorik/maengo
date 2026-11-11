@@ -24,3 +24,9 @@
   - `pm`은 `.env.development.local`의 `DEV_BRIEFING_SLOT=pm`, `onboarding`은 데모 계정 `onboarded_at`을 비운 뒤 찍는다.
   - 맹고 AI 화면과 주간 리포트 정리에 Gemini가 필요하다. 찍는 동안만 개발 서버에 키를 넣었다.
 - iOS 새 버전: `node asc-version.mjs 1.3.3 "<새 기능>"`(제출 준비 중 버전을 만든다) → `upload.mjs … asc` → 빌드 처리 확인 `node asc-build-state.mjs 10`(읽기만)
+
+### 2026-11-11 (1.3.4) 바꾼 것
+- 원본은 `raw3.mjs`(raw2에서 듣는 중 오늘 화면 `playing` 추가, 물어보기는 예상 질문 칩 화면, 플레이어 창·'찾았어요' 뺌). 첫 소식은 예상 질문이 로컬 DB에 있어 Gemini를 부르지 않는다
+- 퇴근길(`pm`)은 그날 로컬 퇴근길 피드가 있어야 한다. 없으면 전날 퇴근길 피드를 오늘로 잠깐 복사하고 `feed_days.visible`을 20으로 둔 뒤 찍고 되돌린다
+- iOS는 출시된 버전의 스크린샷·설명을 못 바꾸므로 새 버전 + 새 빌드: pbxproj의 `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION`을 올리고 archive → exportArchive(업로드) → `asc-build-state.mjs 11` → `asc-version.mjs` → `upload.mjs … asc` → `asc-submit.mjs 1.3.4 11`. Play는 빌드 없이 `upload.mjs … play`
+

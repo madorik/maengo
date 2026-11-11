@@ -11,11 +11,12 @@ const icon = `data:image/svg+xml;base64,${readFileSync(iconPath).toString("base6
 // 2026-11-10 개편판: 하루 두 번 브리핑(출근길·퇴근길)부터, 듣기·맹고 AI·관심사 찾기·요약·보관함 골라 듣기·주간 리포트(Premium).
 // Play 휴대전화 스크린샷은 8장까지. 원본은 로컬 개발 서버에서 데모 계정으로 찍었다(raw2.mjs, 맹고-문서/스토어-스크린샷.md)
 const SLIDES_KO = [
-  { raw: "today", lines: ["출근길엔", "내 관심 소식만 귀로"] },
+  // 2026-11-11(1.3.4): 오늘 화면에서 바로 듣기(노선 위 맹고), 물어보기 예상 질문, 온보딩 사진 카드. 플레이어 창·'찾았어요'는 뺐다
+  { raw: "today", lines: ["출퇴근길엔", "내 관심 소식만 골라서"] },
+  { raw: "playing", lines: ["누르면 바로", "맹고가 읽어 줘요"] },
   { raw: "today-pm", lines: ["퇴근길에", "한 번 더 챙겨 드려요"], dark: true },
-  { raw: "listen", lines: ["운전할 때도", "듣기만 하면 돼요"] },
-  { raw: "ask", lines: ["소식에서 궁금한 건", "맹고 AI에게 물어요"] },
-  { raw: "found", lines: ["고르지 않아도", "관심사를 찾아 줘요"] },
+  { raw: "ask", lines: ["궁금한 건 예상 질문을", "골라 바로 물어봐요"] },
+  { raw: "pick", lines: ["끌리는 소식만 고르면", "관심사는 맹고가 찾아요"] },
   { raw: "article", lines: ["핵심만 짧게 요약하고", "원문은 바로 확인해요"] },
   { raw: "library", lines: ["지난 소식도", "골라서 들어요"] },
   { raw: "report", lines: ["한 주 소식은", "주간 리포트로"] },
