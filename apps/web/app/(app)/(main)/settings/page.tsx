@@ -14,6 +14,7 @@ import { billingNoticeOf } from "@/lib/billing/notice";
 import { subscriptionView } from "@/lib/server/billing";
 import { PushToggle } from "@/components/settings/PushToggle";
 import { PersonalInsightToggle } from "@/components/settings/PersonalInsightToggle";
+import { MyContext } from "@/components/settings/MyContext";
 import { personalOn } from "@/lib/context";
 import { getUserContext } from "@/lib/server/user-context";
 import { Section } from "@/components/settings/Section";
@@ -122,12 +123,18 @@ export default async function SettingsPage() {
         {/* 맞춤 인사이트(2026-11-11): 끄면 내 맞춤 정보·최근 본 소식을 오늘의 흐름에 쓰지 않는다(개인정보 처리방침 5조 국외 이전 거부 방법) */}
         <Section id="personal" title="맞춤 인사이트" action={<PersonalInsightToggle on={personalOn(ctx)} />}>
           <p className="mt-1 text-[14px] leading-relaxed text-sub">
-            내 맞춤 정보와 최근 본 소식으로 오늘의 흐름과 맞춤 체크를 짚어 드려요. 끄면 소식 요약만으로 만들어요. 알려 준 정보는{" "}
-            <Link href="/keywords#my-context" className="font-semibold text-ink underline underline-offset-2">
-              내 맞춤 정보
-            </Link>
-            에서 바꾸거나 지워요.
+            내 맞춤 정보와 최근 본 소식으로 오늘의 흐름과 맞춤 체크를 짚어 드려요. 끄면 소식 요약만으로 만들어요.
           </p>
+          {/* 내 맞춤 정보: 소식을 보다 알려 준 답을 보고 바꾸거나 지운다(개인정보 처리방침 3조). 2026-11-11 사용자: 내 관심 키워드엔 보이지 말 것 → 여기 접어 둔다 */}
+          <details id="my-context" className="group mt-3 border-t border-line">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-semibold [&::-webkit-details-marker]:hidden">
+              내 맞춤 정보
+              <IconChevronRight className="size-4 text-faint transition-transform group-open:rotate-90 motion-reduce:transition-none" />
+            </summary>
+            <div className="pb-1 pt-1">
+              <MyContext ctx={ctx} />
+            </div>
+          </details>
         </Section>
 
         <Section id="display" title="화면">

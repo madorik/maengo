@@ -6,7 +6,7 @@ import { answerContextAction, clearContextAction } from "@/app/(app)/context-act
 import { CONTEXT_QUESTIONS, SKIP, type UserContext } from "@/lib/context";
 
 /**
- * 내 맞춤 정보(2026-11-11): 오늘 화면 맞춤 체크에서 딸깍으로 알려 준 사정을 보고 바꾸거나 지운다('내 관심 키워드' 화면).
+ * 내 맞춤 정보(2026-11-11): 오늘 화면 맞춤 체크에서 딸깍으로 알려 준 사정을 보고 바꾸거나 지운다(설정 > 맞춤 인사이트, 2026-11-11 내 관심 키워드에서 옮김).
  * 이어 묻는 질문(국내·미국, 청약)은 앞 답이 맞을 때만 보인다. 바꾸면 다음에 오늘 화면을 열 때 맞춤 체크가 그 답으로 다시 만들어진다
  */
 export function MyContext({ ctx }: { ctx: UserContext }) {

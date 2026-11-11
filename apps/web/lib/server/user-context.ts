@@ -30,7 +30,7 @@ export async function setUserContext(userId: string, key: string, value: string 
   return true;
 }
 
-/** '맞춤 인사이트' 켜고 끄기(설정). 끄면 회원 정보를 오늘의 흐름에 쓰지 않고 질문도 하지 않는다. 이미 받은 답은 그대로 둔다(지우기는 내 맞춤 정보에서) */
+/** '맞춤 인사이트' 켜고 끄기(설정). 끄면 회원 정보를 오늘의 흐름에 쓰지 않고 질문도 하지 않는다. 이미 받은 답은 그대로 둔다(지우기는 설정 > 맞춤 인사이트 > 내 맞춤 정보에서) */
 export async function setPersonalInsight(userId: string, on: boolean): Promise<void> {
   if (on) must(await db.from('user_context').delete().eq('user_id', userId).eq('key', PERSONAL_OFF), 'user_context personal on');
   else must(await db.from('user_context').upsert({ user_id: userId, key: PERSONAL_OFF, value: '1', updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' }), 'user_context personal off');
