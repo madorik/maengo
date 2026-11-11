@@ -292,7 +292,7 @@ const requester = (p: Profile): Requester => ({ userId: p.id });
 
 /**
  * 오늘 에피소드. generate가 false면 이미 만든 음성만 본다(페이지를 열 때).
- * ids를 주면 그중 오늘 피드에 있는 소식만 넣는다: 화면이 받아 둔 목록과 플레이어 목록·길이가 어긋나지 않게(화면을 연 뒤 피드가 늘어도)
+ * ids를 주면 그중 오늘 피드에 있는 소식만 ids 차례로 넣는다: 화면이 받아 둔 목록과 플레이어 목록·길이·차례가 어긋나지 않게(화면을 연 뒤 피드가 늘어도)
  */
 export async function getEpisode(
   profile: Profile,
@@ -303,8 +303,10 @@ export async function getEpisode(
 ): Promise<Episode> {
   let items = await feedItems(profile, date);
   if (ids) {
-    const want = new Set(ids);
-    items = items.filter((i) => want.has(i.clusterId));
+    // 화면 차례(ids, '가장 많이 다룬 소식'이 맨 위인 feed.ts headlineFirst)대로 듣는다(2026-11-11: 피드 순번대로 두어 노선과 듣는 차례가 어긋났다).
+    // 소식마다 음성은 따로라 차례만 바뀌면 새로 만들지 않고 이어 붙이기만 한다
+    const order = new Map(ids.map((id, k) => [id, k] as const));
+    items = items.filter((i) => order.has(i.clusterId)).sort((a, b) => order.get(a.clusterId)! - order.get(b.clusterId)!);
   }
   const engine = await ttsEngineFor(entitlements(profile).audio);
   return assemble(items, persona, voice, engine, generate ? requester(profile) : null);

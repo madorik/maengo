@@ -6,6 +6,7 @@ import { IconPause, IconPlay } from "@/components/icons";
 import { usePlayer, type PlayerApi } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
+import { CountUp } from "@/components/ui/CountUp";
 import { Spinner } from "@/components/ui/Spinner";
 import { SECTION_LABEL, SLOT_LABEL, isSection } from "@maengo/core/sections";
 import { useMoreArrival } from "./arrival";
@@ -61,6 +62,10 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
   // 브리핑을 듣는 동안(멈춤 포함) 망고는 재생 위치를 따라 노선을 달린다(2026-11-11 사용자)
   const ride = rideOf(player, items);
   useFollowListening(ride);
+  // 노선에서 망고를 옮기거나 정거장을 누르면 그 소식부터 듣는다(2026-11-11 사용자). 들을 수 없는 계정(몫을 다 쓴 Free 등)은 옮기지 못한다
+  const { listenAccess } = useToday();
+  const canListen = player.enabled && data.items.some((i) => listenAccess(i.clusterId) !== null);
+  const pick = canListen ? (index: number) => items[index] && player.playFrom(items[index].clusterId) : undefined;
 
   return (
     <div className={pm ? "min-h-dvh bg-[#1F2340] text-white" : ""}>
@@ -75,12 +80,21 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
           {game.total > 0 ? (
             <>
               <h1 id="briefing-title" className="mt-1 flex items-baseline gap-2.5">
-                <span className="font-round text-[36px] font-black tracking-[-0.02em]">{durationLabel(seconds)}</span>
+                {/* 걸리는 시간·언론 수·기사 수는 0부터 올라간다(2026-11-11 사용자) */}
+                <span className="font-round text-[36px] font-black tracking-[-0.02em]">
+                  {seconds >= 180 ? (
+                    <>
+                      약 <CountUp id="today-minutes" value={Math.round(seconds / 60)} />분
+                    </>
+                  ) : (
+                    durationLabel(seconds)
+                  )}
+                </span>
                 <span className={`text-[15px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>소식 {data.items.length}개</span>
               </h1>
               {data.collected && data.collected.articles > 0 && (
                 <p className={`mt-1 text-[13px] ${pm ? "text-white/65" : "text-sub"}`}>
-                  언론 {data.collected.sources.toLocaleString()}곳, 기사 {data.collected.articles.toLocaleString()}건에서 골랐어요.
+                  언론 <CountUp id="today-sources" value={data.collected.sources} />곳, 기사 <CountUp id="today-articles" value={data.collected.articles} />건에서 골랐어요.
                 </p>
               )}
             </>
@@ -103,7 +117,7 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
             {view.value === "card" ? (
               <CardGrid items={items} pm={pm} consumed={consumed} ride={ride} />
             ) : (
-              <Route items={items} pm={pm} current={current} consumed={consumed} ride={ride} rate={player.rate} />
+              <Route items={items} pm={pm} current={current} consumed={consumed} ride={ride} rate={player.rate} onPick={pick} />
             )}
           </>
         ) : (
@@ -261,8 +275,10 @@ function Meta({ item, pm }: { item: FeedItem; pm: boolean }) {
 
 /**
  * 노선: 출발 → 소식(정거장) → 도착. 지나온 구간은 흐리게, 망고는 지금 들을 차례인 정거장에.
- * 브리핑을 듣는 동안(ride)은 망고가 정거장에 서 있지 않고 재생 위치를 따라 다음 정거장 쪽으로 움직인다(2026-11-11 사용자).
- * 소리가 나는 동안은 통통 튀고(재생 속도가 빠르면 더 빨리), 듣는 소식 카드엔 '듣는 중'
+ * 브리핑을 듣는 동안(ride)은 망고가 재생 위치를 따라 다음 정거장 쪽으로 움직인다(2026-11-11 사용자).
+ * 소리가 나는 동안은 통통 튀고(재생 속도가 빠르면 더 빨리), 듣는 소식 카드엔 '듣는 중'.
+ * 망고를 끌어 다른 정거장에 놓거나 정거장(점)을 누르면 그 소식부터 듣는다(onPick, 2026-11-11 사용자).
+ * 망고는 한 마리를 노선 위에 띄워 두고 자리만 옮긴다(정거장마다 그리지 않는다: 끌기·움직임이 이어지게)
  */
 function Route({
   items,
@@ -271,6 +287,7 @@ function Route({
   consumed,
   ride,
   rate,
+  onPick,
 }: {
   items: FeedItem[];
   pm: boolean;
@@ -278,51 +295,56 @@ function Route({
   consumed: (id: number) => boolean;
   ride: Ride | null;
   rate: number;
+  /** 이 소식부터 듣기. 없으면(들을 수 없는 계정) 망고를 옮기지 못한다 */
+  onPick?: (index: number) => void;
 }) {
   const line = "#FFC23D";
   const passed = pm ? "rgba(255,255,255,0.22)" : "#D5D8E0";
-  const at = ride ? ride.index : current;
   const headline = (items[0]?.sourceCount ?? 0) >= 2;
   const olRef = useRef<HTMLOListElement>(null);
   const ys = useStops(olRef, items.length);
-  // 달리는 망고의 가운데 높이: 듣는 정거장에서 다음 정거장(마지막 소식이면 도착)까지 들은 만큼
-  const from = ride ? ys[ride.index] : undefined;
-  const to = ride ? ys[ride.index + 1] : undefined;
-  const y = ride && from !== undefined ? from + ride.frac * ((to ?? from) - from) : null;
+  /** 정거장 가운데 높이. k: -1 출발, 0..n-1 소식, n 도착 */
+  const stop = (k: number): number | undefined => ys[k + 1];
+  const drag = useMangoDrag(items.length, stop, onPick);
+  const at = drag.target ?? (ride ? ride.index : current);
+  // 망고의 가운데 높이: 끄는 중이면 손가락, 듣는 중이면 듣는 정거장에서 다음 정거장(마지막이면 도착)까지 들은 만큼, 아니면 지금 정거장
+  const from = ride ? stop(ride.index) : undefined;
+  let y: number | undefined;
+  if (drag.y !== null) y = drag.y;
+  else if (ride) y = from === undefined ? undefined : from + ride.frac * ((stop(ride.index + 1) ?? from) - from);
+  else y = stop(Math.min(current, items.length));
+  const departed = (i: number) => i < at || (!!ride && drag.target === null && i === at);
   return (
     <ol ref={olRef} aria-label="노선" className="relative mt-3 px-1">
-      <li className="flex h-12 items-center gap-3">
+      <li data-stop="20" className="flex h-12 items-center gap-3">
         <div aria-hidden="true" className="relative h-12 w-8 shrink-0">
           <span className="absolute bottom-0 left-[13px] top-6 w-1.5" style={{ background: at >= 0 ? passed : line }} />
-          {at === -1 ? (
-            <span className="absolute -left-1 top-0">
-              <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
-            </span>
-          ) : (
-            <span className="absolute left-[10px] top-[18px] size-3 rounded-full" style={{ background: passed }} />
-          )}
+          <span className="absolute left-[10px] top-[18px] size-3 rounded-full" style={{ background: at >= 0 ? passed : line }} />
         </div>
         <span className={`text-[12px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>출발</span>
       </li>
       {items.map((item, i) => {
-        const listening = ride?.index === i;
+        const listening = ride?.index === i && drag.target === null;
         const done = consumed(item.clusterId) && !listening;
         const here = i === at;
         const big = i === 0;
         return (
           <li key={item.clusterId} data-stop="28" data-listen-index={i} className={`flex gap-3 ${FOLLOW_MARGIN}`} data-tour={i === 0 ? "card" : undefined}>
-            <div aria-hidden="true" className="relative w-8 shrink-0">
-              <span className="absolute left-[13px] top-0 h-7 w-1.5" style={{ background: i <= at ? passed : line }} />
-              <span className="absolute bottom-0 left-[13px] top-7 w-1.5" style={{ background: i < at ? passed : line }} />
-              {here && !ride ? (
-                <span className="absolute -left-1 top-2">
-                  <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
-                </span>
-              ) : (
-                <span
-                  className={`absolute rounded-full ${big ? "left-[6px] top-[18px] size-5 border-[5px]" : "left-[9px] top-[21px] size-3.5 border-4"}`}
-                  // 듣는 동안엔 망고가 떠난 정거장(지금 듣는 소식)도 지나온 색
-                  style={{ borderColor: i < at || (ride && i === at) ? passed : line, background: i < at || (ride && i === at) ? passed : pm ? "#1F2340" : "var(--color-paper)" }}
+            <div className="relative w-8 shrink-0">
+              <span aria-hidden="true" className="absolute left-[13px] top-0 h-7 w-1.5" style={{ background: i <= at ? passed : line }} />
+              <span aria-hidden="true" className="absolute bottom-0 left-[13px] top-7 w-1.5" style={{ background: i < at ? passed : line }} />
+              <span
+                aria-hidden="true"
+                className={`absolute rounded-full ${big ? "left-[6px] top-[18px] size-5 border-[5px]" : "left-[9px] top-[21px] size-3.5 border-4"}`}
+                style={{ borderColor: departed(i) ? passed : line, background: departed(i) ? passed : pm ? "#1F2340" : "var(--color-paper)" }}
+              />
+              {/* 정거장을 누르면 이 소식부터 듣는다(망고 끌기의 키보드·화면 낭독기 길) */}
+              {onPick && (
+                <button
+                  type="button"
+                  aria-label={`${item.title}부터 듣기`}
+                  onClick={() => onPick(i)}
+                  className="absolute inset-x-[-4px] bottom-0 top-0 z-[5] rounded-xl focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
                 />
               )}
             </div>
@@ -356,43 +378,91 @@ function Route({
       <li data-stop="24" className="flex h-12 items-center gap-3">
         <div aria-hidden="true" className="relative h-12 w-8 shrink-0">
           <span className="absolute left-[13px] top-0 h-3 w-1.5" style={{ background: at >= items.length ? passed : line }} />
-          {at >= items.length && !ride ? (
-            <span className="absolute -left-1 top-1">
-              <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
-            </span>
-          ) : (
-            <span className={`absolute left-[5px] top-[10px] flex size-[22px] items-center justify-center rounded-[7px] ${pm ? "bg-mango" : "bg-ink"}`}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={pm ? "#1F2340" : "#FFC23D"} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12.5l4.5 4.5L19 7.5" />
-              </svg>
-            </span>
-          )}
+          <span className={`absolute left-[5px] top-[10px] flex size-[22px] items-center justify-center rounded-[7px] ${pm ? "bg-mango" : "bg-ink"}`}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={pm ? "#1F2340" : "#FFC23D"} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
+          </span>
         </div>
         <span className="text-[12px] font-bold">도착</span>
         <span className={`text-[12px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>{pm ? "집에 가기 전에 끝나요" : "회사 도착 전에 끝나요"}</span>
       </li>
-      {ride && from !== undefined && y !== null && (
-        <>
-          {/* 지나온 만큼 선을 흐리게 덮는다(정거장 → 망고) */}
+      {/* 지나온 만큼 선을 흐리게 덮는다(듣는 정거장 → 망고) */}
+      {ride && drag.y === null && from !== undefined && y !== undefined && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[17px] w-1.5 transition-[height] duration-300 ease-linear motion-reduce:transition-none"
+          style={{ top: from, height: Math.max(0, y - from), background: passed }}
+        />
+      )}
+      {y !== undefined && (
+        // 위치는 0.25초마다 바뀌어서(timeupdate) 그 사이를 같은 길이로 미끄러지게 한다. 끄는 동안은 손가락을 바로 따라간다
+        <span
+          aria-hidden="true"
+          {...(onPick ? drag.handlers : {})}
+          className={`absolute left-0 top-0 z-10 ${onPick ? "cursor-grab touch-none active:cursor-grabbing" : "pointer-events-none"} ${drag.y !== null ? "" : "transition-transform duration-300 ease-linear motion-reduce:transition-none"}`}
+          style={{ transform: `translateY(${y - 20}px)` }}
+        >
+          {/* 손가락으로 잡기 쉽게 둘레를 넓힌다 */}
+          <span className="absolute -inset-2" />
           <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-[17px] w-1.5 transition-[height] duration-300 ease-linear motion-reduce:transition-none"
-            style={{ top: from, height: Math.max(0, y - from), background: passed }}
-          />
-          {/* 위치는 0.25초마다 바뀌어서(timeupdate) 그 사이를 같은 길이로 미끄러지게 한다 */}
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 z-10 transition-transform duration-300 ease-linear motion-reduce:transition-none"
-            style={{ transform: `translateY(${y - 20}px)` }}
+            className={`block ${ride?.playing && drag.y === null ? "mango-ride" : ""} ${drag.y !== null ? "scale-110" : ""} transition-transform`}
+            style={{ "--ride-dur": `${(0.7 / (rate || 1)).toFixed(2)}s` } as React.CSSProperties}
           >
-            <span className={`block ${ride.playing ? "mango-ride" : ""}`} style={{ "--ride-dur": `${(0.7 / (rate || 1)).toFixed(2)}s` } as React.CSSProperties}>
-              <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
-            </span>
+            <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
           </span>
-        </>
+        </span>
       )}
     </ol>
   );
+}
+
+/**
+ * 노선 망고 끌기(2026-11-11): 위아래로 끌면 손가락을 따라가고, 놓으면 가장 가까운 소식 정거장에서 그 소식부터 듣는다.
+ * 6px 안쪽 움직임은 누름으로 보고 아무것도 하지 않는다(실수로 건드려 듣기가 바뀌지 않게). 소식 정거장 사이에서만 움직인다
+ */
+function useMangoDrag(count: number, stop: (k: number) => number | undefined, onPick?: (index: number) => void) {
+  const [state, setState] = useState<{ y: number; target: number } | null>(null);
+  const ref = useRef<{ id: number; startY: number; base: number; moved: boolean; target: number } | null>(null);
+  const nearest = (y: number) => {
+    let best = 0;
+    for (let k = 1; k < count; k++) if (Math.abs((stop(k) ?? Infinity) - y) < Math.abs((stop(best) ?? Infinity) - y)) best = k;
+    return best;
+  };
+  const handlers = {
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      // 지금 보이는 망고 가운데(노선 위에서부터). 움직이는 중이어도 보이는 자리에서 잡는다
+      const ol = e.currentTarget.offsetParent;
+      if (!onPick || !ol || !count) return;
+      const base = e.currentTarget.getBoundingClientRect().top - ol.getBoundingClientRect().top + 20;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      ref.current = { id: e.pointerId, startY: e.clientY, base, moved: false, target: nearest(base) };
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      const d = ref.current;
+      if (!d || d.id !== e.pointerId) return;
+      const dy = e.clientY - d.startY;
+      if (!d.moved && Math.abs(dy) < 6) return;
+      d.moved = true;
+      const lo = stop(0) ?? d.base;
+      const hi = stop(count - 1) ?? d.base;
+      const y = Math.min(hi, Math.max(lo, d.base + dy));
+      d.target = nearest(y);
+      setState({ y, target: d.target });
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+      const d = ref.current;
+      if (!d || d.id !== e.pointerId) return;
+      ref.current = null;
+      setState(null);
+      if (d.moved) onPick?.(d.target);
+    },
+    onPointerCancel: () => {
+      ref.current = null;
+      setState(null);
+    },
+  };
+  return { y: state?.y ?? null, target: state?.target ?? null, handlers };
 }
 
 /**
@@ -451,11 +521,13 @@ function CardGrid({ items, pm, consumed, ride }: { items: FeedItem[]; pm: boolea
 
 /**
  * 듣기 막대(오늘 브리핑 전체 듣기): 플레이어로 듣는다(창은 펴지 않는다, 2026-11-11). 듣는 중이면 일시정지.
+ * 들은 게 있으면 '이어 듣기'와 아래 '처음부터 다시 듣기', 다 들었으면 막대가 '처음부터 다시 듣기'(2026-11-11 사용자).
+ * 처음부터는 읽은 소식 건너뛰기 없이 첫 소식부터 다 들려준다(player.playFrom).
  * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다. 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
  */
 function ListenBar({ pm, label }: { pm: boolean; label: string }) {
   const p = usePlayer();
-  const { data, listenAccess } = useToday();
+  const { data, listenAccess, listened } = useToday();
   const shell = `mt-4 flex h-[60px] w-full items-center gap-3 rounded-full pl-2 pr-5 text-left no-underline ${pm ? "bg-white text-[#1F2340]" : "bg-ink text-paper"}`;
   const knob = "flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink";
   if (!p.enabled || !data.items.some((i) => listenAccess(i.clusterId) !== null)) {
@@ -470,23 +542,60 @@ function ListenBar({ pm, label }: { pm: boolean; label: string }) {
     );
   }
   const playingToday = !p.playlist && p.status === "playing";
+  const heardAny = data.items.some((i) => listened.has(i.clusterId));
+  const heardAll = data.items.length > 0 && data.items.every((i) => listened.has(i.clusterId));
+  // 다 들었고 쉬는 중이면 막대가 처음부터(다시 듣다 멈춘 중이면 이어 듣기: 누르자마자 처음으로 돌아가지 않게)
+  const resting = !!p.playlist || p.status === "idle" || p.status === "done";
+  const replay = !playingToday && resting && (heardAll || (!p.playlist && p.status === "done"));
+  const first = (!p.playlist && p.chapters[0]?.clusterId) || data.items[0]?.clusterId;
+  const fromStart = () => {
+    if (first !== undefined) p.playFrom(first);
+  };
+  const text = playingToday ? "듣는 중" : replay ? "처음부터 다시 듣기" : heardAny ? `${label.replace(/ 듣기$/, "")} 이어 듣기` : label;
   return (
-    <button
-      type="button"
-      data-tour="listen-all"
-      onClick={() => {
-        if (playingToday) return p.pause();
-        // 재생은 누른 손짓 안에서 건다(iOS 자동 재생 정책). 플레이어 창은 펴지 않고 이 화면에서 듣는다(2026-11-11 사용자): 망고가 노선을 달리고 듣는 카드가 맨 위로
-        p.playToday();
-      }}
-      aria-busy={p.starting || undefined}
-      aria-label={playingToday ? `${label} 일시정지` : label}
-      className={shell}
-    >
-      <span className={knob}>{p.starting ? <Spinner /> : playingToday ? <IconPause className="size-[18px]" /> : <IconPlay className="size-[18px]" />}</span>
-      <span className="flex-1 text-[16px] font-bold">{playingToday ? "듣는 중" : label}</span>
-      {/* 듣는 동안 음성 파동(2026-11-10 사용자) */}
-      {playingToday && <SoundWave className={pm ? "text-mango-deep" : "text-mango"} />}
-    </button>
+    <>
+      <button
+        type="button"
+        data-tour="listen-all"
+        onClick={() => {
+          if (playingToday) return p.pause();
+          // 재생은 누른 손짓 안에서 건다(iOS 자동 재생 정책). 플레이어 창은 펴지 않고 이 화면에서 듣는다(2026-11-11 사용자): 망고가 노선을 달리고 듣는 카드가 맨 위로
+          if (replay) return fromStart();
+          p.playToday();
+        }}
+        aria-busy={p.starting || undefined}
+        aria-label={playingToday ? `${label} 일시정지` : text}
+        className={shell}
+      >
+        <span className={knob}>
+          {p.starting ? <Spinner /> : playingToday ? <IconPause className="size-[18px]" /> : replay ? <IconReplay className="size-[18px]" /> : <IconPlay className="size-[18px]" />}
+        </span>
+        <span className="flex-1 text-[16px] font-bold">{text}</span>
+        {/* 듣는 동안 음성 파동(2026-11-10 사용자) */}
+        {playingToday && <SoundWave className={pm ? "text-mango-deep" : "text-mango"} />}
+      </button>
+      {heardAny && !replay && (
+        <div className="mt-1.5 flex justify-end">
+          <button
+            type="button"
+            onClick={fromStart}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold ${pm ? "text-white/75 hover:text-white" : "text-sub hover:text-ink"}`}
+          >
+            <IconReplay className="size-4" />
+            처음부터 다시 듣기
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** 처음부터 다시(되감기 화살표) */
+function IconReplay({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+      <path d="M4 4v4.5h4.5" />
+    </svg>
   );
 }

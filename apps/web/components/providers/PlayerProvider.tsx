@@ -116,6 +116,11 @@ export interface PlayerApi {
   exitPlaylist: () => void;
   /** 오늘 소식 전체를 플레이어로 듣는다(오늘 카드의 '전체 듣기'). 플레이리스트를 듣는 중이었으면 오늘로 바꿔 바로 튼다 */
   playToday: () => void;
+  /**
+   * 오늘 브리핑을 이 소식부터 듣는다(2026-11-11: 오늘 화면 '처음부터 다시 듣기', 노선에서 망고를 옮긴 자리). 탭 안에서 부른다(iOS).
+   * 고른 자리부터 순서대로 다 들려준다(읽은 소식 건너뛰기를 이번 듣기에선 쓰지 않는다: 일부러 다시 듣는 것이라서)
+   */
+  playFrom: (clusterId: number) => void;
   /** 플레이어 목록 순서를 바꾼다(재생 목록에서 끌어 놓기). 듣던 소식의 듣던 자리에서 이어 간다. 저장된 플레이리스트 순서는 그대로 */
   reorderPlaylist: (ids: number[]) => void;
   /**
@@ -188,6 +193,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const startingRef = useRef(false);
   /** 받는 대로 시작할 때 쓸 최신 값(읽은 소식·건너뛰기·이어 듣던 자리) */
   const startFromRef = useRef<{ read: ReadonlySet<number>; skip: boolean; resumeRaw: string | null }>({ read: new Set(), skip: false, resumeRaw: null });
+  /** 받기 전에 playFrom을 눌렀으면 그 소식(받는 대로 거기서 시작한다) */
+  const startAtRef = useRef<number | null>(null);
   const want = (on: boolean) => {
     startingRef.current = on;
     setStarting(on);
@@ -399,7 +406,16 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         if (startingRef.current) {
           startingRef.current = false;
           setStarting(false);
-          if (!keep.resume && !playlistRef.current && ep.chapters.length) {
+          const startAt = startAtRef.current;
+          startAtRef.current = null;
+          const picked = startAt === null ? -1 : ep.chapters.findIndex((c) => c.clusterId === startAt);
+          if (!keep.resume && !playlistRef.current && picked >= 0) {
+            // playFrom: 고른 소식부터, 건너뛰지 않고
+            keep = { index: picked, resume: true };
+            onceRef.current = null;
+            setReadSnap(new Set());
+            track("listen_start", { mode: "today_from" });
+          } else if (!keep.resume && !playlistRef.current && ep.chapters.length) {
             const { read, skip, resumeRaw } = startFromRef.current;
             const at = resumeTarget(ep.chapters, parseResume(resumeRaw, ep.date), read, skip);
             keep = { index: at?.index ?? startIndex(ep.chapters, read, skip), resume: true };
@@ -637,6 +653,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       // 아직 받는 중이면 받는 대로 시작한다(받기에 실패했으면 다시 받고 시작). 앱(웹뷰)은 탭 밖의 재생을 막지 않는다.
       // 브라우저가 막으면 소리가 안 나고, 한 번 더 누르면 그때는 바로 시작된다
       if (!enabled) return;
+      startAtRef.current = null;
       want(true);
       if (error) {
         setError(null);
@@ -901,6 +918,44 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     setReadSnap(new Set(read));
     track("listen_start", { mode: "today" });
     void load(persona, voice, { index: 0, resume: true });
+  };
+
+  const playFrom = (clusterId: number) => {
+    if (playlistRef.current) {
+      // 플레이리스트를 듣는 중이었으면 오늘로 바꿔 그 소식부터(playToday와 같이 비우고 받는다)
+      queueRef.current = [];
+      addingRef.current = [];
+      setPending([]);
+      playlistRef.current = null;
+      setPlaylist(null);
+      onceRef.current = null;
+      setEpisode(null);
+      setPreparing(false);
+      setError(null);
+      setStatus("idle");
+      setCur(-1);
+      setPosMs(0);
+      setReadSnap(new Set());
+      track("listen_start", { mode: "today_from" });
+      void load(persona, voice, { index: 0, resume: true, clusterId });
+      return;
+    }
+    if (!episode) {
+      if (!enabled) return;
+      startAtRef.current = clusterId;
+      want(true);
+      if (error) {
+        setError(null);
+        void load(persona, voice, { index: -1, resume: false });
+      }
+      return;
+    }
+    const index = chapters.findIndex((c) => c.clusterId === clusterId);
+    if (index < 0) return;
+    track("listen_start", { mode: "today_from" });
+    goTo(index);
+    // goTo가 쉬던 중이면 읽은 소식 기준을 고정하는데(begin), 고른 자리부터는 건너뛰지 않게 비운다(나중 값이 남는다)
+    setReadSnap(new Set());
   };
 
   /**
@@ -1327,6 +1382,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     playPlaylist,
     exitPlaylist,
     playToday,
+    playFrom,
     reorderPlaylist,
     removeFromPlayer,
     removedToday: removed,
