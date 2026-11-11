@@ -51,8 +51,8 @@ export function BriefingHero({ insight: made }: { insight: BriefingInsight | nul
 }
 
 /**
- * AI가 쓴 글의 'OO님'(회원을 부르는 말)을 프로필 이름으로. 이름은 Gemini에 보내지 않아서 화면에서 바꾼다(개인정보 처리방침 5조).
- * 예전에 '회원님'으로 만든 글도 같이 바꾼다(2026-11-11 사용자: 회원님 말고 프로필 이름)
+ * AI가 쓴 글에 남은 'OO님'·'회원님'을 프로필 이름으로(형식 4부터는 AI가 부르지 않는다. 그 전에 만든 글이 다시 만들지 못해 남았을 때만).
+ * 이름은 Gemini에 보내지 않는다(개인정보 처리방침 5조)
  */
 function withName(insight: BriefingInsight, name: string | null): BriefingInsight {
   // 이름 없는 계정(운영엔 없다)만 '회원님'
@@ -61,7 +61,8 @@ function withName(insight: BriefingInsight, name: string | null): BriefingInsigh
   return {
     ...insight,
     headline: n(insight.headline),
-    flows: insight.flows.map((f) => ({ ...f, title: n(f.title), text: n(f.text), tag: f.tag && n(f.tag), why: f.why && n(f.why), watch: f.watch?.map(n) })),
+    // 꼬리표에 호칭이 들어가면('주식하는 당신') 꼬리표를 숨긴다(AI가 부르지 말라는 말을 어길 때)
+    flows: insight.flows.map((f) => ({ ...f, title: n(f.title), text: n(f.text), tag: f.tag && !/당신|님/.test(f.tag) ? f.tag : "", why: f.why && n(f.why), watch: f.watch?.map(n) })),
     checks: insight.checks.map((c) => ({ ...c, text: n(c.text) })),
     personal: insight.personal?.map((x) => ({ ...x, title: n(x.title), text: n(x.text) })),
   };
@@ -194,13 +195,12 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
 }
 
 /**
- * OO님 맞춤 체크(2026-11-11 사용자: 체크가 눈에 안 띈다. 사용자 맞춤 체크 항목이어야 한다).
+ * 맞춤 체크(2026-11-11 사용자: 체크가 눈에 안 띈다. 사용자 맞춤 체크 항목이어야 한다. 이름은 넣지 않는다 — 이름이 너무 많다).
  * 망고색 블록: 내 맞춤 정보로 짚은 소식(예: 국내 주식 → 금리 인상의 영향) → 생활 속 확인할 것. 둘 다 없으면 그리지 않는다.
  * 내 맞춤 정보 질문은 여기서 묻지 않는다(대놓고 묻지 말라는 사용자 결정, components/context/ContextAsk.tsx)
  */
 function MatchCheck({ insight }: { insight: BriefingInsight }) {
   const { data } = useToday();
-  const name = useCallName();
   const personal = insight.personal ?? [];
   const checks = insight.checks.slice(0, 1);
   if (!personal.length && !checks.length) return null;
@@ -208,7 +208,7 @@ function MatchCheck({ insight }: { insight: BriefingInsight }) {
   return (
     <section aria-labelledby="match-title" className="-mx-1.5 mt-4 rounded-[24px] bg-mango px-3 pb-3 pt-4 text-[#1F2340]">
       <h2 id="match-title" className="px-1.5 text-[15px] font-bold tracking-[-0.02em]">
-        {name ? `${name}님` : "내"} 맞춤 체크
+        맞춤 체크
       </h2>
       <div className="mt-3 flex flex-col gap-2">
         {personal.map((x) => {
