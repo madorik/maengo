@@ -1,6 +1,7 @@
 "use client";
 
 import { IconCheck } from "@/components/icons";
+import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { CountUp } from "@/components/ui/CountUp";
 import { SLOT_LABEL } from "@maengo/core/sections";
@@ -8,31 +9,71 @@ import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight } from "@/lib/server/briefing-insight";
 
 /**
- * 오늘 화면 머리(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다 → 오늘의 흐름 한 줄이 큰 제목).
- * 날짜 줄(TodayList) 아래: 큰 제목(흐름 한 줄, 못 만들었으면 '출근길 브리핑') → '언론 N곳, 기사 N건에서 골랐어요' → 흐름 상자(흐름 2~3개·확인할 것).
+ * 오늘 화면 머리(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다 → 오늘의 흐름 한 줄이 큰 제목, 'OO님에게 맞춤 인사이트'라고 부른다).
+ * 흐름이 있으면: 'OO님에게 맞춤 인사이트' → 큰 제목(흐름 한 줄) → '날짜 출근길 · 언론 N곳, 기사 N건에서 골랐어요' → 흐름 카드 → 확인할 것.
+ * 못 만들었으면 예전처럼 날짜 줄 → '출근길 브리핑' → 언론·기사 수.
  * 흐름은 서버가 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts). 만드는 동안은 같은 모양의 회색 줄(InsightFallback)
  */
 export function BriefingHero({ insight }: { insight: BriefingInsight | null }) {
   const { data } = useToday();
   const pm = data.slot === "pm";
+  const slotLabel = SLOT_LABEL[data.slot ?? "am"];
+  if (!insight) {
+    return (
+      <>
+        <DateLine pm={pm} />
+        <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
+          {slotLabel} 브리핑
+        </h1>
+        <Collected pm={pm} />
+      </>
+    );
+  }
   return (
     <>
+      <ForYou pm={pm} />
       <h1 id="briefing-title" className="mt-1.5 text-[25px] font-bold leading-[1.3] tracking-[-0.035em] text-balance">
-        {insight?.headline ?? `${SLOT_LABEL[data.slot ?? "am"]} 브리핑`}
+        {insight.headline}
       </h1>
-      <Collected pm={pm} />
-      {insight && <Flows insight={insight} pm={pm} />}
+      <Collected pm={pm} withDate />
+      <Flows insight={insight} pm={pm} />
     </>
   );
 }
 
-/** 언론 N곳, 기사 N건에서 골랐어요(숫자는 0부터 올라간다, 2026-11-11 사용자) */
-function Collected({ pm }: { pm: boolean }) {
+/** 'OO님에게 맞춤 인사이트'(이름이 없으면 회원님) */
+function ForYou({ pm }: { pm: boolean }) {
+  const { displayName } = useProfile();
+  const name = displayName?.trim() || "회원";
+  return <p className={`text-[13px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>{name}님에게 맞춤 인사이트</p>;
+}
+
+/** '11월 11일 수요일 출근길'(때를 가리키는 끝말은 떼고 출근길·퇴근길을 붙인다) */
+function useDateLabel(): string {
   const { data } = useToday();
-  if (!data.collected || data.collected.articles <= 0) return null;
+  const day = data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|저녁|밤)$/, "");
+  return `${day} ${SLOT_LABEL[data.slot ?? "am"]}`;
+}
+
+function DateLine({ pm }: { pm: boolean }) {
+  return <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>{useDateLabel()}</p>;
+}
+
+/** 언론 N곳, 기사 N건에서 골랐어요(숫자는 0부터 올라간다, 2026-11-11 사용자). withDate면 앞에 날짜 */
+function Collected({ pm, withDate = false }: { pm: boolean; withDate?: boolean }) {
+  const { data } = useToday();
+  const date = useDateLabel();
+  const has = !!data.collected && data.collected.articles > 0;
+  if (!has && !withDate) return null;
   return (
     <p className={`mt-1.5 text-[13px] ${pm ? "text-white/65" : "text-sub"}`}>
-      언론 <CountUp id="today-sources" value={data.collected.sources} />곳, 기사 <CountUp id="today-articles" value={data.collected.articles} />건에서 골랐어요.
+      {withDate && date}
+      {withDate && has && " · "}
+      {has && (
+        <>
+          언론 <CountUp id="today-sources" value={data.collected!.sources} />곳, 기사 <CountUp id="today-articles" value={data.collected!.articles} />건에서 골랐어요.
+        </>
+      )}
     </p>
   );
 }
@@ -125,6 +166,7 @@ export function InsightFallback() {
   const bar = `rounded-full motion-safe:animate-pulse ${pm ? "bg-white/15" : "bg-line"}`;
   return (
     <>
+      <ForYou pm={pm} />
       <div aria-hidden="true" className="mt-2.5">
         <div className={`h-6 w-11/12 ${bar}`} />
         <div className={`mt-2 h-6 w-3/5 ${bar}`} />
@@ -132,7 +174,7 @@ export function InsightFallback() {
       <h1 id="briefing-title" className="sr-only">
         {SLOT_LABEL[data.slot ?? "am"]} 브리핑
       </h1>
-      <Collected pm={pm} />
+      <Collected pm={pm} withDate />
       <div aria-hidden="true" className="-mx-5 mt-4 flex gap-3 overflow-hidden px-5">
         {[0, 1].map((k) => (
           <div key={k} className={`w-[80%] max-w-[300px] shrink-0 rounded-[22px] px-5 pb-5 pt-5 ${pm ? "bg-white/10" : "bg-snow"}`}>

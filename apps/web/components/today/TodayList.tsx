@@ -82,16 +82,18 @@ export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** �
         {data.signupGift && tourSeen && <SignupGift gift={data.signupGift} />}
 
         <section aria-labelledby="briefing-title" className="px-1.5">
-          <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>
-            {day} {slotLabel}
-          </p>
-          {/* 큰 제목은 오늘의 흐름 한 줄(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다). 서버가 만들어 끼운다(today/page.tsx) */}
+          {/* 머리는 'OO님에게 맞춤 인사이트'와 오늘의 흐름 한 줄(2026-11-11 사용자). 서버가 만들어 끼운다(today/page.tsx, BriefingInsight.tsx) */}
           {game.total > 0 ? (
             insight
           ) : (
-            <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
-              {slotLabel} 브리핑
-            </h1>
+            <>
+              <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>
+                {day} {slotLabel}
+              </p>
+              <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
+                {slotLabel} 브리핑
+              </h1>
+            </>
           )}
         </section>
 
