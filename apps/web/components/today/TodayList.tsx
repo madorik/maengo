@@ -61,7 +61,7 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
 
   return (
     <div className={pm ? "min-h-dvh bg-[#1F2340] text-white" : ""}>
-      <div className="mx-auto max-w-[640px] px-4 pb-28 pt-5 lg:pt-8">
+      <div className="mx-auto max-w-[640px] px-4 pb-4 pt-5 lg:pt-8">
         {notice}
         {data.signupGift && tourSeen && <SignupGift gift={data.signupGift} />}
 
