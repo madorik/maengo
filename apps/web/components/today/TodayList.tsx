@@ -112,7 +112,10 @@ export function TodayList({ notice }: { notice?: React.ReactNode }) {
           <>
             <div className="mt-6 flex items-center justify-between px-1.5">
               <h2 className="text-[15px] font-bold">{slotLabel} 노선</h2>
-              <ViewToggle view={view.value} onChange={view.set} pm={pm} />
+              <div className="flex items-center gap-1.5">
+                <ReplayButton pm={pm} />
+                <ViewToggle view={view.value} onChange={view.set} pm={pm} />
+              </div>
             </div>
             {view.value === "card" ? (
               <CardGrid items={items} pm={pm} consumed={consumed} ride={ride} />
@@ -520,27 +523,14 @@ function CardGrid({ items, pm, consumed, ride }: { items: FeedItem[]; pm: boolea
 }
 
 /**
- * 듣기 막대(오늘 브리핑 전체 듣기): 플레이어로 듣는다(창은 펴지 않는다, 2026-11-11). 듣는 중이면 일시정지.
- * 들은 게 있으면 '이어 듣기'와 아래 '처음부터 다시 듣기', 다 들었으면 막대가 '처음부터 다시 듣기'(2026-11-11 사용자).
- * 처음부터는 읽은 소식 건너뛰기 없이 첫 소식부터 다 들려준다(player.playFrom).
- * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다. 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
+ * 오늘 브리핑 다시 듣기 상태(듣기 막대와 노선 머리의 '처음부터 다시 듣기'가 같이 쓴다).
+ * 들은 게 있으면 노선 머리에 '처음부터 다시 듣기', 다 들었고 쉬는 중이면 막대가 '처음부터 다시 듣기'(2026-11-11 사용자).
+ * 처음부터는 읽은 소식 건너뛰기 없이 첫 소식부터 다 들려준다(player.playFrom)
  */
-function ListenBar({ pm, label }: { pm: boolean; label: string }) {
+function useBriefingReplay() {
   const p = usePlayer();
   const { data, listenAccess, listened } = useToday();
-  const shell = `mt-4 flex h-[60px] w-full items-center gap-3 rounded-full pl-2 pr-5 text-left no-underline ${pm ? "bg-white text-[#1F2340]" : "bg-ink text-paper"}`;
-  const knob = "flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink";
-  if (!p.enabled || !data.items.some((i) => listenAccess(i.clusterId) !== null)) {
-    return (
-      <Link href="/premium" data-tour="listen-all" aria-label={`${label}, Premium에서 들을 수 있어요`} className={shell}>
-        <span className={knob}>
-          <IconPlay className="size-[18px]" />
-        </span>
-        <span className="flex-1 text-[16px] font-bold">{label}</span>
-        <PremiumBadge />
-      </Link>
-    );
-  }
+  const canListen = p.enabled && data.items.some((i) => listenAccess(i.clusterId) !== null);
   const playingToday = !p.playlist && p.status === "playing";
   const heardAny = data.items.some((i) => listened.has(i.clusterId));
   const heardAll = data.items.length > 0 && data.items.every((i) => listened.has(i.clusterId));
@@ -551,42 +541,68 @@ function ListenBar({ pm, label }: { pm: boolean; label: string }) {
   const fromStart = () => {
     if (first !== undefined) p.playFrom(first);
   };
+  return { canListen, playingToday, heardAny, replay, fromStart };
+}
+
+/** 노선 머리 오른쪽(보기 전환 왼쪽)의 '처음부터 다시 듣기'(2026-11-11 사용자). 들은 게 있고 막대가 처음부터가 아닐 때만 */
+function ReplayButton({ pm }: { pm: boolean }) {
+  const r = useBriefingReplay();
+  if (!r.canListen || !r.heardAny || r.replay) return null;
+  return (
+    <button
+      type="button"
+      onClick={r.fromStart}
+      className={`inline-flex min-h-9 items-center gap-1 rounded-full px-2 text-[13px] font-semibold ${pm ? "text-white/75 hover:text-white" : "text-sub hover:text-ink"}`}
+    >
+      <IconReplay className="size-[15px]" />
+      처음부터 다시 듣기
+    </button>
+  );
+}
+
+/**
+ * 듣기 막대(오늘 브리핑 전체 듣기): 플레이어로 듣는다(창은 펴지 않는다, 2026-11-11). 듣는 중이면 일시정지.
+ * 들은 게 있으면 '이어 듣기', 다 들었고 쉬는 중이면 '처음부터 다시 듣기'(useBriefingReplay).
+ * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다. 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
+ */
+function ListenBar({ pm, label }: { pm: boolean; label: string }) {
+  const p = usePlayer();
+  const { canListen, playingToday, heardAny, replay, fromStart } = useBriefingReplay();
+  const shell = `mt-4 flex h-[60px] w-full items-center gap-3 rounded-full pl-2 pr-5 text-left no-underline ${pm ? "bg-white text-[#1F2340]" : "bg-ink text-paper"}`;
+  const knob = "flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink";
+  if (!canListen) {
+    return (
+      <Link href="/premium" data-tour="listen-all" aria-label={`${label}, Premium에서 들을 수 있어요`} className={shell}>
+        <span className={knob}>
+          <IconPlay className="size-[18px]" />
+        </span>
+        <span className="flex-1 text-[16px] font-bold">{label}</span>
+        <PremiumBadge />
+      </Link>
+    );
+  }
   const text = playingToday ? "듣는 중" : replay ? "처음부터 다시 듣기" : heardAny ? `${label.replace(/ 듣기$/, "")} 이어 듣기` : label;
   return (
-    <>
-      <button
-        type="button"
-        data-tour="listen-all"
-        onClick={() => {
-          if (playingToday) return p.pause();
-          // 재생은 누른 손짓 안에서 건다(iOS 자동 재생 정책). 플레이어 창은 펴지 않고 이 화면에서 듣는다(2026-11-11 사용자): 망고가 노선을 달리고 듣는 카드가 맨 위로
-          if (replay) return fromStart();
-          p.playToday();
-        }}
-        aria-busy={p.starting || undefined}
-        aria-label={playingToday ? `${label} 일시정지` : text}
-        className={shell}
-      >
-        <span className={knob}>
-          {p.starting ? <Spinner /> : playingToday ? <IconPause className="size-[18px]" /> : replay ? <IconReplay className="size-[18px]" /> : <IconPlay className="size-[18px]" />}
-        </span>
-        <span className="flex-1 text-[16px] font-bold">{text}</span>
-        {/* 듣는 동안 음성 파동(2026-11-10 사용자) */}
-        {playingToday && <SoundWave className={pm ? "text-mango-deep" : "text-mango"} />}
-      </button>
-      {heardAny && !replay && (
-        <div className="mt-1.5 flex justify-end">
-          <button
-            type="button"
-            onClick={fromStart}
-            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold ${pm ? "text-white/75 hover:text-white" : "text-sub hover:text-ink"}`}
-          >
-            <IconReplay className="size-4" />
-            처음부터 다시 듣기
-          </button>
-        </div>
-      )}
-    </>
+    <button
+      type="button"
+      data-tour="listen-all"
+      onClick={() => {
+        if (playingToday) return p.pause();
+        // 재생은 누른 손짓 안에서 건다(iOS 자동 재생 정책). 플레이어 창은 펴지 않고 이 화면에서 듣는다(2026-11-11 사용자): 망고가 노선을 달리고 듣는 카드가 맨 위로
+        if (replay) return fromStart();
+        p.playToday();
+      }}
+      aria-busy={p.starting || undefined}
+      aria-label={playingToday ? `${label} 일시정지` : text}
+      className={shell}
+    >
+      <span className={knob}>
+        {p.starting ? <Spinner /> : playingToday ? <IconPause className="size-[18px]" /> : replay ? <IconReplay className="size-[18px]" /> : <IconPlay className="size-[18px]" />}
+      </span>
+      <span className="flex-1 text-[16px] font-bold">{text}</span>
+      {/* 듣는 동안 음성 파동(2026-11-10 사용자) */}
+      {playingToday && <SoundWave className={pm ? "text-mango-deep" : "text-mango"} />}
+    </button>
   );
 }
 
