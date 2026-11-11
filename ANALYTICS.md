@@ -5,6 +5,7 @@
 > 코드: `lib/analytics.ts`(track), `components/Analytics.tsx`(GTM 싣기, 운영 + `NEXT_PUBLIC_GTM_ID`일 때만), `components/AnalyticsSession.tsx`(사용자 ID·플랜·플랫폼).
 > 2026-11-07: GTM 버전 3 게시(둘러보기 try_* 이벤트·값 items·heard·where·signed_in, 이 파일 병합 가져오기). GA4 맞춤 정의 16개 등록(이벤트 14: mode·category·kind·action·reason·topic·voice·provider·product·charged·items·heard·where·signed_in, 사용자 2: plan·platform). GA4 속성은 계정 '정민균'(352006364)의 '맹고(Maengo)'(559406417), GTM은 계정 '와타랩스'(6383117467) 컨테이너 267447389. 같은 GA 계정에 다른 속성(또닥 AI 등)이 있어 기본으로 그쪽이 열린다.
 > 2026-11-07 밤: GTM 버전 4 '북마크 이벤트' 게시(트리거 '맹고 이벤트' 정규식에 `bookmark`, 값 `on`·`category`·`where`는 기존 변수·태그 매개변수). GA4 맞춤 정의 `on`(이벤트 범위, 켰는지: 북마크·알림 켜고 끄기) 등록 → 17개. 둘 다 전용 크롬 창(`~/.maengo/chrome-youtube`, 포트 9333)에 원격으로 붙어서 함.
+> 2026-11-11: GTM 버전 5 '앱 받기·주간 리포트 이벤트' 게시(트리거 '맹고 이벤트' 정규식에 `app_install_click`·`report_open`·`report_make`. 리포트 이벤트는 11-10 코드에 넣고 GTM엔 빠져 있었다). 값 `where`·`kind`는 기존 태그 매개변수·맞춤 정의. 전용 크롬 창(포트 9333)으로 함.
 > 개인정보: 이름·이메일·직접 적은 관심사는 보내지 않는다. 사용자 ID는 회원 id의 SHA-256 앞 24자리. 처리방침에 Google 애널리틱스를 넣었다(2026-10-11).
 
 ## 사용자가 할 일
