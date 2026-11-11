@@ -52,6 +52,8 @@ test('정리에 넘길 소식: 읽은 것·큰 소식부터 상한까지, 넘길
   const prompt = digestPrompt('11월 첫째 주 (11.2 ~ 11.8)', ['AI', '주식'], picked, 3);
   assert.match(prompt, /\[분야\] AI, 주식/);
   assert.match(prompt, /## AI\n\[2\] ✓ 제목 2 — 요약\n\[3\] 제목 3/);
+  assert.match(prompt, /\[회원이 알려 준 사정\] 없음/);
+  assert.match(digestPrompt('주', ['AI'], picked, 3, ['국내 주식을 해요', '자가용으로 출퇴근해요']), /\[회원이 알려 준 사정\] 국내 주식을 해요, 자가용으로 출퇴근해요/);
 });
 
 test('정리 다듬기: 모르는 분야·번호는 버리고, 분야 이름과 같은 키워드는 뺀다', () => {
@@ -79,4 +81,31 @@ test('정리 다듬기: 모르는 분야·번호는 버리고, 분야 이름과 
   assert.equal(cleanDigest({ ...raw, sections: [] }, ['AI'], [1]), null);
   assert.equal(cleanDigest({ ...raw, headline: '' }, ['AI'], [1, 2]), null);
   assert.equal(cleanDigest('x', ['AI'], [1]), null);
+});
+
+test('맞춤 체크·다음 주 지켜볼 것: 사정을 알려 준 회원만, 투자 권유와 모르는 번호는 버린다', () => {
+  const base = {
+    headline: '엔비디아 실적과 HBM 경쟁이 한 주를 이끌었어요',
+    sections: [{ group: 'AI', summary: '오픈AI와 구글이 새 모델을 나란히 내놓았어요. 코딩 에이전트 경쟁도 이어졌어요.', ids: [1] }],
+    keywords: [],
+    personal: [
+      { about: '국내 주식', title: '반도체 변동성이 커졌어요', text: '삼성전자와 SK하이닉스가 크게 흔들려 국내 증시 전체에 부담이 됐어요. 다음 주 실적 발표 일정을 확인해 보세요.', ids: [2, 99] },
+      { about: '국내 주식', title: '비중을 줄일 때', text: '반도체 비중을 줄이고 다른 업종으로 분산 투자해 보세요. 이건 권유라서 버린다.', ids: [2] },
+      { about: '자가용 출퇴근', title: '기름값이 오를 수 있어요', text: '국제 유가가 오르면 다음 달 주유비가 늘 수 있어요.', ids: [99] },
+    ],
+    next: [
+      { text: '19일 미국 물가 발표', ids: [1] },
+      { text: '19일 미국 물가 발표', ids: [2] },
+      { text: '삼성전자 주식을 매수할 시점', ids: [2] },
+      { text: '한국은행 기준금리 결정', ids: [] },
+    ],
+  };
+  const d = cleanDigest(base, ['AI'], [1, 2], true);
+  assert.ok(d);
+  assert.deepEqual(d.personal, [
+    { about: '국내 주식', title: '반도체 변동성이 커졌어요', text: '삼성전자와 SK하이닉스가 크게 흔들려 국내 증시 전체에 부담이 됐어요. 다음 주 실적 발표 일정을 확인해 보세요.', ids: [2] },
+  ]);
+  assert.deepEqual(d.next, [{ text: '19일 미국 물가 발표', ids: [1] }]);
+  // 사정이 없으면 맞춤 체크는 비운다(지어낸 것)
+  assert.deepEqual(cleanDigest(base, ['AI'], [1, 2])!.personal, []);
 });

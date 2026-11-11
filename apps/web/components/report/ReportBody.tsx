@@ -4,8 +4,9 @@ import { IconChevronRight } from "@/components/icons";
 import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 import { articleToken } from "@/lib/server/share-token";
 
-// 주간 리포트 한 편. 위에서부터 총평·숫자 → 분야별 정리 → 많이 본 분야 → 자주 나온 키워드 → 놓친 주요 소식.
-// 숫자·막대는 DB에서 센 값, 총평·분야별 정리·자주 나온 키워드는 Gemini가 쓴 것(pipeline/src/reports.ts). 맹고-문서/리포트.md
+// 주간 리포트 한 편. 위에서부터 총평·숫자 → 맞춤 체크 → 다음 주 지켜볼 것 → 분야별 정리 → 많이 본 분야 → 자주 나온 키워드 → 놓친 주요 소식.
+// 숫자·막대는 DB에서 센 값, 총평·맞춤 체크·다음 주 지켜볼 것·분야별 정리·자주 나온 키워드는 Gemini가 쓴 것(pipeline/src/reports.ts). 맹고-문서/리포트.md
+// 맞춤 체크(2026-11-11 사용자: 주간 리포트도 맞춤형 인사이트로): 내 맞춤 정보에 이번 주 소식이 무슨 뜻이었는지. 이름은 넣지 않는다
 
 /** 앞 기간 이름(견주는 말에 쓴다) */
 const before = (period: ReportPeriod) => (period === "week" ? "지난주" : "");
@@ -24,6 +25,36 @@ export function ReportBody({ period, data }: { period: ReportPeriod; data: Repor
           <Stat label="북마크" now={counts.bookmarked} prev={prev?.bookmarked} period={period} />
         </dl>
       </section>
+
+      <PersonalCheck personal={digest.personal ?? []} items={items} />
+
+      {!!digest.next?.length && (
+        <Block title="다음 주 지켜볼 것">
+          <ul className="tile flex flex-col gap-1 p-4 sm:p-5">
+            {digest.next.map((n) => {
+              const id = n.ids.find((x) => items[x]);
+              const text = (
+                <>
+                  <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-mango" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 text-[16px] font-semibold leading-relaxed">{n.text}</span>
+                  {id !== undefined && <IconChevronRight className="mt-1 size-4 shrink-0 text-faint" />}
+                </>
+              );
+              return (
+                <li key={n.text}>
+                  {id !== undefined ? (
+                    <Link href={`/article/${articleToken(id)}`} aria-label={`${n.text}, 근거 소식: ${items[id]!.title}`} className="flex items-start gap-3 py-1.5 no-underline hover:text-mango-deep">
+                      {text}
+                    </Link>
+                  ) : (
+                    <div className="flex items-start gap-3 py-1.5">{text}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Block>
+      )}
 
       <Block title="분야별로 보면">
         <div className="flex flex-col gap-3">
@@ -91,6 +122,28 @@ export function ReportBody({ period, data }: { period: ReportPeriod; data: Repor
         </Block>
       )}
     </div>
+  );
+}
+
+/** 맞춤 체크: 내 맞춤 정보로 짚은 이번 주(남색 블록, 위 총평의 망고색과 나눈다). 근거 소식을 누르면 글 화면 */
+function PersonalCheck({ personal, items }: { personal: NonNullable<ReportData["digest"]["personal"]>; items: ReportData["items"] }) {
+  if (!personal.length) return null;
+  return (
+    <section aria-labelledby="report-match" className="keep-light rounded-[24px] bg-[#1F2340] px-3 pb-3 pt-4 text-white">
+      <h2 id="report-match" className="px-1.5 text-[17px] font-bold tracking-[-0.02em] text-mango">
+        맞춤 체크
+      </h2>
+      <div className="mt-3 flex flex-col gap-2">
+        {personal.map((x) => (
+          <article key={x.title} className="rounded-[18px] bg-white px-4 pb-2 pt-3.5 text-[#1F2340]">
+            <span className="inline-flex rounded-full bg-mango px-2.5 py-1 text-[12px] font-bold">{x.about}</span>
+            <h3 className="mt-2 text-[17px] font-bold leading-snug tracking-[-0.025em]">{x.title}</h3>
+            <p className="mt-1 text-[14px] leading-relaxed text-[#1F2340]/80">{x.text}</p>
+            <ItemLinks ids={x.ids} items={items} className="mt-2 border-t-2 border-[#1F2340]/10" />
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

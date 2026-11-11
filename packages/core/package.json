@@ -24,7 +24,8 @@
     "./plans": "./src/plans.ts",
     "./report": "./src/report.ts",
     "./site": "./src/site.ts",
-    "./sections": "./src/sections.ts"
+    "./sections": "./src/sections.ts",
+    "./context": "./src/context.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0"

@@ -17,14 +17,15 @@ const SAMPLE = {
     ["주식", 9, 18],
   ] as const,
   keywords: ["HBM4", "AI 에이전트", "사이드카"],
+  personal: { about: "국내 주식", title: "반도체 변동성이 커졌어요", text: "HBM 공급 경쟁 소식에 반도체주가 크게 오르내렸어요. 다음 주 실적 발표 일정을 확인해 보세요." },
 };
 
 export function ReportTeaser() {
   return (
     <div>
       <ul className="flex flex-col gap-2 text-[16px] font-bold leading-relaxed">
-        <li>매주 월요일·매달 1일 아침, 받은 소식을 정리해 드려요</li>
-        <li className="text-sub">한 줄 총평과 분야별 정리, 많이 본 분야, 자주 나온 키워드, 놓친 주요 소식까지 한 장에</li>
+        <li>매주 월요일 아침, 한 주 받은 소식을 정리하고 내 상황에 맞춰 짚어 드려요</li>
+        <li className="text-sub">한 줄 총평, 맞춤 체크, 다음 주 지켜볼 것, 분야별 정리, 놓친 주요 소식까지 한 장에</li>
       </ul>
 
       {/* 예시. 화면 읽기 프로그램에는 숨기고 위 설명으로 대신한다 */}
@@ -40,6 +41,14 @@ export function ReportTeaser() {
                 <p className="mt-0.5 font-round text-[22px] font-bold leading-none tabular-nums">{n}</p>
               </div>
             ))}
+          </div>
+        </div>
+        <div className="keep-light mt-3 rounded-[24px] bg-[#1F2340] px-3 pb-3 pt-4">
+          <p className="px-1.5 text-[15px] font-bold text-mango">맞춤 체크</p>
+          <div className="mt-2.5 rounded-[18px] bg-white px-4 py-3.5 text-[#1F2340]">
+            <span className="inline-flex rounded-full bg-mango px-2.5 py-1 text-[12px] font-bold">{SAMPLE.personal.about}</span>
+            <p className="mt-2 text-[16px] font-bold leading-snug tracking-[-0.025em]">{SAMPLE.personal.title}</p>
+            <p className="mt-1 text-[14px] leading-relaxed text-[#1F2340]/80">{SAMPLE.personal.text}</p>
           </div>
         </div>
         <div className="tile mt-3 p-4">

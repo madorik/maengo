@@ -2,7 +2,7 @@ import 'server-only';
 import { GEMINI_MODELS } from '@maengo/core/ai';
 import { geminiChatJson } from '@maengo/core/gemini';
 import { SECTION_LABEL, isSection, type SectionId } from '@maengo/core/sections';
-import { contextFacts, personalOn, type UserContext } from '../context';
+import { INVESTING_ADVICE as INVESTING, contextFacts, personalOn, type UserContext } from '../context';
 import type { TodayData } from '../types';
 import type { Profile } from './profile';
 import { userTopics } from './topics';
@@ -217,7 +217,6 @@ async function make(items: TodayData['items'], personal: Personal): Promise<Brie
 }
 
 /** 투자 권유로 읽힐 수 있는 할 일은 버린다(지시로 막아도 가끔 나온다) */
-const INVESTING = /포트폴리오|비중|매수|매도|분산 투자|사 보세요|팔아|투자해|종목을|사고팔|리밸런싱|손절|익절|투자를 점검|쏠린 투자|쏠림을 줄|대비해 보세요|대비하세요/;
 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '');
 
