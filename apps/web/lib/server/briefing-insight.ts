@@ -123,6 +123,8 @@ export async function briefingInsight(profile: Profile, data: TodayData, ctx: Us
   const { data: row, error } = await db.from('briefing_insights').select('ids,data').eq('user_id', userId).eq('date', data.date).eq('slot', slot).maybeSingle();
   if (error) console.error('[insight] 읽기 실패', error.message);
   if (row && row.ids === ids && (row.data as BriefingInsight)?.v === VERSION) return row.data as BriefingInsight;
+  // 다시 만들다 실패하면(키 없음·Gemini 오류·시간 초과) 직전에 만든 것을 그대로 보인다(2026-11-11: 맞춤 정보에 답했더니 인사이트가 사라졌다)
+  const previous = (row?.data as BriefingInsight | undefined)?.flows?.length ? (row!.data as BriefingInsight) : null;
 
   const key = `${userId}:${data.date}:${slot}:${ids}`;
   const running = making.get(key);
@@ -136,7 +138,7 @@ export async function briefingInsight(profile: Profile, data: TodayData, ctx: Us
           .upsert({ user_id: userId, date: data.date, slot, ids, data: made, created_at: new Date().toISOString() }, { onConflict: 'user_id,date,slot' });
         if (saveError) console.error('[insight] 저장 실패', saveError.message);
       }
-      return made;
+      return made ?? previous;
     })
     .finally(() => making.delete(key));
   making.set(key, job);
