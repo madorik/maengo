@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { IconMic } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
+import { AiSparkle } from "@/components/ui/AiSparkle";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { track } from "@/lib/analytics";
@@ -258,7 +258,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
             {/* 추천 질문을 만드는 동안 무엇을 기다리는지 알린다(2026-11-06 사용자 결정) */}
             {!chips && (
               <p role="status" className="mb-3 flex items-center gap-2 text-[14px] font-bold text-sub">
-                <Mascot className="size-7 shrink-0" />
+                <AiSparkle className="size-6 shrink-0" />
                 AI가 예상 질문을 생각하고 있어요
                 <span aria-hidden="true" className="flex gap-1">
                   {[0, 150, 300].map((d) => (
@@ -294,7 +294,9 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
                 </li>
               ) : (
                 <li key={m.id} className="flex items-start gap-2">
-                  <Mascot className="size-9 shrink-0" />
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-snow">
+                  <AiSparkle className="size-5" />
+                </span>
                   <p className="min-w-0 max-w-[88%] whitespace-pre-wrap break-words rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-2.5 text-[15px] font-medium leading-[1.7]">
                     {m.text}
                   </p>
@@ -303,7 +305,9 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
             )}
             {waiting && (
               <li className="flex items-start gap-2">
-                <Mascot className="size-9 shrink-0" />
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-snow">
+                  <AiSparkle className="size-5" />
+                </span>
                 {streaming ? (
                   <>
                     {/* 써지는 동안은 읽어 주지 않고, 다 받으면 대화에 들어간 답을 한 번 읽는다 */}

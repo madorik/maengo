@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { IconChevronDown } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
+import { AiSparkle } from "@/components/ui/AiSparkle";
 import { Sheet } from "@/components/ui/Sheet";
 import { track } from "@/lib/analytics";
 import { isAppUserAgent } from "@/lib/app-client";
@@ -72,11 +72,9 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
       aria-label={open && !inApp ? "맹고 AI 창 닫기" : "맹고 AI에게 물어보기"}
       className={`pop tile pointer-events-auto relative flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${open ? "border-mango" : ""}`}
     >
-      <span className="flex size-12 items-center justify-center rounded-full bg-mango-tint">
-        <Mascot className="size-10" />
-      </span>
-      <span aria-hidden="true" className="absolute -left-1 -top-1 rounded-full border-2 border-paper bg-sky px-1.5 py-0.5 font-round text-[11px] font-black leading-none text-white">
-        AI
+      {/* AI 반짝이(2026-11-11 사용자: 맹고 얼굴 대신 제미나이 같은 AI 아이콘, 'AI' 꼬리표는 반짝이가 대신해서 뺌) */}
+      <span className="flex size-12 items-center justify-center rounded-full bg-snow">
+        <AiSparkle className="size-8" />
       </span>
     </button>
   );
@@ -107,7 +105,9 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
           className="rise tile pointer-events-auto flex max-h-[min(560px,calc(100dvh-var(--listen-bar-h,104px)-200px-env(safe-area-inset-top)))] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden shadow-[0_16px_48px_rgb(31_35_64/0.2)]"
         >
           <header className="flex items-center gap-3 border-b-2 border-line px-4 py-3">
-            <Mascot className="size-10 shrink-0" />
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-snow">
+              <AiSparkle className="size-6" />
+            </span>
             <div className="min-w-0 flex-1">
               <h2 id="ask-window-title" className="text-[16px] font-black">
                 맹고 AI
