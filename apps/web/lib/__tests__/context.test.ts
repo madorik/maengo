@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { contextFacts, followUpOf, pickQuestion, type UserContext } from '../context';
+import { CONTEXT_GROUPS, CONTEXT_QUESTIONS, SKIP, contextFacts, followUpOf, pickQuestion, type UserContext } from '../context';
 import type { FeedItem } from '../types';
 
 const item = (title: string, short = ''): FeedItem => ({ title, short } as FeedItem);
@@ -46,4 +46,43 @@ test('이어 묻는 질문', () => {
   assert.equal(followUpOf('stock', 'yes')?.key, 'stock_market');
   assert.equal(followUpOf('stock', 'no'), null);
   assert.equal(followUpOf('home', 'none')?.key, 'apply');
+});
+
+test('질문 목록: 키가 겹치지 않고, 이어 묻는 질문의 앞 질문·답이 있고 같은 분야다', () => {
+  const keys = CONTEXT_QUESTIONS.map((q) => q.key);
+  assert.equal(new Set(keys).size, keys.length);
+  for (const q of CONTEXT_QUESTIONS) {
+    assert.ok(CONTEXT_GROUPS.includes(q.group), q.key);
+    assert.equal(new Set(q.options.map((o) => o.value)).size, q.options.length, q.key);
+    assert.ok(!q.options.some((o) => o.value === SKIP), q.key);
+    if (!q.after) continue;
+    const parent = CONTEXT_QUESTIONS.find((p) => p.key === q.after!.key);
+    assert.ok(parent && parent.options.some((o) => o.value === q.after!.value), q.key);
+    assert.equal(parent!.group, q.group, q.key);
+  }
+});
+
+test('나이대는 20대부터', () => {
+  assert.deepEqual(CONTEXT_QUESTIONS.find((q) => q.key === 'age')?.options.map((o) => o.label), ['20대', '30대', '40대', '50대', '그 밖']);
+});
+
+test('분야별 소식에 맞는 질문을 묻는다', () => {
+  const ask = (title: string) => pickQuestion({}, [item(title)], B)?.key;
+  assert.equal(ask('SKT 유심 정보 유출, 가입자 2천만 명 영향'), 'carrier');
+  assert.equal(ask('서울 지하철 파업 예고'), 'commute');
+  assert.equal(ask('전기차 보조금 내년 축소'), 'car');
+  assert.equal(ask('원·달러 환율 1,450원 돌파'), 'overseas_pay');
+  assert.equal(ask('늘봄학교 전국 초등학교로 확대'), 'kids');
+  assert.equal(ask('국민연금 보험료율 13%로'), 'age');
+  assert.equal(ask('미국, 한국산 철강에 관세 25%'), 'trade');
+  assert.equal(ask('KIA 타이거즈, 한국시리즈 우승'), 'sport');
+  assert.equal(ask('넷플릭스 요금 인상'), 'ott');
+  assert.equal(ask('유기견 입양 지원 늘린다'), 'pet');
+  assert.equal(ask('KTX 운임 인상 검토'), 'commute');
+});
+
+test('야구를 본다고 하면 응원 팀을 바로 이어 묻는다', () => {
+  assert.equal(followUpOf('sport', 'baseball')?.key, 'kbo_team');
+  assert.equal(followUpOf('job', 'it')?.key, 'dev_area');
+  assert.equal(followUpOf('sport', 'soccer'), null);
 });
