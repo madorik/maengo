@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { answerContextAction } from "@/app/(app)/context-actions";
 import { IconCheck, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
@@ -12,6 +14,9 @@ import { SECTION_LABEL, isSection } from "@maengo/core/sections";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight } from "@/lib/server/briefing-insight";
+import type { PickedQuestion } from "@/lib/server/user-context";
+import { SKIP } from "@/lib/context";
+import { Spinner } from "@/components/ui/Spinner";
 
 /**
  * 오늘 화면 머리(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다 → 오늘의 흐름 한 줄이 큰 제목, 'OO님에게 맞춤 인사이트'라고 부른다).
@@ -19,7 +24,17 @@ import type { BriefingInsight } from "@/lib/server/briefing-insight";
  * 못 만들었으면 예전처럼 날짜 줄 → '출근길 브리핑' → 언론·기사 수.
  * 흐름은 서버가 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts). 만드는 동안은 같은 모양의 회색 줄(InsightFallback)
  */
-export function BriefingHero({ insight }: { insight: BriefingInsight | null }) {
+export function BriefingHero({
+  insight,
+  question = null,
+  briefing = "",
+}: {
+  insight: BriefingInsight | null;
+  /** 오늘 소식과 관계있는 내 맞춤 정보 질문(없으면 null, lib/server/user-context.ts pickQuestion) */
+  question?: PickedQuestion | null;
+  /** '날짜:am|pm'(새 질문은 브리핑마다 하나) */
+  briefing?: string;
+}) {
   const { data } = useToday();
   const pm = data.slot === "pm";
   const slotLabel = SLOT_LABEL[data.slot ?? "am"];
@@ -43,6 +58,7 @@ export function BriefingHero({ insight }: { insight: BriefingInsight | null }) {
       <Basis insight={insight} pm={pm} />
       <Collected pm={pm} withDate />
       <Flows insight={insight} pm={pm} />
+      <MatchCheck insight={insight} question={question} briefing={briefing} />
     </>
   );
 }
@@ -168,30 +184,113 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
           );
         })}
       </ul>
-      {/* 확인할 것: 오늘 화면엔 가장 중요한 하나만(둘이면 화면을 너무 차지한다). 누르면 근거 소식의 상세로 */}
-      {insight.checks.slice(0, 1).map((c) => {
-        const item = data.items.find((i) => i.clusterId === c.id);
-        const cls = `-mx-1.5 mt-3 flex w-[calc(100%+0.75rem)] items-start gap-2.5 rounded-2xl px-4 py-3 text-left text-[14px] font-medium leading-relaxed no-underline ${pm ? "bg-mango/15 text-white" : "bg-mango-tint text-ink"}`;
-        const body = (
-          <>
-            <IconCheck className={`mt-[3px] size-4 shrink-0 [stroke-width:3] ${pm ? "text-mango" : "text-mango-deep"}`} />
-            <span>{c.text}</span>
-          </>
-        );
-        return item ? (
-          <Link key={c.text} href={`/article/${item.token}`} className={cls}>
-            {body}
-          </Link>
-        ) : (
-          <p key={c.text} className={cls}>
-            {body}
-          </p>
-        );
-      })}
       <Sheet title={opened?.title ?? ""} open={!!opened} onClose={() => setOpen(null)}>
         {opened && <FlowDetail flow={opened} onClose={() => setOpen(null)} />}
       </Sheet>
     </>
+  );
+}
+
+/**
+ * OO님 맞춤 체크(2026-11-11 사용자: 체크가 눈에 안 띈다. 사용자 맞춤 체크 항목이어야 한다).
+ * 망고색 블록: 내 맞춤 정보로 짚은 소식(예: 국내 주식 → 금리 인상의 영향) → 생활 속 확인할 것 → 오늘 소식과 관계있는 질문 하나(딸깍).
+ * 셋 다 없으면 그리지 않는다
+ */
+function MatchCheck({ insight, question, briefing }: { insight: BriefingInsight; question: PickedQuestion | null; briefing: string }) {
+  const { data } = useToday();
+  const { displayName } = useProfile();
+  const name = displayName?.trim() || "회원";
+  const personal = insight.personal ?? [];
+  const checks = insight.checks.slice(0, 1);
+  if (!personal.length && !checks.length && !question) return null;
+  const tokenOf = (id: number) => data.items.find((i) => i.clusterId === id)?.token;
+  return (
+    <section aria-labelledby="match-title" className="-mx-1.5 mt-4 rounded-[24px] bg-mango px-3 pb-3 pt-4 text-[#1F2340]">
+      <h2 id="match-title" className="px-1.5 text-[15px] font-bold tracking-[-0.02em]">
+        {name}님 맞춤 체크
+      </h2>
+      <div className="mt-3 flex flex-col gap-2">
+        {personal.map((x) => {
+          const token = tokenOf(x.id);
+          const body = (
+            <>
+              <span className="inline-flex rounded-full bg-[#1F2340] px-2.5 py-1 text-[12px] font-bold text-mango">{x.about}</span>
+              <span className="mt-2 block text-[17px] font-bold leading-snug tracking-[-0.025em]">{x.title}</span>
+              <span className="mt-1 block text-[14px] leading-relaxed text-[#1F2340]/80">{x.text}</span>
+            </>
+          );
+          return token ? (
+            <Link key={x.title} href={`/article/${token}`} className="block rounded-[18px] bg-white px-4 py-3.5 no-underline">
+              {body}
+            </Link>
+          ) : (
+            <div key={x.title} className="rounded-[18px] bg-white px-4 py-3.5">
+              {body}
+            </div>
+          );
+        })}
+        {checks.map((c) => {
+          const token = tokenOf(c.id);
+          const cls = "flex items-start gap-2.5 rounded-[18px] bg-white/60 px-4 py-3 text-[14px] font-medium leading-relaxed no-underline";
+          const body = (
+            <>
+              <IconCheck className="mt-[3px] size-4 shrink-0 text-[#1F2340] [stroke-width:3]" />
+              <span>{c.text}</span>
+            </>
+          );
+          return token ? (
+            <Link key={c.text} href={`/article/${token}`} className={cls}>
+              {body}
+            </Link>
+          ) : (
+            <p key={c.text} className={cls}>
+              {body}
+            </p>
+          );
+        })}
+        {question && <AskCard key={question.key} q={question} briefing={briefing} />}
+      </div>
+    </section>
+  );
+}
+
+/** 내 맞춤 정보 질문(딸깍). 답하면 다시 그려 맞춤 체크가 그 답으로 바뀌고, 이어 묻는 질문이 있으면 바로 나온다 */
+function AskCard({ q, briefing }: { q: PickedQuestion; briefing: string }) {
+  const router = useRouter();
+  const [picked, setPicked] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+  const answer = (value: string) =>
+    start(async () => {
+      setPicked(value);
+      const res = await answerContextAction(q.key, value, briefing);
+      if (res.ok) router.refresh();
+      else setPicked(null);
+    });
+  return (
+    <div className="rounded-[18px] bg-[#1F2340] px-4 pb-3 pt-3.5 text-white">
+      <p className="text-[12px] font-semibold text-mango">{q.about}이 있어서 여쭤봐요</p>
+      <p className="mt-1 text-[18px] font-bold tracking-[-0.025em]">{q.ask}</p>
+      <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={q.ask}>
+        {q.options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            disabled={busy}
+            aria-pressed={picked === o.value}
+            onClick={() => answer(o.value)}
+            className={`flex min-h-11 items-center gap-2 rounded-full px-4 text-[15px] font-bold active:scale-95 motion-reduce:active:scale-100 ${picked === o.value ? "bg-mango text-[#1F2340]" : "bg-white/12 text-white"}`}
+          >
+            {busy && picked === o.value && <Spinner />}
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-1 flex justify-end">
+        <button type="button" disabled={busy} onClick={() => answer(SKIP)} className="min-h-10 px-1 text-[13px] font-semibold text-white/60">
+          나중에
+        </button>
+      </div>
+    </div>
   );
 }
 

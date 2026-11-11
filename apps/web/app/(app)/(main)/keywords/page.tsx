@@ -3,7 +3,9 @@ import { KeywordSlots } from "@/components/settings/KeywordSlots";
 import { LinkSlots } from "@/components/settings/LinkSlots";
 import { Section } from "@/components/settings/Section";
 import { TopicSettings } from "@/components/settings/TopicSettings";
+import { MyContext } from "@/components/settings/MyContext";
 import { userLinks } from "@/lib/server/links";
+import { getUserContext } from "@/lib/server/user-context";
 import { entitlements } from "@/lib/server/profile";
 import { requireProfile } from "@/lib/server/session";
 import { newsSections, topicGroups, userTopics } from "@/lib/server/topics";
@@ -16,7 +18,7 @@ export const metadata: Metadata = { title: "내 관심 키워드" };
  */
 export default async function KeywordsPage() {
   const profile = await requireProfile();
-  const [topics, links] = await Promise.all([userTopics(profile), userLinks(profile)]);
+  const [topics, links, ctx] = await Promise.all([userTopics(profile), userLinks(profile), getUserContext(profile.id).catch(() => ({}))]);
   const mine = topics.filter((t) => !t.link);
   const custom = mine.filter((t) => t.custom);
   const limit = entitlements(profile).customLimit;
@@ -42,6 +44,11 @@ export default async function KeywordsPage() {
           }
         >
           <KeywordSlots keywords={custom} limit={limit} total={mine.length} />
+        </Section>
+
+        {/* 내 맞춤 정보(2026-11-11): 오늘 화면 맞춤 체크에서 알려 준 사정. 여기서 바꾸거나 지운다 */}
+        <Section id="my-context" title="내 맞춤 정보">
+          <MyContext ctx={ctx} />
         </Section>
 
         <Section id="links" title="내 관심 링크">
