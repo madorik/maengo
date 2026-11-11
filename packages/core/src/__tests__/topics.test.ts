@@ -20,8 +20,8 @@ test('문장에서 토픽 찾기: 이름·별칭, 조사가 붙은 낱말', () =
   assert.deepEqual(m('바이브 코딩'), ['vibe-coding']);
   assert.deepEqual(m('AWS랑 GCP'), ['cloud']);
   assert.deepEqual(m('RAG'), ['rag']);
-  // 뺀 분야(부동산)는 맞는 토픽이 없다
-  assert.deepEqual(m('부동산'), []);
+  // 부동산은 2026-11-11부터 뉴스 분야(real-estate)
+  assert.deepEqual(m('부동산'), ['real-estate']);
   assert.ok(m('요즘 LLM 에이전트 만들어요').includes('llm-agent'));
   assert.deepEqual(m('요리'), []);
 });
@@ -46,9 +46,9 @@ test('조사: 한글 받침, 영문·숫자는 읽는 소리로', () => {
   assert.equal(josa('k8s', '을', '를'), 'k8s를');
 });
 
-test('관심 분야 5개와 상세 관심사, 뉴스 분야 8개(2026-11-10 스포츠·엔터)', () => {
+test('관심 분야 5개와 상세 관심사, 뉴스 분야 9개(2026-11-10 스포츠·엔터, 11-11 부동산)', () => {
   assert.deepEqual(TOPIC_GROUPS.map((t) => t.name), ['AI', '주식', '코인', '반도체·로봇', 'Tech']);
-  assert.deepEqual(NEWS_SECTIONS.map((t) => t.name), ['정치', '경제', '사회', '생활/문화', 'IT/과학', '세계', '스포츠', '엔터']);
+  assert.deepEqual(NEWS_SECTIONS.map((t) => t.name), ['정치', '경제', '사회', '생활/문화', 'IT/과학', '세계', '스포츠', '엔터', '부동산']);
   // 뉴스 분야는 상세 관심사 없이 헤드라인만 받는다
   for (const n of NEWS_SECTIONS) assert.equal(childrenOf(n.id).length, 0, n.id);
   assert.ok(isNewsSection('politics') && !isNewsSection('ai') && !isNewsSection('bitcoin'));
@@ -84,8 +84,8 @@ test('직접 입력: 사전에 같은 이름이 있으면 그 관심사로', () 
   // 합친 분야(백엔드)와 예전 이름(개발)은 Tech로
   assert.equal(findTopicByName('개발')?.id, 'dev');
   assert.equal(findTopicByName('백엔드')?.id, 'dev');
-  // 뺀 분야(부동산·청약)는 이제 직접 적은 관심사가 된다
-  assert.equal(findTopicByName('청약'), null);
+  // 부동산 분야의 별칭(청약)은 부동산으로(2026-11-11)
+  assert.equal(findTopicByName('청약')?.id, 'real-estate');
   assert.equal(findTopicByName('드론'), null);
   // 뉴스 분야: 네이버 뉴스 섹션 이름 그대로, 붙여 써도
   assert.equal(findTopicByName('정치')?.id, 'politics');

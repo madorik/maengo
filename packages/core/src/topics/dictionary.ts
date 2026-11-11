@@ -32,6 +32,8 @@ export const NEWS_SECTIONS: Topic[] = [
   // 2026-11-10 사용자: 분야는 정치·경제·사회·생활/문화·IT/과학·세계·스포츠·엔터 8개('연예'가 아니라 '엔터'). 맹고-문서/맞춤-소식.md
   { id: 'sports', name: '스포츠', aliases: ['스포츠 뉴스', '야구', '축구', '골프', '농구', '배구'] },
   { id: 'entertainment', name: '엔터', aliases: ['연예', '엔터테인먼트', '드라마', '영화', '음악', '방송', 'K팝'] },
+  // 2026-11-11 사용자: 부동산도 분야로(전에는 경제 안). 9개
+  { id: 'real-estate', name: '부동산', aliases: ['부동산 뉴스', '아파트', '청약', '분양', '집값', '전세', '재건축'] },
 ];
 
 const NEWS_SECTION_IDS: ReadonlySet<string> = new Set(NEWS_SECTIONS.map((t) => t.id));

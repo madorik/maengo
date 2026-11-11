@@ -14,7 +14,15 @@ export const SECTIONS = [
   { id: 'world', label: '세계' },
   { id: 'sports', label: '스포츠' },
   { id: 'entertainment', label: '엔터' },
+  // 2026-11-11 사용자: 온보딩에 부동산도. 전에는 경제 안에 묶였다(출퇴근하는 30~50대가 따로 챙기는 분야)
+  { id: 'real-estate', label: '부동산' },
 ] as const;
+
+/**
+ * 사람들이 많이 보는 분야 순서(온보딩 '끌리는 소식' 타일 기본 순서, 2026-11-11 사용자 '관심사가 높은 순서로').
+ * 회원들의 읽기·듣기 기록이 있으면 그 순서가 먼저다(apps/web/lib/server/onboarding-picks.ts). 대상: 출퇴근하는 30~50대 직장인
+ */
+export const POPULAR_SECTION_ORDER: readonly SectionId[] = ['economy', 'real-estate', 'politics', 'it-science', 'society', 'world', 'sports', 'entertainment', 'life-culture'];
 
 export type SectionId = (typeof SECTIONS)[number]['id'];
 
@@ -46,7 +54,7 @@ const CATEGORY_SECTION: Readonly<Record<CategoryId, SectionId | null>> = {
   career: 'economy',
   finance: 'economy',
   crypto: 'economy',
-  realestate: 'economy',
+  realestate: 'real-estate',
   politics: 'politics',
   society: 'society',
   world: 'world',

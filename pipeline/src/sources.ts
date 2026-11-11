@@ -20,7 +20,7 @@ export interface SourceSeed {
   topic?: 'ai' | 'dev' | 'dev-release' | 'cloud' | 'security' | 'stock' | 'coin' | 'semiconductor' | 'robot' | 'ev-battery';
 }
 
-export type NewsSectionId = 'politics' | 'economy' | 'society' | 'life-culture' | 'it-science' | 'world' | 'sports' | 'entertainment';
+export type NewsSectionId = 'politics' | 'economy' | 'society' | 'life-culture' | 'it-science' | 'world' | 'sports' | 'entertainment' | 'real-estate';
 
 export const SOURCES: SourceSeed[] = [
   // 국내 큐레이션·매체
@@ -188,6 +188,11 @@ export const SOURCES: SourceSeed[] = [
   { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=09', name: 'SBS 스포츠', weight: 0.9, lang: 'ko', section: 'sports' },
   { kind: 'rss', url: 'https://www.chosun.com/arc/outboundfeeds/rss/category/sports/?outputType=xml', name: '조선일보 스포츠', weight: 0.9, lang: 'ko', section: 'sports' },
   { kind: 'rss', url: 'https://www.newsis.com/RSS/sports.xml', name: '뉴시스 스포츠', weight: 0.8, lang: 'ko', section: 'sports' },
+  // 부동산(2026-11-11, 열어서 부동산 기사인지 확인한 곳). 매일경제는 막히는 때가 있고 실거래 자동 기사가 많아 뺐다
+  { kind: 'rss', url: 'https://www.hankyung.com/feed/realestate', name: '한국경제 부동산', weight: 0.9, lang: 'ko', section: 'real-estate' },
+  { kind: 'rss', url: 'https://www.sedaily.com/rss/realestate', name: '서울경제 부동산', weight: 0.9, lang: 'ko', section: 'real-estate' },
+  { kind: 'rss', url: 'https://www.fnnews.com/rss/r20/fn_realnews_realestate.xml', name: '파이낸셜뉴스 부동산', weight: 0.8, lang: 'ko', section: 'real-estate' },
+  { kind: 'rss', url: 'https://www.asiae.co.kr/rss/realestate.htm', name: '아시아경제 부동산', weight: 0.8, lang: 'ko', section: 'real-estate' },
   { kind: 'rss', url: 'https://www.yna.co.kr/rss/entertainment.xml', name: '연합뉴스 연예', weight: 1.0, lang: 'ko', section: 'entertainment' },
   { kind: 'rss', url: 'https://rss.donga.com/entertainment.xml', name: '동아일보 연예', weight: 0.9, lang: 'ko', section: 'entertainment' },
   { kind: 'rss', url: 'https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=14', name: 'SBS 연예', weight: 0.9, lang: 'ko', section: 'entertainment' },

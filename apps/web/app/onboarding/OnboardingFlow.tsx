@@ -119,7 +119,8 @@ function sectionWeights(chosen: OnboardingPick[]): Map<SectionId, number> {
 }
 
 function Finding({ picked }: { picked: Set<string> }) {
-  const spots = ["left-[8%] top-[6%]", "right-[10%] top-0", "left-[2%] top-[42%]", "right-[3%] top-[32%]", "left-[12%] bottom-[8%]", "right-[10%] bottom-[2%]", "right-[34%] bottom-[22%]", "left-[40%] top-0"];
+  // 분야 9개의 자리(2026-11-11 부동산 추가)
+  const spots = ["left-[8%] top-[6%]", "right-[10%] top-0", "left-[2%] top-[42%]", "right-[3%] top-[32%]", "left-[12%] bottom-[8%]", "right-[10%] bottom-[2%]", "right-[34%] bottom-[22%]", "left-[40%] top-0", "left-[30%] bottom-0"];
   return (
     <div className="mx-auto flex h-dvh max-w-[560px] flex-col items-center justify-center px-6 text-center">
       <div className="relative h-[340px] w-full">

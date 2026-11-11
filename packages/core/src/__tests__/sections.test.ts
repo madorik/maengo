@@ -4,8 +4,8 @@ import { rankFeed, todaysTopics, topicShares } from '../feed/rankFeed';
 import { briefingSlot, sectionOf, sectionOfTopic, SECTION_IDS, withSectionTopics } from '../sections';
 import { NEWS_SECTIONS } from '../topics/dictionary';
 
-test('분야는 8개이고 사전의 뉴스 분야와 같다', () => {
-  assert.equal(SECTION_IDS.length, 8);
+test('분야는 9개(2026-11-11 부동산)이고 사전의 뉴스 분야와 같다', () => {
+  assert.equal(SECTION_IDS.length, 9);
   assert.deepEqual([...SECTION_IDS].sort(), NEWS_SECTIONS.map((t) => t.id).sort());
 });
 
