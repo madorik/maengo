@@ -20,3 +20,8 @@ export function useProfile(): ProfileView {
   if (!ctx) throw new Error("useProfile은 ProfileProvider 안에서만 쓸 수 있어요");
   return ctx;
 }
+
+/** 화면에서 부르는 이름: 프로필 이름(구글·애플이 준 이름). 없으면 null — 이름 없이 쓴다('회원님'으로 부르지 않는다, 2026-11-11 사용자) */
+export function useCallName(): string | null {
+  return useProfile().displayName?.trim() || null;
+}

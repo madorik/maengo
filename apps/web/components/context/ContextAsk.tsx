@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { answerContextAction } from "@/app/(app)/context-actions";
 import { IconClose } from "@/components/icons";
-import { useProfile } from "@/components/providers/ProfileProvider";
+import { useCallName } from "@/components/providers/ProfileProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { SKIP, type PickedQuestion } from "@/lib/context";
 
@@ -91,8 +91,7 @@ function QuestionRow({ q: first, day, onDone, tone }: { q: PickedQuestion; day: 
 
 /** 기사 아래 작은 질문 줄. 오늘 이미 물었으면 그리지 않는다. 안 보고 떠나면 다음 화면 알림으로 넘긴다 */
 export function ContextAskInline({ question, day }: { question: PickedQuestion | null; day: string }) {
-  const { displayName } = useProfile();
-  const name = displayName?.trim() || "회원";
+  const name = useCallName();
   // 보일지는 처음 그릴 때 한 번만 정한다(보이는 순간 '오늘 물었음'으로 남겨도 스스로 사라지지 않게)
   const decided = useRef<boolean | null>(null);
   const can = useSyncExternalStore(
@@ -133,7 +132,7 @@ export function ContextAskInline({ question, day }: { question: PickedQuestion |
   if (!can || !question || done) return null;
   return (
     <div ref={ref} className="mt-8 rounded-2xl border border-line px-4 pb-3 pt-3.5">
-      <p className="mb-1.5 text-[12px] font-semibold text-sub">이 소식, {name}님께 더 맞춰 드릴게요</p>
+      <p className="mb-1.5 text-[12px] font-semibold text-sub">이 소식, {name ? `${name}님께 ` : ""}더 맞춰 드릴게요</p>
       <QuestionRow
         q={question}
         day={day}
@@ -151,8 +150,7 @@ export function ContextAskInline({ question, day }: { question: PickedQuestion |
 export function ContextToastHost() {
   const pending = useSyncExternalStore(subscribe, () => leaving, () => null);
   const pathname = usePathname();
-  const { displayName } = useProfile();
-  const name = displayName?.trim() || "회원";
+  const name = useCallName();
   const [touched, setTouched] = useState(false);
 
   useEffect(() => {
@@ -170,7 +168,7 @@ export function ContextToastHost() {
       onPointerDown={() => setTouched(true)}
       className="rise fixed inset-x-3 bottom-[calc(96px+env(safe-area-inset-bottom))] z-40 mx-auto max-w-[420px] rounded-[20px] bg-[#1F2340] px-4 pb-3 pt-3 text-white shadow-[0_12px_32px_rgb(31_35_64/0.3)] lg:bottom-28"
     >
-      <p className="mb-1.5 text-[12px] font-semibold text-mango">방금 본 {pending.q.about}, {name}님께 맞춰 드릴게요</p>
+      <p className="mb-1.5 text-[12px] font-semibold text-mango">방금 본 {pending.q.about}, {name ? `${name}님께` : "더"} 맞춰 드릴게요</p>
       <QuestionRow key={pending.q.key} q={pending.q} day={pending.day} tone="toast" onDone={() => setLeaving(null)} />
     </div>
   );

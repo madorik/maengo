@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { IconCheck, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
-import { useProfile } from "@/components/providers/ProfileProvider";
+import { useCallName } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { CountUp } from "@/components/ui/CountUp";
 import { Sheet } from "@/components/ui/Sheet";
@@ -19,8 +19,10 @@ import type { BriefingInsight } from "@/lib/server/briefing-insight";
  * 못 만들었으면 예전처럼 날짜 줄 → '출근길 브리핑' → 언론·기사 수.
  * 흐름은 서버가 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts). 만드는 동안은 같은 모양의 회색 줄(InsightFallback)
  */
-export function BriefingHero({ insight }: { insight: BriefingInsight | null }) {
+export function BriefingHero({ insight: made }: { insight: BriefingInsight | null }) {
   const { data } = useToday();
+  const name = useCallName();
+  const insight = made && withName(made, name);
   const pm = data.slot === "pm";
   const slotLabel = SLOT_LABEL[data.slot ?? "am"];
   if (!insight) {
@@ -48,11 +50,27 @@ export function BriefingHero({ insight }: { insight: BriefingInsight | null }) {
   );
 }
 
-/** 'OO님에게 맞춤 인사이트'(이름이 없으면 회원님) */
+/**
+ * AI가 쓴 글의 'OO님'(회원을 부르는 말)을 프로필 이름으로. 이름은 Gemini에 보내지 않아서 화면에서 바꾼다(개인정보 처리방침 5조).
+ * 예전에 '회원님'으로 만든 글도 같이 바꾼다(2026-11-11 사용자: 회원님 말고 프로필 이름)
+ */
+function withName(insight: BriefingInsight, name: string | null): BriefingInsight {
+  // 이름 없는 계정(운영엔 없다)만 '회원님'
+  const call = name ? `${name}님` : "회원님";
+  const n = (s: string) => s.replace(/(?:OO|○○|회원)님/g, call);
+  return {
+    ...insight,
+    headline: n(insight.headline),
+    flows: insight.flows.map((f) => ({ ...f, title: n(f.title), text: n(f.text), tag: f.tag && n(f.tag), why: f.why && n(f.why), watch: f.watch?.map(n) })),
+    checks: insight.checks.map((c) => ({ ...c, text: n(c.text) })),
+    personal: insight.personal?.map((x) => ({ ...x, title: n(x.title), text: n(x.text) })),
+  };
+}
+
+/** 'OO님에게 맞춤 인사이트'(OO은 프로필 이름. 없으면 '나에게') */
 function ForYou({ pm }: { pm: boolean }) {
-  const { displayName } = useProfile();
-  const name = displayName?.trim() || "회원";
-  return <p className={`text-[13px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>{name}님에게 맞춤 인사이트</p>;
+  const name = useCallName();
+  return <p className={`text-[13px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>{name ? `${name}님에게` : "나에게"} 맞춤 인사이트</p>;
 }
 
 /**
@@ -60,14 +78,13 @@ function ForYou({ pm }: { pm: boolean }) {
  * 예: 'OO님이 자주 보는 경제·IT/과학 분야와 이번 주 본 소식 12개를 바탕으로 엮었어요.'
  */
 function Basis({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
-  const { displayName } = useProfile();
+  const name = useCallName();
   const b = insight.basis;
   if (!b || (!b.sections.length && !b.recent)) return null;
-  const name = displayName?.trim() || "회원";
   const parts = [b.sections.length ? `자주 보는 ${b.sections.join("·")} 분야` : "", b.recent ? `이번 주 본 소식 ${b.recent}개` : ""].filter(Boolean);
   return (
     <p className={`mt-2 text-[14px] font-medium leading-snug ${pm ? "text-white/85" : "text-ink/80"}`}>
-      {name}님이 {parts.join("와 ")}를 바탕으로 엮었어요.
+      {name ? `${name}님이 ` : ""}{parts.join("와 ")}를 바탕으로 엮었어요.
     </p>
   );
 }
@@ -183,8 +200,7 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
  */
 function MatchCheck({ insight }: { insight: BriefingInsight }) {
   const { data } = useToday();
-  const { displayName } = useProfile();
-  const name = displayName?.trim() || "회원";
+  const name = useCallName();
   const personal = insight.personal ?? [];
   const checks = insight.checks.slice(0, 1);
   if (!personal.length && !checks.length) return null;
@@ -192,7 +208,7 @@ function MatchCheck({ insight }: { insight: BriefingInsight }) {
   return (
     <section aria-labelledby="match-title" className="-mx-1.5 mt-4 rounded-[24px] bg-mango px-3 pb-3 pt-4 text-[#1F2340]">
       <h2 id="match-title" className="px-1.5 text-[15px] font-bold tracking-[-0.02em]">
-        {name}님 맞춤 체크
+        {name ? `${name}님` : "내"} 맞춤 체크
       </h2>
       <div className="mt-3 flex flex-col gap-2">
         {personal.map((x) => {
@@ -244,16 +260,15 @@ function MatchCheck({ insight }: { insight: BriefingInsight }) {
  */
 function FlowDetail({ flow, onClose }: { flow: BriefingInsight["flows"][number]; onClose: () => void }) {
   const { data, listenAccess } = useToday();
-  const { displayName } = useProfile();
   const p = usePlayer();
-  const name = displayName?.trim() || "회원";
+  const name = useCallName();
   const related = flow.ids.map((id) => data.items.find((i) => i.clusterId === id)).filter((i): i is FeedItem => !!i);
   const canListen = p.enabled && related.some((i) => listenAccess(i.clusterId) !== null);
   return (
     <div className="pb-2">
       {flow.why && (
         <div className="rounded-2xl bg-mango-tint px-4 py-3">
-          <p className="text-[12px] font-bold text-mango-deep">왜 {name}님에게</p>
+          <p className="text-[12px] font-bold text-mango-deep">왜 {name ? `${name}님` : "나"}에게</p>
           <p className="mt-1 text-[15px] font-medium leading-relaxed text-ink">{flow.why}</p>
         </div>
       )}
