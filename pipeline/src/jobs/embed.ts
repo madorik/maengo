@@ -2,6 +2,7 @@ import { db, check, inChunks, selectAll, toVector } from '../lib/db';
 import { HOUR, type Ctx } from '../lib/ctx';
 import { interestFilter, topicsInUse } from '../lib/interest';
 import { interleaveBy } from '../lib/limit';
+import { SECTION_IDS } from '@maengo/core/sections';
 
 /**
  * 3. embed: 제목 + RSS 설명을 768차원으로. 본문은 읽지 않는다(요약 대상만 읽는다).
@@ -15,7 +16,11 @@ export async function embed(ctx: Ctx) {
   const all = await selectAll<{ id: number; title: string; excerpt: string | null; source_id: number | null }>((from, to) =>
     db.from('items').select('id,title,excerpt,source_id').is('embedding', null).gte('fetched_at', since).order('id', { ascending: false }).range(from, to),
   );
-  const wanted = await interestFilter(ctx, await topicsInUse());
+  // 분야 8개(정치·경제·…·스포츠·엔터)는 받는 회원이 없어도 늘 거른다: 온보딩 '끌리는 소식' 고르기에 분야마다 소식이 있어야 한다(2026-11-10).
+  // 섹션 피드 글만 더 들어와서 임베딩이 조금 는다(요약은 summarize의 분야 몫이 정한다)
+  const topics = await topicsInUse();
+  for (const id of SECTION_IDS) topics.add(id);
+  const wanted = await interestFilter(ctx, topics);
   const picked = interleaveBy(all.filter(wanted), (i) => i.source_id);
   const items = picked.slice(0, ctx.budget?.embedLimit ?? picked.length).map(({ id, title, excerpt }) => ({ id, title, excerpt }));
   if (!items.length) {

@@ -2,6 +2,7 @@ import { GEMINI_MODELS } from '@maengo/core/ai';
 import { credibilityLabel, itemQuality, linkCap, rankFeed } from '@maengo/core/feed';
 import { GeminiOutputError, GeminiQuotaError, PROMPT_VERSION } from '@maengo/core/gemini';
 import { isNewsSection, NEWS_SECTIONS, TOPIC_BY_ID, whyLead, withParents } from '@maengo/core/topics';
+import { SECTION_IDS } from '@maengo/core/sections';
 import type { SummarizeSource } from '@maengo/core/ai';
 import type { Tier } from '@maengo/core/types';
 import { db, check } from '../lib/db';
@@ -218,9 +219,19 @@ export async function summarize(ctx: Ctx) {
       if (!c.summarized) needed.set(r.clusterId, Math.max(needed.get(r.clusterId) ?? 0, r.score));
     }
   }
+  // 분야 몫(2026-11-10 사용자 '온보딩에 스포츠·엔터가 없다'): 받는 회원이 없는 분야는 요약할 소식이 안 생겨 온보딩 고르기에 타일이 빠진다.
+  // 최근 48시간 안에 요약된 소식이 없는 분야는 이번 실행에서 가장 큰 소식 하나를 꼭 요약한다(있으면 건너뛰어 하루 몇 개 안 된다)
+  const showcase: number[] = [];
+  for (const section of SECTION_IDS) {
+    const inSection = candidates.filter((c) => c.topics.some((t) => t.topicId === section));
+    if (inSection.some((c) => c.summarized && c.ageHours <= 48)) continue;
+    const best = rankFeed(inSection.filter((c) => !c.summarized && !c.isVideo), { [section]: 1 }, new Set(), { limit: 1, visible: 1, day: ctx.date })[0];
+    if (best && !showcase.includes(best.clusterId)) showcase.push(best.clusterId);
+  }
   const limit = ctx.budget?.summarizeLimit ?? env.summarizeLimit;
-  const queue = [...needed].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id]) => id);
-  ctx.log(`summarize: 유저 ${audience.length}명 · 후보 ${candidates.length}개 → 요약할 묶음 ${queue.length}개(상한 ${limit})`);
+  const byUsers = [...needed].sort((a, b) => b[1] - a[1]).map(([id]) => id).filter((id) => !showcase.includes(id));
+  const queue = [...showcase, ...byUsers].slice(0, Math.max(limit, showcase.length));
+  ctx.log(`summarize: 유저 ${audience.length}명 · 후보 ${candidates.length}개 → 요약할 묶음 ${queue.length}개(상한 ${limit}, 분야 몫 ${showcase.length})`);
 
   const counts: Record<SummaryResult, number> = { ok: 0, skipped: 0, deferred: 0, failed: 0 };
   const budget = { videos: ctx.budget?.videoLimit ?? env.videoLimit };
