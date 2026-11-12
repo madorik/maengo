@@ -172,12 +172,13 @@ const FILL_SPARE = 3;
 const FILL_CONCURRENCY = 3;
 
 /**
- * '남은 소식 더 받기'(웹, api/feed/today/fill): 오늘 보여 주는 소식이 오늘 받을 수 있는 수(want = 하루 소식 + 맹고로 더 받은 수)보다 적을 때
- * 모자란 만큼 지금 채운다. 배송이 적게 준 날(후보가 모자랐던 날 등)에 쓴다. 오늘 받은 소식은 그대로 두고 뒤에 붙인다(지우지 않는다).
+ * '남은 소식 더 받기'(웹, api/feed/today/fill): 지금 브리핑(slot, 출근길·퇴근길)에 보여 주는 소식이 브리핑 하나에 받을 수 있는 수(want = 하루 소식)보다 적을 때
+ * 모자란 만큼 지금 채운다. 배송이 적게 준 날(후보가 모자랐던 날, AI 상한에 막힌 날 등)에 쓴다. 오늘 받은 소식은 그대로 두고 뒤에 붙인다(지우지 않는다).
  * 오늘 골라 두고 안 보여 준 소식이 있으면 그것부터 보여 주고, 모자라면 최근 한 달 안의 묶음에서 골라(요약 안 된 영상은 뺀다)
- * 요약이 없는 것은 지금 요약한다. AI가 막혀 있으면 이미 요약된 것만. 돌려주는 값 = 새로 보여 주게 된 소식 수
+ * 요약이 없는 것은 지금 요약한다. AI가 막혀 있으면 이미 요약된 것만. 돌려주는 값 = 새로 보여 주게 된 소식 수.
+ * 하루 두 번 브리핑(2026-11-10)이라 지금 브리핑 소식만 세고 그 브리핑으로 넣는다. 지금 브리핑 소식은 늘 피드 맨 뒤에 있다(퇴근길은 출근길 뒤에 붙는다, deliveries.ts savePmFeed)
  */
-export async function fillTodayFeedNow(userId: string, want: number, onProgress: (p: InstantProgress) => void): Promise<number> {
+export async function fillTodayFeedNow(userId: string, want: number, onProgress: (p: InstantProgress) => void, slot: 'am' | 'pm' = 'am'): Promise<number> {
   const log = (m: string) => console.log(`[fill] ${m}`);
   const ctx: Ctx = {
     date: kstDate(),
@@ -190,14 +191,22 @@ export async function fillTodayFeedNow(userId: string, want: number, onProgress:
   };
   onProgress({ stage: 'finding' });
   const day = check(await db.from('feed_days').select('visible,extra').eq('user_id', userId).eq('date', ctx.date).maybeSingle(), 'feed_days') as { visible: number; extra: number } | null;
-  const rows = check(await db.from('feeds').select('rank,cluster_id,topic_id').eq('user_id', userId).eq('date', ctx.date).order('rank'), 'feeds') as { rank: number; cluster_id: number; topic_id: string }[];
-  if (!day || !rows.length || day.visible >= want) {
+  const rows = check(await db.from('feeds').select('rank,cluster_id,topic_id,slot').eq('user_id', userId).eq('date', ctx.date).order('rank'), 'feeds') as {
+    rank: number;
+    cluster_id: number;
+    topic_id: string;
+    slot: string | null;
+  }[];
+  const ofSlot = (r: { slot: string | null }) => (r.slot ?? 'am') === slot;
+  // 지금 브리핑에 보여 주는 수(보이는 칸은 차례로 앞에서부터 day.visible개, 웹 visibleRows와 같다)
+  const shownInSlot = day ? rows.slice(0, day.visible).filter(ofSlot).length : 0;
+  if (!day || !rows.length || shownInSlot >= want) {
     onProgress({ stage: 'empty' });
     return 0;
   }
   let added = 0;
   let aiBlocked = false;
-  const need = want - rows.length;
+  const need = want - rows.filter(ofSlot).length;
   if (need > 0) {
     const [a] = await loadAudience(ctx, userId);
     if (!a) {
@@ -252,7 +261,7 @@ export async function fillTodayFeedNow(userId: string, want: number, onProgress:
       onProgress({ stage: 'saving' });
       let rank = rows.at(-1)!.rank;
       check(
-        await db.from('feeds').insert(got.map((r) => ({ user_id: userId, date: ctx.date, rank: ++rank, cluster_id: r.clusterId, topic_id: r.topicId }))),
+        await db.from('feeds').insert(got.map((r) => ({ user_id: userId, date: ctx.date, rank: ++rank, cluster_id: r.clusterId, topic_id: r.topicId, slot }))),
         'feeds insert',
       );
       added = got.length;
@@ -260,7 +269,8 @@ export async function fillTodayFeedNow(userId: string, want: number, onProgress:
       log(`오늘 소식 ${added}개를 더 붙임(지금 요약 ${got.filter((r) => !byId.get(r.clusterId)!.summarized).length}개)`);
     }
   }
-  const visible = Math.min(rows.length + added, want);
+  // 지금 브리핑 소식은 맨 뒤라, 보이는 칸을 그 브리핑이 want개가 될 때까지 늘린다
+  const visible = Math.min(rows.length + added, day.visible + (want - shownInSlot));
   const shown = visible - day.visible;
   if (shown <= 0) {
     onProgress({ stage: aiBlocked ? 'blocked' : 'empty' });

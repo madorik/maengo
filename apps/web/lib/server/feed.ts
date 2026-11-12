@@ -386,12 +386,15 @@ export async function dailyMaengoUsage(profile: Profile): Promise<{ given: numbe
 }
 
 /**
- * '남은 소식 더 받기'(api/feed/today/fill)가 보는 오늘 상태: 오늘 피드가 있는지, 보여 주는 개수, 오늘 받을 수 있는 수(하루 소식 + 맹고로 더 받은 수).
+ * '남은 소식 더 받기'(api/feed/today/fill)가 보는 오늘 상태: 오늘 피드가 있는지, 지금 브리핑(출근길·퇴근길)과 거기 보여 주는 개수, 브리핑 하나에 받을 수 있는 수(하루 소식).
+ * 오늘 화면의 '남은 소식 N개'(TodayList: 플랜 하루 소식 - 지금 브리핑 소식 수)와 같은 기준이다(2026-11-12: 하루 전체로 세서 퇴근길이 모자라도 채우지 못했다).
  * todayFeed가 이미 요약된 소식으로 먼저 채운 뒤의 값이라, 여기서 모자란 만큼은 AI로 새로 만들어야 한다
  */
-export async function todayFillStatus(profile: Profile): Promise<{ hasFeed: boolean; visible: number; want: number }> {
+export async function todayFillStatus(profile: Profile): Promise<{ hasFeed: boolean; slot: BriefingSlot; shown: number; want: number }> {
   const day = await todayFeed(profile);
-  return { hasFeed: day.rows.length > 0, visible: day.visible, want: entitlements(profile).dailyItems + day.extra };
+  const slot = displaySlot(day.rows);
+  const shown = visibleRows(day).filter((r) => (r.slot ?? 'am') === slot).length;
+  return { hasFeed: day.rows.length > 0, slot, shown, want: entitlements(profile).dailyItems };
 }
 
 /** 보관함에서 볼 수 있는 가장 오래된 날(plans 표 archive_days, Free 최근 30일·Premium 180일). null이면 전부 */
