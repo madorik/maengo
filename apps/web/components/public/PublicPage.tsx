@@ -10,13 +10,13 @@ import { SiteFooter } from "./SiteFooter";
 export function PublicPage({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-paper">
-      {/* 2026-11-10 새 화면: 소개 페이지와 같은 '맹고 | 오늘 뉴스, 내게 미칠 영향은?' 머리 */}
+      {/* 2026-11-10 새 화면: 소개 페이지와 같은 '맹고 | 오늘 뉴스 핵심 요약' 머리 */}
       <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1100px] items-center justify-between gap-3 px-5">
           <Link href="/" className="flex min-w-0 items-center gap-2.5 no-underline">
             <span className="text-[22px] font-bold tracking-[-0.035em] text-ink">맹고</span>
             <span aria-hidden="true" className="h-4 w-px bg-line-dark max-[519px]:hidden" />
-            <span className="text-[15px] font-medium text-sub max-[519px]:hidden">오늘 뉴스, 내게 미칠 영향은?</span>
+            <span className="text-[15px] font-medium text-sub max-[519px]:hidden">오늘 뉴스 핵심 요약</span>
           </Link>
           <nav aria-label="공개 메뉴" className="flex items-center gap-1">
             <Link href={topicsPath()} className="inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-semibold text-sub no-underline hover:bg-snow">

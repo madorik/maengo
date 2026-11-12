@@ -259,14 +259,14 @@ export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="text-[20px] font-bold tracking-[-0.035em] text-ink">맹고</span>
               <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-line-dark" />
-              <span className="truncate text-[14px] font-medium text-sub">오늘 뉴스, 내게 미칠 영향은?</span>
+              <span className="truncate text-[14px] font-medium text-sub">오늘 뉴스 핵심 요약</span>
             </div>
           ) : (
             <>
               <Link href="/" aria-label="맹고 소개" className="flex min-w-0 items-center gap-2.5 no-underline">
                 <span className="text-[20px] font-bold tracking-[-0.035em] text-ink">맹고</span>
                 <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-line-dark" />
-                <span className="truncate text-[14px] font-medium text-sub">오늘 뉴스, 내게 미칠 영향은?</span>
+                <span className="truncate text-[14px] font-medium text-sub">오늘 뉴스 핵심 요약</span>
               </Link>
               <AuthLink
                 signedOut={{ href: "/login", label: "로그인" }}
