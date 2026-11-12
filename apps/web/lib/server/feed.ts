@@ -266,8 +266,8 @@ async function topUp(profile: Profile, day: FeedDay, need: number): Promise<Feed
   return (await readDay(profile.id, day.date, { withInfo: true })) ?? day;
 }
 
-/** 오늘 피드를 채울 때 찾아보는 기간: 최근 한 달(topUp) */
-const MORE_DAYS = 30;
+/** 오늘 피드를 채울 때 찾아보는 기간: 최근 14일(topUp, 2026-11-12 30일 → 14일: 보관함과 같은 기간) */
+const MORE_DAYS = 14;
 
 const visibleRows = (day: FeedDay | null) => (day ? day.rows.slice(0, day.visible) : []);
 
@@ -363,8 +363,12 @@ async function findRow(profile: Profile, clusterId: number): Promise<{ row: Feed
   const hitToday = visibleRows(today).find((r) => r.clusterId === clusterId);
   if (hitToday) return { row: hitToday, date: today.date, info: today.info };
   const from = archiveFrom(profile, today.date);
+  // 북마크한 소식은 보관 기간이 지나도 연다(2026-11-12, 보관함 library_page와 같은 규칙)
+  const starred = from
+    ? Boolean(((await db.from('reads').select('starred').eq('user_id', profile.id).eq('cluster_id', clusterId).maybeSingle()).data as { starred: boolean | null } | null)?.starred)
+    : false;
   let query = db.from('feeds').select('date,rank,topic_id').eq('user_id', profile.id).eq('cluster_id', clusterId).neq('date', today.date);
-  if (from) query = query.gte('date', from);
+  if (from && !starred) query = query.gte('date', from);
   const rows = must(await query.order('date', { ascending: false }), 'feeds') as { date: string; rank: number; topic_id: string }[];
   if (!rows.length) return null;
   // 보관함처럼 '그날 앞에서부터 visible개'로 본다(순번은 중복 합치기·채우기로 비는 칸이 있어 순번 숫자로 비교하면 안 된다).

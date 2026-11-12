@@ -142,9 +142,9 @@ export const LEGAL_EFFECTIVE_DATE = koDate(LEGAL_EFFECTIVE_ON);
  * 고친 날(PRIVACY_UPDATED_ON)에 올리고 7일 뒤를 시행일로 한다. 시행일 전에는 처리방침 맨 위에 바뀌는 점 안내가 보인다
  */
 // 2026-11-11: 내 맞춤 정보·오늘의 흐름을 더하며 11-17 예정판(Google 신호)과 합쳐 바로 시행(사용자 결정: 실사용자가 거의 없어 7일 알림 없이)
-export const PRIVACY_UPDATED_ON = "2026-11-11";
-export const PRIVACY_EFFECTIVE_ON = "2026-11-11";
-export const PRIVACY_PREVIOUS_ON = "2026-11-06";
+export const PRIVACY_UPDATED_ON = "2026-11-12";
+export const PRIVACY_EFFECTIVE_ON = "2026-11-12";
+export const PRIVACY_PREVIOUS_ON = "2026-11-11";
 
 /**
  * 문의 메일. 빈 메일로 문서를 공개하지 않도록 운영에서는 비어 있으면 null(문서 페이지가 404로 숨는다).

@@ -63,7 +63,7 @@ function planItems(l: PlanLimits, askDaily: number): string[] {
     ...(l.audio ? ["자연스러운 AI 목소리로 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
     `맹고 AI 질문 하루 ${askDaily}번`,
     ...(l.id === "plus" ? ["주간 리포트"] : []),
-    l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관`,
+    l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관, 북마크는 계속`,
   ];
 }
 
@@ -340,7 +340,7 @@ export async function Landing() {
 
             <Feature
               title="지난 소식은 보관함에, 한 주는 리포트로"
-              body="받은 소식은 보관함에 최신순으로 쌓이고, 분야로 거르거나 찾아서 골라 들을 수 있어요. Premium은 매주 월요일 아침, 지난주 소식을 한 줄 총평과 분야별 정리로 모은 주간 리포트를 받아요."
+              body="받은 소식은 보관함에 2주 동안 최신순으로 쌓이고(북마크한 소식은 계속), 분야로 거르거나 찾아서 골라 들을 수 있어요. Premium은 매주 월요일 아침, 지난주 소식을 한 줄 총평과 분야별 정리로 모은 주간 리포트를 받아요."
             >
               <div className="flex items-start justify-center gap-3 sm:gap-4">
                 <Phone src={libraryShot} className="w-1/2 max-w-[220px]" />

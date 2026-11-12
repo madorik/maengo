@@ -31,7 +31,7 @@ const ERRORS: Record<string, string> = {
   scheduled: "지금은 알림 시각이라 배송을 기다려요. 잠시 뒤 다시 눌러 주세요.",
   no_feed: "오늘 소식을 먼저 받아 주세요.",
   daily_cap: "오늘은 더 받을 수 없어요.",
-  empty: "최근 한 달 동안 관심사에 맞는 새 소식이 없어요.",
+  empty: "최근 2주 동안 관심사에 맞는 새 소식이 없어요.",
   blocked: "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요.",
   failed: "더 받지 못했어요. 다시 눌러 주세요.",
 };
@@ -57,7 +57,7 @@ function cheersOf(p: Progress, name: string | null, mode: Mode): string[] {
     return [
       name ? `${name}님의 관심사를 확인하고 있어요!` : "관심사를 확인하고 있어요!",
       "열심히 찾고 있어요!",
-      mode === "more" ? "오늘 주요 소식을 더 찾는 중이에요!" : "최근 한 달 소식을 샅샅이 뒤지는 중이에요!",
+      mode === "more" ? "오늘 주요 소식을 더 찾는 중이에요!" : "최근 2주 소식을 샅샅이 뒤지는 중이에요!",
     ];
   if (p.stage === "found") return p.toMake ? [`소식 ${p.ready + p.toMake}개를 찾았어요!`, `${p.toMake}개는 AI로 새로 요약할게요!`] : [`준비된 소식 ${p.ready}개를 찾았어요!`];
   if (p.stage === "summarizing")

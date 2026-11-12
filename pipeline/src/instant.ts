@@ -119,7 +119,8 @@ export async function buildTodayFeedNow(
 }
 
 /** '하나 더 받기'가 찾아보는 기간: 최근 한 달 */
-const MORE_WINDOW_HOURS = 30 * 24;
+// 2026-11-12: 30일 → 14일(뉴스는 1주만 넘어도 안 본다, 보관함도 14일)
+const MORE_WINDOW_HOURS = 14 * 24;
 
 /**
  * '하나 더 받기'(웹)에서 요약된 소식이 다 떨어졌을 때: 최근 한 달 안에 모아 둔 묶음 중 이 사람 관심사에 맞고
