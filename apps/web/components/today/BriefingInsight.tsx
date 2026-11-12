@@ -20,7 +20,7 @@ import type { BriefingInsight } from "@/lib/server/briefing-insight";
  * 언론 N곳·기사 N건은 보여 주지 않는다(2026-11-12 사용자: 날짜만)
  * 흐름은 서버가 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts). 만드는 동안은 같은 모양의 회색 줄(InsightFallback)
  */
-export function BriefingHero({ insight: made }: { insight: BriefingInsight | null }) {
+export function BriefingHero({ insight: made, label }: { insight: BriefingInsight | null; label?: string }) {
   const { data } = useToday();
   const name = useCallName();
   const insight = made && withName(made, name);
@@ -38,7 +38,7 @@ export function BriefingHero({ insight: made }: { insight: BriefingInsight | nul
   }
   return (
     <>
-      <ForYou pm={pm} />
+      <ForYou pm={pm} label={label} />
       <h1 id="briefing-title" className="mt-1.5 text-[25px] font-bold leading-[1.3] tracking-[-0.035em] text-balance">
         {insight.headline}
       </h1>
@@ -68,10 +68,10 @@ function withName(insight: BriefingInsight, name: string | null): BriefingInsigh
   };
 }
 
-/** 'OO님에게 맞춤 인사이트'(OO은 프로필 이름. 없으면 '나에게') */
-function ForYou({ pm }: { pm: boolean }) {
+/** 'OO님에게 맞춤 인사이트'(OO은 프로필 이름. 없으면 '나에게'). label을 주면 그 말(토스 미니앱 공통판: 회원 맞춤이 아니라서) */
+function ForYou({ pm, label }: { pm: boolean; label?: string }) {
   const name = useCallName();
-  return <p className={`text-[13px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>{name ? `${name}님에게` : "나에게"} 맞춤 인사이트</p>;
+  return <p className={`text-[13px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>{label ?? `${name ? `${name}님에게` : "나에게"} 맞춤 인사이트`}</p>;
 }
 
 /**

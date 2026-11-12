@@ -1,4 +1,27 @@
 import 'server-only';
+import { unstable_cache } from 'next/cache';
+import { GEMINI_MODELS } from '@maengo/core/ai';
+import type { CategoryId } from '@maengo/core/categories';
+import { MIN_RELEVANCE, type Impact } from '@maengo/core/feed';
+import { geminiChatJson } from '@maengo/core/gemini';
+import { kstDate } from '@maengo/core/kst';
+import {
+  cleanDigest,
+  DIGEST_MAX_ITEMS,
+  DIGEST_SCHEMA,
+  DIGEST_SYSTEM,
+  digestPrompt,
+  lastCompleted,
+  pickDigestItems,
+  REPORT_MIN_ITEMS,
+  reportRange,
+  reportTitle,
+  type DigestItem,
+  type ReportDigest,
+} from '@maengo/core/report';
+import { sectionOf } from '@maengo/core/sections';
+import { logUsage } from './ai';
+import { publicInsight, type BriefingInsight } from './briefing-insight';
 import { isCategory } from '@maengo/core/categories';
 import { childrenOf } from '@maengo/core/topics';
 import { isNotPhoto } from '../photo';
@@ -213,5 +236,140 @@ export async function warmTossAudio(items: FeedItem[]): Promise<void> {
     } catch (e) {
       console.warn(`[toss] #${item.clusterId} 음성 미리 만들기 실패`, String((e as Error)?.message ?? e).slice(0, 160));
     }
+  }
+}
+
+// ---- 오늘의 흐름·주간 리포트(토스 공통판, 2026-11-12 사용자 '인사이트, 주간 리포트 넣어야 해') ----
+// 토스판은 로그인이 없어 회원 맞춤이 아니라 토스판 소식으로 만든 한 편을 모두가 같이 본다. 같은 소식 묶음·같은 주는 한 번만 만든다(데이터 캐시)
+
+/** 오늘의 흐름: 지금 첫 화면 소식 10개를 엮는다. 소식 묶음이 같으면 하루 동안 다시 만들지 않는다. 못 만들면 던져서 캐시에 남기지 않는다 */
+const insightOf = unstable_cache(
+  async (ids: string): Promise<BriefingInsight> => {
+    const items = (await Promise.all(ids.split(',').map((id) => tossAudioItem(Number(id))))).filter((i): i is FeedItem => !!i);
+    const made = await publicInsight(items.map((i) => ({ ...i, section: sectionOf({ category: i.category }) })));
+    if (!made) throw new Error('토스 오늘의 흐름을 못 만듦');
+    return made;
+  },
+  ['toss-insight-v1'],
+  { revalidate: 86400 },
+);
+
+/** 첫 화면 소식과 그 소식으로 엮은 오늘의 흐름. 화면은 ids가 자기 목록과 같을 때만 쓴다(목록이 바뀌는 사이) */
+export async function tossInsight(): Promise<{ ids: number[]; insight: BriefingInsight } | null> {
+  const { items } = await tossTour();
+  if (items.length < 2) return null;
+  const ids = items.map((i) => i.clusterId);
+  try {
+    return { ids, insight: await insightOf(ids.join(',')) };
+  } catch (e) {
+    console.warn('[toss] 오늘의 흐름 실패', String((e as Error)?.message ?? e).slice(0, 160));
+    return null;
+  }
+}
+
+export interface TossReport {
+  start: string;
+  title: string;
+  range: string;
+  digest: ReportDigest;
+  /** 이 주 토스판 분야 소식 수 */
+  total: number;
+  /** 분야마다 소식 수(많은 순) */
+  groups: { id: string; name: string; count: number }[];
+  /** 정리가 가리키는 소식(제목·분야·원문 주소). 누르면 원문을 기기 브라우저로 연다 */
+  items: Record<string, { title: string; category: CategoryId; url: string }>;
+}
+
+interface WeekRow {
+  cluster_id: number;
+  title: string;
+  short: string;
+  category: string;
+  impact: Impact | null;
+  clusters: {
+    rep_item_id: number | null;
+    cluster_topics: { topic_id: string; relevance: number }[];
+    items: { id: number; canonical_url: string; sources: { name: string; custom: boolean } | null }[];
+  };
+}
+
+/** 세부 관심사 → 토스판 분야 id */
+const fieldOfTopic = (topicId: string) => TOSS_TOPIC_IDS.find((id) => id === topicId || childrenOf(id).some((c) => c.id === topicId)) ?? null;
+
+/** 지난주(월~일) 토스판 분야 소식으로 만든 주간 리포트. 주마다 한 번 Gemini로(약 ₩4). 못 만들면 던진다 */
+const reportOf = unstable_cache(
+  async (start: string): Promise<TossReport> => {
+    const from = new Date(`${start}T00:00:00+09:00`).toISOString();
+    const to = new Date(Date.parse(from) + 7 * DAY).toISOString();
+    const rows = must(
+      await db
+        .from('summaries')
+        .select(
+          'cluster_id,title,short,category,impact,clusters!inner(rep_item_id,first_seen_at,skip_reason,cluster_topics!inner(topic_id,relevance),items!items_cluster_id_fkey!inner(id,canonical_url,sources!inner(name,custom)))',
+        )
+        .eq('tier', 'basic')
+        .is('clusters.skip_reason', null)
+        .gte('clusters.first_seen_at', from)
+        .lt('clusters.first_seen_at', to)
+        .in('clusters.cluster_topics.topic_id', [...TOSS_TOPICS_ALL])
+        .gte('clusters.cluster_topics.relevance', MIN_RELEVANCE)
+        .eq('clusters.items.sources.custom', false)
+        .order('cluster_id', { ascending: true })
+        .limit(600),
+      'toss week',
+    ) as unknown as WeekRow[];
+    const name = (id: string) => PUBLIC_TOPICS.find((t) => t.id === id)?.name ?? id;
+    const digestItems: (DigestItem & { field: string })[] = [];
+    const items: TossReport['items'] = {};
+    for (const r of rows) {
+      const top = [...r.clusters.cluster_topics].sort((a, b) => b.relevance - a.relevance).map((t) => fieldOfTopic(t.topic_id)).find(Boolean);
+      const rep = r.clusters.items.find((m) => m.id === r.clusters.rep_item_id) ?? r.clusters.items[0];
+      if (!top || !rep) continue;
+      digestItems.push({ id: r.cluster_id, group: name(top), field: top, title: r.title, short: r.short, consumed: false, impact: r.impact });
+      items[r.cluster_id] = { title: r.title, category: isCategory(r.category) ? r.category : 'etc', url: rep.canonical_url };
+    }
+    if (digestItems.length < REPORT_MIN_ITEMS) throw new Error(`토스 주간 리포트 소식이 적음(${digestItems.length})`);
+    const counts = new Map<string, number>();
+    for (const i of digestItems) counts.set(i.field, (counts.get(i.field) ?? 0) + 1);
+    const groups = [...counts].sort((a, b) => b[1] - a[1]).map(([id, count]) => ({ id, name: name(id), count }));
+    const groupNames = groups.map((g) => g.name);
+    const picked = pickDigestItems(digestItems, groupNames, DIGEST_MAX_ITEMS.week);
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey) throw new Error('GEMINI_API_KEY 없음');
+    const raw = await geminiChatJson<unknown>({
+      apiKey,
+      model: GEMINI_MODELS.report,
+      kind: 'report',
+      system: `${DIGEST_SYSTEM}\n\n${digestPrompt(`${reportTitle('week', start)} (${reportRange('week', start)})`, groupNames, picked, 90, [])}`,
+      turns: [{ role: 'user', text: '이 기간 리포트 정리' }],
+      schema: DIGEST_SCHEMA,
+      timeoutMs: 45_000,
+      onUsage: logUsage,
+    });
+    const digest = cleanDigest(raw, groupNames, picked.map((i) => i.id), false);
+    if (!digest) throw new Error('토스 주간 리포트 정리 모양이 맞지 않음');
+    // 화면이 가리키는 소식만 남긴다(응답 크기)
+    const used = new Set([...digest.sections.flatMap((s) => s.ids), ...digest.keywords.flatMap((k) => k.ids), ...(digest.next ?? []).flatMap((n) => n.ids)]);
+    return {
+      start,
+      title: reportTitle('week', start),
+      range: reportRange('week', start),
+      digest: { ...digest, personal: [] },
+      total: digestItems.length,
+      groups,
+      items: Object.fromEntries(Object.entries(items).filter(([id]) => used.has(Number(id)))),
+    };
+  },
+  ['toss-report-v1'],
+  { revalidate: 7 * 86400 },
+);
+
+/** 지난주 주간 리포트(토스 공통판). 못 만들면 null */
+export async function tossWeeklyReport(): Promise<TossReport | null> {
+  try {
+    return await reportOf(lastCompleted('week', kstDate()));
+  } catch (e) {
+    console.warn('[toss] 주간 리포트 실패', String((e as Error)?.message ?? e).slice(0, 200));
+    return null;
   }
 }
