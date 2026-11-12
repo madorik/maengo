@@ -32,7 +32,7 @@ export default async function SharedItemImage({ params }: { params: Promise<{ to
     readFile(join(process.cwd(), "app/icon.svg"), "utf8"),
   ]);
   const iconSrc = `data:image/svg+xml;base64,${Buffer.from(icon).toString("base64")}`;
-  const { text, fontSize } = fit(item?.title ?? "금리·환율·주식, 내게 미칠 영향까지");
+  const { text, fontSize } = fit(item?.title ?? "관심 분야 소식, 내 재테크에 미칠 영향까지");
 
   return new ImageResponse(
     (
