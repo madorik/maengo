@@ -45,6 +45,12 @@ export interface TossMode {
   audioSrc: (item: GuestItem) => string;
   /** 머리 위 작은 말(둘러보기의 '로그인 없이 둘러보기' 자리) */
   label: string;
+  /** 있으면 머리('약 N분 · 소식 N개') 자리에 대신 그린다(오늘의 흐름, 앱 오늘 화면처럼) */
+  hero?: React.ReactNode;
+  /** 듣기 버튼과 노선 사이에 그린다(주간 리포트 입구) */
+  extra?: React.ReactNode;
+  /** 바깥(오늘의 흐름의 묶인 소식 등)에서 소식 번호로 그 소식부터 듣게 한다 */
+  onPlayer?: (api: { playId: (clusterId: number) => void }) => void;
 }
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
 
@@ -229,6 +235,18 @@ export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items
     navigator.mediaSession.metadata = new MediaMetadata({ title: curItem.title, artist: "맹고", album: "둘러보기" });
   }, [curItem]);
 
+  // 토스판: 바깥에서 소식 번호로 그 소식부터 듣게(오늘의 흐름 시트의 묶인 소식·'이 흐름부터 듣기')
+  const startRef = useRef(start);
+  startRef.current = start;
+  useEffect(() => {
+    toss?.onPlayer?.({
+      playId: (id) => {
+        const i = items.findIndex((it) => it.clusterId === id);
+        if (i >= 0) startRef.current(i, "item", "card");
+      },
+    });
+  }, [toss, items]);
+
   // 망고의 자리: 듣기 전엔 출발, 듣는 중이면 그 소식, 다 들었으면 도착(오늘 화면 노선과 같은 규칙)
   const at = p.cur >= 0 ? p.cur : p.heard.size >= n ? n : -1;
 
@@ -262,6 +280,11 @@ export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items
 
       {/* 아래는 맹고 AI 버튼(플레이어가 있으면 그 위)이 마지막 버튼을 가리지 않게 비운다 */}
       <main className={`mx-auto max-w-[640px] px-4 pt-5 lg:pt-8 ${curItem ? "pb-[calc(var(--tour-bar-h,140px)+96px)]" : "pb-[calc(96px+env(safe-area-inset-bottom))]"}`}>
+        {toss?.hero ? (
+          <section aria-labelledby="briefing-title" className="px-1.5">
+            {toss.hero}
+          </section>
+        ) : (
         <section aria-labelledby="try-title" className="px-1.5">
           <p className="text-[13px] font-medium text-sub">{toss ? toss.label : "로그인 없이 둘러보기"}</p>
           <h1 id="try-title" className="mt-1 flex items-baseline gap-2.5">
@@ -270,6 +293,7 @@ export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items
           </h1>
           <p className="mt-1 text-[13px] text-sub">{sections.join(", ")}에서 맹고가 골랐어요.</p>
         </section>
+        )}
 
         <button
           ref={listenAllRef}
@@ -287,6 +311,8 @@ export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items
             {p.heard.size > 0 ? `${p.heard.size}/${n}` : `첫 소식 ${koDuration(firstMs)}`}
           </span>
         </button>
+
+        {toss?.extra}
 
         <h2 className="mt-6 px-1.5 text-[15px] font-bold">오늘의 노선</h2>
         <ol aria-label="둘러볼 소식" className="mt-3 px-1">
