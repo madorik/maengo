@@ -93,7 +93,7 @@ export default async function SharedItemPage({ params }: Props) {
         </p>
       </article>
 
-      <StartBand title="내 관심 소식만 출퇴근길에 받아 보세요" body="맹고가 내 관심에 맞는 소식만 골라 요약해서 하루 두 번 보내 드려요. 음성으로도 들을 수 있어요." />
+      <StartBand title="내 주식·대출·집에 미칠 영향까지 받아 보세요" body="맹고가 관심 소식을 골라 요약하고, 내 사정에 맞춰 무슨 뜻인지 짚어 하루 두 번 보내 드려요. 음성으로도 들을 수 있어요." />
     </PublicPage>
   );
 }
