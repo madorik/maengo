@@ -5,7 +5,7 @@ import { ImageResponse } from "next/og";
 // 링크를 공유할 때 보이는 카드 이미지(1200×630). 빌드 때 한 번 만든다.
 // 한글을 그리려면 글꼴이 필요해서 Pretendard OTF를 직접 넣는다.
 // 2026-11-12 재테크하는 직장인(맹고-문서/타겟.md)
-export const alt = "맹고 - 관심 분야 소식, 내게 미칠 영향까지 읽어 드려요";
+export const alt = "맹고 - 내 관심 분야 소식, 오늘 뉴스 핵심 요약";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -24,8 +24,8 @@ export default async function OpengraphImage() {
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
           <div style={{ fontSize: 44, fontWeight: 900, color: "#A86A00", letterSpacing: -1.5 }}>맹고</div>
           <div style={{ display: "flex", flexDirection: "column", marginTop: 18, fontSize: 64, fontWeight: 900, color: "#1F2340", lineHeight: 1.15, letterSpacing: -3 }}>
-            <span>관심 분야 소식,</span>
-            <span>내게 미칠 영향까지</span>
+            <span>내 관심 분야 소식</span>
+            <span>오늘 뉴스 핵심 요약</span>
           </div>
           {/* 한글은 글자 단위로 줄이 바뀌어서 두 줄로 직접 나눈다 */}
           <div style={{ display: "flex", flexDirection: "column", marginTop: 30, fontSize: 34, fontWeight: 700, color: "#545A70", lineHeight: 1.4 }}>

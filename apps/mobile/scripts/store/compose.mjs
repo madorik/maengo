@@ -13,7 +13,7 @@ const icon = `data:image/svg+xml;base64,${readFileSync(iconPath).toString("base6
 const SLIDES_KO = [
   // 2026-11-12(1.3.5) 재테크하는 직장인(맹고-문서/타겟.md): 맞춤 인사이트·맞춤 체크가 보이는 오늘 화면부터. 원본은 raw4.mjs, 온보딩(pick)은 11-11 원본.
   // 퇴근길·보관함은 뺐다(6장)
-  { raw: "today", lines: ["관심 분야 소식,", "내게 미칠 영향까지"] },
+  { raw: "today", lines: ["내 관심 분야 소식", "오늘 뉴스 핵심 요약"] },
   { raw: "playing", lines: ["출근길엔", "누르면 바로 읽어 줘요"] },
   { raw: "article", lines: ["핵심만 짧게 요약하고", "원문은 바로 확인해요"] },
   { raw: "ask", lines: ["궁금한 건 예상 질문을", "골라 바로 물어봐요"] },
@@ -62,7 +62,7 @@ function featureHtml(shot) {
     p{position:absolute;left:72px;top:330px;width:470px;font-size:30px;font-weight:700;letter-spacing:-0.03em;line-height:1.35;word-break:keep-all}
     .phone{position:absolute;right:84px;top:58px;width:300px;padding:9px;border-radius:38px;background:#1F2340;transform:rotate(4deg);box-shadow:0 22px 48px rgba(31,35,64,.3)}
     .phone img{display:block;width:100%;border-radius:30px}
-  </style></head><body><img class="icon" src="${icon}">${EN ? "<h1>Maengo</h1><p>Korean news on your topics, summarized and read aloud</p>" : "<h1>맹고</h1><p>관심 분야 소식, 내게 미칠 영향까지</p>"}<div class="phone"><img src="${shot}"></div></body></html>`;
+  </style></head><body><img class="icon" src="${icon}">${EN ? "<h1>Maengo</h1><p>Korean news on your topics, summarized and read aloud</p>" : "<h1>맹고</h1><p>내 관심 분야 소식, 오늘 뉴스 핵심 요약</p>"}<div class="phone"><img src="${shot}"></div></body></html>`;
 }
 
 const browser = await chromium.launch({ channel: "chrome" });

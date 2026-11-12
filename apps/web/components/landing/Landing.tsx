@@ -193,9 +193,9 @@ export async function Landing() {
           <div className="md:order-2">
             {/* 대상: 재테크하는 직장인. 핵심은 관심 분야 요약 + 그 소식이 나에게 미칠 영향(2026-11-12 사용자, 맹고-문서/타겟.md). 360px 휴대폰에서 줄마다 한 줄 */}
             <h1 id="hero-title" className="text-[36px] font-bold leading-[1.22] tracking-[-0.05em] md:text-[54px]">
-              내 관심 분야 소식,
+              내 관심 분야 소식
               <br />
-              내게 미칠 영향까지.
+              오늘 뉴스 핵심 요약
             </h1>
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
               내가 보는 분야의 소식만 맹고가 골라 핵심만 요약하고, 그 소식이 나한테 어떤 영향을 줄지 짚어 드려요. 출근길·퇴근길 하루 두 번, 브리핑 하나를
@@ -204,7 +204,7 @@ export async function Landing() {
             <ul aria-label="맹고가 다른 점" className="mt-5 flex flex-col gap-2 text-[15px] font-semibold md:text-[16px]">
               {[
                 "관심 분야 소식만, 핵심만 요약",
-                "그 소식이 내게 미칠 영향까지",
+                "오늘의 흐름과 맞춤 인사이트까지",
                 "출근길·퇴근길 하루 두 번, 다 들으면 끝",
                 free.audio ? "누구나 귀로 듣기" : free.dailyListens > 0 ? `Free도 하루 ${free.dailyListens}개는 귀로 듣기` : null,
               ]

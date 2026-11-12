@@ -22,8 +22,8 @@ export default async function LoginPage({ searchParams }: Props) {
           맹고
         </span>
       </Link>
-      {/* 2026-11-12 재테크하는 직장인(맹고-문서/타겟.md): 관심 분야 요약 + 내게 미칠 영향까지. App Store 부제·공유 이미지와 같은 말 */}
-      <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">관심 분야 소식, 내게 미칠 영향까지</h1>
+      {/* 2026-11-12 재테크하는 직장인(맹고-문서/타겟.md): 대표 문장 '내 관심 분야 소식, 오늘 뉴스 핵심 요약'(2026-11-12 사용자). App Store 부제·공유 이미지와 같은 말 */}
+      <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">내 관심 분야 소식, 오늘 뉴스 핵심 요약</h1>
 
       <form action={signIn} className="mt-10 flex flex-col gap-3">
         {deleted && (

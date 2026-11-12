@@ -70,7 +70,7 @@ async function uploadAsc() {
         keywords: KEYWORDS,
         // 2026-11-12 재테크하는 직장인(맹고-문서/타겟.md)
         ...(notes ? { whatsNew: notes } : {}),
-        promotionalText: "그게 나한테 어떤 영향을 주지? 관심 분야 뉴스만 골라 요약하고, 나에게 미칠 영향까지 짚어 드려요. 출근길·퇴근길엔 읽어 드려요.",
+        promotionalText: "내 관심 분야 소식, 오늘 뉴스 핵심 요약. 관심 분야 뉴스만 골라 핵심만 요약하고, 맞춤 인사이트로 짚어 드려요. 출근길·퇴근길엔 읽어 드려요.",
         supportUrl: "https://watalabs.com",
         marketingUrl: "https://watalabs.com/maengo",
       },
