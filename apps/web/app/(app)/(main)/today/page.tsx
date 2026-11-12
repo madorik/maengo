@@ -40,6 +40,9 @@ export default function TodayPage() {
 /** 오늘 화면 머리: 오늘의 흐름(받은 소식을 엮은 한 장, Free·Premium)의 한 줄이 큰 제목. 못 만들면(키 없음·실패·소식이 하나뿐) '출근길 브리핑' 제목만 */
 async function TodayInsight() {
   const profile = await requireProfile();
+  // 로컬 확인용: 개발 서버에서만 DEV_INSIGHT_DELAY_MS만큼 늦춰 'OO님의 맞춤 인사이트를 위해 오늘 소식을 분석하고 있어요'를 본다(2026-11-12)
+  const wait = process.env.NODE_ENV !== "production" ? Number(process.env.DEV_INSIGHT_DELAY_MS ?? 0) : 0;
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   const [data, ctx] = await Promise.all([getTodayData(profile), getUserContext(profile.id).catch(() => ({}))]);
   const insight = await briefingInsight(profile, data, ctx).catch((e: unknown) => {
     console.error("[today] 오늘의 흐름 실패", String((e as Error)?.message ?? e).slice(0, 200));

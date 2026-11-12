@@ -6,7 +6,6 @@ import { IconCheck, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useCallName } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
-import { CountUp } from "@/components/ui/CountUp";
 import { PhotoImg } from "@/components/ui/PhotoImg";
 import { Sheet } from "@/components/ui/Sheet";
 import { SECTION_LABEL, isSection } from "@maengo/core/sections";
@@ -16,8 +15,9 @@ import type { BriefingInsight } from "@/lib/server/briefing-insight";
 
 /**
  * 오늘 화면 머리(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다 → 오늘의 흐름 한 줄이 큰 제목, 'OO님에게 맞춤 인사이트'라고 부른다).
- * 흐름이 있으면: 'OO님에게 맞춤 인사이트' → 큰 제목(흐름 한 줄) → '날짜 출근길 · 언론 N곳, 기사 N건에서 골랐어요' → 흐름 카드 → 확인할 것.
- * 못 만들었으면 예전처럼 날짜 줄 → '출근길 브리핑' → 언론·기사 수.
+ * 흐름이 있으면: 'OO님에게 맞춤 인사이트' → 큰 제목(흐름 한 줄) → '날짜 출근길' → 흐름 카드 → 확인할 것.
+ * 못 만들었으면 예전처럼 날짜 줄 → '출근길 브리핑'.
+ * 언론 N곳·기사 N건은 보여 주지 않는다(2026-11-12 사용자: 날짜만)
  * 흐름은 서버가 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts). 만드는 동안은 같은 모양의 회색 줄(InsightFallback)
  */
 export function BriefingHero({ insight: made }: { insight: BriefingInsight | null }) {
@@ -33,7 +33,6 @@ export function BriefingHero({ insight: made }: { insight: BriefingInsight | nul
         <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
           {slotLabel} 브리핑
         </h1>
-        <Collected pm={pm} />
       </>
     );
   }
@@ -44,7 +43,7 @@ export function BriefingHero({ insight: made }: { insight: BriefingInsight | nul
         {insight.headline}
       </h1>
       <Basis insight={insight} pm={pm} />
-      <Collected pm={pm} withDate />
+      <DateBelow pm={pm} />
       <Flows insight={insight} pm={pm} />
       <MatchCheck insight={insight} />
     </>
@@ -102,23 +101,9 @@ function DateLine({ pm }: { pm: boolean }) {
   return <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>{useDateLabel()}</p>;
 }
 
-/** 언론 N곳, 기사 N건에서 골랐어요(숫자는 0부터 올라간다, 2026-11-11 사용자). withDate면 앞에 날짜 */
-function Collected({ pm, withDate = false }: { pm: boolean; withDate?: boolean }) {
-  const { data } = useToday();
-  const date = useDateLabel();
-  const has = !!data.collected && data.collected.articles > 0;
-  if (!has && !withDate) return null;
-  return (
-    <p className={`mt-1.5 text-[13px] ${pm ? "text-white/65" : "text-sub"}`}>
-      {withDate && date}
-      {withDate && has && " · "}
-      {has && (
-        <>
-          언론 <CountUp id="today-sources" value={data.collected!.sources} />곳, 기사 <CountUp id="today-articles" value={data.collected!.articles} />건에서 골랐어요.
-        </>
-      )}
-    </p>
-  );
+/** 큰 제목 아래 날짜·출근길(2026-11-12 사용자: 언론 N곳·기사 N건은 빼고 날짜만) */
+function DateBelow({ pm }: { pm: boolean }) {
+  return <p className={`mt-1.5 text-[13px] ${pm ? "text-white/65" : "text-sub"}`}>{useDateLabel()}</p>;
 }
 
 /** 흐름 하나에 묶인 소식들의 사진(있는 것만, 셋까지). 카드 아래 작은 동그라미로 겹쳐 보인다 */
@@ -333,23 +318,21 @@ function FlowDetail({ flow, onClose }: { flow: BriefingInsight["flows"][number];
   );
 }
 
-/** 흐름을 만드는 동안(처음 열 때 몇 초): 큰 제목·흐름 상자 자리는 회색 줄, 언론·기사 수는 그대로. 높이를 미리 잡아 다 됐을 때 덜 밀린다 */
+/** 흐름을 만드는 동안(처음 열 때 몇 초): 큰 제목 자리는 'OO님의 맞춤 인사이트를 위해 오늘 소식을 분석하고 있어요', 흐름 상자 자리는 회색 줄, 날짜는 그대로. 높이를 미리 잡아 다 됐을 때 덜 밀린다 */
 export function InsightFallback() {
   const { data } = useToday();
   const pm = data.slot === "pm";
-  // 로딩 뼈대와 같은 빛 지나가기(globals.css sk·sk-night, 2026-11-11 로딩 A안)
-  const bar = `rounded-full ${pm ? "sk-night" : "sk"}`;
+  const name = useCallName();
   return (
     <>
-      <ForYou pm={pm} />
-      <div aria-hidden="true" className="mt-2.5">
-        <div className={`h-6 w-11/12 ${bar}`} />
-        <div className={`mt-2 h-6 w-3/5 ${bar}`} />
-      </div>
+      {/* 큰 제목 자리에 만드는 중 안내(2026-11-12 사용자). 글자 위로 로딩 뼈대와 같은 빛이 지나간다(globals.css sk-text) */}
+      <p role="status" className={`text-[22px] font-bold leading-[1.35] tracking-[-0.035em] text-balance ${pm ? "sk-text-night" : "sk-text"}`}>
+        {name ? `${name}님의 맞춤 인사이트를 위해` : "맞춤 인사이트를 위해"} 오늘 소식을 분석하고 있어요
+      </p>
       <h1 id="briefing-title" className="sr-only">
         {SLOT_LABEL[data.slot ?? "am"]} 브리핑
       </h1>
-      <Collected pm={pm} withDate />
+      <DateBelow pm={pm} />
       <div aria-hidden="true" className="-mx-5 mt-4 flex gap-3 overflow-hidden px-5">
         {[0, 1].map((k) => {
           const inner = `rounded-full ${pm ? "sk-night" : k === 0 ? "sk-ink" : "sk-mango"}`;

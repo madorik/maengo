@@ -43,18 +43,6 @@ function displaySlot(rows: readonly FeedRow[], now = new Date()): BriefingSlot {
   return wanted === 'pm' && rows.some((r) => r.slot === 'pm') ? 'pm' : 'am';
 }
 
-let collectedMemo: { at: number; value: { articles: number; sources: number } | null } | null = null;
-
-/** 지난 24시간 모은 글 수와 출처 수(오늘 화면의 '언론 N곳, 기사 N건'). 5분 동안 같은 값을 쓴다 */
-async function collectedLastDay(): Promise<{ articles: number; sources: number } | null> {
-  if (collectedMemo && Date.now() - collectedMemo.at < 5 * 60_000) return collectedMemo.value;
-  const since = new Date(Date.now() - 24 * HOUR).toISOString();
-  const { data, error } = await db.from('items').select('source_id').gte('fetched_at', since).limit(20000);
-  const value = error ? null : { articles: data.length, sources: new Set(data.map((r) => (r as { source_id: number | null }).source_id).filter((v) => v != null)).size };
-  collectedMemo = { at: Date.now(), value };
-  return value;
-}
-
 interface FeedRow {
   rank: number;
   clusterId: number;
@@ -621,7 +609,7 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
   const day = await todayFeed(profile);
   // 가입 선물은 지갑을 처음 만들 때 들어가므로 지갑을 읽은 뒤에 본다
   const walletAndGift = syncWallet(profile.id).then(async (w) => [w, await recentSignupGift(profile.id, profile.createdAt)] as const);
-  const [allItems, { reads, feedback }, [wallet, signupGift], collected] = await Promise.all([itemsFor(profile, visibleRows(day), day.date, day.info), readsAndFeedback(profile.id), walletAndGift, collectedLastDay()]);
+  const [allItems, { reads, feedback }, [wallet, signupGift]] = await Promise.all([itemsFor(profile, visibleRows(day), day.date, day.info), readsAndFeedback(profile.id), walletAndGift]);
   // 지금 브리핑(출근길·퇴근길)의 소식만 보여 준다. 다른 브리핑 소식은 보관함에 있다
   const slot = displaySlot(day.rows);
   const items = headlineFirst(allItems.filter((i) => (i.slot ?? 'am') === slot));
@@ -660,7 +648,6 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     feedback: Object.fromEntries(feedback.map((f) => [f.cluster_id, f.kind])),
     bookmarks: reads.filter((r) => r.starred).map((r) => r.cluster_id),
     slot,
-    collected,
   };
 }
 

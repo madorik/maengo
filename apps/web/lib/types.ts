@@ -79,8 +79,6 @@ export interface TodayData {
   bookmarks: number[];
   /** 지금 보여 주는 브리핑(2026-11-10): 오전에 열면 출근길(am), 오후에 열면 퇴근길(pm). 퇴근길 소식이 아직 없으면 출근길 */
   slot: 'am' | 'pm';
-  /** 지난 24시간 모은 글 수와 출처 수(오늘 화면 '언론 N곳, 기사 N건에서 골랐어요'). 못 셌으면 null */
-  collected: { articles: number; sources: number } | null;
 }
 
 export interface ProfileView {
