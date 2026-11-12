@@ -207,8 +207,8 @@ function EntryCardNews({ entry: e }: { entry: LibraryEntry }) {
             </div>
           </section>
         </div>
-        <span className="absolute right-2.5 top-2.5 z-10 rounded-full bg-paper/90 group-has-[[data-pick]]:invisible">
-          <BookmarkButton item={e} variant="card" />
+        <span className="absolute right-3 top-3 z-10 flex group-has-[[data-pick]]:invisible">
+          <BookmarkButton item={e} variant="overlay" />
         </span>
       </div>
       <div className="mt-2.5 flex items-center justify-between gap-3 px-1">

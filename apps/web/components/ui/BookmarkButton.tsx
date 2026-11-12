@@ -20,8 +20,8 @@ export function BookmarkButton({
   where,
 }: {
   item: { clusterId: number; category: CategoryId; title: string };
-  variant?: "icon" | "tile" | "card";
-  /** 분석 이벤트의 where. 없으면 모양으로 정한다(icon=header, tile=body, card=library) */
+  variant?: "icon" | "tile" | "card" | "overlay";
+  /** 분석 이벤트의 where. 없으면 모양으로 정한다(icon=header, tile=body, card·overlay=library) */
   where?: "today";
 }) {
   const { isBookmarked, setBookmark } = useToday();
@@ -29,7 +29,7 @@ export function BookmarkButton({
   const on = isBookmarked(item.clusterId);
 
   const toggle = async () => {
-    track("bookmark", { on: !on, category: item.category, where: where ?? (variant === "tile" ? "body" : variant === "card" ? "library" : "header") });
+    track("bookmark", { on: !on, category: item.category, where: where ?? (variant === "tile" ? "body" : variant === "card" || variant === "overlay" ? "library" : "header") });
     if (!(await setBookmark(item.clusterId, !on))) toast.showError("북마크하지 못했어요");
   };
 
@@ -58,6 +58,21 @@ export function BookmarkButton({
         className={`relative z-[1] -my-3 -mr-2.5 inline-flex size-11 items-center justify-center rounded-xl ${on ? "text-orange" : "text-faint hover:text-sub"}`}
       >
         <IconBookmark filled={on} className="size-5" />
+      </button>
+    );
+  }
+
+  if (variant === "overlay") {
+    // 사진 위에 얹는 동그라미(보관함 카드뉴스, 2026-11-12). 버튼 자체가 동그라미라 아이콘이 늘 가운데에 온다
+    return (
+      <button
+        type="button"
+        aria-pressed={on}
+        aria-label={`북마크: ${item.title}`}
+        onClick={toggle}
+        className={`inline-flex size-10 items-center justify-center rounded-full bg-paper/90 shadow-[0_1px_4px_rgb(0_0_0/0.18)] backdrop-blur-sm ${on ? "text-orange" : "text-sub hover:text-ink"}`}
+      >
+        <IconBookmark filled={on} className="size-[18px]" />
       </button>
     );
   }
