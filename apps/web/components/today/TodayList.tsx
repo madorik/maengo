@@ -88,7 +88,7 @@ export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** �
           ) : (
             <>
               <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>
-                {day} {slotLabel}
+                {day}
               </p>
               <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
                 {slotLabel} 브리핑

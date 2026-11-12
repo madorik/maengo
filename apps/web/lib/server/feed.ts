@@ -377,7 +377,7 @@ export async function rebuildFeed(profile: Profile) {
 
 /**
  * 오늘 받은 소식(설정 > 플랜): 오늘 지급한 수 / 오늘 받을 수 있는 수. 맹고 = 소식(2026-10-14 사용자 정책).
- * 2026-11-10 하루 두 번 브리핑: 브리핑마다 플랜의 하루 소식만큼이라 하루에는 두 배(Free 5+5). 지갑으로 더 받은 건 세지 않는다. 오늘 피드가 아직 없으면 0/10
+ * 2026-11-10 하루 두 번 브리핑: 브리핑마다 플랜의 하루 소식만큼이라 하루에는 두 배(Free·Premium 10+10, 2026-11-12부터 Free도 10). 지갑으로 더 받은 건 세지 않는다. 오늘 피드가 아직 없으면 0/10
  */
 export async function dailyMaengoUsage(profile: Profile): Promise<{ given: number; daily: number }> {
   const daily = entitlements(profile).dailyItems * 2;

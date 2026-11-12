@@ -44,7 +44,7 @@ function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number;
     ],
     [
       `${t.name} 소식은 언제, 몇 개 받아요?`,
-      `출근길·퇴근길 하루 두 번, 정한 시각에 브리핑을 보내 드려요. 브리핑마다 Free ${free.dailyItems}개, Premium ${plusItems}개이고, 여러 곳에서 다룬 같은 소식은 하나로 묶어 이슈도가 높은 소식부터 골라요.`,
+      `출근길·퇴근길 하루 두 번, 정한 시각에 브리핑을 보내 드려요. 브리핑마다 ${plusItems > free.dailyItems ? `Free ${free.dailyItems}개, Premium ${plusItems}개` : `소식 ${free.dailyItems}개`}이고, 여러 곳에서 다룬 같은 소식은 하나로 묶어 이슈도가 높은 소식부터 골라요.`,
     ],
     [
       `${t.name} 소식을 음성으로 들을 수 있나요?`,

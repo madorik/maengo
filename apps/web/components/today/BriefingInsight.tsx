@@ -90,11 +90,10 @@ function Basis({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
   );
 }
 
-/** '11월 11일 수요일 출근길'(때를 가리키는 끝말은 떼고 출근길·퇴근길을 붙인다) */
+/** '11월 11일 수요일'(때를 가리키는 끝말은 뗀다. 2026-11-12 사용자: 출근길·퇴근길은 빼고 날짜·요일만) */
 function useDateLabel(): string {
   const { data } = useToday();
-  const day = data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|저녁|밤)$/, "");
-  return `${day} ${SLOT_LABEL[data.slot ?? "am"]}`;
+  return data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|저녁|밤)$/, "");
 }
 
 function DateLine({ pm }: { pm: boolean }) {

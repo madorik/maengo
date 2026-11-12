@@ -107,7 +107,7 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
     "소식에 대해 더 물어볼 수 있나요?",
     `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 궁금한 걸 글이나 말로 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
   ],
-  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한, 브리핑마다 소식 ${plus.dailyItems}개, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한${plus.dailyItems > free.dailyItems ? `, 브리핑마다 소식 ${plus.dailyItems}개` : ""}, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
   ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 브리핑 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
 ];

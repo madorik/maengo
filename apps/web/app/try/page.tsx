@@ -37,7 +37,8 @@ export default async function TryPage() {
   // 요금제 비교표(app/(app)/premium/page.tsx)와 같은 숫자
   // 2026-11-10 개편: 하루 두 번 브리핑마다 소식 수, 주간 리포트. 메뉴에서 뺀 내 관심 링크는 넣지 않는다
   const perks: TourPerk[] = [
-    { label: `브리핑마다 소식 ${plus.dailyItems}개`, note: `Free ${free.dailyItems}개` },
+    // 2026-11-12 Free도 10개라 같으면 뺀다
+    ...(plus.dailyItems > free.dailyItems ? [{ label: `브리핑마다 소식 ${plus.dailyItems}개`, note: `Free ${free.dailyItems}개` }] : []),
     { label: "소식 플레이어로 이어 듣기 무제한", note: free.dailyListens > 0 ? `Free 하루 ${free.dailyListens}개` : undefined },
     { label: "더 자연스러운 AI 목소리" },
     { label: `맹고 AI 질문 하루 ${ASK_DAILY.plus}번`, note: `Free ${ASK_DAILY.free}번` },
