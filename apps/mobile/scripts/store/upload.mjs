@@ -1,10 +1,13 @@
-// 두 스토어에 설명·스크린샷 올리기. node upload.mjs <storeDir> <STORE.md> <icon512> [play|asc]
+// 두 스토어에 설명·스크린샷 올리기. node upload.mjs <storeDir> <STORE.md> <icon512> [play|asc] [--text]
+// --text: 글(제목·부제·설명·키워드·홍보 문구)만 바꾸고 스크린샷·그래픽·아이콘은 그대로 둔다(2026-11-12)
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { asc, APP_ID, play } from "./stores.mjs";
 
-const [dir, storeMd, icon512, only] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const TEXT_ONLY = args.includes("--text");
+const [dir, storeMd, icon512, only] = args.filter((a) => a !== "--text");
 const md = readFileSync(storeMd, "utf8");
 const section = (title) => {
   const start = md.indexOf(`### ${title}`);
@@ -43,9 +46,11 @@ async function uploadPlay() {
       console.log("Play", type, basename(f));
     }
   };
-  await put("phoneScreenshots", shots("android-"));
-  await put("featureGraphic", [join(dir, "play-feature-1024x500.png")]);
-  await put("icon", [icon512]);
+  if (!TEXT_ONLY) {
+    await put("phoneScreenshots", shots("android-"));
+    await put("featureGraphic", [join(dir, "play-feature-1024x500.png")]);
+    await put("icon", [icon512]);
+  }
   const done = await play("POST", `${e}:commit`);
   console.log("Play commit", done.id);
 }
@@ -61,7 +66,8 @@ async function uploadAsc() {
       attributes: {
         description: fullFor("App Store"),
         keywords: KEYWORDS,
-        promotionalText: "오늘 뉴스, 내게 미칠 영향은? 관심 분야 뉴스만 골라 요약하고, 출근길·퇴근길엔 읽어 드려요.",
+        // 2026-11-12 재테크하는 직장인(맹고-문서/타겟.md)
+        promotionalText: "금리·환율·주식 뉴스, 그게 나한테 어떤 영향을 주지? 관심 뉴스만 골라 요약하고 내 상황에 맞춰 짚어, 출근길·퇴근길엔 읽어 드려요.",
         supportUrl: "https://watalabs.com",
         marketingUrl: "https://watalabs.com/maengo",
       },
@@ -75,6 +81,7 @@ async function uploadAsc() {
     data: { type: "appInfoLocalizations", id: iloc.id, attributes: { name: TITLE, subtitle: SUBTITLE, privacyPolicyUrl: "https://watalabs.com/maengo/privacy" } },
   });
   console.log("ASC app info localization");
+  if (TEXT_ONLY) return;
 
   // 6.7인치(1290×2796) 세트를 새로 채운다
   const sets = await asc("GET", `/v1/appStoreVersionLocalizations/${vloc.id}/appScreenshotSets`);

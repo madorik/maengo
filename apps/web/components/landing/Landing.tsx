@@ -2,7 +2,7 @@ import { archiveLabel, discountPct, SIGNUP_BONUS, type PlanLimits } from "@maeng
 import { SECTIONS } from "@maengo/core/sections";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import { Crown, IconCheck, IconCode, IconDoc, IconExternal, IconGlobe } from "@/components/icons";
+import { Crown, IconCheck, IconDoc, IconExternal, IconGlobe } from "@/components/icons";
 import { Mascot, type MascotMood } from "@/components/Mascot";
 import { JsonLd } from "@/components/public/PublicPage";
 import { SiteFooter } from "@/components/public/SiteFooter";
@@ -40,6 +40,7 @@ import todayShot from "./app-today.webp";
 // 소개(메인) 페이지. 로그인 전에 맹고가 무엇인지 보여 준다. 그림 대신 실제 앱 화면을 그대로 쓴다.
 // 2026-11-10 개편(사용자: '관심사를 선택하는 게 아니고 사용자 관심에 맞게 자동으로 골라 주는 것'): 관심사는 맹고가 찾고 맞춘다,
 // 출근길·퇴근길 하루 두 번 브리핑, 주간 리포트(Premium). 예전 소개 영상(예전 화면)·내 관심 링크 소개는 뺐다.
+// 2026-11-12 대상을 '재테크하는 직장인'으로 좁힘(맹고-문서/타겟.md): 첫 화면·맞춤 체크 소개·출처 예시·자주 묻는 질문을 금리·환율·주식·부동산 쪽으로.
 // 검색과 속도를 위해 정적으로 만들고, 로그인 여부에 따라 달라지는 버튼만 AuthLink가 브라우저에서 바꾼다.
 
 const START = { href: "/login", label: "무료로 시작하기" };
@@ -72,10 +73,16 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   // 영문 이름·만든 회사를 같이 적어 '망고'·비슷한 이름의 다른 서비스와 헷갈리지 않게 한다(2026-11-06)
   [
     "맹고는 어떤 앱인가요?",
-    `${SITE_DEFINITION} 영문 이름은 ${SITE_NAME_EN}이고, ${COMPANY_NAME}(${COMPANY_NAME_EN})가 만들어요. 관심사를 고르지 않아도 읽고 듣는 소식에 맞춰 맹고가 내 관심 소식만 골라, 출근길·퇴근길 하루 두 번 출처와 함께 요약하고 읽어 드려요. 웹에서 바로 쓰고, ${
+    `${SITE_DEFINITION} 영문 이름은 ${SITE_NAME_EN}이고, ${COMPANY_NAME}(${COMPANY_NAME_EN})가 만들어요. 읽고 듣던 소식에 맞춰 맹고가 경제·부동산·IT/과학 같은 내 관심 소식만 골라 출근길·퇴근길 하루 두 번 출처와 함께 요약하고, 오늘 소식이 내 주식·대출·집 같은 사정에 어떤 영향인지 짚어 읽어 드려요. 웹에서 바로 쓰고, ${
       PLAY_STORE_URL ? "Android·iPhone 앱은 Google Play·App Store에서 받아요." : "iPhone 앱은 App Store에서 받아요. Android 앱은 곧 Google Play에 나와요."
     }`,
   ],
+  // 2026-11-12 재테크하는 직장인: 핵심 질문 '그게 나한테 어떤 영향을 주지?'와 투자 권유를 안 한다는 답을 앞에
+  [
+    "오늘 소식이 나한테 어떤 영향인지도 알려 주나요?",
+    "네. 오늘의 흐름에서 받은 소식을 하나로 엮고, 맞춤 체크에서 주식을 하는지·대출이 있는지·집을 준비하는지 같은 내 사정에 맞춰 무슨 뜻인지 짚어 드려요. 알려 준 사정이 없으면 읽고 듣던 소식과 자주 보는 분야를 바탕으로 짚어요. Free에서도 돼요.",
+  ],
+  ["주식을 사라거나 팔라고도 하나요?", "아니요. 맹고는 투자를 권하지 않아요. 소식이 무슨 뜻인지, 무엇을 확인해 보면 좋은지만 짚고, 모든 소식에 원문 출처를 붙여요."],
   [
     "관심사는 어떻게 정해요?",
     `직접 고르거나 적을 필요가 없어요. 처음에 끌리는 소식 몇 개만 누르면 맹고가 관심 분야를 찾고, 그 뒤로는 읽고 듣고 북마크한 소식과 '덜 받기'를 누른 소식에 맞춰 분야 비중을 계속 맞춰요. 분야는 ${SECTION_NAMES.join(", ")} ${SECTION_NAMES.length}개예요.`,
@@ -109,9 +116,19 @@ const LISTEN_MIN_PER_ITEM = 1.5;
 
 /** 출처 예시(소개용) */
 const SOURCES = [
-  { kind: "국내 언론사", title: "반도체 수출, 석 달 연속 늘어", Icon: IconGlobe },
-  { kind: "공식 기술 문서", title: "PostgreSQL 19, 11월 출시로 연기", Icon: IconDoc },
-  { kind: "기업 테크 블로그", title: "주문 시스템을 이벤트 기반으로 바꾼 이야기", Icon: IconCode },
+  { kind: "국내 경제지", title: "반도체 수출, 석 달 연속 늘어", Icon: IconDoc },
+  { kind: "해외 매체(영어 → 한국어)", title: "미국 증시 마감, 기술주 강세", Icon: IconGlobe },
+  { kind: "국내 언론사", title: "청약 제도, 이렇게 바뀌어요", Icon: IconDoc },
+];
+
+/**
+ * 맞춤 체크 예시(소개용, 2026-11-12). 실제 소식 내용이 아니라 사정별로 어떻게 짚어 주는지 보여 주는 일반적인 문장만 쓴다.
+ * 사라·팔라는 말은 넣지 않는다(맹고-문서/오늘의-흐름.md)
+ */
+const CHECKS = [
+  { about: "변동금리 대출이 있다면", body: "기준금리 소식은 다음 이자에 닿을 수 있어요. 은행에서 금리가 바뀌는 날을 확인해 보세요." },
+  { about: "미국 주식을 한다면", body: "환율이 크게 움직인 날은 달러로 산 주식의 원화 평가액도 함께 움직여요." },
+  { about: "청약을 준비 중이라면", body: "바뀌는 청약 제도는 시행일과 대상부터 확인해 보세요." },
 ];
 
 /**
@@ -173,22 +190,23 @@ export async function Landing() {
         {/* 첫 화면: 말은 오른쪽, 실제 앱 화면(출근길·퇴근길 두 장)은 왼쪽(모바일은 말이 먼저) */}
         <section aria-labelledby="hero-title" className="mx-auto grid max-w-[1100px] items-center gap-12 px-5 pb-16 pt-10 md:grid-cols-2 md:gap-16 md:pb-24 md:pt-20">
           <div className="md:order-2">
-            {/* 대상: 출퇴근하는 30~50대 직장인(2026-11-10 사용자 결정, 맹고-문서/타겟.md) */}
+            {/* 대상: 재테크하는 직장인(2026-11-12 사용자 결정, 맹고-문서/타겟.md). 360px 휴대폰에서 줄마다 한 줄에 들어가는 길이 */}
             <h1 id="hero-title" className="text-[36px] font-bold leading-[1.22] tracking-[-0.05em] md:text-[54px]">
-              출퇴근길엔
+              출근길에 듣는
               <br />
-              내 관심 소식만
+              금리·환율·주식,
               <br />
-              귀로 들어요.
+              내게 미칠 영향까지.
             </h1>
             <p className="mt-5 max-w-[470px] text-[17px] font-medium leading-relaxed text-sub md:text-[19px]">
-              관심사를 고르지 않아도 돼요. 읽고 듣는 소식에 맞춰 맹고가 내 관심 소식만 골라, 출근길·퇴근길 하루 두 번 출처와 함께 짚어 드려요. 브리핑 하나를 다
-              들어도 약 {Math.round(plus.dailyItems * LISTEN_MIN_PER_ITEM)}분이에요.
+              읽고 듣던 소식에 맞춰 맹고가 경제·부동산·IT 소식을 골라 요약하고, 내 주식·대출·집에 어떤 영향인지 짚어 드려요. 출근길·퇴근길 하루 두 번, 브리핑
+              하나를 다 들어도 약 {Math.round(plus.dailyItems * LISTEN_MIN_PER_ITEM)}분이에요.
             </p>
             <ul aria-label="맹고가 다른 점" className="mt-5 flex flex-col gap-2 text-[15px] font-semibold md:text-[16px]">
               {[
-                "관심사는 맹고가 알아서 찾고 맞춰요",
+                "내 주식·대출·집에 미칠 영향을 짚어 줘요",
                 "출근길·퇴근길 하루 두 번, 다 들으면 끝",
+                "사라·팔라는 말 없이, 원문 출처와 함께",
                 free.audio ? "누구나 귀로 듣기" : free.dailyListens > 0 ? `Free도 하루 ${free.dailyListens}개는 귀로 듣기` : null,
               ]
                 .filter((t): t is string => !!t)
@@ -246,6 +264,24 @@ export async function Landing() {
         <section id="features" aria-label="맹고가 해 주는 일" className="scroll-mt-20 border-y border-line bg-snow">
           <div className="mx-auto flex max-w-[1100px] flex-col gap-20 px-5 py-16 md:gap-28 md:py-24">
             <Feature
+              title="그게 나한테 어떤 영향을 주지?"
+              body="오늘 받은 소식을 하나의 흐름으로 엮고, 주식·대출·집 같은 내 사정에 맞춰 무슨 뜻인지 짚어 드려요. 알려 준 사정이 없으면 읽고 듣던 소식을 바탕으로 짚어요. 사거나 팔라는 말은 하지 않아요."
+            >
+              <div className="tile p-5">
+                <p className="text-[14px] font-semibold text-sub">맞춤 체크 예시</p>
+                <ul className="mt-3 flex flex-col gap-3">
+                  {CHECKS.map(({ about, body }) => (
+                    <li key={about} className="rounded-2xl border border-line bg-paper p-4">
+                      <span className="inline-flex items-center rounded-lg bg-snow px-2 py-0.5 text-[13px] font-semibold text-ink">{about}</span>
+                      <p className="mt-2 text-[16px] font-bold leading-snug">{body}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Feature>
+
+            <Feature
+              flip
               title="관심사는 맹고가 찾아요"
               body="키워드를 고르거나 적을 필요가 없어요. 처음에 끌리는 소식 몇 개만 누르면 관심 분야를 찾고, 그 뒤로는 읽고 듣고 북마크한 소식에 맞춰 계속 맞춰 드려요. 많이 본 분야는 더, 넘긴 분야는 덜 받아요."
             >
@@ -253,7 +289,6 @@ export async function Landing() {
             </Feature>
 
             <Feature
-              flip
               title="출근길·퇴근길, 하루 두 번"
               body="아침엔 출근길 브리핑, 저녁엔 그 뒤에 나온 소식으로 퇴근길 브리핑을 한 번 더 챙겨 드려요. 여러 곳에서 다룬 같은 소식은 하나로 묶고, 많이 다룬 소식을 맨 앞에 놓아요. 다 들으면 거기까지, 끝없는 스크롤은 없어요."
             >
@@ -264,6 +299,7 @@ export async function Landing() {
             </Feature>
 
             <Feature
+              flip
               title="듣기만 하면 돼요"
               body="브리핑 듣기를 누르면 소식을 끝까지 이어서 읽어 드려요. 앱에서는 화면을 꺼도 계속 들리고, 보관함에서 고른 소식만 골라 들을 수도 있어요. 목소리는 여성·남성 중에 골라요."
             >
@@ -271,7 +307,6 @@ export async function Landing() {
             </Feature>
 
             <Feature
-              flip
               title="다 읽지 않아도, 핵심만 요약해요"
               body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심만 짧게 요약하고, 원문 사진과 출처 링크를 함께 보여 드려요. 영어로 된 해외 글도 한국어로 요약하고, 읽다 궁금한 건 맹고 AI에게 물어보면 돼요."
             >
@@ -279,8 +314,9 @@ export async function Landing() {
             </Feature>
 
             <Feature
+              flip
               title="모든 소식엔 출처가 있어요"
-              body="국내 언론사와 해외 매체, 공식 기술 문서와 기업 테크 블로그에서 모으고, 소식마다 원문 링크가 붙어 있어 더 궁금하면 바로 확인할 수 있어요."
+              body="국내 경제지와 언론사, 해외 매체에서 모으고(영어 글도 한국어로), 소식마다 원문 링크가 붙어 있어 더 궁금하면 바로 확인할 수 있어요."
             >
               <div className="tile p-5">
                 <p className="text-[14px] font-semibold text-sub">소식마다 붙는 출처</p>
@@ -303,7 +339,6 @@ export async function Landing() {
             </Feature>
 
             <Feature
-              flip
               title="지난 소식은 보관함에, 한 주는 리포트로"
               body="받은 소식은 보관함에 최신순으로 쌓이고, 분야로 거르거나 찾아서 골라 들을 수 있어요. Premium은 매주 월요일 아침, 지난주 소식을 한 줄 총평과 분야별 정리로 모은 주간 리포트를 받아요."
             >
