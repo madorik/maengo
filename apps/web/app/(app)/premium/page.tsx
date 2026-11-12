@@ -2,14 +2,13 @@ import { archiveLabel, type PlanLimits } from "@maengo/core/plans";
 import type { Metadata } from "next";
 import { Crown } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
-import { MaengoShop, PremiumBuy, PremiumPrice, RestorePurchases } from "@/components/premium/StoreParts";
+import { PremiumBuy, PremiumPrice, RestorePurchases } from "@/components/premium/StoreParts";
 import { PurchaseDoneHost } from "@/components/premium/PurchaseDone";
 import { BackButton } from "@/components/ui/BackButton";
 import { getPlans } from "@/lib/server/plans";
 import { PlanSync } from "@/components/app/PlanSync";
 import { hadSubscription, subscriptionView } from "@/lib/server/billing";
 import { requireProfile } from "@/lib/server/session";
-import { syncWallet } from "@/lib/server/wallet";
 import { ASK_DAILY } from "@/lib/ask";
 
 export const metadata: Metadata = { title: "맹고 Premium" };
@@ -24,7 +23,6 @@ export const metadata: Metadata = { title: "맹고 Premium" };
  * 숫자는 plans 표(하루 소식·음성·링크·추가 구매·보관 기간), 맹고 AI 질문만 코드 상수(lib/ask.ts ASK_DAILY)
  */
 function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string; plus: string }[] {
-  const can = (ok: boolean) => (ok ? "가능" : "불가");
   const both = (f: (l: PlanLimits) => string) => ({ free: f(free), plus: f(plus) });
   return [
     // 2026-11-10 하루 두 번 브리핑: 출근길·퇴근길 브리핑마다 이만큼
@@ -35,7 +33,6 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
     { label: "목소리", ...both((l) => (l.audio ? "더 자연스러운 AI 목소리" : l.dailyListens > 0 ? "기본" : "불가")) },
     { label: "맹고 AI 질문", free: `하루 ${ASK_DAILY.free}번`, plus: `하루 ${ASK_DAILY.plus}번` },
     { label: "주간 리포트", free: "불가", plus: "가능" },
-    { label: "맹고 추가 구매", ...both((l) => can(l.canBuyMaengo)) },
     { label: "받은 소식 보관", ...both((l) => archiveLabel(l.archiveDays)) },
   ];
 }
@@ -43,7 +40,7 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
 // ?trial=1: 가입 선물 팝업의 '무료로 시작해보기'에서 왔다 → 체험 안내 팝업을 바로 띄운다
 export default async function PremiumPage({ searchParams }: { searchParams: Promise<{ trial?: string }> }) {
   const [profile, sp] = await Promise.all([requireProfile(), searchParams]);
-  const [wallet, plans, hadSub, sub] = await Promise.all([syncWallet(profile.id), getPlans(), hadSubscription(profile.id), subscriptionView(profile.id)]);
+  const [plans, hadSub, sub] = await Promise.all([getPlans(), hadSubscription(profile.id), subscriptionView(profile.id)]);
   const free = plans.get("free")!;
   const plus = plans.get("plus")!;
 
@@ -111,14 +108,6 @@ export default async function PremiumPage({ searchParams }: { searchParams: Prom
           <PlanSync plan={profile.plan} />
           <PurchaseDoneHost />
         </div>
-
-        <section id="maengo" aria-labelledby="maengo-title" className="mt-12 scroll-mt-20">
-          <h2 id="maengo-title" className="text-[20px] font-black tracking-[-0.02em]">
-            맹고 추가 구매
-          </h2>
-          <p className="mb-3 mt-1 text-[14px] leading-relaxed text-sub">1맹고로 오늘 소식을 하나 더 받아요. 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요.</p>
-          <MaengoShop uid={profile.id} canBuy={profile.limits.canBuyMaengo} wallet={wallet} />
-        </section>
 
         <RestorePurchases uid={profile.id} />
       </main>

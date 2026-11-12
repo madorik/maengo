@@ -178,7 +178,14 @@ const FILL_CONCURRENCY = 3;
  * 요약이 없는 것은 지금 요약한다. AI가 막혀 있으면 이미 요약된 것만. 돌려주는 값 = 새로 보여 주게 된 소식 수.
  * 하루 두 번 브리핑(2026-11-10)이라 지금 브리핑 소식만 세고 그 브리핑으로 넣는다. 지금 브리핑 소식은 늘 피드 맨 뒤에 있다(퇴근길은 출근길 뒤에 붙는다, deliveries.ts savePmFeed)
  */
-export async function fillTodayFeedNow(userId: string, want: number, onProgress: (p: InstantProgress) => void, slot: 'am' | 'pm' = 'am'): Promise<number> {
+export async function fillTodayFeedNow(
+  userId: string,
+  want: number,
+  onProgress: (p: InstantProgress) => void,
+  slot: 'am' | 'pm' = 'am',
+  /** 후보를 찾는 기간(시간). '더 보기'는 최근 소식만(2026-11-12 사용자: 뉴스는 1주만 넘어도 안 본다) */
+  windowHours: number = MORE_WINDOW_HOURS,
+): Promise<number> {
   const log = (m: string) => console.log(`[fill] ${m}`);
   const ctx: Ctx = {
     date: kstDate(),
@@ -187,7 +194,7 @@ export async function fillTodayFeedNow(userId: string, want: number, onProgress:
     log,
     stats: {},
     force: false,
-    windowHours: MORE_WINDOW_HOURS,
+    windowHours,
   };
   onProgress({ stage: 'finding' });
   const day = check(await db.from('feed_days').select('visible,extra').eq('user_id', userId).eq('date', ctx.date).maybeSingle(), 'feed_days') as { visible: number; extra: number } | null;
@@ -213,7 +220,7 @@ export async function fillTodayFeedNow(userId: string, want: number, onProgress:
       onProgress({ stage: 'empty' });
       return 0;
     }
-    const candidates = (await loadCandidates(ctx, { centroids: a.known.length > 0, sinceHours: MORE_WINDOW_HOURS })).filter(summarizable);
+    const candidates = (await loadCandidates(ctx, { centroids: a.known.length > 0, sinceHours: windowHours })).filter(summarizable);
     const exclude = await withSimilarExcluded(a, candidates);
     for (const r of rows) exclude.add(r.cluster_id);
     const byId = new Map(candidates.map((c) => [c.id, c]));

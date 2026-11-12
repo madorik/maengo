@@ -16,7 +16,7 @@
 | 개인정보 처리방침 | https://watalabs.com/maengo/privacy |
 | 이용약관 | https://watalabs.com/maengo/terms |
 | 계정 삭제 안내(Play) | https://watalabs.com/maengo/delete-account |
-| 가격 | 무료(앱 안 결제 있음: Premium 월 ₩3,800 자동 갱신 구독·첫 구독 7일 무료, 맹고 추가 구매 10·30·50·100. [BILLING.md](BILLING.md)) |
+| 가격 | 무료(앱 안 결제 있음: Premium 월 ₩3,800 자동 갱신 구독·첫 구독 7일 무료. 맹고 묶음 10·30·50·100은 2026-11-12 판매 중지(packs-off.mjs). [BILLING.md](BILLING.md)) |
 | 키워드(App Store, 100자) | 재테크,인사이트,주식,증시,시황,미국주식,코인,부동산,청약,대출,금리,환율,경제,경제신문,반도체,브리핑,듣기,오디오,팟캐스트,출근길,출퇴근,직장인,헤드라인,ETF |
 
 ### 짧은 설명(Play, 80자 이내)

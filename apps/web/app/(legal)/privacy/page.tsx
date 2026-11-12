@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         </li>
         <li>
           <b>서비스를 쓰면서 만들어지는 정보</b>: 고른 관심사와 &lsquo;내 키워드&rsquo;에 직접 적은 관심사, 받은 피드 목록, 읽음·들음 기록, 북마크, 좋아요·싫어요, 알림 받을 시각, 듣기 설정(목소리 등),
-          이용 플랜(Free·Premium)과 Premium 기간, 지갑의 맹고를 받고 쓴 기록
+          이용 플랜(Free·Premium)과 Premium 기간
         </li>
         <li>
           <b>앱에서 결제한 경우</b>: 산 상품, 결제·갱신·해지 시각, 스토어 거래 번호, 구독 상태. 카드 번호 같은 결제 수단 정보는 Apple·Google이 처리하며 운영자는 받지 않습니다.

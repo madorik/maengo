@@ -19,7 +19,7 @@ import { db, must } from './db';
 import { instantBuilding } from './instant-lock';
 import { entitlements, type Profile } from './profile';
 import { topicNames } from './topics';
-import { recentSignupGift, refundMaengo, spendMaengo, syncWallet } from './wallet';
+import { recentSignupGift, syncWallet } from './wallet';
 
 // 피드 읽기. 소식(요약·why·토픽)은 일일 파이프라인(pipeline/)이 Supabase에 만들어 두고, 웹은 읽기만 한다.
 // 웹에서는 LLM을 부르지 않는다. 오늘 피드가 아직 없으면(배치 전·토픽 변경 후 다시 만들기) 이미 요약된 소식으로 바로 랭킹한다.
@@ -266,77 +266,8 @@ async function topUp(profile: Profile, day: FeedDay, need: number): Promise<Feed
   return (await readDay(profile.id, day.date, { withInfo: true })) ?? day;
 }
 
-export type MoreResult = { ok: true; charged: boolean } | { ok: false; error: 'no_feed' | 'no_more' | 'no_balance' | 'busy' | 'blocked' };
-
-/** '하나 더 받기'가 찾아보는 기간: 최근 한 달 */
+/** 오늘 피드를 채울 때 찾아보는 기간: 최근 한 달(topUp) */
 const MORE_DAYS = 30;
-
-/**
- * 오늘 맹고 하나 더 받기. 준 적 없는 소식만, 이 순서로 찾는다(2026-10-14 사용자 결정):
- *   1. 오늘 골라 두고 안 보여 준 소식(Free는 10개를 골라 5개만 보여 준다)
- *   2. 최근 한 달 안에 요약이 끝났지만 이 사람에게 준 적 없는 소식
- *   3. 그래도 없으면 최근 한 달 안에 모아 둔 묶음을 지금 요약해서(pipeline makeOneMore, AI를 부른다)
- * 하루 맹고(플랜의 하루 소식 수)를 다 채웠으면 지갑에서 1맹고를 쓴다(못 붙이면 돌려준다). 잔액은 AI를 부르기 전에 본다.
- */
-export async function receiveMore(profile: Profile): Promise<MoreResult> {
-  const date = kstDate();
-  const day = await readDay(profile.id, date);
-  if (!day || !day.rows.length) return { ok: false, error: 'no_feed' };
-  const limit = entitlements(profile).dailyItems;
-  const visible = shownCount(day, limit);
-  const charged = visible >= limit;
-  // 지갑에서 써야 하는데 모자라면 찾기·요약 전에 멈춘다
-  if (charged && (await syncWallet(profile.id)) < 1) return { ok: false, error: 'no_balance' };
-
-  let row = day.rows[visible];
-  const fresh = !row;
-  if (fresh) {
-    const [candidates, weights, exclude] = await Promise.all([summarizedCandidates(MORE_DAYS), rankWeightsOf(profile), exclusions(profile.id, date)]);
-    for (const r of day.rows) exclude.add(r.clusterId);
-    // 오늘 피드에 있는 소식과 같은 사건인 소식은 뒤로 미룬다
-    const [next] = await rankDistinct(candidates, weights, exclude, { limit: 1, prior: await priorOf(day.rows, candidates) }, fillCentroids);
-    let pick = next ? { clusterId: next.clusterId, topicId: next.topicId } : null;
-    if (!pick) {
-      // 요약된 게 다 떨어졌다: 한 달 안의 묶음을 지금 요약한다(파이프라인은 무거워서 여기서만 불러온다)
-      const { makeOneMore } = await import('@maengo/pipeline/instant');
-      const made = await makeOneMore(profile.id, [...exclude]);
-      if (made === 'blocked') return { ok: false, error: 'blocked' };
-      if (made === 'none') return { ok: false, error: 'no_more' };
-      pick = made;
-    }
-    row = { rank: (day.rows.at(-1)?.rank ?? 0) + 1, ...pick };
-  }
-
-  // 같은 자리를 두 번 누르면 하나만 붙는다(feed_days.extra 조건). 진 쪽은 돌려받는다
-  const ref = `${date}:${day.extra + 1}:${crypto.randomUUID().slice(0, 8)}`;
-  if (charged && !(await spendMaengo(profile.id, 1, ref))) return { ok: false, error: 'no_balance' };
-  const undo = async () => {
-    if (charged) await refundMaengo(profile.id, ref);
-  };
-  try {
-    if (fresh) {
-      const { error } = await db.from('feeds').insert({ user_id: profile.id, date, rank: row!.rank, cluster_id: row!.clusterId, topic_id: row!.topicId, slot: displaySlot(day.rows) });
-      if (error) {
-        await undo();
-        return { ok: false, error: 'busy' };
-      }
-    }
-    const extra = day.extra + (charged ? 1 : 0);
-    const updated = must(
-      await db.from('feed_days').update({ extra, visible: visible + 1 }).eq('user_id', profile.id).eq('date', date).eq('extra', day.extra).select('date'),
-      'feed_days more',
-    ) as { date: string }[];
-    if (!updated.length) {
-      if (fresh) await db.from('feeds').delete().eq('user_id', profile.id).eq('date', date).eq('rank', row!.rank);
-      await undo();
-      return { ok: false, error: 'busy' };
-    }
-  } catch (e) {
-    await undo();
-    throw e;
-  }
-  return { ok: true, charged };
-}
 
 const visibleRows = (day: FeedDay | null) => (day ? day.rows.slice(0, day.visible) : []);
 

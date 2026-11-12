@@ -7,6 +7,7 @@ import { Mascot } from "@/components/Mascot";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { track } from "@/lib/analytics";
 import { withBase } from "@/lib/base-path";
+import { MORE_STEP } from "@/lib/more";
 import { useCreep, useTick } from "./making";
 
 type Progress =
@@ -20,7 +21,10 @@ type Progress =
   | { stage: "blocked" }
   | { stage: "error" };
 
-type State = { kind: "idle" } | { kind: "running"; p: Progress } | { kind: "error"; message: string };
+type State = { kind: "idle" } | { kind: "running"; p: Progress } | { kind: "error"; message: string } | { kind: "done" };
+
+/** fill = 브리핑이 모자랄 때 남은 만큼, more = 브리핑을 다 받은 뒤 10개씩 더 보기(lib/more.ts) */
+type Mode = "fill" | "more";
 
 const ERRORS: Record<string, string> = {
   already_running: "다른 곳에서 만드는 중이에요. 잠시 뒤 다시 열어 주세요.",
@@ -48,9 +52,13 @@ function rangeOf(p: Progress): [number, number] {
 const paceOf = (p: Progress) => (p.stage === "summarizing" ? 0.01 : 0.05);
 
 /** 진행 중에 돌아가며 보여 줄 말(2026-10-20 사용자 요청: 관심사 확인 → 찾는 중 → AI 요약 → 거의 다 됨). name = 회원 이름(없으면 이름 없이) */
-function cheersOf(p: Progress, name: string | null): string[] {
+function cheersOf(p: Progress, name: string | null, mode: Mode): string[] {
   if (p.stage === "finding")
-    return [name ? `${name}님의 관심사를 확인하고 있어요!` : "관심사를 확인하고 있어요!", "열심히 찾고 있어요!", "최근 한 달 소식을 샅샅이 뒤지는 중이에요!"];
+    return [
+      name ? `${name}님의 관심사를 확인하고 있어요!` : "관심사를 확인하고 있어요!",
+      "열심히 찾고 있어요!",
+      mode === "more" ? "오늘 주요 소식을 더 찾는 중이에요!" : "최근 한 달 소식을 샅샅이 뒤지는 중이에요!",
+    ];
   if (p.stage === "found") return p.toMake ? [`소식 ${p.ready + p.toMake}개를 찾았어요!`, `${p.toMake}개는 AI로 새로 요약할게요!`] : [`준비된 소식 ${p.ready}개를 찾았어요!`];
   if (p.stage === "summarizing")
     return p.done >= p.total
@@ -77,12 +85,12 @@ function stageLabel(p: Progress): string {
 }
 
 /** 받는 동안 버튼 자리에 보이는 카드: 마스코트, 2초마다 바뀌는 말, 차오르는 줄무늬 막대 */
-function Filling({ p, name }: { p: Progress; name: string | null }) {
+function Filling({ p, name, mode }: { p: Progress; name: string | null; mode: Mode }) {
   const [lo, hi] = rangeOf(p);
   const shown = useCreep(lo, hi, paceOf(p));
   const tick = useTick(2200);
   const done = p.stage === "done";
-  const cheers = cheersOf(p, name);
+  const cheers = cheersOf(p, name, mode);
   const line = cheers[tick % cheers.length]!;
   const pct = Math.round((done ? 1 : shown) * 100);
   return (
@@ -122,13 +130,29 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * 모자란 만큼 지금 채운다. 하루 소식 안이라 맹고를 쓰지 않는다. 서버(api/feed/today/fill)가 흘려보내는 진행(찾기 → 요약 n/N → 담기)에 맞춰
  * 버튼 자리에 진행 카드(Filling)를 보여 주고, 끝나면 화면을 새로 그린다. onExpect·onSettle은 '하나 더 받기'와 같이 새로 붙은 소식으로 스크롤하고 짚는 데 쓴다(arrival.ts)
  */
-export function FillToday({ remaining, onExpect, onSettle }: { remaining: number; onExpect?: (keyboard: boolean) => void; onSettle?: (ok: boolean) => void }) {
+export function FillToday({
+  remaining,
+  onExpect,
+  onSettle,
+  mode = "fill",
+  done = false,
+  doneLabel,
+}: {
+  remaining: number;
+  onExpect?: (keyboard: boolean) => void;
+  onSettle?: (ok: boolean) => void;
+  mode?: Mode;
+  /** 더 보기를 다 썼는지(브리핑마다 30개) */
+  done?: boolean;
+  /** 더 볼 게 없을 때 보여 줄 말('오전 주요 뉴스는 다 봤어요!') */
+  doneLabel?: string;
+}) {
   const router = useRouter();
   const profile = useProfile();
   const [state, setState] = useState<State>({ kind: "idle" });
 
   const start = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    track("today_fill", { remaining });
+    track(mode === "more" ? "today_more" : "today_fill", { remaining });
     // 키보드(Enter·Space)로 누른 클릭은 detail이 0이다
     onExpect?.(e.detail === 0);
     setState({ kind: "running", p: { stage: "finding" } });
@@ -141,13 +165,22 @@ export function FillToday({ remaining, onExpect, onSettle }: { remaining: number
     };
     let last: Progress | null = null;
     try {
-      const res = await fetch(withBase("/api/feed/today/fill"), { method: "POST" });
+      const res = await fetch(withBase("/api/feed/today/fill"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ more: mode === "more" }),
+      });
       if (res.status === 409 || res.status === 429) {
         const { error } = (await res.json().catch(() => ({}))) as { error?: string };
         onSettle?.(false);
         // 그사이 다 채워졌으면(다른 기기 등) 화면만 새로 그린다
         if (error === "nothing_left") {
           setState({ kind: "idle" });
+          return router.refresh();
+        }
+        // 더 보기를 다 썼다(다른 기기에서 먼저 봤을 때 등)
+        if (error === "more_done") {
+          setState({ kind: "done" });
           return router.refresh();
         }
         return setState({ kind: "error", message: ERRORS[error ?? ""] ?? ERRORS.failed! });
@@ -173,6 +206,10 @@ export function FillToday({ remaining, onExpect, onSettle }: { remaining: number
         onSettle?.(true);
         setState({ kind: "idle" });
         router.refresh();
+      } else if (mode === "more" && last?.stage === "empty") {
+        // 최근 소식 중 더 줄 게 없다: 다 봤다고 알린다
+        onSettle?.(false);
+        setState({ kind: "done" });
       } else {
         onSettle?.(false);
         const key = last?.stage === "empty" || last?.stage === "blocked" ? last.stage : "failed";
@@ -187,12 +224,21 @@ export function FillToday({ remaining, onExpect, onSettle }: { remaining: number
     }
   };
 
-  if (state.kind === "running") return <Filling p={state.p} name={profile.displayName} />;
+  if (state.kind === "running") return <Filling p={state.p} name={profile.displayName} mode={mode} />;
+  if (mode === "more" && (done || state.kind === "done"))
+    return (
+      <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-snow px-4 py-4 text-ink">
+        <Mascot mood="cheer" className="size-9 shrink-0" />
+        <p role="status" className="text-[15px] font-bold">
+          {doneLabel ?? "주요 뉴스는 다 봤어요!"}
+        </p>
+      </div>
+    );
   return (
-    <div className="mt-3">
-      <button type="button" onClick={start} className="btn btn-ink w-full min-h-11 text-[14px]">
+    <div className={mode === "more" ? "mt-5" : "mt-3"}>
+      <button type="button" onClick={start} className={`btn w-full min-h-11 text-[14px] ${mode === "more" ? "btn-ghost" : "btn-ink"}`}>
         <IconPlus className="size-5" />
-        {`남은 소식 ${remaining}개 받기`}
+        {mode === "more" ? `소식 ${MORE_STEP}개 더 보기` : `남은 소식 ${remaining}개 받기`}
       </button>
       {state.kind === "error" && (
         <p role="alert" className="mt-2 px-1 text-[13px] font-bold text-cherry">

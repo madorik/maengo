@@ -1,4 +1,4 @@
-import { archiveLabel, discountPct, SIGNUP_BONUS, type PlanLimits } from "@maengo/core/plans";
+import { archiveLabel, discountPct, type PlanLimits } from "@maengo/core/plans";
 import { SECTIONS } from "@maengo/core/sections";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { JsonLd } from "@/components/public/PublicPage";
 import { SiteFooter } from "@/components/public/SiteFooter";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { ASK_DAILY } from "@/lib/ask";
+import { MORE_MAX, MORE_STEP } from "@/lib/more";
 import { detailsLine, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
 import {
   APP_OPERATING_SYSTEMS,
@@ -62,7 +63,6 @@ function planItems(l: PlanLimits, askDaily: number): string[] {
     ...(l.audio ? ["자연스러운 AI 목소리로 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
     `맹고 AI 질문 하루 ${askDaily}번`,
     ...(l.id === "plus" ? ["주간 리포트"] : []),
-    ...(l.canBuyMaengo ? ["맹고 추가 구매"] : []),
     l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관`,
   ];
 }
@@ -91,6 +91,8 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["어떤 소식을 모아요?", `${SECTION_NAMES.join("·")} 소식을 국내 언론사와 해외 매체, 공식 기술 문서·기업 테크 블로그에서 모아요. 여러 곳에서 같은 소식을 다루면 하나로 묶고, 많이 다룬 소식을 먼저 놓고, 모든 소식에 원문 출처와 사진을 붙여요.`],
   ["해외 소식도 한국어로 받을 수 있나요?", "네. 해외 매체와 공식 블로그의 영어 글도 한국어로 요약해요. 원문 링크가 함께 붙어서 필요하면 바로 원문을 확인할 수 있어요."],
   ["소식은 언제 와요?", "출근길·퇴근길 하루 두 번 와요. 아침과 오후에 새 소식을 모아 요약하고, 정한 시각(처음은 오전 7시·오후 6시, 설정에서 바꿔요)에 브리핑이 도착해요. 알림을 켜 두면 그 시각에 알려 드려요."],
+  // 2026-11-12 '더 보기'(lib/more.ts): 맹고 '하나 더 받기'를 대신한다
+  ["소식을 더 보고 싶으면요?", `브리핑을 다 받은 뒤 '소식 ${MORE_STEP}개 더 보기'를 누르면 최근 이틀 동안 나온 관심 분야 소식을 더 보여 드려요. 브리핑마다 ${MORE_MAX}개까지, Free도 똑같이 돼요.`],
   [
     "음성으로 들을 수 있나요?",
     // 2026-11-10: 첫 화면이 '귀로 들어요'인데 답이 'Premium에서'로 시작해 Free는 못 듣는 것처럼 읽혔다 → Free가 듣는 몫부터
@@ -107,9 +109,8 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
     "소식에 대해 더 물어볼 수 있나요?",
     `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 궁금한 걸 글이나 말로 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
   ],
-  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받고, 가입 선물로 ${SIGNUP_BONUS}맹고를 드려요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한${plus.dailyItems > free.dailyItems ? `, 브리핑마다 소식 ${plus.dailyItems}개` : ""}, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받아요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한${plus.dailyItems > free.dailyItems ? `, 브리핑마다 소식 ${plus.dailyItems}개` : ""}, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
-  ["지갑의 맹고는 뭐예요?", `맹고는 앱 안에서 쓰는 재화예요. 브리핑 소식(Free ${free.dailyItems}개, Premium ${plus.dailyItems}개)보다 더 받고 싶을 때 1맹고로 소식을 하나 더 받아요. 가입 선물(${SIGNUP_BONUS}맹고)과 추가 구매한 맹고는 지갑에 들어가 사라지지 않아요. ${free.canBuyMaengo ? "맹고는 맹고 앱에서 더 살 수 있어요." : "맹고 추가 구매는 Premium에서 할 수 있어요."}`],
 ];
 
 /** 소식 하나를 듣는 데 걸리는 시간(분). 둘러보기 소식 10개 음성이 평균 85초(47~101초, 2026-11-10 확인)라 1.5분으로 어림한다 */

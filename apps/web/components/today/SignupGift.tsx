@@ -18,9 +18,8 @@ const seenHere = () => {
 };
 
 /**
- * 가입 축하 이벤트 팝업: 가입 선물 맹고를 지갑에 넣었다고 한 번 알린다
- * (오늘 화면, 최근 7일 안에 가입한 회원. lib/server/wallet.ts recentSignupGift).
- * 금액은 실제로 들어간 값이다. 닫으면 이 기기에서는 다시 안 뜬다.
+ * 가입 환영 팝업: 한 번 알린다(오늘 화면, 최근 7일 안에 가입한 회원. lib/server/wallet.ts recentSignupGift로 가입 시각을 본다).
+ * 2026-11-12 맹고(재화)를 걷어 내서 '맹고를 지갑에 넣었다'는 말과 동전은 뺐다. 닫으면 이 기기에서는 다시 안 뜬다.
  * 버튼 '무료로 시작해보기'는 요금제(/premium?trial=1)로 보내 7일 무료 체험 안내를 띄운다. 바깥을 누르면 그냥 닫힌다.
  * 기능 안내(FeatureTour)를 본 뒤에 오늘 화면에서 뜬다(TodayList)
  */
@@ -56,26 +55,19 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
       className="m-auto w-[min(340px,calc(100vw-40px))] max-w-none overflow-visible bg-transparent p-0"
     >
       <div className="pop overflow-hidden rounded-[28px] bg-paper text-center text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
-        {/* 축하 영역: 연한 망고색 위에 색종이, 마스코트와 맹고 동전 */}
+        {/* 축하 영역: 연한 망고색 위에 색종이와 마스코트 */}
         <div aria-hidden="true" className="keep-light relative h-[168px] bg-[#FFF4D6]">
           <Confetti />
           <div className="absolute left-1/2 top-6 -translate-x-1/2">
             <Mascot mood="cheer" className="size-[120px]" />
-            <span
-              className="pop absolute -bottom-1 -right-9 flex size-[62px] rotate-[-10deg] flex-col items-center justify-center rounded-full border-[3px] border-[#E09A12] bg-[#FFC23D] text-[#1F2340] shadow-[0_5px_0_#E09A12]"
-              style={{ animationDelay: "220ms" }}
-            >
-              <span className="font-round text-[21px] font-black leading-none tabular-nums">+{gift.amount}</span>
-              <span className="mt-0.5 text-[11px] font-black leading-none">맹고</span>
-            </span>
           </div>
         </div>
 
         <div className="px-6 pb-6 pt-5">
           <h2 id="signup-gift-title" className="text-[20px] font-black leading-[1.45] tracking-[-0.03em]">
-            가입 축하 이벤트로
+            가입을 환영해요!
             <br />
-            {gift.amount}맹고를 지갑에 넣어드렸어요~!
+            Premium을 7일 동안 무료로 써 보세요
           </h2>
           {/* Premium 유도(2026-11-06): 요금제로 가서 무료 체험 안내 팝업을 바로 띄운다(PremiumBuy autoTrial) */}
           <button

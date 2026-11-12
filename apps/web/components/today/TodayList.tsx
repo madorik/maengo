@@ -12,7 +12,7 @@ import { useMoreArrival } from "./arrival";
 import { CommuteMango } from "./CommuteMango";
 import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
-import { MoreToday } from "./MoreToday";
+import { MORE_MAX } from "@/lib/more";
 import { SignupGift } from "./SignupGift";
 import { Thumb } from "./Thumb";
 import { SoundWave } from "@/components/listen/SoundWave";
@@ -121,7 +121,17 @@ export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** �
           </div>
         )}
 
-        {game.total > 0 && remaining === 0 && <MoreToday cost={data.moreCost} kept={data.wallet} onExpect={expect} onSettle={settle} />}
+        {/* 브리핑을 다 받은 뒤 '더 보기'(10개씩, 브리핑마다 30개까지, 2026-11-12 사용자). 맹고 '하나 더 받기'를 대신한다 */}
+        {game.total > 0 && remaining === 0 && (
+          <FillToday
+            mode="more"
+            remaining={0}
+            done={data.items.length - data.dailyLimit >= MORE_MAX}
+            doneLabel={`${data.slot === "pm" ? "오후" : "오전"} 주요 뉴스는 다 봤어요!`}
+            onExpect={expect}
+            onSettle={settle}
+          />
+        )}
       </div>
     </div>
   );

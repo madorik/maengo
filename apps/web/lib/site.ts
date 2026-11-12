@@ -130,7 +130,7 @@ export const SUPPORT_EMAIL = "watalabs.help@gmail.com";
  * 이용약관·개인정보 처리방침 시행일. 2026-11-06 영업 시작에 맞춰 이 날로 하고 그 전 개정 이력은 지웠다(사용자 결정).
  * 이 뒤로 내용을 바꾸면 날짜도 바꾸고 약관 페이지 부칙 아래에 개정 이력을 다시 단다. 앱 안 팝업 공지는 하지 않는다(2026-10-18 사용자 결정)
  */
-export const LEGAL_EFFECTIVE_ON = "2026-11-06";
+export const LEGAL_EFFECTIVE_ON = "2026-11-12";
 /** "2026-11-17" → "2026년 11월 17일" */
 export const koDate = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);

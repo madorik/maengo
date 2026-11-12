@@ -4,7 +4,6 @@ import { discountPct, krwLabel } from "@maengo/core/plans";
 import type { Plan } from "@maengo/core/types";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { track } from "@/lib/analytics";
 import { useInApp, useStore } from "./useStore";
 import { AppOnlyNotice } from "./AppOnlyNotice";
@@ -213,128 +212,6 @@ export function PremiumBuy({
         />
       )}
     </div>
-  );
-}
-
-/**
- * 맹고 추가 구매: 수량을 고르고 결제하면 서버가 그만큼 지갑에 넣는다(맹고 추가 구매를 할 수 있는 플랜만, plans 표).
- * 스토어 결제에는 수량 지정이 없어 수량마다 상품이 하나씩 있다(core/plans.ts의 MAENGO_PACKS).
- * /premium과 오늘 화면의 '맹고 추가 구매하기' 시트(MoreToday)가 쓴다. onBought는 결제를 마친 뒤(시트를 닫는다)
- */
-export function MaengoShop({ uid, canBuy, wallet, onBought }: { uid: string; canBuy: boolean; wallet: number; onBought?: () => void }) {
-  const s = useStore(uid);
-  const [pick, setPick] = useState<string | null>(null);
-  const [added, setAdded] = useState<number | null>(null);
-
-  // 방금 넣은 수량을 지갑 옆에 잠깐 보여 준다
-  useEffect(() => {
-    if (added === null) return;
-    const t = setTimeout(() => setAdded(null), 2500);
-    return () => clearTimeout(t);
-  }, [added]);
-
-  const walletLine = (
-    <p className="text-[14px] font-bold text-sub">
-      {/* 지갑 맹고 n개(설정 지갑 칸과 같은 모양) */}
-      지갑 <span className="ml-1">맹고</span> <span className="font-round text-[20px] font-black tabular-nums text-ink">{wallet.toLocaleString("ko-KR")}</span>개
-      {added !== null && <span className="pop ml-2 font-round text-[15px] font-black text-leaf">+{added}</span>}
-    </p>
-  );
-
-  if (!canBuy) {
-    return (
-      <>
-        {walletLine}
-        <Link href="#premium-buy" className="tile mt-4 flex items-center justify-between gap-3 px-4 py-3.5 no-underline hover:bg-snow">
-          <span className="text-[15px] font-bold text-sub">맹고 추가 구매</span>
-          <PremiumBadge />
-        </Link>
-      </>
-    );
-  }
-  if (s.inApp === null) return walletLine;
-  if (!s.inApp) {
-    return (
-      <>
-        {walletLine}
-        <p className="mt-3 text-[14px] text-sub">맹고 추가 구매는 맹고 앱에서 할 수 있어요.</p>
-      </>
-    );
-  }
-  if (s.loadFailed) {
-    return (
-      <>
-        {walletLine}
-        <div className="mt-3">
-          <LoadFailed retry={s.retry} code={s.loadFailed} />
-        </div>
-      </>
-    );
-  }
-  const packs = s.store?.packs ?? [];
-  const chosen = packs.find((p) => p.productId === pick) ?? packs[0];
-
-  const buy = async () => {
-    if (!chosen) return;
-    track("purchase_start", { product: chosen.productId });
-    let synced = true;
-    const ok = await s.run(
-      chosen.productId,
-      async (b) => {
-        synced = (await b.buy(uid, chosen)).synced;
-        track("purchase_complete", { product: chosen.productId });
-      },
-      "결제하지 못했어요. 다시 시도해 주세요.",
-    );
-    if (ok && synced) setAdded(chosen.maengo);
-    if (ok) {
-      onBought?.();
-      announcePurchase({ kind: "maengo", amount: chosen.maengo!, late: !synced });
-    }
-  };
-
-  return (
-    <>
-      {walletLine}
-      {!s.store ? (
-        <div aria-hidden="true" className="mt-4 h-40 animate-pulse rounded-2xl bg-snow" />
-      ) : (
-        <>
-          <div role="radiogroup" aria-label="구매할 수량" className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {packs.map((p) => {
-              const on = p.productId === chosen?.productId;
-              return (
-                <button
-                  key={p.productId}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() => setPick(p.productId)}
-                  disabled={s.busy !== null}
-                  className={`tile flex min-h-[72px] flex-col items-center justify-center gap-0.5 px-2 transition-colors ${on ? "border-mango bg-mango-tint" : "hover:bg-snow"}`}
-                >
-                  <span className="font-round text-[20px] font-black tabular-nums">{p.maengo}</span>
-                  <span className="text-[13px] font-bold text-sub">{p.price}</span>
-                </button>
-              );
-            })}
-          </div>
-          {chosen && (
-            <button type="button" onClick={buy} disabled={s.busy !== null} className="btn mt-4 min-h-14 w-full text-[17px]">
-              {s.busy === chosen.productId ? "결제 중" : `${chosen.maengo}맹고 구매 · ${chosen.price}`}
-            </button>
-          )}
-          {/* 청약철회 제한 사전 고지(전자상거래법 17조 6항, 약관 6조). 맹고 묶음은 나눠 쓰는 콘텐츠라 남은 맹고는 7일 안에 환불(2026-10-26) */}
-          <p className="mt-2 text-center text-[13px] font-medium leading-relaxed text-sub">
-            쓴 맹고는 환불되지 않아요. 남은 맹고는 구매한 날부터 7일 안에 환불할 수 있어요.{" "}
-            <Link href="/terms" className="underline">
-              이용약관
-            </Link>
-          </p>
-          <ErrorText text={s.error} />
-        </>
-      )}
-    </>
   );
 }
 

@@ -7,7 +7,7 @@ import { db, must } from './db';
 // '오늘 소식 받기'(즉석 피드, kind='instant')와 '남은 소식 더 받기'(kind='fill'), 글 화면의 맹고 AI(kind='ask', lib/server/ask.ts)는
 // 한 사람이 하루에 부를 수 있는 횟수를 이 기록으로 센다(app/api/feed/today, …/fill, app/api/ask)
 
-export type UsageKindForLimit = 'voice' | 'voice_link' | 'instant' | 'fill' | 'ask';
+export type UsageKindForLimit = 'voice' | 'voice_link' | 'instant' | 'fill' | 'more' | 'ask';
 
 export async function recordUse(userId: string | null, kind: UsageKindForLimit) {
   const { error } = await db.from('usage_log').insert({ provider: 'maengo', kind, user_id: userId, units: 1, est_usd: 0 });

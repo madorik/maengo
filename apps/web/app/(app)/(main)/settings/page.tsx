@@ -9,7 +9,6 @@ import { ListenPrefs } from "@/components/settings/ListenPrefs";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
 import { BillingBanner } from "@/components/premium/BillingBanner";
 import { ManageSubscription, TrialLine } from "@/components/premium/StoreParts";
-import { WalletHistory } from "@/components/settings/WalletHistory";
 import { billingNoticeOf } from "@/lib/billing/notice";
 import { subscriptionView } from "@/lib/server/billing";
 import { PushToggle } from "@/components/settings/PushToggle";
@@ -20,7 +19,6 @@ import { getUserContext } from "@/lib/server/user-context";
 import { Section } from "@/components/settings/Section";
 import { demoRebuildFeed, demoReset } from "@/app/actions";
 import { dailyMaengoUsage, toProfileView } from "@/lib/server/feed";
-import { syncWallet, walletHistory } from "@/lib/server/wallet";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { webPushTokens } from "@/lib/server/profile";
@@ -35,11 +33,9 @@ export const metadata: Metadata = { title: "설정" };
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const demoTools = demoToolsEnabled();
-  // 지갑 내역은 지갑을 맞춘 뒤(처음이면 가입 선물이 들어간다) 읽는다
-  const walletAndHistory = syncWallet(profile.id).then(async (w) => [w, await walletHistory(profile.id)] as const);
-  const [webTokens, [wallet, history], usage, sub] = await Promise.all([
+  // 2026-11-12 맹고(재화)를 걷어 내서 지갑 칸·지갑 내역은 뺐다(지갑 표와 결제 기록은 남겨 둔다)
+  const [webTokens, usage, sub] = await Promise.all([
     webPushTokens(profile.id),
-    walletAndHistory,
     dailyMaengoUsage(profile),
     subscriptionView(profile.id),
   ]);
@@ -78,7 +74,7 @@ export default async function SettingsPage() {
           {view.plan !== "free" && <TrialLine uid={profile.id} sub={sub} />}
           {/* 갱신 결제가 실패했으면 결제 수단 확인(오늘 화면 맨 위와 같은 띠). 체험이 곧 끝나는 건 위 줄과 구독 관리가 이미 보여 준다 */}
           <BillingBanner notice={pastDue} uid={profile.id} className="mt-3" />
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-4">
             <div className="tile p-4">
               <p className="text-[13px] font-extrabold text-sub">오늘 받은 소식</p>
               {/* 오늘 지급한 소식 / 오늘 받을 수 있는 수(출근길·퇴근길 브리핑 두 번) */}
@@ -87,25 +83,7 @@ export default async function SettingsPage() {
                 <span className="text-[16px] text-sub">/{usage.daily}</span>
               </p>
             </div>
-            <div className="tile p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-extrabold text-sub">지갑 맹고</p>
-                {/* 맹고 추가 구매를 할 수 있는 플랜만(plans 표) */}
-                {view.canBuyMaengo && (
-                  <Link href="/premium#maengo" className="shrink-0 text-[13px] font-extrabold text-mango-deep no-underline hover:underline">
-                    추가 구매
-                  </Link>
-                )}
-              </div>
-              {/* n개: 숫자만 크게(하루 소식 칸과 같은 모양). '맹고'는 위 이름에 둬서 1,000개가 넘어도 375px 두 칸에서 줄이 안 바뀐다 */}
-              <p className="whitespace-nowrap font-round text-[26px] font-black leading-tight tabular-nums">
-                {wallet.toLocaleString("ko-KR")}
-                <span className="ml-0.5 font-sans text-[16px] text-sub">개</span>
-              </p>
-            </div>
           </div>
-          {/* 지갑이 들고 난 기록(최근 50개) */}
-          <WalletHistory entries={history} />
         </Section>
 
         <Section id="listen" title="목소리">
