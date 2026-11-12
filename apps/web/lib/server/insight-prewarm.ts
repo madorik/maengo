@@ -1,6 +1,6 @@
 import 'server-only';
 import { addDays, kstDate } from '@maengo/core/kst';
-import { INSIGHT_VERSION, briefingInsight } from './briefing-insight';
+import { briefingInsight } from './briefing-insight';
 import { db } from './db';
 import { getTodayData } from './feed';
 import { loadProfile } from './profile';
@@ -41,7 +41,8 @@ export async function prewarmInsights(deadline: number): Promise<{ candidates: n
     db.from('briefing_insights').select('user_id,slot,data->v').eq('date', date).in('user_id', ids),
     db.from('visits').select('user_id').in('user_id', ids).gte('date', addDays(date, -ACTIVE_DAYS)),
   ]);
-  const fresh = new Set(((made ?? []) as { user_id: string; slot: string; v: number | null }[]).filter((m) => m.v === INSIGHT_VERSION).map((m) => `${m.user_id}|${m.slot}`));
+  // 그날 그 브리핑의 인사이트가 이미 있으면(형식과 상관없이) 건너뛴다. 인사이트 분석은 하루 두 번(briefing-insight.ts)
+  const fresh = new Set(((made ?? []) as { user_id: string; slot: string; v: number | null }[]).map((m) => `${m.user_id}|${m.slot}`));
   const active = new Set(((visits ?? []) as { user_id: string }[]).map((v) => v.user_id));
   const todo = rows.filter((r) => active.has(r.user_id) && !fresh.has(`${r.user_id}|${r.slot ?? 'am'}`)).slice(0, MAX_PER_RUN);
   out.candidates = todo.length;

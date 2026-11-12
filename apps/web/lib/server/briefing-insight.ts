@@ -32,6 +32,7 @@ export interface BriefingInsight {
 // 6: 재테크 먼저(2026-11-12 사용자: 대상은 재테크하는 직장인, 핵심은 관심 분야 소식이 재테크하는 나에게 미칠 영향). 생활 사정은 재테크로 닿는 게 없을 때만
 // 7: 글에 '재테크'라는 말을 쓰지 않는다(2026-11-12 사용자: 대놓고 쓰지 말 것)
 // 8: 온보딩에서 고른 '관심'(돈 이야기·산업)을 사정으로 쓴다. 관심만 알려 준 것은 '~에 관심이 있다면' 꼴로
+// 형식을 바꿔도 그날 이미 만든 인사이트는 다시 만들지 않는다(하루 두 번, 2026-11-12). 새 형식은 다음 브리핑부터
 const VERSION = 8;
 /** 미리 만들기(lib/server/insight-prewarm.ts)가 이미 새 형식으로 만들어 뒀는지 볼 때 쓴다 */
 export const INSIGHT_VERSION = VERSION;
@@ -132,6 +133,11 @@ function briefingItems(data: TodayData) {
   return data.items.slice(0, Math.max(1, data.dailyLimit));
 }
 
+/**
+ * 인사이트 분석은 하루 두 번, 브리핑(출근길·퇴근길)마다 한 번(2026-11-12 사용자 '오늘 인사이트 받았는데 왜 또 분석하는데', '인사이트 분석은 하루 2번이야').
+ * 그날 그 브리핑의 인사이트가 있으면 형식(VERSION)·맞춤 정보·소식 목록이 바뀌어도 다시 만들지 않고 그대로 보인다. 바뀐 것은 다음 브리핑부터.
+ * 만든 게 없거나 지난번에 비어 있었을 때만 만든다
+ */
 export async function briefingInsight(profile: Profile, data: TodayData, ctx: UserContext = {}): Promise<BriefingInsight | null> {
   const userId = profile.id;
   const items = briefingItems(data);
@@ -144,7 +150,7 @@ export async function briefingInsight(profile: Profile, data: TodayData, ctx: Us
   const ids = `${items.map((i) => i.clusterId).join(',')}${facts.length ? `|${facts.join(';')}` : ''}${allowed ? '' : '|off'}`;
   const { data: row, error } = await db.from('briefing_insights').select('ids,data').eq('user_id', userId).eq('date', data.date).eq('slot', slot).maybeSingle();
   if (error) console.error('[insight] 읽기 실패', error.message);
-  if (row && row.ids === ids && (row.data as BriefingInsight)?.v === VERSION) return row.data as BriefingInsight;
+  if ((row?.data as BriefingInsight | undefined)?.flows?.length) return row!.data as BriefingInsight;
   // 다시 만들다 실패하면(키 없음·Gemini 오류·시간 초과) 직전에 만든 것을 그대로 보인다(2026-11-11: 맞춤 정보에 답했더니 인사이트가 사라졌다)
   const previous = (row?.data as BriefingInsight | undefined)?.flows?.length ? (row!.data as BriefingInsight) : null;
 
