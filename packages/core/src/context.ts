@@ -10,6 +10,8 @@ export interface ContextOption {
   label: string;
   /** 인사이트에 주는 말(예: '국내 주식을 해요') */
   fact: string;
+  /** 고르면 비중을 켜는 상세 관심사(topics 사전 id). 그 주제 소식을 더 받는다(2026-11-12, lib/server/user-context.ts) */
+  topic?: string;
 }
 
 export interface ContextQuestion {
@@ -25,6 +27,16 @@ export interface ContextQuestion {
   about: string;
   /** 설정 > 맞춤 인사이트 > 내 맞춤 정보에서 묶는 분야 */
   group: ContextGroup;
+  /** 여러 개를 고른다(값은 쉼표로 이은 것, 예: 'kr_stock,us_stock') */
+  multi?: true;
+  /** 온보딩에서만 묻는다(기사 아래에서는 묻지 않는다, 2026-11-12) */
+  onboarding?: true;
+  /** 온보딩 한 페이지에서 이 질문을 보여 줄 분야(sections.ts SectionId) */
+  section?: string;
+  /** 온보딩 묶음 이름(없으면 분야 이름). 예: AI(분야는 IT/과학) */
+  title?: string;
+  /** 온보딩 묶음 머리의 오늘 화제 소식 자리(onboarding-picks.ts, 없으면 분야) */
+  pick?: string;
 }
 
 /** 분야(설정에서 이 차례로 묶어 보인다). 정치는 묻지 않는다(정치 성향은 민감정보) — 정치 소식은 사는 곳·나이대·자녀·일하는 형태로 짚는다 */
@@ -40,6 +52,81 @@ const FUEL = /유가|기름값|휘발유|경유|주유/;
  * 2026-11-11 사용자: 분야별 질문 전체 + 나이대에 20대. 묻지 않는 것: 정치 성향·종교·건강·노조(민감정보), 정확한 금액·종목·주소·나이
  */
 export const CONTEXT_QUESTIONS: ContextQuestion[] = [
+  // 분야별 관심(선택지는 많이 고를 만한 것부터, 온보딩은 앞 3개만 먼저 보인다)
+  // 2026-11-12 사용자: 온보딩 한 페이지에서 분야마다 고른다, 예민하지 않은 '관심'만. 정치는 묻지 않는다. 사회·생활/문화·스포츠·엔터·세계는 온보딩에서 뺐다). 여러 개, 기사 아래에서는 묻지 않는다
+  {
+    key: "int_economy",
+    ask: "관심 있는 돈 이야기",
+    about: "관심",
+    trigger: /$^/,
+    group: "경제",
+    multi: true,
+    onboarding: true,
+    section: "economy",
+    options: [
+      { value: "kr_stock", label: "국내 주식", fact: "국내 주식에 관심 있어요" },
+      { value: "us_stock", label: "미국 주식", fact: "미국 주식에 관심 있어요" },
+      { value: "fx_rate", label: "환율·금리", fact: "환율·금리에 관심 있어요" },
+      { value: "crypto", label: "코인", fact: "코인에 관심 있어요" },
+      { value: "deposit", label: "예금·적금", fact: "예금·적금에 관심 있어요" },
+      { value: "dividend", label: "금융·배당", fact: "금융·배당주에 관심 있어요" },
+      { value: "tax", label: "세금·정책", fact: "세금·정책 변화(세법·예산·대출 규제·연금)에 관심 있어요", topic: "tax-policy" },
+    ],
+  },
+  // AI(2026-11-12 사용자 'AI 관련된 것도 넣어줘'): 분야는 IT/과학, 온보딩에서는 따로 한 묶음
+  {
+    key: "int_ai",
+    ask: "관심 있는 AI 이야기",
+    about: "관심",
+    trigger: /$^/,
+    group: "IT/과학",
+    multi: true,
+    onboarding: true,
+    section: "it-science",
+    title: "AI",
+    pick: "ai",
+    options: [
+      { value: "model", label: "새 AI 모델", fact: "새 AI 모델(ChatGPT·Gemini·Claude 등) 소식에 관심 있어요", topic: "llm-dev" },
+      { value: "invest", label: "AI 투자·관련주", fact: "AI 투자와 관련 기업 주가에 관심 있어요", topic: "ai" },
+      { value: "service", label: "AI 서비스·앱", fact: "AI 서비스·앱에 관심 있어요", topic: "ai" },
+      { value: "work", label: "AI로 일하기", fact: "일에 AI를 쓰는 데 관심 있어요", topic: "ai-automation" },
+      { value: "rules", label: "AI 규제·일자리", fact: "AI 규제와 일자리 변화에 관심 있어요" },
+    ],
+  },
+  {
+    key: "int_real_estate",
+    ask: "관심 있는 부동산 이야기",
+    about: "관심",
+    trigger: /$^/,
+    group: "부동산",
+    multi: true,
+    onboarding: true,
+    section: "real-estate",
+    options: [
+      { value: "home", label: "내 집 마련", fact: "내 집 마련에 관심 있어요" },
+      { value: "price", label: "집값 흐름", fact: "집값 흐름에 관심 있어요" },
+      { value: "apply", label: "청약", fact: "청약에 관심 있어요" },
+      { value: "rebuild", label: "재건축·재개발", fact: "재건축·재개발에 관심 있어요" },
+    ],
+  },
+  {
+    key: "int_it_science",
+    ask: "관심 있는 산업",
+    about: "관심",
+    trigger: /$^/,
+    group: "IT/과학",
+    multi: true,
+    onboarding: true,
+    section: "it-science",
+    options: [
+      { value: "semis", label: "반도체", fact: "반도체 산업에 관심 있어요" },
+      { value: "bigtech", label: "빅테크", fact: "빅테크(애플·구글·엔비디아 등)에 관심 있어요" },
+      { value: "battery", label: "2차전지", fact: "2차전지 산업에 관심 있어요" },
+      { value: "auto", label: "자동차·모빌리티", fact: "자동차·모빌리티 산업에 관심 있어요" },
+      { value: "bio", label: "바이오", fact: "바이오 산업에 관심 있어요" },
+      { value: "phone", label: "스마트폰", fact: "스마트폰에 관심 있어요" },
+    ],
+  },
   // 경제
   {
     key: "stock",
@@ -424,10 +511,18 @@ export function contextFacts(ctx: UserContext): string[] {
     const v = ctx[q.key]?.value;
     if (!v || v === SKIP) continue;
     if (q.after && ctx[q.after.key]?.value !== q.after.value) continue;
-    const fact = q.options.find((o) => o.value === v)?.fact;
-    if (fact) facts.push(fact);
+    for (const value of valuesOf(q, v)) {
+      const fact = q.options.find((o) => o.value === value)?.fact;
+      if (fact) facts.push(fact);
+    }
   }
   return facts;
+}
+
+/** 저장된 값을 고른 값들로(여러 개를 고르는 질문은 쉼표로 이어 저장한다) */
+export function valuesOf(q: Pick<ContextQuestion, "multi">, value: string | undefined): string[] {
+  if (!value || value === SKIP) return [];
+  return q.multi ? value.split(",").filter(Boolean) : [value];
 }
 
 /** 맞춤 체크 꼬리표에 쓰는 짧은 이름(예: '주식 · 국내') */
@@ -435,7 +530,8 @@ export function contextChip(ctx: UserContext, key: string): string | null {
   const q = QUESTION_BY_KEY.get(key);
   const v = ctx[key]?.value;
   if (!q || !v || v === SKIP) return null;
-  return q.options.find((o) => o.value === v)?.label ?? null;
+  const labels = valuesOf(q, v).flatMap((x) => q.options.find((o) => o.value === x)?.label ?? []);
+  return labels.length ? labels.join("·") : null;
 }
 
 /** 오늘 이미 새 질문에 답했는지 남기는 줄(값: 한국 날짜 YYYY-MM-DD). 새 질문은 하루에 하나 */
@@ -457,6 +553,8 @@ export function pickQuestion(ctx: UserContext, items: ContextItem[], day: string
   const askedNow = ctx[ASKED]?.value === day;
   const skipUntil = Date.now() - SKIP_DAYS * 86_400_000;
   for (const q of CONTEXT_QUESTIONS) {
+    // 온보딩에서만 묻는 질문은 기사 아래에서 묻지 않는다
+    if (q.onboarding) continue;
     const have = ctx[q.key];
     if (have && (have.value !== SKIP || Date.parse(have.updatedAt) > skipUntil)) continue;
     if (q.after && ctx[q.after.key]?.value !== q.after.value) continue;

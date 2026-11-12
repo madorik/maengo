@@ -41,6 +41,8 @@ const GROUP_SECTION: Readonly<Record<string, SectionId>> = {
   'chip-robot': 'it-science',
   stock: 'economy',
   coin: 'economy',
+  // 큰 분류 없는 상세 관심사(2026-11-12): 세금·정책은 경제
+  'tax-policy': 'economy',
 };
 
 /** 요약 카테고리(18개) → 분야. 기타는 없음 */

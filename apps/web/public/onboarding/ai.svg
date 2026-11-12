@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <!-- 맹고 온보딩 'AI' 카드(2026-11-12 직접 그림, 사용자 참고: 관자놀이에 손가락을 대고 생각하는 흰 휴머노이드 로봇. 참고 사진을 베끼지 않고 새로 그림) -->
+  <defs>
+    <radialGradient id="bg" cx="0.65" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#F4F6FA"/>
+      <stop offset="0.6" stop-color="#D5DAE3"/>
+      <stop offset="1" stop-color="#9AA2B2"/>
+    </radialGradient>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.55" stop-color="#E7EAF0"/>
+      <stop offset="1" stop-color="#B9C0CC"/>
+    </linearGradient>
+    <linearGradient id="shellDark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F7F8FB"/>
+      <stop offset="1" stop-color="#C3C9D4"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2B2F3A"/>
+      <stop offset="0.5" stop-color="#596173"/>
+      <stop offset="1" stop-color="#2B2F3A"/>
+    </linearGradient>
+    <radialGradient id="eye" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFC23D"/>
+      <stop offset="0.45" stop-color="#E09A12"/>
+      <stop offset="1" stop-color="#1F2340"/>
+    </radialGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#bg)"/>
+
+  <!-- 몸통·어깨 -->
+  <path d="M30 500 C40 430 90 395 160 385 L250 385 C320 392 370 420 385 500 Z" fill="url(#shell)"/>
+  <path d="M150 395 C175 430 235 432 262 395" fill="none" stroke="#AEB5C2" stroke-width="3"/>
+  <circle cx="206" cy="448" r="7" fill="none" stroke="#AEB5C2" stroke-width="3"/>
+  <circle cx="206" cy="476" r="7" fill="none" stroke="#AEB5C2" stroke-width="3"/>
+  <!-- 어깨 관절 -->
+  <path d="M330 420 C352 428 372 448 380 470 L360 478 C352 460 338 446 322 438 Z" fill="#3A3F4D"/>
+
+  <!-- 목(금속) -->
+  <rect x="178" y="300" width="58" height="95" rx="12" fill="url(#metal)"/>
+  <g stroke="#1E222B" stroke-width="3" opacity="0.7">
+    <path d="M180 322H234M180 340H234M180 358H234M180 376H234"/>
+  </g>
+  <path d="M160 392 C180 372 236 372 256 392" fill="none" stroke="#2B2F3A" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- 머리 -->
+  <path d="M215 58 C285 58 318 112 316 180 C314 248 282 300 236 318 C222 324 206 324 194 318 C152 300 122 252 120 186 C118 112 150 58 215 58 Z" fill="url(#shell)"/>
+  <!-- 머리 이음선 -->
+  <path d="M142 128 C170 108 200 102 236 104" fill="none" stroke="#B4BBC8" stroke-width="2.5"/>
+  <path d="M300 150 C292 178 292 206 302 232" fill="none" stroke="#B4BBC8" stroke-width="2.5"/>
+  <!-- 귀(관절) -->
+  <ellipse cx="305" cy="196" rx="14" ry="26" fill="#3A3F4D"/>
+  <ellipse cx="303" cy="196" rx="7" ry="15" fill="#596173"/>
+  <!-- 하이라이트 -->
+  <path d="M168 86 C188 70 214 66 236 70 C214 78 190 92 176 112 Z" fill="#FFFFFF" opacity="0.9"/>
+
+  <!-- 얼굴: 옆을 보며 생각하는 눈 -->
+  <path d="M176 196 C188 186 206 186 216 196 C206 202 188 202 176 196 Z" fill="#2B2F3A"/>
+  <path d="M238 196 C250 186 268 186 278 196 C268 202 250 202 238 196 Z" fill="#2B2F3A"/>
+  <circle cx="206" cy="195" r="5.5" fill="url(#eye)"/>
+  <circle cx="268" cy="195" r="5.5" fill="url(#eye)"/>
+  <path d="M174 178 C188 170 204 170 216 176" fill="none" stroke="#9AA2B2" stroke-width="3" stroke-linecap="round"/>
+  <path d="M238 174 C252 168 268 168 280 176" fill="none" stroke="#9AA2B2" stroke-width="3" stroke-linecap="round"/>
+  <path d="M228 204 C226 226 222 238 214 246 C222 248 232 248 238 244" fill="none" stroke="#B4BBC8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M206 274 C218 280 234 280 246 274" fill="none" stroke="#9AA2B2" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- 팔: 아래에서 올라와 손가락을 관자놀이에 -->
+  <path d="M40 500 L58 380 C62 360 92 356 98 376 L86 500 Z" fill="url(#shellDark)"/>
+  <ellipse cx="78" cy="372" rx="22" ry="13" fill="#3A3F4D"/>
+  <path d="M62 366 L94 250 C98 236 120 238 120 254 L94 372 Z" fill="url(#shell)"/>
+  <!-- 손목 관절 -->
+  <ellipse cx="108" cy="246" rx="17" ry="11" fill="#3A3F4D" transform="rotate(-20 108 246)"/>
+  <!-- 손바닥(관자놀이 아래) -->
+  <path d="M96 240 C90 216 102 198 120 196 C134 196 144 206 142 222 L136 246 C124 254 104 252 96 240 Z" fill="url(#shell)"/>
+  <!-- 접은 손가락 셋 -->
+  <g stroke="#3A3F4D" stroke-width="2.5">
+    <rect x="118" y="204" width="30" height="13" rx="6.5" fill="url(#shellDark)" transform="rotate(-12 133 210)"/>
+    <rect x="116" y="218" width="30" height="13" rx="6.5" fill="url(#shellDark)" transform="rotate(-8 131 224)"/>
+    <rect x="112" y="232" width="27" height="12" rx="6" fill="url(#shellDark)" transform="rotate(-4 125 238)"/>
+  </g>
+  <!-- 엄지 -->
+  <path d="M98 226 L106 204 C109 197 118 199 116 207 L110 230 Z" fill="url(#shellDark)" stroke="#3A3F4D" stroke-width="2.5"/>
+  <!-- 검지: 관자놀이에 닿는다 -->
+  <g stroke="#3A3F4D" stroke-width="2.5">
+    <path d="M118 200 L124 176 C126 168 137 169 136 178 L130 202 Z" fill="url(#shellDark)"/>
+    <path d="M124 176 L129 156 C131 149 141 150 140 158 L136 178 Z" fill="url(#shell)"/>
+    <path d="M129 156 L132 146 C134 140 142 142 141 148 L140 158 Z" fill="url(#shellDark)"/>
+  </g>
+  <circle cx="134" cy="167" r="2.5" fill="#3A3F4D"/>
+
+  <!-- 반짝임 -->
+  <g fill="#FFC23D">
+    <path d="M330 80 l6 14 l14 6 l-14 6 l-6 14 l-6 -14 l-14 -6 l14 -6 z"/>
+    <path d="M356 140 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 z" opacity="0.8"/>
+  </g>
+</svg>

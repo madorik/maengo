@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { parseYoutubeSections } from "@/lib/youtube-sections";
 import { YOUTUBE_COOKIE } from "@/lib/server/youtube-interests";
-import { onboardingPicks } from "@/lib/server/onboarding-picks";
 import { requireProfile } from "@/lib/server/session";
 import { OnboardingFlow } from "./OnboardingFlow";
 
@@ -19,6 +18,5 @@ export default async function OnboardingPage() {
   if (profile.onboarded) redirect("/today");
   // 구글 로그인 때 유튜브 구독으로 분야를 찾았으면(YOUTUBE_INTERESTS=1) 소식 고르기를 건너뛰고 결과부터 보여 준다
   const youtube = parseYoutubeSections((await cookies()).get(YOUTUBE_COOKIE)?.value);
-  const picks = await onboardingPicks();
-  return <OnboardingFlow picks={picks} youtube={youtube} />;
+  return <OnboardingFlow youtube={youtube} />;
 }

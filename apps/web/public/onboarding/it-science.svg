@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <!-- 맹고 온보딩 'IT/과학' 카드(2026-11-12 직접 그림): 반도체 웨이퍼와 궤도 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B6E8C"/>
+      <stop offset="1" stop-color="#14183A"/>
+    </linearGradient>
+    <clipPath id="wafer">
+      <circle cx="200" cy="200" r="130"/>
+    </clipPath>
+  </defs>
+  <rect width="400" height="500" fill="url(#bg)"/>
+  <!-- 궤도 -->
+  <ellipse cx="200" cy="200" rx="185" ry="70" fill="none" stroke="#9CC9FF" stroke-opacity="0.35" stroke-width="3" transform="rotate(-20 200 200)"/>
+  <circle cx="34" cy="250" r="9" fill="#9CC9FF"/>
+  <!-- 웨이퍼 -->
+  <circle cx="200" cy="200" r="134" fill="#0F1230" opacity="0.5"/>
+  <circle cx="200" cy="200" r="130" fill="#C9D6F5"/>
+  <g clip-path="url(#wafer)">
+    <g fill="#2E3478">
+      <path d="M86 96h40v40h-40zM132 96h40v40h-40zM178 96h40v40h-40zM224 96h40v40h-40zM270 96h40v40h-40z"/>
+      <path d="M86 142h40v40h-40zM132 142h40v40h-40zM224 142h40v40h-40zM270 142h40v40h-40z"/>
+      <path d="M86 188h40v40h-40zM132 188h40v40h-40zM178 188h40v40h-40zM224 188h40v40h-40zM270 188h40v40h-40z"/>
+      <path d="M86 234h40v40h-40zM132 234h40v40h-40zM178 234h40v40h-40zM270 234h40v40h-40z"/>
+      <path d="M132 280h40v40h-40zM178 280h40v40h-40zM224 280h40v40h-40z"/>
+      <path d="M132 50h40v40h-40zM178 50h40v40h-40zM224 50h40v40h-40z"/>
+      <path d="M40 142h40v40h-40zM40 188h40v40h-40zM316 142h40v40h-40zM316 188h40v40h-40z"/>
+    </g>
+    <g fill="#FFC23D">
+      <path d="M178 142h40v40h-40zM224 234h40v40h-40zM132 188h40v40h-40z"/>
+    </g>
+    <path d="M60 60 L340 340" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="40"/>
+  </g>
+  <circle cx="200" cy="200" r="130" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="4"/>
+  <circle cx="370" cy="140" r="6" fill="#FFC23D"/>
+  <g fill="#FFFFFF">
+    <path d="M64 70 l5 11 l11 5 l-11 5 l-5 11 l-5 -11 l-11 -5 l11 -5 z"/>
+  </g>
+</svg>

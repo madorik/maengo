@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CONTEXT_GROUPS, CONTEXT_QUESTIONS, SKIP, contextFacts, followUpOf, pickQuestion, type UserContext } from '../context';
+import { CONTEXT_GROUPS, CONTEXT_QUESTIONS, SKIP, contextChip, contextFacts, followUpOf, pickQuestion, type UserContext } from '../context';
 import type { FeedItem } from '../types';
 
 const item = (title: string, short = ''): FeedItem => ({ title, short } as FeedItem);
@@ -85,4 +85,31 @@ test('야구를 본다고 하면 응원 팀을 바로 이어 묻는다', () => {
   assert.equal(followUpOf('sport', 'baseball')?.key, 'kbo_team');
   assert.equal(followUpOf('job', 'it')?.key, 'dev_area');
   assert.equal(followUpOf('sport', 'soccer'), null);
+});
+
+test('온보딩 관심(여러 개)은 고른 것마다 사정 문장이 된다', () => {
+  const ctx: UserContext = { int_economy: at('kr_stock,deposit'), int_real_estate: at('home'), int_it_science: at('semis') };
+  const facts = contextFacts(ctx);
+  assert.ok(facts.includes('국내 주식에 관심 있어요'));
+  assert.ok(facts.includes('예금·적금에 관심 있어요'));
+  assert.ok(facts.includes('내 집 마련에 관심 있어요'));
+  assert.ok(facts.includes('반도체 산업에 관심 있어요'));
+  assert.equal(contextChip(ctx, 'int_economy'), '국내 주식·예금·적금');
+});
+
+test('온보딩에서만 묻는 관심 질문은 기사 아래에서 묻지 않는다', () => {
+  const asked = pickQuestion({}, [item('반도체 수출 늘어'), item('코스피 5000선 공방')], B);
+  assert.ok(!asked?.key.startsWith('int_'));
+});
+
+test('온보딩 묶음은 경제·AI·부동산·IT/과학', () => {
+  const blocks = CONTEXT_QUESTIONS.filter((q) => q.onboarding).map((q) => q.title ?? q.section);
+  assert.deepEqual(blocks, ['economy', 'AI', 'real-estate', 'it-science']);
+});
+
+test('경제 칩 세금·정책은 세금·정책 관심사(경제 분야)에 이어진다', async () => {
+  const q = CONTEXT_QUESTIONS.find((x) => x.key === 'int_economy')!;
+  assert.equal(q.options.find((o) => o.value === 'tax')?.topic, 'tax-policy');
+  const { sectionOfTopic } = await import('@maengo/core/sections');
+  assert.equal(sectionOfTopic('tax-policy'), 'economy');
 });

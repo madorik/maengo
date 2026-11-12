@@ -64,6 +64,13 @@ const DETAILS: Topic[] = [
   { id: 'ethereum', name: '이더리움', aliases: ['ETH', '이더', '이더리움 ETF'], parent: 'coin' },
   { id: 'stablecoin', name: '스테이블코인', aliases: ['스테이블 코인', 'USDT', 'USDC', '테더', '원화 스테이블코인'], parent: 'coin' },
   { id: 'crypto-reg', name: '가상자산 규제', aliases: ['가상자산법', '코인 규제', '거래소 규제', '디지털자산기본법'], parent: 'coin' },
+  // 세금·정책(2026-11-12 사용자: 정치는 빼되 법안·예산처럼 돈에 닿는 정책은 받는다). 큰 분류 없이 경제 분야로(sections.ts GROUP_SECTION).
+  // 정당 공방·인물은 들어오지 않게 '정치·국회·법안' 같은 넓은 말은 넣지 않는다. 온보딩 경제 칩 '세금·정책'을 고르면 비중이 생긴다(lib/server/user-context.ts)
+  {
+    id: 'tax-policy',
+    name: '세금·정책',
+    aliases: ['세법·세제 개편', '금투세', '종부세', '양도세', '상속세·증여세', '예산안', '정부 지원금', '청년 지원 정책', '대출 규제(DSR)', '주택 규제', '금융 규제', '연금 개혁'],
+  },
   // 반도체·로봇
   { id: 'semiconductor', name: '반도체', aliases: ['HBM', '메모리 반도체', '파운드리', '엔비디아', 'TSMC', 'SK하이닉스', 'AI 칩', 'GPU'], parent: 'chip-robot' },
   { id: 'robot', name: '로봇·휴머노이드', aliases: ['로봇', '휴머노이드', '피지컬 AI', '로보틱스', '산업용 로봇'], parent: 'chip-robot' },

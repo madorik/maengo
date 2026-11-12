@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <!-- 맹고 온보딩 '경제' 카드(2026-11-12 직접 그림): 오르는 차트와 동전 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2E3478"/>
+      <stop offset="1" stop-color="#1F2340"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC23D" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#FFC23D" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#bg)"/>
+  <g stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="2">
+    <path d="M0 110H400M0 180H400M0 250H400M0 320H400"/>
+    <path d="M80 60V360M160 60V360M240 60V360M320 60V360"/>
+  </g>
+  <!-- 봉 차트 -->
+  <g stroke-linecap="round">
+    <path d="M70 250V320" stroke="#7F86C9" stroke-width="4"/>
+    <rect x="58" y="268" width="24" height="38" rx="5" fill="#7F86C9"/>
+    <path d="M125 225V300" stroke="#FFC23D" stroke-width="4"/>
+    <rect x="113" y="240" width="24" height="46" rx="5" fill="#FFC23D"/>
+    <path d="M180 240V300" stroke="#7F86C9" stroke-width="4"/>
+    <rect x="168" y="252" width="24" height="34" rx="5" fill="#7F86C9"/>
+    <path d="M235 170V250" stroke="#FFC23D" stroke-width="4"/>
+    <rect x="223" y="185" width="24" height="52" rx="5" fill="#FFC23D"/>
+    <path d="M290 125V205" stroke="#FFC23D" stroke-width="4"/>
+    <rect x="278" y="138" width="24" height="56" rx="5" fill="#FFC23D"/>
+  </g>
+  <!-- 오르는 선 -->
+  <path d="M40 330 L110 280 L175 300 L240 215 L335 130 L335 360 L40 360 Z" fill="url(#area)"/>
+  <path d="M40 330 L110 280 L175 300 L240 215 L335 130" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M300 126 L340 124 L338 164" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 동전 -->
+  <g>
+    <circle cx="78" cy="78" r="30" fill="#E09A12"/>
+    <circle cx="78" cy="74" r="30" fill="#FFC23D"/>
+    <circle cx="78" cy="74" r="21" fill="none" stroke="#E09A12" stroke-width="4"/>
+    <path d="M66 64 L72 86 L78 70 L84 86 L90 64 M63 72 H93" fill="none" stroke="#1F2340" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <circle cx="140" cy="60" r="5" fill="#FFC23D" opacity="0.8"/>
+  <circle cx="370" cy="210" r="4" fill="#FFFFFF" opacity="0.5"/>
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <!-- 맹고 온보딩 '부동산' 카드(2026-11-12 직접 그림): 강변 고층 아파트와 해 -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8FB8F2"/>
+      <stop offset="0.7" stop-color="#FFE3A6"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#sky)"/>
+  <circle cx="300" cy="120" r="46" fill="#FFC23D"/>
+  <circle cx="300" cy="120" r="64" fill="#FFC23D" opacity="0.25"/>
+  <!-- 뒤 건물 -->
+  <g fill="#7F86C9">
+    <rect x="20" y="210" width="60" height="160"/>
+    <rect x="300" y="190" width="70" height="180"/>
+    <rect x="235" y="230" width="50" height="140"/>
+  </g>
+  <!-- 앞 아파트 -->
+  <g>
+    <rect x="70" y="150" width="82" height="220" rx="4" fill="#1F2340"/>
+    <rect x="160" y="105" width="90" height="265" rx="4" fill="#2E3478"/>
+    <rect x="258" y="170" width="74" height="200" rx="4" fill="#1F2340"/>
+  </g>
+  <!-- 창문 -->
+  <g fill="#FFFFFF" opacity="0.18">
+    <path d="M84 168h14v10h-14zM112 168h14v10h-14zM84 198h14v10h-14zM112 228h14v10h-14zM84 258h14v10h-14zM112 288h14v10h-14zM84 318h14v10h-14z"/>
+    <path d="M176 125h14v10h-14zM206 155h14v10h-14zM176 185h14v10h-14zM206 245h14v10h-14zM176 275h14v10h-14zM206 305h14v10h-14z"/>
+    <path d="M272 190h14v10h-14zM300 220h14v10h-14zM272 250h14v10h-14zM300 310h14v10h-14z"/>
+  </g>
+  <g fill="#FFC23D">
+    <path d="M112 198h14v10h-14zM84 228h14v10h-14zM112 258h14v10h-14zM84 288h14v10h-14z"/>
+    <path d="M206 125h14v10h-14zM176 155h14v10h-14zM206 185h14v10h-14zM176 215h14v10h-14zM206 215h14v10h-14zM176 245h14v10h-14zM206 275h14v10h-14z"/>
+    <path d="M300 190h14v10h-14zM272 220h14v10h-14zM300 250h14v10h-14zM272 280h14v10h-14z"/>
+  </g>
+  <!-- 강 -->
+  <rect x="0" y="370" width="400" height="130" fill="#5B8FD8"/>
+  <g stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round">
+    <path d="M40 398h60M150 412h90M290 400h70"/>
+    <path d="M80 432h50M210 440h70" stroke-opacity="0.35"/>
+  </g>
+</svg>

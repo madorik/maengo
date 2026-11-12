@@ -9,6 +9,7 @@ export type AnalyticsEvent =
   | "today_build"
   | "today_fill"
   | "today_more"
+  | "onboarding_interests"
   | "item_open"
   | "source_open"
   | "listen_start"

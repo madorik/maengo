@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { answerContextAction, clearContextAction } from "@/app/(app)/context-actions";
-import { CONTEXT_GROUPS, CONTEXT_QUESTIONS, SKIP, type ContextQuestion, type UserContext } from "@/lib/context";
+import { CONTEXT_GROUPS, CONTEXT_QUESTIONS, SKIP, valuesOf, type ContextQuestion, type UserContext } from "@/lib/context";
 
 /**
  * 내 맞춤 정보(2026-11-11): 오늘 화면 맞춤 체크에서 딸깍으로 알려 준 사정을 보고 바꾸거나 지운다(설정 > 맞춤 인사이트, 2026-11-11 내 관심 키워드에서 옮김).
  * 분야별로 묶는다(경제·부동산…). 이어 묻는 질문(국내·미국, 청약, 개발 분야, 응원 팀)은 앞 답이 맞을 때만, 앞 질문 바로 아래에 보인다.
- * 바꾸면 다음에 오늘 화면을 열 때 맞춤 체크가 그 답으로 다시 만들어진다
+ * 바꾸면 다음에 오늘 화면을 열 때 맞춤 체크가 그 답으로 다시 만들어진다.
+ * 2026-11-12 '관심'(온보딩에서 고른 돈 이야기·산업)은 여러 개를 고른다: 누르면 넣고 빼며, 다 빼면 지운다
  */
 export function MyContext({ ctx }: { ctx: UserContext }) {
   const router = useRouter();
@@ -29,6 +30,15 @@ export function MyContext({ ctx }: { ctx: UserContext }) {
             {qs.map((q) => {
               const now = ctx[q.key]?.value;
               const answered = !!now && now !== SKIP;
+              const chosen = new Set(valuesOf(q, now));
+              const pick = (value: string) => {
+                if (!q.multi) return answerContextAction(q.key, value);
+                const next = new Set(chosen);
+                if (next.has(value)) next.delete(value);
+                else next.add(value);
+                const joined = q.options.map((o) => o.value).filter((v) => next.has(v)).join(",");
+                return joined ? answerContextAction(q.key, joined) : clearContextAction(q.key);
+              };
               return (
                 <li key={q.key}>
                   <div className="flex items-center justify-between gap-2">
@@ -45,9 +55,9 @@ export function MyContext({ ctx }: { ctx: UserContext }) {
                         key={o.value}
                         type="button"
                         disabled={busy}
-                        aria-pressed={now === o.value}
-                        onClick={() => run(() => answerContextAction(q.key, o.value))}
-                        className={`min-h-10 rounded-full px-4 text-[14px] font-semibold ${now === o.value ? "bg-ink text-paper" : "bg-snow text-ink"}`}
+                        aria-pressed={chosen.has(o.value)}
+                        onClick={() => run(() => pick(o.value))}
+                        className={`min-h-10 rounded-full px-4 text-[14px] font-semibold ${chosen.has(o.value) ? "bg-ink text-paper" : "bg-snow text-ink"}`}
                       >
                         {o.label}
                       </button>
