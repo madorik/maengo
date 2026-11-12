@@ -59,6 +59,8 @@ async function uploadAsc() {
   // 심사 대기에서 뺀 버전(DEVELOPER_REJECTED)도 고칠 수 있다(2026-11-12)
   const v = (await asc("GET", `/v1/apps/${APP_ID}/appStoreVersions?filter[appStoreState]=PREPARE_FOR_SUBMISSION,DEVELOPER_REJECTED`)).data[0];
   const vloc = (await asc("GET", `/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data.find((l) => l.attributes.locale === "ko");
+  // 새 기능(whatsNew): STORE.md '### 출시 노트(<버전>, …)'가 있으면 그것으로(2026-11-12, 심사에서 뺀 버전의 문구를 고칠 때)
+  const notes = md.match(new RegExp(`### 출시 노트\\(${v.attributes.versionString.replace(/\./g, "\\.")}[,)][^\n]*\n([\\s\\S]*?)(?=\n#{2,3} |$)`))?.[1]?.trim();
   await asc("PATCH", `/v1/appStoreVersionLocalizations/${vloc.id}`, {
     data: {
       type: "appStoreVersionLocalizations",
@@ -67,6 +69,7 @@ async function uploadAsc() {
         description: fullFor("App Store"),
         keywords: KEYWORDS,
         // 2026-11-12 재테크하는 직장인(맹고-문서/타겟.md)
+        ...(notes ? { whatsNew: notes } : {}),
         promotionalText: "그게 나한테 어떤 영향을 주지? 관심 분야 뉴스만 골라 요약하고, 나에게 미칠 영향까지 짚어 드려요. 출근길·퇴근길엔 읽어 드려요.",
         supportUrl: "https://watalabs.com",
         marketingUrl: "https://watalabs.com/maengo",
