@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: withBase("/"),
     name: "맹고",
     short_name: "맹고",
-    description: "내 관심 분야 소식을 요약하고, 재테크하는 나에게 미칠 영향까지 짚어 출근길·퇴근길에 읽어 드려요.",
+    description: "내 관심 분야 소식을 요약하고, 나에게 미칠 영향까지 짚어 출근길·퇴근길에 읽어 드려요.",
     categories: ["news", "productivity", "education"],
     start_url: withBase("/today"),
     scope: `${BASE_PATH}/`,

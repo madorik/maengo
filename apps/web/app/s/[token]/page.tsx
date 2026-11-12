@@ -93,7 +93,7 @@ export default async function SharedItemPage({ params }: Props) {
         </p>
       </article>
 
-      <StartBand title="내 재테크에 미칠 영향까지 받아 보세요" body="맹고가 관심 분야 소식을 골라 요약하고, 그 소식이 내 재테크에 어떤 영향을 줄지 짚어 하루 두 번 보내 드려요. 음성으로도 들을 수 있어요." />
+      <StartBand title="내게 미칠 영향까지 받아 보세요" body="맹고가 관심 분야 소식을 골라 요약하고, 그 소식이 나한테 어떤 영향을 줄지 짚어 하루 두 번 보내 드려요. 음성으로도 들을 수 있어요." />
     </PublicPage>
   );
 }
