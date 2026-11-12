@@ -22,7 +22,8 @@ export default async function LoginPage({ searchParams }: Props) {
           맹고
         </span>
       </Link>
-      <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">내 관심 소식을 하루 두 번 골라 드려요</h1>
+      {/* 2026-11-12 재테크하는 직장인(맹고-문서/타겟.md): App Store 부제·공유 이미지와 같은 말 */}
+      <h1 className="mt-2 text-center text-[16px] font-semibold text-sub">금리·환율·주식, 내게 미칠 영향까지</h1>
 
       <form action={signIn} className="mt-10 flex flex-col gap-3">
         {deleted && (
