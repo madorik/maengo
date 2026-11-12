@@ -51,7 +51,8 @@ async function uploadPlay() {
 }
 
 async function uploadAsc() {
-  const v = (await asc("GET", `/v1/apps/${APP_ID}/appStoreVersions?filter[appStoreState]=PREPARE_FOR_SUBMISSION`)).data[0];
+  // 심사 대기에서 뺀 버전(DEVELOPER_REJECTED)도 고칠 수 있다(2026-11-12)
+  const v = (await asc("GET", `/v1/apps/${APP_ID}/appStoreVersions?filter[appStoreState]=PREPARE_FOR_SUBMISSION,DEVELOPER_REJECTED`)).data[0];
   const vloc = (await asc("GET", `/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data.find((l) => l.attributes.locale === "ko");
   await asc("PATCH", `/v1/appStoreVersionLocalizations/${vloc.id}`, {
     data: {
