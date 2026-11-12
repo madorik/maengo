@@ -28,6 +28,17 @@ export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView
   const panelId = useId();
   const boxRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<string | null>(null);
+  /** 고르기 상자 자리: 누른 분야 바로 아래(2026-11-12 사용자 '선택박스가 맨 밑에 생겨, 관심 분야 밑에'). 오른쪽으로 넘치면 왼쪽으로 당긴다 */
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
+  const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const place = (chip: HTMLElement | null | undefined) => {
+    const box = boxRef.current;
+    if (!box || !chip) return null;
+    const b = box.getBoundingClientRect();
+    const c = chip.getBoundingClientRect();
+    const width = Math.min(340, b.width);
+    return { left: Math.max(0, Math.min(c.left - b.left, b.width - width)), top: c.bottom - b.top + 8, width };
+  };
 
   const serverPicked = useMemo(
     () =>
@@ -144,8 +155,14 @@ export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView
     const onDown = (e: PointerEvent) => {
       if (!boxRef.current?.contains(e.target as Node)) setOpen(null);
     };
+    // 화면 크기가 바뀌면 상자 자리를 다시 잡는다(분야 줄바꿈이 바뀐다)
+    const onResize = () => setPos(place(chipRefs.current[open]));
     document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
+    window.addEventListener("resize", onResize);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("resize", onResize);
+    };
   }, [open]);
 
   const openGroup = groups.find((g) => g.id === open);
@@ -153,10 +170,17 @@ export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView
   const trigger = (id: string, label: string, badge: string | null) => (
     <button
       key={id}
+      ref={(el) => {
+        chipRefs.current[id] = el;
+      }}
       type="button"
       aria-expanded={open === id}
       aria-controls={open === id ? panelId : undefined}
-      onClick={() => setOpen((o) => (o === id ? null : id))}
+      onClick={(e) => {
+        const next = open === id ? null : id;
+        setOpen(next);
+        setPos(next ? place(e.currentTarget) : null);
+      }}
       className={`tile inline-flex min-h-11 items-center gap-1.5 py-1 pl-3.5 pr-2.5 text-[14px] font-extrabold transition-colors ${
         open === id ? "border-sky bg-sky-tint" : "hover:bg-snow"
       }`}
@@ -217,7 +241,11 @@ export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView
         </div>
 
         {open && (
-          <div id={panelId} className="tile absolute inset-x-0 top-full z-20 mt-2 max-h-[min(60vh,460px)] overflow-y-auto overscroll-contain p-1.5 shadow-lg">
+          <div
+            id={panelId}
+            style={pos ? { left: pos.left, top: pos.top, width: pos.width } : undefined}
+            className={`tile absolute z-20 max-h-[min(60vh,460px)] overflow-y-auto overscroll-contain p-1.5 shadow-lg ${pos ? "" : "inset-x-0 top-full mt-2"}`}
+          >
             {openGroup && (
               <>
                 <CheckRow
