@@ -1,4 +1,6 @@
 packages:
   - apps/*
+  # 토스 미니앱(앱인토스)은 npm으로 따로 설치·빌드한다(Vercel 설치에 섞이지 않게)
+  - '!apps/toss'
   - packages/*
   - pipeline

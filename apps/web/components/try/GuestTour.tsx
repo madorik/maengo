@@ -35,6 +35,17 @@ export interface TourPerk {
 }
 
 type Offer = { perks: TourPerk[]; priceLabel: string; trialDays: number };
+
+/**
+ * 토스 미니앱(apps/toss, 앱인토스)에서 같은 화면을 쓸 때. 앱인토스 정책상 자체 로그인·자사 결제 권유·가입 유도를 둘 수 없어
+ * 머리의 로그인 버튼, Premium 권유 카드·끝 팝업, 맹고 AI 버튼만 빼고 나머지는 그대로 그린다(2026-11-12 사용자 '디자인 바꾸지 마')
+ */
+export interface TossMode {
+  /** 소식 음성 주소(토스용 API) */
+  audioSrc: (item: GuestItem) => string;
+  /** 머리 위 작은 말(둘러보기의 '로그인 없이 둘러보기' 자리) */
+  label: string;
+}
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
 
 const noSubscribe = () => () => {};
@@ -64,7 +75,7 @@ const setAfterLogin = (value: "trial" | null) => {
 };
 
 /** 화면에 하나 있는 오디오로 목록을 차례로 튼다. 한 소식이 끝나면 다음 소식, 마지막이 끝나면 onFinish(들어 본 소식 수) */
-function useGuestPlayer(items: GuestItem[], onFinish: (heard: number) => void) {
+function useGuestPlayer(items: GuestItem[], onFinish: (heard: number) => void, audioSrc?: (item: GuestItem) => string) {
   const n = items.length;
   const [cur, setCur] = useState(-1);
   const [status, setStatus] = useState<Status>("idle");
@@ -106,7 +117,7 @@ function useGuestPlayer(items: GuestItem[], onFinish: (heard: number) => void) {
     const it = items[i];
     if (!a || !it) return;
     if (a.dataset.key !== it.audioKey) {
-      a.src = withBase(`/api/try/audio?key=${encodeURIComponent(it.audioKey)}`);
+      a.src = audioSrc ? audioSrc(it) : withBase(`/api/try/audio?key=${encodeURIComponent(it.audioKey)}`);
       a.dataset.key = it.audioKey;
       setPosMs(0);
     }
@@ -152,13 +163,17 @@ function useGuestPlayer(items: GuestItem[], onFinish: (heard: number) => void) {
   return { cur, status, posMs, heard, play, pause, seek, retry, next };
 }
 
-export function GuestTour({ items, perks, priceLabel, trialDays }: { items: GuestItem[] } & Offer) {
+export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items: GuestItem[]; toss?: TossMode } & Offer) {
   const n = items.length;
   const [finished, setFinished] = useState(false);
-  const p = useGuestPlayer(items, (heard) => {
-    setFinished(true);
-    track("try_complete", { heard, items: n });
-  });
+  const p = useGuestPlayer(
+    items,
+    (heard) => {
+      if (!toss) setFinished(true);
+      track("try_complete", { heard, items: n });
+    },
+    toss?.audioSrc,
+  );
   const started = useRef(false);
   const offer: Offer = { perks, priceLabel, trialDays };
   const playing = p.status === "playing" || p.status === "loading";
@@ -222,23 +237,33 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
       {/* 2026-11-10 새 화면: 오늘 화면과 같은 머리말·브리핑 머리·남색 듣기 버튼·노선(사진 썸네일) */}
       <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[640px] items-center justify-between gap-3 px-4">
-          <Link href="/" aria-label="맹고 소개" className="flex min-w-0 items-center gap-2.5 no-underline">
-            <span className="text-[20px] font-bold tracking-[-0.035em] text-ink">맹고</span>
-            <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-line-dark" />
-            <span className="truncate text-[14px] font-medium text-sub">오늘 뉴스, 내게 미칠 영향은?</span>
-          </Link>
-          <AuthLink
-            signedOut={{ href: "/login", label: "로그인" }}
-            signedIn={{ href: "/today", label: "내 브리핑" }}
-            className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-line px-4 text-[14px] font-semibold text-ink no-underline hover:bg-snow"
-          />
+          {toss ? (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="text-[20px] font-bold tracking-[-0.035em] text-ink">맹고</span>
+              <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-line-dark" />
+              <span className="truncate text-[14px] font-medium text-sub">오늘 뉴스, 내게 미칠 영향은?</span>
+            </div>
+          ) : (
+            <>
+              <Link href="/" aria-label="맹고 소개" className="flex min-w-0 items-center gap-2.5 no-underline">
+                <span className="text-[20px] font-bold tracking-[-0.035em] text-ink">맹고</span>
+                <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-line-dark" />
+                <span className="truncate text-[14px] font-medium text-sub">오늘 뉴스, 내게 미칠 영향은?</span>
+              </Link>
+              <AuthLink
+                signedOut={{ href: "/login", label: "로그인" }}
+                signedIn={{ href: "/today", label: "내 브리핑" }}
+                className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-line px-4 text-[14px] font-semibold text-ink no-underline hover:bg-snow"
+              />
+            </>
+          )}
         </div>
       </header>
 
       {/* 아래는 맹고 AI 버튼(플레이어가 있으면 그 위)이 마지막 버튼을 가리지 않게 비운다 */}
       <main className={`mx-auto max-w-[640px] px-4 pt-5 lg:pt-8 ${curItem ? "pb-[calc(var(--tour-bar-h,140px)+96px)]" : "pb-[calc(96px+env(safe-area-inset-bottom))]"}`}>
         <section aria-labelledby="try-title" className="px-1.5">
-          <p className="text-[13px] font-medium text-sub">로그인 없이 둘러보기</p>
+          <p className="text-[13px] font-medium text-sub">{toss ? toss.label : "로그인 없이 둘러보기"}</p>
           <h1 id="try-title" className="mt-1 flex items-baseline gap-2.5">
             <span className="font-round text-[36px] font-black tracking-[-0.02em]">약 {totalMin}분</span>
             <span className="text-[15px] font-medium text-sub">소식 {n}개</span>
@@ -283,10 +308,10 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
               onLine={(ms) => (p.cur === i ? p.seek(ms) : start(i, "item", "card"))}
             />
           ))}
-          <RouteEnd kind="end" here={at >= n} passed={false} />
+          <RouteEnd kind="end" here={at >= n} passed={false} signupNote={!toss} />
         </ol>
 
-        <PremiumOffer offer={offer} where="list" heard={p.heard.size} total={n} className="mt-8" />
+        {!toss && <PremiumOffer offer={offer} where="list" heard={p.heard.size} total={n} className="mt-8" />}
       </main>
 
       {curItem && (
@@ -304,7 +329,7 @@ export function GuestTour({ items, perks, priceLabel, trialDays }: { items: Gues
         />
       )}
 
-      <GuestAsk item={curItem ?? items[0]!} raised={!!curItem} />
+      {!toss && <GuestAsk item={curItem ?? items[0]!} raised={!!curItem} />}
 
       {spot && <Spotlight target={listenAllRef} total={n} onStart={() => listenAll("spot")} onClose={closeSpot} />}
 
@@ -317,7 +342,7 @@ const LINE = "#FFC23D";
 const PASSED = "#D5D8E0";
 
 /** 노선의 출발·도착 줄(오늘 화면 노선과 같은 모양) */
-function RouteEnd({ kind, here, passed }: { kind: "start" | "end"; here: boolean; passed: boolean }) {
+function RouteEnd({ kind, here, passed, signupNote = true }: { kind: "start" | "end"; here: boolean; passed: boolean; signupNote?: boolean }) {
   return (
     <li className="flex h-12 items-center gap-3">
       <div aria-hidden="true" className="relative h-12 w-8 shrink-0">
@@ -339,7 +364,7 @@ function RouteEnd({ kind, here, passed }: { kind: "start" | "end"; here: boolean
         )}
       </div>
       <span className={`text-[12px] font-bold ${kind === "start" ? "text-mango-deep" : ""}`}>{kind === "start" ? "출발" : "도착"}</span>
-      {kind === "end" && <span className="text-[12px] font-medium text-sub">가입하면 출근길·퇴근길 하루 두 번 받아요</span>}
+      {kind === "end" && signupNote && <span className="text-[12px] font-medium text-sub">가입하면 출근길·퇴근길 하루 두 번 받아요</span>}
     </li>
   );
 }

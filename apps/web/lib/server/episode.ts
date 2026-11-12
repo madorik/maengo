@@ -8,7 +8,7 @@ import { estimateTimeline, layoutChapters, SEGMENT_TAIL_MS, withTrailingSilence 
 import { isLinkTopicId } from '@maengo/core/topics';
 import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
 import type { FeedItem } from '../types';
-import { basicTts, ttsEngineFor, type TtsEngine } from './ai';
+import { basicTts, premiumTts, ttsEngineFor, type TtsEngine } from './ai';
 import { TtsQuotaError } from './google-tts';
 import { audioStore } from './audio-store';
 import { db, must } from './db';
@@ -118,7 +118,8 @@ async function legacyPcm(key: string): Promise<{ pcm: Uint8Array; sampleRate: nu
 /** TTS로 만들어(또는 예전 캐시에서 옮겨) MP3로 올리고 행을 남긴다. 같은 키를 동시에 요청하면 한 번만 만든다 */
 /** 음성을 만드는 사람(사용량 기록용. Premium 듣기는 횟수 제한이 없다) */
 interface Requester {
-  userId: string;
+  /** 로그인 없이 듣는 토스 미니앱은 null(사용량은 사람 없이 남긴다) */
+  userId: string | null;
 }
 
 const LOCK_STALE_MS = 3 * 60_000;
@@ -324,6 +325,19 @@ export async function getItemEpisode(profile: Profile, clusterId: number, person
   if (!found) return null;
   const engine = await ttsEngineFor(entitlements(profile).audio);
   return assemble([found.item], persona, voice, engine, generate ? requester(profile) : null);
+}
+
+/**
+ * 로그인 없이 듣는 소식 하나(토스 미니앱, 맹고-문서/앱인토스-검토.md). Premium 음성이 이미 있으면 그것을(비용 0),
+ * 없으면 기본 음성(Free와 같은 목소리)을 쓰고, 그것도 없으면 generate일 때 만든다. 소식마다 한 번만 만들어 모두가 같이 쓴다
+ */
+export async function getPublicItemEpisode(item: FeedItem, voice: Voice, { generate }: { generate: boolean }): Promise<Episode> {
+  const persona: Persona = 'announcer';
+  if (premiumTts !== basicTts) {
+    const premium = await assemble([item], persona, voice, premiumTts, null);
+    if (premium.objectKey) return premium;
+  }
+  return assemble([item], persona, voice, basicTts, generate ? { userId: null } : null);
 }
 
 /**

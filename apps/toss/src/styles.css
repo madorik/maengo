@@ -1,0 +1,9 @@
+/* 맹고 웹과 같은 디자인 토큰·클래스(apps/web/app/globals.css)를 그대로 쓴다 */
+@import "../../web/app/globals.css";
+@source "../../web/components";
+@source "./";
+
+/* 웹은 next/font로 Nunito를 붙인다. 토스판은 같은 글꼴을 번들에 넣는다 */
+:root {
+  --font-nunito: "Nunito Variable";
+}

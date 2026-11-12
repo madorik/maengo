@@ -9,7 +9,7 @@ import { db, must } from './db';
 
 export type UsageKindForLimit = 'voice' | 'voice_link' | 'instant' | 'fill' | 'ask';
 
-export async function recordUse(userId: string, kind: UsageKindForLimit) {
+export async function recordUse(userId: string | null, kind: UsageKindForLimit) {
   const { error } = await db.from('usage_log').insert({ provider: 'maengo', kind, user_id: userId, units: 1, est_usd: 0 });
   if (error) console.error('usage_log insert', error.message);
 }
