@@ -289,18 +289,8 @@ export async function Landing() {
               <Phone src={foundShot} className="mx-auto w-[62%] max-w-[240px]" />
             </Feature>
 
+            {/* 2026-11-13 '출근길·퇴근길, 하루 두 번' 칸은 첫 화면과 같은 휴대폰 두 대라 뺐다(사용자 '중복되니까 제거하자'). 하루 두 번은 첫 화면 줄·FAQ에 있다 */}
             <Feature
-              title="출근길·퇴근길, 하루 두 번"
-              body="아침엔 출근길 브리핑, 저녁엔 그 뒤에 나온 소식으로 퇴근길 브리핑을 한 번 더 챙겨 드려요. 여러 곳에서 다룬 같은 소식은 하나로 묶고, 많이 다룬 소식을 맨 앞에 놓아요. 다 들으면 거기까지, 끝없는 스크롤은 없어요."
-            >
-              <div className="flex items-start justify-center gap-3 sm:gap-4">
-                <Phone src={todayShot} className="w-1/2 max-w-[220px]" />
-                <Phone src={todayPmShot} className="mt-10 w-1/2 max-w-[220px]" />
-              </div>
-            </Feature>
-
-            <Feature
-              flip
               title="듣기만 하면 돼요"
               body="브리핑 듣기를 누르면 소식을 끝까지 이어서 읽어 드려요. 앱에서는 화면을 꺼도 계속 들리고, 보관함에서 고른 소식만 골라 들을 수도 있어요. 목소리는 여성·남성 중에 골라요."
             >
@@ -308,6 +298,7 @@ export async function Landing() {
             </Feature>
 
             <Feature
+              flip
               title="다 읽지 않아도, 핵심만 요약해요"
               body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심만 짧게 요약하고, 원문 사진과 출처 링크를 함께 보여 드려요. 영어로 된 해외 글도 한국어로 요약해요."
             >
@@ -316,14 +307,14 @@ export async function Landing() {
 
             {/* 2026-11-13 사용자 '뉴스 내용 중에 궁금한 게 있으면 AI 제미나이한테 물어보세요, 이런 것도 넣어줘' */}
             <Feature
-              flip
               title="궁금한 건 AI 제미나이에게 물어보세요"
-              body="소식을 읽다 궁금한 게 생기면 맹고 AI 버튼을 누르세요. 구글 제미나이가 읽던 소식을 바탕으로 핵심부터 답해요. 예상 질문을 골라도 되고, 글이나 말로 물어도 돼요."
+              body="소식을 읽다 맹고 AI 버튼을 누르면, 구글 제미나이가 그 소식을 분석해 궁금해할 만한 예상 질문을 미리 만들어 둬요. 예상 질문을 골라도 되고, 다른 게 궁금하면 글이나 말로 직접 물어봐도 돼요."
             >
               <Phone src={askShot} className="mx-auto w-[62%] max-w-[240px]" />
             </Feature>
 
             <Feature
+              flip
               title="모든 소식엔 출처가 있어요"
               body="국내 경제지와 언론사, 해외 매체에서 모으고(영어 글도 한국어로), 소식마다 원문 링크가 붙어 있어 더 궁금하면 바로 확인할 수 있어요."
             >
@@ -348,7 +339,6 @@ export async function Landing() {
             </Feature>
 
             <Feature
-              flip
               title="지난 소식은 보관함에, 한 주는 리포트로"
               body="받은 소식은 보관함에 2주 동안 최신순으로 쌓이고(북마크한 소식은 계속), 분야로 거르거나 찾아서 골라 들을 수 있어요. Premium은 매주 월요일 아침, 지난주 소식을 한 줄 총평과 분야별 정리로 모은 주간 리포트를 받아요."
             >
