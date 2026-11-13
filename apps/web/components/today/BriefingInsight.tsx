@@ -189,6 +189,8 @@ function MatchCheck({ insight }: { insight: BriefingInsight }) {
   const checks = insight.checks.slice(0, 1);
   if (!personal.length && !checks.length) return null;
   const tokenOf = (id: number) => data.items.find((i) => i.clusterId === id)?.token;
+  // 퇴근길(남색 바탕)에서는 글자를 밝게(2026-11-13: 제목이 남색 글자라 안 보였다)
+  const pm = data.slot === "pm";
   // 조용한 정보 칸(2026-11-11 사용자: 망고색 블록은 너무 튀고 메인 소식처럼 보인다 → 테두리도 없이). 망고색은 체크 표시와 근거 글자에만
   return (
     <section aria-labelledby="match-title" className="mt-7">
@@ -196,14 +198,14 @@ function MatchCheck({ insight }: { insight: BriefingInsight }) {
         <IconCheck className="size-4 text-mango-deep [stroke-width:3]" />
         맞춤 체크
       </h2>
-      <ul className="mt-1 divide-y divide-line">
+      <ul className={`mt-1 divide-y ${pm ? "divide-white/10" : "divide-line"}`}>
         {personal.map((x) => {
           const token = tokenOf(x.id);
           const body = (
             <>
               <span className="block text-[12px] font-semibold text-mango-deep">{x.about}</span>
-              <span className="mt-1 block text-[16px] font-bold leading-snug tracking-[-0.02em] text-ink">{x.title}</span>
-              <span className="mt-1 block text-[14px] leading-relaxed text-sub">{x.text}</span>
+              <span className={`mt-1 block text-[16px] font-bold leading-snug tracking-[-0.02em] ${pm ? "text-white" : "text-ink"}`}>{x.title}</span>
+              <span className={`mt-1 block text-[14px] leading-relaxed ${pm ? "text-white/65" : "text-sub"}`}>{x.text}</span>
             </>
           );
           return (
@@ -220,7 +222,7 @@ function MatchCheck({ insight }: { insight: BriefingInsight }) {
         })}
         {checks.map((c) => {
           const token = tokenOf(c.id);
-          const cls = "flex items-start gap-2.5 py-3.5 text-[14px] font-medium leading-relaxed text-ink no-underline";
+          const cls = `flex items-start gap-2.5 py-3.5 text-[14px] font-medium leading-relaxed no-underline ${pm ? "text-white/85" : "text-ink"}`;
           const body = (
             <>
               <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-mango" aria-hidden="true" />

@@ -31,6 +31,7 @@ import { getPlans, monthlyPrice } from "@/lib/server/plans";
 import { AppQr } from "@/components/app-install/AppQr";
 import { AuthLink } from "./AuthLink";
 import articleShot from "./app-article.webp";
+import askShot from "./app-ask.webp";
 import foundShot from "./app-found.webp";
 import libraryShot from "./app-library.webp";
 import listenShot from "./app-listen.webp";
@@ -107,7 +108,7 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   [
     "소식에 대해 더 물어볼 수 있나요?",
-    `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 궁금한 걸 글이나 말로 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
+    `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 궁금한 걸 글이나 말로 AI 제미나이에게 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
   ],
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받아요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한${plus.dailyItems > free.dailyItems ? `, 브리핑마다 소식 ${plus.dailyItems}개` : ""}, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
@@ -308,13 +309,21 @@ export async function Landing() {
 
             <Feature
               title="다 읽지 않아도, 핵심만 요약해요"
-              body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심만 짧게 요약하고, 원문 사진과 출처 링크를 함께 보여 드려요. 영어로 된 해외 글도 한국어로 요약하고, 읽다 궁금한 건 맹고 AI에게 물어보면 돼요."
+              body="긴 글을 끝까지 읽을 필요 없어요. AI가 핵심만 짧게 요약하고, 원문 사진과 출처 링크를 함께 보여 드려요. 영어로 된 해외 글도 한국어로 요약해요."
             >
               <Phone src={articleShot} className="mx-auto w-[62%] max-w-[240px]" />
             </Feature>
 
+            {/* 2026-11-13 사용자 '뉴스 내용 중에 궁금한 게 있으면 AI 제미나이한테 물어보세요, 이런 것도 넣어줘' */}
             <Feature
               flip
+              title="궁금한 건 AI 제미나이에게 물어보세요"
+              body="소식을 읽다 궁금한 게 생기면 맹고 AI 버튼을 누르세요. 구글 제미나이가 읽던 소식을 바탕으로 핵심부터 답해요. 예상 질문을 골라도 되고, 글이나 말로 물어도 돼요."
+            >
+              <Phone src={askShot} className="mx-auto w-[62%] max-w-[240px]" />
+            </Feature>
+
+            <Feature
               title="모든 소식엔 출처가 있어요"
               body="국내 경제지와 언론사, 해외 매체에서 모으고(영어 글도 한국어로), 소식마다 원문 링크가 붙어 있어 더 궁금하면 바로 확인할 수 있어요."
             >
@@ -339,6 +348,7 @@ export async function Landing() {
             </Feature>
 
             <Feature
+              flip
               title="지난 소식은 보관함에, 한 주는 리포트로"
               body="받은 소식은 보관함에 2주 동안 최신순으로 쌓이고(북마크한 소식은 계속), 분야로 거르거나 찾아서 골라 들을 수 있어요. Premium은 매주 월요일 아침, 지난주 소식을 한 줄 총평과 분야별 정리로 모은 주간 리포트를 받아요."
             >
