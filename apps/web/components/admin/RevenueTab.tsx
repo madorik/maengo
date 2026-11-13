@@ -70,6 +70,9 @@ export async function RevenueTab({ range }: { range: AdminRange }) {
           <Card title="비용(추정)">
             <Row label="Gemini 요약·임베딩" value={`$${s.cost.geminiUsd.toFixed(2)} (${won(s.cost.geminiUsd * KRW_PER_USD)})`} />
             <Row label="Gemini 이번 달" value={`$${s.cost.geminiMonthUsd.toFixed(2)}`} />
+            {/* 2026-11-14 오늘의 흐름·맹고 AI를 OpenAI gpt-6-luna로(20261114010000_admin_openai_cost.sql). 함수 바꾸기 전 집계엔 없어서 0으로 */}
+            <Row label="OpenAI 인사이트·맹고 AI" value={`$${(s.cost.openaiUsd ?? 0).toFixed(2)} (${won((s.cost.openaiUsd ?? 0) * KRW_PER_USD)})`} />
+            <Row label="OpenAI 이번 달" value={`$${(s.cost.openaiMonthUsd ?? 0).toFixed(2)}`} />
             <Row label="새로 만든 음성" value={`${num(s.cost.voices)}개`} />
             <p className="mt-3 text-[13px] font-bold text-sub">
               TTS 이번 달 {num(s.cost.ttsMonthChars)}자 / 무료 {num(TTS_FREE_CHARS)}자

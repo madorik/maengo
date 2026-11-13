@@ -154,7 +154,7 @@ export interface RevenueStats {
   feedback: Record<string, number>;
   feedbackAll: Record<string, number>;
   content: { items: number; summaries: number; summariesTotal: number; topics: { id: string; name: string; custom: boolean; users: number }[] };
-  cost: { geminiUsd: number; geminiMonthUsd: number; ttsMonthChars: number; voices: number };
+  cost: { geminiUsd: number; geminiMonthUsd: number; openaiUsd?: number; openaiMonthUsd?: number; ttsMonthChars: number; voices: number };
 }
 
 /** 운영 탭(admin_stats_ops) */
