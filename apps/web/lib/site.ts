@@ -143,9 +143,9 @@ export const LEGAL_EFFECTIVE_DATE = koDate(LEGAL_EFFECTIVE_ON);
  */
 // 2026-11-11: 내 맞춤 정보·오늘의 흐름을 더하며 11-17 예정판(Google 신호)과 합쳐 바로 시행(사용자 결정: 실사용자가 거의 없어 7일 알림 없이)
 // 2026-11-14 운영 배포: 오늘의 흐름·맹고 AI를 OpenAI(gpt-6-luna)로 만들며 OpenAI 국외 이전·요즘 신경 쓰는 경제 부문·하는 일을 더한 판.
-//   12조대로 배포한 날에 올리고 7일 뒤 시행. 시행일부터 OpenAI로 보낸다(그 전에는 Gemini, lib/server/openai.ts openAiKey)
+//   처음엔 7일 뒤(11-21) 시행으로 냈다가 같은 날 사용자 '바로 시행해'로 11-14 바로 시행(11-11처럼). 시행일부터 OpenAI로 보낸다(lib/server/openai.ts openAiKey)
 export const PRIVACY_UPDATED_ON = "2026-11-14";
-export const PRIVACY_EFFECTIVE_ON = "2026-11-21";
+export const PRIVACY_EFFECTIVE_ON = "2026-11-14";
 export const PRIVACY_PREVIOUS_ON = "2026-11-12";
 /**
  * 맹고 AI·오늘의 흐름을 OpenAI GPT로 만드는 날인지(처리방침 시행일부터, 개발 서버는 늘). 서버 쪽 openAiKey와 같은 기준이다.
