@@ -31,6 +31,8 @@ export function MyContext({ ctx }: { ctx: UserContext }) {
               const now = ctx[q.key]?.value;
               const answered = !!now && now !== SKIP;
               const chosen = new Set(valuesOf(q, now));
+              // 최대 개수가 있으면(요즘 가장 신경 쓰는 경제 부문 2개) 다 찼을 때 고르지 않은 칩은 누를 수 없다
+              const full = !!q.max && chosen.size >= q.max;
               const pick = (value: string) => {
                 if (!q.multi) return answerContextAction(q.key, value);
                 const next = new Set(chosen);
@@ -42,7 +44,10 @@ export function MyContext({ ctx }: { ctx: UserContext }) {
               return (
                 <li key={q.key}>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[15px] font-semibold">{q.ask}</p>
+                    <p className="text-[15px] font-semibold">
+                      {q.ask}
+                      {q.max && <span className="ml-1.5 text-[13px] font-medium text-sub">{q.max}개까지</span>}
+                    </p>
                     {answered && (
                       <button type="button" disabled={busy} onClick={() => run(() => clearContextAction(q.key))} className="min-h-9 px-1 text-[13px] font-semibold text-sub underline">
                         지우기
@@ -54,10 +59,10 @@ export function MyContext({ ctx }: { ctx: UserContext }) {
                       <button
                         key={o.value}
                         type="button"
-                        disabled={busy}
+                        disabled={busy || (full && !chosen.has(o.value))}
                         aria-pressed={chosen.has(o.value)}
                         onClick={() => run(() => pick(o.value))}
-                        className={`min-h-10 rounded-full px-4 text-[14px] font-semibold ${chosen.has(o.value) ? "bg-ink text-paper" : "bg-snow text-ink"}`}
+                        className={`min-h-10 rounded-full px-4 text-[14px] font-semibold ${full && !chosen.has(o.value) ? "opacity-40" : ""} ${chosen.has(o.value) ? "bg-ink text-paper" : "bg-snow text-ink"}`}
                       >
                         {o.label}
                       </button>

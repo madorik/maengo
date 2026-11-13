@@ -22,6 +22,7 @@ export async function setUserContext(userId: string, key: string, value: string 
   if (value !== null && value !== SKIP) {
     const parts = q.multi ? value.split(',') : [value];
     if (!parts.length || new Set(parts).size !== parts.length || !parts.every((v) => q.options.some((o) => o.value === v))) return false;
+    if (q.max && parts.length > q.max) return false;
   }
   const now = new Date().toISOString();
   if (value === null) must(await db.from('user_context').delete().eq('user_id', userId).eq('key', key), 'user_context delete');

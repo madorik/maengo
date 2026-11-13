@@ -1,7 +1,8 @@
 // 맹고 캐릭터. 앱 아이콘(B안)의 얼굴을 몸 전체로 풀어 그렸다.
 // happy: 기본 / cheer: 완료 축하(눈웃음, 만세) / listen: 헤드폰을 쓰고 듣는 중
 // shiver: 헤드폰 + 추워서 떠는 중(목도리, 떨림) / squeeze: 헤드폰 + 붐비는 데 끼여 찡그린 얼굴 — 소개 페이지 '이런 순간' 카드
-export type MascotMood = "happy" | "cheer" | "listen" | "shiver" | "squeeze";
+// effort: 땀 흘리며 열심히 일하는 얼굴(아래 서류를 보는 동그란 눈, 살짝 올라간 눈썹, 혀를 살짝 내민 입, 흘러내리는 땀·튀는 땀방울) — 서류 뒤지는 맹고(components/BusyMango.tsx, 2026-11-13)
+export type MascotMood = "happy" | "cheer" | "listen" | "shiver" | "squeeze" | "effort";
 
 const INK = "#191C32";
 const BODY = "M100 46 C146 44 168 84 165 122 C162 158 130 180 96 177 C62 174 38 152 39 121 C40 99 52 86 63 73 C75 59 83 47 100 46 Z";
@@ -46,6 +47,30 @@ export function Mascot({ mood = "happy", className = "size-24", title }: { mood?
           </g>
           <path d="M85 131 Q100 158 115 131 Z" fill={INK} />
           <path d="M93 145 Q100 152 107 145 Q100 140 93 145 Z" fill="#FF6F61" />
+        </>
+      ) : mood === "effort" ? (
+        <>
+          {/* 열심히 일하며 땀 흘리는 얼굴(2026-11-13 사용자: 모인 눈썹·악문 이는 화난 것 같다 → 땀 흘리며 열심히).
+              동그란 눈으로 아래 서류를 보고, 살짝 올라간 둥근 눈썹, 집중해서 혀를 살짝 내민 입 */}
+          <circle cx="78" cy="112" r="16" fill="#fff" />
+          <circle cx="122" cy="112" r="16" fill="#fff" />
+          <circle cx="80" cy="118" r="7.5" fill={INK} />
+          <circle cx="120" cy="118" r="7.5" fill={INK} />
+          <circle cx="83" cy="114.5" r="2.4" fill="#fff" />
+          <circle cx="123" cy="114.5" r="2.4" fill="#fff" />
+          <g fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round">
+            <path d="M64 90 Q76 83 90 88" />
+            <path d="M110 88 Q124 83 136 90" />
+            <path d="M90 136 Q100 145 110 136" strokeWidth="4.5" />
+          </g>
+          <path d="M104 140 Q107 151 114 146 Q113 139 106 139 Z" fill="#FF6F61" />
+          {/* 땀: 이마의 큰 방울은 흘러내리고, 머리 위 작은 방울들은 튄다(서류 뒤지는 동안 globals.css busy-*로 움직인다) */}
+          <path className="mascot-sweat" d="M150 74 C155 82 158 87 158 91 A8 8 0 0 1 142 91 C142 87 145 82 150 74 Z" fill="#8FD0F7" />
+          <g className="mascot-spray" fill="#8FD0F7">
+            <path d="M44 66 C47 71 49 74 49 76 A5 5 0 0 1 39 76 C39 74 41 71 44 66 Z" />
+            <path d="M58 50 C60.5 54 62 56.5 62 58 A4 4 0 0 1 54 58 C54 56.5 55.5 54 58 50 Z" />
+            <path d="M160 52 C162.5 56 164 58.5 164 60 A4 4 0 0 1 156 60 C156 58.5 157.5 56 160 52 Z" />
+          </g>
         </>
       ) : mood === "squeeze" ? (
         <>

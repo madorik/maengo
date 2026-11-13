@@ -9,6 +9,7 @@ import { SiteFooter } from "@/components/public/SiteFooter";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { ASK_DAILY } from "@/lib/ask";
 import { MORE_MAX, MORE_STEP } from "@/lib/more";
+import { gptLive } from "@/lib/site";
 import { detailsLine, PUBLIC_TOPICS, topicsPath } from "@/lib/public-topics";
 import {
   APP_OPERATING_SYSTEMS,
@@ -71,7 +72,7 @@ function planItems(l: PlanLimits, askDaily: number): string[] {
 /**
  * 자주 묻는 질문. 플랜 숫자는 plans 표 값. 검색·AI 답변이 그대로 옮겨 가도 맞도록 답의 첫 문장에 결론을 쓴다
  */
-const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
+const faq = (free: PlanLimits, plus: PlanLimits, gpt: boolean): [string, string][] => [
   // 영문 이름·만든 회사를 같이 적어 '망고'·비슷한 이름의 다른 서비스와 헷갈리지 않게 한다(2026-11-06)
   [
     "맹고는 어떤 앱인가요?",
@@ -108,7 +109,7 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   [
     "소식에 대해 더 물어볼 수 있나요?",
-    `네. 소식 화면 오른쪽 아래 맹고 AI 버튼을 누르면 궁금한 걸 글이나 말로 AI 제미나이에게 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
+    `네. 소식 화면 오른쪽 아래 물어보기 버튼을 누르면 궁금한 걸 글이나 말로 ${gpt ? "AI(GPT)" : "AI 제미나이"}에게 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
   ],
   ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받아요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한${plus.dailyItems > free.dailyItems ? `, 브리핑마다 소식 ${plus.dailyItems}개` : ""}, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
@@ -157,7 +158,9 @@ export async function Landing() {
   const plans = await getPlans();
   const free = plans.get("free")!;
   const plus = plans.get("plus")!;
-  const FAQ = faq(free, plus);
+  // 처리방침 시행일(lib/site.ts gptLive)부터 맹고 AI가 GPT로 답한다. 그 전에는 제미나이 문구(이 페이지는 10분마다 다시 만든다)
+  const gpt = gptLive();
+  const FAQ = faq(free, plus, gpt);
   const navLink = "inline-flex min-h-11 items-center rounded-full px-2.5 text-[15px] font-semibold text-sub no-underline hover:bg-snow sm:px-3";
   return (
     <div className="min-h-dvh bg-paper">
@@ -305,10 +308,10 @@ export async function Landing() {
               <Phone src={articleShot} className="mx-auto w-[62%] max-w-[240px]" />
             </Feature>
 
-            {/* 2026-11-13 사용자 '뉴스 내용 중에 궁금한 게 있으면 AI 제미나이한테 물어보세요, 이런 것도 넣어줘' */}
+            {/* 2026-11-13 사용자 '뉴스 내용 중에 궁금한 게 있으면 AI 제미나이한테 물어보세요, 이런 것도 넣어줘' → 같은 날 '질문하는 것도 GPT로 바꾸자'(OpenAI gpt-6-luna) */}
             <Feature
-              title="궁금한 건 AI 제미나이에게 물어보세요"
-              body="소식을 읽다 맹고 AI 버튼을 누르면, 구글 제미나이가 그 소식을 분석해 궁금해할 만한 예상 질문을 미리 만들어 둬요. 예상 질문을 골라도 되고, 다른 게 궁금하면 글이나 말로 직접 물어봐도 돼요."
+              title={gpt ? "궁금한 건 AI(GPT)에게 물어보세요" : "궁금한 건 AI 제미나이에게 물어보세요"}
+              body={`소식을 읽다 물어보기 버튼을 누르면, ${gpt ? "OpenAI의 GPT" : "구글 제미나이"}가 그 소식을 분석해 궁금해할 만한 예상 질문을 미리 만들어 둬요. 예상 질문을 골라도 되고, 다른 게 궁금하면 글이나 말로 직접 물어봐도 돼요.`}
             >
               <Phone src={askShot} className="mx-auto w-[62%] max-w-[240px]" />
             </Feature>

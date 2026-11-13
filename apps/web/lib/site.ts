@@ -142,9 +142,18 @@ export const LEGAL_EFFECTIVE_DATE = koDate(LEGAL_EFFECTIVE_ON);
  * 고친 날(PRIVACY_UPDATED_ON)에 올리고 7일 뒤를 시행일로 한다. 시행일 전에는 처리방침 맨 위에 바뀌는 점 안내가 보인다
  */
 // 2026-11-11: 내 맞춤 정보·오늘의 흐름을 더하며 11-17 예정판(Google 신호)과 합쳐 바로 시행(사용자 결정: 실사용자가 거의 없어 7일 알림 없이)
-export const PRIVACY_UPDATED_ON = "2026-11-12";
-export const PRIVACY_EFFECTIVE_ON = "2026-11-12";
-export const PRIVACY_PREVIOUS_ON = "2026-11-11";
+// 2026-11-14 운영 배포: 오늘의 흐름·맹고 AI를 OpenAI(gpt-6-luna)로 만들며 OpenAI 국외 이전·요즘 신경 쓰는 경제 부문·하는 일을 더한 판.
+//   12조대로 배포한 날에 올리고 7일 뒤 시행. 시행일부터 OpenAI로 보낸다(그 전에는 Gemini, lib/server/openai.ts openAiKey)
+export const PRIVACY_UPDATED_ON = "2026-11-14";
+export const PRIVACY_EFFECTIVE_ON = "2026-11-21";
+export const PRIVACY_PREVIOUS_ON = "2026-11-12";
+/**
+ * 맹고 AI·오늘의 흐름을 OpenAI GPT로 만드는 날인지(처리방침 시행일부터, 개발 서버는 늘). 서버 쪽 openAiKey와 같은 기준이다.
+ * 시행 전에는 실제로 Gemini가 답하므로 GPT 표시(AiMark)·소개 문구도 이걸 따라 바꾼다(2026-11-14)
+ */
+export const gptLive = (now = new Date()) =>
+  process.env.NODE_ENV === "development" ||
+  new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(now) >= PRIVACY_EFFECTIVE_ON;
 
 /**
  * 문의 메일. 빈 메일로 문서를 공개하지 않도록 운영에서는 비어 있으면 null(문서 페이지가 404로 숨는다).

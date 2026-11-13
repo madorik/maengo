@@ -33,6 +33,8 @@ export function KeywordSlots({ keywords, limit, total }: { keywords: UserTopic[]
 
   return (
     <>
+      {/* 2026-11-13 사용자: 키워드는 오늘 소식과 이어질 때 그 키워드에 미칠 영향을 맞춤 인사이트로 주는 용도(lib/server/briefing-insight.ts 근거 K) */}
+      <p className="mb-3 px-1 text-[14px] font-medium leading-snug text-sub">오늘 소식이 내 키워드와 이어지면, 그 키워드에 어떤 영향인지 맞춤 인사이트로 짚어 드려요.</p>
       {limit <= 0 && (
         <div className="flex min-h-12 items-center justify-between gap-3">
           <span className="text-sub">목록에 없는 키워드 넣기</span>
@@ -143,7 +145,7 @@ function Row({ keyword, last, onRemoved }: RowProps & { keyword: UserTopic | nul
               }
               if (text !== tried) submit();
             }}
-            placeholder={keyword ? undefined : "목록에 없는 키워드(예: 드론, 게임)"}
+            placeholder={keyword ? undefined : "키워드(예: 삼성전자, 변동금리, 전기차)"}
             disabled={pending}
             aria-invalid={blocked || undefined}
             aria-describedby={`${id}-msg`}

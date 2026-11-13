@@ -7,6 +7,7 @@ import { TodayList } from "@/components/today/TodayList";
 import { briefingInsight } from "@/lib/server/briefing-insight";
 import { getTodayData } from "@/lib/server/feed";
 import { getUserContext } from "@/lib/server/user-context";
+import { personalOn } from "@/lib/context";
 import { billingNoticeOf } from "@/lib/billing/notice";
 import { subscriptionView } from "@/lib/server/billing";
 import { requireProfile } from "@/lib/server/session";
@@ -49,7 +50,9 @@ async function TodayInsight() {
     return null;
   });
   // 내 맞춤 정보 질문은 여기서 대놓고 묻지 않는다(2026-11-11 사용자). 기사 아래·기사에서 넘어갈 때 한 번(components/context/ContextAsk.tsx)
-  return <BriefingHero insight={insight} />;
+  // 소식이 둘 이상인데 못 만들었으면 '만들지 못했어요'를 보인다(2026-11-13 사용자: 분석 중이 뜨다 말없이 사라지면 왜인지 알려 줘야 한다)
+  const failed = !insight && data.items.length >= 2;
+  return <BriefingHero insight={insight} failed={failed} personalOff={!personalOn(ctx)} />;
 }
 
 /** 무료 체험이 이틀 안에 끝나거나 갱신 결제가 실패했으면 맨 위에 결제 안내 띠. 구독을 못 읽으면 띠 없이(오늘 목록은 그대로) */

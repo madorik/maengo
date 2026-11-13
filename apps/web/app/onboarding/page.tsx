@@ -18,5 +18,6 @@ export default async function OnboardingPage() {
   if (profile.onboarded) redirect("/today");
   // 구글 로그인 때 유튜브 구독으로 분야를 찾았으면(YOUTUBE_INTERESTS=1) 소식 고르기를 건너뛰고 결과부터 보여 준다
   const youtube = parseYoutubeSections((await cookies()).get(YOUTUBE_COOKIE)?.value);
-  return <OnboardingFlow youtube={youtube} />;
+  // 카드 다음 화면의 안내 한 줄에 프로필 이름('OO님의 맞춤 인사이트'). 호칭은 이름으로(2026-11-11)
+  return <OnboardingFlow youtube={youtube} name={profile.displayName?.trim() || null} />;
 }

@@ -1,5 +1,5 @@
 import 'server-only';
-import { GEMINI_MODELS, type UsageEvent } from '@maengo/core/ai';
+import { GEMINI_MODELS, OPENAI_MODELS, type UsageEvent } from '@maengo/core/ai';
 import { geminiChatJson } from '@maengo/core/gemini';
 import { ASK_CHIPS } from '../ask';
 import type { FeedItem } from '../types';
@@ -7,11 +7,13 @@ import { askBudgetLeft, logUsage } from './ai';
 import { article } from './ask';
 import { db } from './db';
 import { findFeedItem } from './feed';
+import { openAiKey, openaiJson } from './openai';
 import type { Profile } from './profile';
 
 // 맹고 AI 추천 질문(2026-11-03 사용자: 처음 보이는 질문 칩을 그 소식에 맞는 질문으로).
 // 소식(묶음)마다 처음 연 사람 때 Gemini로 3개를 만들어 ask_suggestions에 두고 모두가 같이 쓴다(질문 횟수에 세지 않는다).
 // 표가 없거나(마이그레이션 전) 만들지 못하면 늘 쓰는 질문(ASK_CHIPS)을 준다.
+// 2026-11-13: OpenAI gpt-6-luna로 만들고(openAiKey, 처리방침 시행일부터) 안 되면 Gemini
 
 const SYSTEM = `회원이 아래 [소식]을 읽고 '맹고 AI'에게 바로 눌러 물어볼 추천 질문 3개를 만든다.
 
@@ -53,10 +55,29 @@ export async function suggestQuestions(profile: Profile, clusterId: number): Pro
   const cached = clean((data as { questions: unknown } | null)?.questions);
   if (cached) return cached;
 
+  const openai = openAiKey();
   const key = process.env.GEMINI_API_KEY?.trim();
-  if (!key || !(await askBudgetLeft())) return ASK_CHIPS;
+  if (!openai && (!key || !(await askBudgetLeft()))) return ASK_CHIPS;
   try {
-    const questions = await generateQuestions(key, found.item, logUsage);
+    let questions: string[] | null = null;
+    if (openai) {
+      try {
+        const out = await openaiJson<{ questions?: unknown }>({
+          apiKey: openai,
+          model: OPENAI_MODELS.ask,
+          kind: 'ask',
+          system: `${SYSTEM}\n\n[소식]\n${article(found.item)}`,
+          user: '추천 질문 3개',
+          schema: SCHEMA,
+          name: 'ask_suggestions',
+          timeoutMs: 10_000,
+        });
+        questions = clean(out.questions);
+      } catch (e) {
+        console.error('[ask-suggest] OpenAI 실패, Gemini로', String((e as Error).message ?? e).slice(0, 200));
+      }
+    }
+    if (!questions && key && (await askBudgetLeft())) questions = await generateQuestions(key, found.item, logUsage);
     if (!questions) return ASK_CHIPS;
     // 동시에 연 사람이 있으면 먼저 넣은 쪽을 둔다
     const { error: saveError } = await db.from('ask_suggestions').upsert({ cluster_id: clusterId, questions }, { onConflict: 'cluster_id', ignoreDuplicates: true });

@@ -102,9 +102,21 @@ test('온보딩에서만 묻는 관심 질문은 기사 아래에서 묻지 않�
   assert.ok(!asked?.key.startsWith('int_'));
 });
 
-test('온보딩 묶음은 경제·AI·부동산·IT/과학', () => {
-  const blocks = CONTEXT_QUESTIONS.filter((q) => q.onboarding).map((q) => q.title ?? q.section);
-  assert.deepEqual(blocks, ['economy', 'AI', 'real-estate', 'it-science']);
+test('온보딩 카드 묶음은 경제·AI·부동산·IT/과학', () => {
+  const blocks = CONTEXT_QUESTIONS.filter((q) => q.onboarding && q.section).map((q) => q.title ?? q.section);
+  assert.deepEqual(blocks, ['economy', 'AI·로봇', 'real-estate', 'it-science']);
+});
+
+test('요즘 신경 쓰는 경제 부문은 카드 다음 화면에서 여러 개(제한 없음), 기사 아래에서는 묻지 않고 사정 맨 앞', () => {
+  const q = CONTEXT_QUESTIONS.find((x) => x.key === 'focus')!;
+  assert.equal(q.onboarding, true);
+  assert.equal(q.section, undefined);
+  assert.equal(q.max, undefined);
+  assert.equal(CONTEXT_QUESTIONS[0]!.key, 'focus');
+  const asked = pickQuestion({}, [item('기준금리 동결, 대출 이자 그대로'), item('코스피 5000선 공방')], B);
+  assert.notEqual(asked?.key, 'focus');
+  // 분야 id를 걸면 고르지 않은 칩을 뺄 때 분야 비중이 지워진다
+  assert.ok(q.options.every((o) => !o.topic || !['economy', 'real-estate'].includes(o.topic)));
 });
 
 test('경제 칩 세금·정책은 세금·정책 관심사(경제 분야)에 이어진다', async () => {

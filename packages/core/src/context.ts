@@ -29,6 +29,8 @@ export interface ContextQuestion {
   group: ContextGroup;
   /** 여러 개를 고른다(값은 쉼표로 이은 것, 예: 'kr_stock,us_stock') */
   multi?: true;
+  /** 여러 개를 고를 때 최대 개수(없으면 제한 없음) */
+  max?: number;
   /** 온보딩에서만 묻는다(기사 아래에서는 묻지 않는다, 2026-11-12) */
   onboarding?: true;
   /** 온보딩 한 페이지에서 이 질문을 보여 줄 분야(sections.ts SectionId) */
@@ -52,11 +54,34 @@ const FUEL = /유가|기름값|휘발유|경유|주유/;
  * 2026-11-11 사용자: 분야별 질문 전체 + 나이대에 20대. 묻지 않는 것: 정치 성향·종교·건강·노조(민감정보), 정확한 금액·종목·주소·나이
  */
 export const CONTEXT_QUESTIONS: ContextQuestion[] = [
+  // 요즘 신경 쓰는 경제 부문(2026-11-13, 화면 글에 '돈'은 쓰지 않는다): 카드를 누르면 분야를 통째로 고르게 되어 '관심'만으로는 무엇을 먼저 짚을지 알 수 없었다.
+  // 온보딩 카드 다음 한 화면에서 고르게 한다. 개수 제한은 없다(2026-11-13 사용자 '관심사 제한 두지마, 많이 알수록 인사이트 분석하기 좋다', 처음엔 2개까지였다)(맹고-문서/오늘의-흐름.md '맞춤 정보 검토'). 가진 것을 묻지 않고 '신경 쓰는 것'으로 묻는다.
+  // topic: 고르면 그 주제 소식을 브리핑에서 더 받는다(분야 id는 걸지 않는다. 빼면 분야 비중이 지워진다)
+  {
+    key: "focus",
+    ask: "요즘 신경 쓰는 경제 부문",
+    about: "관심",
+    trigger: /$^/,
+    group: "경제",
+    multi: true,
+    onboarding: true,
+    options: [
+      { value: "kr_stock", label: "국내 주식", fact: "요즘 국내 주식을 신경 써요", topic: "kospi" },
+      { value: "us_stock", label: "미국 주식", fact: "요즘 미국 주식을 신경 써요", topic: "stock-us" },
+      { value: "crypto", label: "코인", fact: "요즘 코인을 신경 써요", topic: "coin" },
+      // 환율(11-07~13 받은 소식의 6%가 환율에 닿았다. 해외 결제·수출입 일), 칸을 2×4로 맞춘다
+      { value: "fx", label: "환율", fact: "요즘 환율을 신경 써요", topic: "macro" },
+      { value: "deposit", label: "예적금", fact: "요즘 예적금 이자를 신경 써요", topic: "macro" },
+      { value: "loan", label: "대출 이자", fact: "요즘 대출 이자를 신경 써요", topic: "macro" },
+      { value: "home", label: "내 집 마련", fact: "요즘 내 집 마련을 신경 써요" },
+      { value: "house_price", label: "집값", fact: "요즘 집값을 신경 써요" },
+    ],
+  },
   // 분야별 관심(선택지는 많이 고를 만한 것부터, 온보딩은 앞 3개만 먼저 보인다)
   // 2026-11-12 사용자: 온보딩 한 페이지에서 분야마다 고른다, 예민하지 않은 '관심'만. 정치는 묻지 않는다. 사회·생활/문화·스포츠·엔터·세계는 온보딩에서 뺐다). 여러 개, 기사 아래에서는 묻지 않는다
   {
     key: "int_economy",
-    ask: "관심 있는 돈 이야기",
+    ask: "관심 있는 경제 이야기",
     about: "관심",
     trigger: /$^/,
     group: "경제",
@@ -73,22 +98,23 @@ export const CONTEXT_QUESTIONS: ContextQuestion[] = [
       { value: "tax", label: "세금·정책", fact: "세금·정책 변화(세법·예산·대출 규제·연금)에 관심 있어요", topic: "tax-policy" },
     ],
   },
-  // AI(2026-11-12 사용자 'AI 관련된 것도 넣어줘'): 분야는 IT/과학, 온보딩에서는 따로 한 묶음
+  // AI(2026-11-12 사용자 'AI 관련된 것도 넣어줘'): 분야는 IT/과학, 온보딩에서는 따로 한 묶음. 2026-11-13 사용자 'AI에 로봇도 같이 넣어' → AI·로봇
   {
     key: "int_ai",
-    ask: "관심 있는 AI 이야기",
+    ask: "관심 있는 AI·로봇 이야기",
     about: "관심",
     trigger: /$^/,
     group: "IT/과학",
     multi: true,
     onboarding: true,
     section: "it-science",
-    title: "AI",
+    title: "AI·로봇",
     pick: "ai",
     options: [
       { value: "model", label: "새 AI 모델", fact: "새 AI 모델(ChatGPT·Gemini·Claude 등) 소식에 관심 있어요", topic: "llm-dev" },
       { value: "invest", label: "AI 투자·관련주", fact: "AI 투자와 관련 기업 주가에 관심 있어요", topic: "ai" },
       { value: "service", label: "AI 서비스·앱", fact: "AI 서비스·앱에 관심 있어요", topic: "ai" },
+      { value: "robot", label: "로봇", fact: "로봇·휴머노이드에 관심 있어요", topic: "robot" },
       { value: "work", label: "AI로 일하기", fact: "일에 AI를 쓰는 데 관심 있어요", topic: "ai-automation" },
       { value: "rules", label: "AI 규제·일자리", fact: "AI 규제와 일자리 변화에 관심 있어요" },
     ],
@@ -287,8 +313,12 @@ export const CONTEXT_QUESTIONS: ContextQuestion[] = [
       { value: "it", label: "IT·개발", fact: "IT·개발 일을 해요" },
       { value: "finance", label: "금융", fact: "금융 일을 해요" },
       { value: "maker", label: "제조", fact: "제조업에서 일해요" },
-      { value: "public", label: "공공·교육", fact: "공공·교육 분야에서 일해요" },
+      // 2026-11-13: 11-07~13 받은 소식의 업종 낱말에 바이오·건설이 자주 나와 더함, 물류·운송은 유가·관세·환율에 닿아 더함(온보딩 3×3)
+      { value: "build", label: "건설·부동산", fact: "건설·부동산 분야에서 일해요" },
+      { value: "bio", label: "의료·바이오", fact: "의료·바이오 분야에서 일해요" },
+      { value: "logistics", label: "물류·운송", fact: "물류·운송 분야에서 일해요" },
       { value: "service", label: "서비스·유통", fact: "서비스·유통 일을 해요" },
+      { value: "public", label: "공공·교육", fact: "공공·교육 분야에서 일해요" },
       { value: "etc", label: "기타", fact: "" },
     ],
   },
@@ -334,13 +364,13 @@ export const CONTEXT_QUESTIONS: ContextQuestion[] = [
   },
   {
     key: "savings",
-    ask: "돈은 주로 어디에 두세요?",
+    ask: "주로 어떻게 모으세요?",
     about: "금리 소식",
     group: "경제",
     trigger: /금리|예금|적금|이자|기준금리|파킹통장|저축|한국은행|한은/,
     options: [
-      { value: "deposit", label: "예적금", fact: "돈은 주로 예적금에 둬요" },
-      { value: "invest", label: "투자", fact: "돈은 주로 투자에 둬요" },
+      { value: "deposit", label: "예적금", fact: "주로 예적금으로 모아요" },
+      { value: "invest", label: "투자", fact: "주로 투자로 모아요" },
       { value: "both", label: "반반", fact: "예적금과 투자를 반반 해요" },
     ],
   },
@@ -504,19 +534,38 @@ export const SKIP_DAYS = 7;
 
 export type UserContext = Record<string, { value: string; updatedAt: string }>;
 
-/** 인사이트에 줄 회원 사정 문장들(나중에·모름·기타는 뺀다) */
-export function contextFacts(ctx: UserContext): string[] {
-  const facts: string[] = [];
+/** 회원 사정 하나(질문 key·고른 값·칩 이름·인사이트에 주는 말) */
+export interface ContextFact {
+  key: string;
+  value: string;
+  label: string;
+  fact: string;
+  /** 분야를 통째로 고른 '관심'(온보딩 카드 한 번 누름)이라 무엇에 관심 있는지 알려 주지 않는다 */
+  whole?: boolean;
+}
+
+/** 인사이트에 줄 회원 사정(나중에·모름·기타는 뺀다). 질문 목록 차례(요즘 신경 쓰는 경제 부문이 맨 앞) */
+export function contextFactItems(ctx: UserContext): ContextFact[] {
+  const out: ContextFact[] = [];
   for (const q of CONTEXT_QUESTIONS) {
     const v = ctx[q.key]?.value;
     if (!v || v === SKIP) continue;
     if (q.after && ctx[q.after.key]?.value !== q.after.value) continue;
-    for (const value of valuesOf(q, v)) {
-      const fact = q.options.find((o) => o.value === value)?.fact;
-      if (fact) facts.push(fact);
+    const values = valuesOf(q, v);
+    // 온보딩 카드(분야를 통째로 고름)만. 선택지를 나중에 더해도(11-13 AI에 로봇) 예전에 카드를 누른 회원을 통째로 보게 80% 이상이면 통째로.
+    // '요즘 신경 쓰는 경제 부문'은 많이 골라도 하나하나가 사정이다(개수 제한 없음, 2026-11-13)
+    const whole = !!q.multi && !!q.section && q.options.length > 2 && values.length >= Math.ceil(q.options.length * 0.8);
+    for (const value of values) {
+      const o = q.options.find((x) => x.value === value);
+      if (o?.fact) out.push({ key: q.key, value, label: o.label, fact: o.fact, ...(whole ? { whole } : {}) });
     }
   }
-  return facts;
+  return out;
+}
+
+/** 인사이트에 줄 회원 사정 문장들(나중에·모름·기타는 뺀다) */
+export function contextFacts(ctx: UserContext): string[] {
+  return contextFactItems(ctx).map((f) => f.fact);
 }
 
 /** 저장된 값을 고른 값들로(여러 개를 고르는 질문은 쉼표로 이어 저장한다) */

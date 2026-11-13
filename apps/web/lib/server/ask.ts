@@ -1,10 +1,11 @@
 import 'server-only';
-import { GEMINI_MODELS, type UsageEvent } from '@maengo/core/ai';
+import { GEMINI_MODELS, OPENAI_MODELS, type UsageEvent } from '@maengo/core/ai';
 import { geminiChatStream } from '@maengo/core/gemini';
 import { ASK_ANSWER_MAX, ASK_DAILY, ASK_HISTORY_TURNS, ASK_TEXT_MAX, plainAnswer, type AskTurn } from '../ask';
 import type { FeedItem } from '../types';
 import { askBudgetLeft, logUsage } from './ai';
 import { findFeedItem } from './feed';
+import { openAiKey, openaiStream } from './openai';
 import { recordUse, usesToday } from './limits';
 import type { Profile } from './profile';
 
@@ -13,6 +14,8 @@ import type { Profile } from './profile';
 // 읽고 있는 소식은 맥락으로 같이 준다(받은 적 있는 소식만 findFeedItem으로 서버가 다시 읽는다. 화면이 보낸 글은 믿지 않는다).
 // 질문·답은 저장하지 않는다. 하루 횟수만 usage_log(kind 'ask')로 센다. 정책은 맹고-문서/소식-물어보기.md
 // 답은 다 쓰기를 기다리지 않고 조각으로 흘려 보낸다(2026-11-04, app/api/ask/route.ts가 SSE로). 평문 정리는 화면이 받은 글 전체에 건다(plainAnswer)
+// 2026-11-13 사용자 '질문하는 것도 GPT로 바꾸자': OpenAI gpt-6-luna로(lib/server/openai.ts openaiStream). 첫 조각 전에 실패하면 Gemini로.
+// OpenAI는 처리방침 시행일부터(openAiKey), 그 전이나 AI_PROVIDER=gemini면 Gemini
 
 const SYSTEM = `너는 '맹고' 앱의 AI '맹고 AI'다. 회원은 아래 [읽고 있는 소식]을 보다가 너에게 묻는다. 무엇을 물어도 답한다.
 
@@ -77,15 +80,19 @@ export async function startAsk(profile: Profile, clusterId: number, question: st
   if (!found) return { ok: false, error: 'not_found' };
   if (used >= ASK_DAILY[profile.plan]) return { ok: false, error: 'daily_limit' };
 
+  const openai = openAiKey();
   const key = process.env.GEMINI_API_KEY?.trim();
-  if (!key || !(await askBudgetLeft())) return { ok: false, error: 'busy' };
+  // Gemini 지출 상한(ASK_DAILY_USD_CAP)은 Gemini로 답할 때만 본다(OpenAI는 선불 크레딧이 상한, 다 쓰면 Gemini로)
+  const geminiOk = !!key && (openai ? true : await askBudgetLeft());
+  if (!openai && !geminiOk) return { ok: false, error: 'busy' };
 
   return {
     ok: true,
     async *stream(signal) {
       let raw = '';
       try {
-        for await (const piece of answerStream(key, found.item, q, history, logUsage, signal)) {
+        const pieces = openai ? answerWithFallback(openai, key, found.item, q, history, signal) : answerStream(key!, found.item, q, history, logUsage, signal);
+        for await (const piece of pieces) {
           raw += piece;
           yield piece;
           // 너무 길면 그만 받는다(화면도 ASK_ANSWER_MAX에서 자른다)
@@ -99,6 +106,36 @@ export async function startAsk(profile: Profile, clusterId: number, question: st
       await recordUse(profile.id, 'ask');
     },
   };
+}
+
+/** OpenAI로 답을 흘려 받고, 첫 조각 전에 실패하면(크레딧 소진·혼잡·시간 초과) Gemini로 다시 */
+async function* answerWithFallback(
+  openaiKey: string,
+  geminiKey: string | undefined,
+  item: FeedItem,
+  question: string,
+  history: AskTurn[],
+  signal: AbortSignal,
+): AsyncGenerator<string> {
+  let wrote = false;
+  try {
+    for await (const piece of openaiStream({
+      apiKey: openaiKey,
+      model: OPENAI_MODELS.ask,
+      kind: 'ask',
+      system: `${SYSTEM}\n\n[읽고 있는 소식]\n${article(item)}`,
+      turns: [...history, { role: 'user', text: question }],
+      timeoutMs: 25_000,
+      signal,
+    })) {
+      wrote = true;
+      yield piece;
+    }
+  } catch (e) {
+    if (wrote || signal.aborted || !geminiKey || !(await askBudgetLeft())) throw e;
+    console.error('[ask] OpenAI 실패, Gemini로', String((e as Error).message ?? e).slice(0, 200));
+    yield* answerStream(geminiKey, item, question, history, logUsage, signal);
+  }
 }
 
 /** Gemini에 읽고 있는 소식과 질문을 주고 답을 조각으로 받는다(횟수·상한 확인 없이) */
