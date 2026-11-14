@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { IconCheck, IconPlay } from "@/components/icons";
+import { IconCheck, IconChevronRight, IconPlay } from "@/components/icons";
+import { AskChat, type AskTarget } from "@/components/article/AskChat";
+import { AiMark } from "@/components/ui/AiMark";
 import { BusyMango } from "@/components/BusyMango";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useCallName } from "@/components/providers/ProfileProvider";
@@ -14,6 +16,7 @@ import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight, InsightTone } from "@/lib/server/briefing-insight";
 import { SEEN_MIN } from "@/lib/insight-rules";
+import { track } from "@/lib/analytics";
 
 /**
  * 오늘 화면 머리(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다 → 오늘의 흐름 한 줄이 큰 제목, 'OO님에게 맞춤 인사이트'라고 부른다).
@@ -204,7 +207,7 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
         })}
       </ul>
       <Sheet title={opened?.title ?? ""} open={!!opened} onClose={() => setOpen(null)}>
-        {opened && <FlowDetail flow={opened} onClose={() => setOpen(null)} />}
+        {opened && open !== null && <FlowDetail key={open} flow={opened} index={open} onClose={() => setOpen(null)} />}
       </Sheet>
     </>
   );
@@ -367,6 +370,19 @@ function sourceLine(items: FeedItem[]): string {
   return `${names[0]}${more > 0 ? ` 외 ${more}곳` : ""} 보도${date ? `, ${date}` : ""}`;
 }
 
+/**
+ * 흐름 상세 물어보기의 추천 질문(AI를 부르지 않고 흐름에서 바로). 글 화면 기본 질문(ASK_CHIPS)처럼 반말.
+ * 내 관심 꼬리표('자주 보는 경제', '3일 전 읽은 … 소식')는 문장에 넣으면 어색해서 쓰지 않는다
+ */
+function flowChips(flow: BriefingInsight["flows"][number]): string[] {
+  const tone = flow.effect && flow.tone ? flow.tone : null;
+  return [
+    tone ? `왜 ${TONE_LABEL[tone]}${tone === "watch" ? "라고" : "이라고"} 봤어?` : "이게 왜 나랑 관련 있어?",
+    "앞으로 뭘 지켜보면 돼?",
+    "더 쉽게 설명해 줘",
+  ];
+}
+
 /** 판단 색(2026-11-13 사용자 지정: 긍정 요인 파랑, 부담 요인 주황, 지켜볼 변수 빨강) */
 const VERDICT: Record<InsightTone, { text: string; rule: string }> = {
   plus: { text: "text-plus", rule: "border-plus" },
@@ -391,10 +407,13 @@ function Part({ label, children }: { label: string; children: ReactNode }) {
  * 증권사 리서치 노트처럼 맹고의 판단과 확인된 사실을 나눠 믿을 수 있게:
  * 맨 위 '맹고 분석'(판단 색 굵은 왼쪽 선 + 내 관심 칩 + 판단 낱말 크게 + 나에게 미칠 영향 한 문장) — 눈에 띄는 건 이것 하나 →
  * 확인된 사실(숫자 그대로, 보도 언론·날짜) → 왜 나와 관련 있나요(관심과의 연결·읽던 소식) → 다음에 확인할 것 → 배경(흐리게) → 관련 소식 → 듣기.
- * 번호(①②③)는 순서가 아니라서 뺐다. 판단이 없는 예전 형식은 '왜'를 영향 자리에
+ * 번호(①②③)는 순서가 아니라서 뺐다. 판단이 없는 예전 형식은 '왜'를 영향 자리에.
+ * 2026-11-14 사용자 '인사이트에도 물어보기 기능 넣어줘': 분석 끝에 '이 분석에 대해 물어보기' → 같은 시트가 맹고 AI 대화로 바뀐다(글 화면과 같은 AskChat,
+ * 하루 횟수도 같이 센다). 서버가 저장된 이 흐름과 관련 소식을 맥락으로 붙인다(lib/server/ask.ts). 추천 질문은 흐름에서 바로 만든다
  */
-function FlowDetail({ flow, onClose }: { flow: BriefingInsight["flows"][number]; onClose: () => void }) {
+function FlowDetail({ flow, index, onClose }: { flow: BriefingInsight["flows"][number]; index: number; onClose: () => void }) {
   const { data, listenAccess } = useToday();
+  const [asking, setAsking] = useState(false);
   const p = usePlayer();
   const related = flow.ids.map((id) => data.items.find((i) => i.clusterId === id)).filter((i): i is FeedItem => !!i);
   const canListen = p.enabled && related.some((i) => listenAccess(i.clusterId) !== null);
@@ -404,6 +423,27 @@ function FlowDetail({ flow, onClose }: { flow: BriefingInsight["flows"][number];
   const effect = flow.effect || flow.why;
   const tone: InsightTone = flow.effect && flow.tone ? flow.tone : "watch";
   const verdict = VERDICT[tone];
+  const target: AskTarget = {
+    key: `flow.${data.date}.${data.slot ?? "am"}.${index}`,
+    ref: { flow: { date: data.date, slot: data.slot ?? "am", index } },
+    category: "insight",
+    chips: flowChips(flow),
+  };
+  if (asking) {
+    return (
+      <div className="pb-2">
+        <button
+          type="button"
+          onClick={() => setAsking(false)}
+          className="-ml-1.5 mb-2 inline-flex min-h-11 items-center gap-0.5 rounded-xl px-1.5 text-[14px] font-semibold text-sub hover:bg-snow hover:text-ink"
+        >
+          <IconChevronRight className="size-4 rotate-180" />
+          분석 보기
+        </button>
+        <AskChat target={target} variant="sheet" />
+      </div>
+    );
+  }
   return (
     <div className="pb-2">
       {/* 맹고 분석: 이 화면에서 눈에 띄는 단 하나 */}
@@ -457,6 +497,20 @@ function FlowDetail({ flow, onClose }: { flow: BriefingInsight["flows"][number];
           <p className="text-[14px] leading-[1.7] text-sub">{flow.text}</p>
         </Part>
       </div>
+      <button
+        type="button"
+        onClick={() => {
+          setAsking(true);
+          track("ask", { category: "insight", action: "open" });
+        }}
+        className="mb-5 flex w-full items-center gap-3 rounded-2xl border-2 border-line bg-paper py-2.5 pl-2.5 pr-3 text-left hover:bg-snow"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-snow">
+          <AiMark className="size-6" />
+        </span>
+        <span className="min-w-0 flex-1 text-[15px] font-bold tracking-[-0.02em] text-ink">이 분석에 대해 물어보기</span>
+        <IconChevronRight className="size-5 shrink-0 text-faint" />
+      </button>
       <p className="mt-2 border-t border-line pt-4 text-[13px] font-semibold text-sub">관련 소식 {related.length}개</p>
       <ul className="mt-2 flex flex-col">
         {related.map((i) => {

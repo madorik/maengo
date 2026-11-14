@@ -8,7 +8,7 @@ import { AiMark } from "@/components/ui/AiMark";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { track } from "@/lib/analytics";
-import { ASK_CHIPS, ASK_DAILY, ASK_TEXT_MAX, parseAskFrames, plainAnswer, type AskTurn } from "@/lib/ask";
+import { ASK_CHIPS, ASK_DAILY, ASK_TEXT_MAX, parseAskFrames, plainAnswer, type AskRef, type AskTurn } from "@/lib/ask";
 import { withBase } from "@/lib/base-path";
 import { startVoice, voiceKind } from "@/lib/native/voice";
 import type { FeedItem } from "@/lib/types";
@@ -20,6 +20,25 @@ import type { FeedItem } from "@/lib/types";
 // 답은 서버가 SSE로 조각조각 보내고(2026-11-04), 받는 대로 말풍선에 써 나간다. 다 받은 답만 대화에 남긴다.
 // 처음엔 그 소식에 맞춘 추천 질문 3개를 보인다(서버가 소식마다 한 번 만들어 둔다, lib/server/ask-suggest.ts).
 // 마이크로 말하면 알아들은 글이 입력칸에 채워지고, 보내기는 사람이 누른다(잘못 알아들은 걸 고칠 수 있게, lib/native/voice.ts).
+// 2026-11-14 오늘의 흐름 상세(components/today/BriefingInsight.tsx)에서도 연다: 대상(AskTarget)이 흐름이면 서버가 그 흐름과 관련 소식을 맥락으로 붙이고,
+// 추천 질문은 화면이 흐름에서 바로 만든다(AI를 부르지 않는다).
+
+/** 무엇에 대해 묻는지. key는 대화를 기억하는 이름(글은 소식 번호 그대로라 예전 대화가 이어진다) */
+export type AskTarget = {
+  key: string;
+  /** /api/ask에 질문과 같이 보내는 대상(lib/server/ask.ts AskRef) */
+  ref: AskRef;
+  /** GA4 ask 이벤트의 category(흐름은 'insight') */
+  category?: string;
+  /** 정해 둔 추천 질문. 없으면 서버에서 받는다(글만) */
+  chips?: string[];
+};
+
+export const articleTarget = (item: Pick<FeedItem, "clusterId" | "category">): AskTarget => ({
+  key: String(item.clusterId),
+  ref: { clusterId: item.clusterId },
+  category: item.category,
+});
 
 type Message = AskTurn & { id: number };
 type Problem = "daily_limit" | "failed" | "mic_denied" | "mic_failed";
@@ -27,18 +46,18 @@ type Problem = "daily_limit" | "failed" | "mic_denied" | "mic_failed";
 const noSubscribe = () => () => {};
 
 /** 이 탭에서 받아 둔 추천 질문(창을 다시 열 때 또 묻지 않게) */
-const suggested = new Map<number, string[]>();
+const suggested = new Map<string, string[]>();
 
 // 글마다 대화(JSON 글). 메모리가 먼저고, sessionStorage는 새로 불러왔을 때를 위해 같이 쓴다(막힌 브라우저는 메모리에만)
-const memory = new Map<number, string>();
+const memory = new Map<string, string>();
 const listeners = new Set<() => void>();
-const storageKey = (clusterId: number) => `maengo.ask.${clusterId}`;
+const storageKey = (key: string) => `maengo.ask.${key}`;
 
-function readRaw(clusterId: number): string {
-  const hit = memory.get(clusterId);
+function readRaw(key: string): string {
+  const hit = memory.get(key);
   if (hit !== undefined) return hit;
   try {
-    return sessionStorage.getItem(storageKey(clusterId)) ?? "[]";
+    return sessionStorage.getItem(storageKey(key)) ?? "[]";
   } catch {
     return "[]";
   }
@@ -53,11 +72,11 @@ function parse(raw: string): Message[] {
   }
 }
 
-function write(clusterId: number, messages: Message[]) {
+function write(key: string, messages: Message[]) {
   const raw = JSON.stringify(messages.slice(-20));
-  memory.set(clusterId, raw);
+  memory.set(key, raw);
   try {
-    sessionStorage.setItem(storageKey(clusterId), raw);
+    sessionStorage.setItem(storageKey(key), raw);
   } catch {
     // 사생활 보호 모드 등은 메모리에만
   }
@@ -99,9 +118,13 @@ function subscribe(l: () => void) {
  * window: 웹의 떠 있는 창. 창 높이를 나눠 쓰고 대화만 스크롤한다.
  * sheet: 앱의 아래 시트. 시트는 내용만큼 올라오고(최대 85%), 대화가 길면 대화만 스크롤한다(시트 끌기는 막는다)
  */
-export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | "category">; variant: "window" | "sheet" }) {
+export function AskChat({ target, variant }: { target: AskTarget; variant: "window" | "sheet" }) {
   const profile = useProfile();
-  const id = item.clusterId;
+  const id = target.key;
+  const ref = target.ref;
+  const category = target.category;
+  /** 추천 질문을 서버에서 받는 글(흐름은 정해 둔 질문이라 받지 않는다). 대상 객체는 그릴 때마다 새로 만들어지니 숫자로 본다 */
+  const suggestId = "clusterId" in ref ? ref.clusterId : null;
   // 서버에서는 빈 대화로 그리고, 붙은 뒤 이 탭에 남은 대화를 읽는다
   const raw = useSyncExternalStore(subscribe, () => readRaw(id), () => "[]");
   const messages = useMemo(() => parse(raw), [raw]);
@@ -121,14 +144,14 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
   const voice = useSyncExternalStore(noSubscribe, voiceKind, () => null);
   const [listening, setListening] = useState(false);
   const stopVoice = useRef<(() => void) | null>(null);
-  const [chips, setChips] = useState<string[] | null>(() => suggested.get(id) ?? null);
+  const [chips, setChips] = useState<string[] | null>(() => target.chips ?? suggested.get(id) ?? null);
 
   // 추천 질문: 대화가 비어 있을 때만 받는다. 못 받으면 늘 쓰는 질문
   const empty = messages.length === 0 && !waiting;
   useEffect(() => {
-    if (!empty || chips) return;
+    if (!empty || chips || suggestId === null) return;
     let live = true;
-    fetch(withBase(`/api/ask/suggest?clusterId=${id}`))
+    fetch(withBase(`/api/ask/suggest?clusterId=${suggestId}`))
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { questions?: unknown } | null) => {
         const list = Array.isArray(data?.questions) && data.questions.every((q) => typeof q === "string") ? (data.questions as string[]) : ASK_CHIPS;
@@ -141,7 +164,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
     return () => {
       live = false;
     };
-  }, [empty, chips, id]);
+  }, [empty, chips, id, suggestId]);
 
   // 글이 바뀌면(적기·음성) 입력칸 높이를 맞춘다(최대 120px)
   useEffect(() => {
@@ -162,7 +185,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
     }
     setProblem(null);
     setListening(true);
-    track("ask", { category: item.category, action: "voice" });
+    track("ask", { category, action: "voice" });
     // 이미 적어 둔 글 뒤에 이어 붙인다
     const before = text.trim() ? `${text.trim()} ` : "";
     stopVoice.current = await startVoice(voice, {
@@ -210,7 +233,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
       const res = await fetch(withBase("/api/ask"), {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clusterId: id, question, history }),
+        body: JSON.stringify({ ...ref, question, history }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -224,14 +247,14 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
         setStreaming("");
         setWaiting(false);
       });
-      track("ask", { category: item.category, action: "answered" });
+      track("ask", { category, action: "answered" });
     } catch (e) {
       // 답을 못 받은 질문은 지우고 입력칸에 돌려놓는다
       write(id, parse(readRaw(id)).slice(0, -1));
       setText(question);
       const limit = (e as Error).message === "daily_limit";
       setProblem(limit ? "daily_limit" : "failed");
-      track("ask", { category: item.category, action: limit ? "limit" : "error" });
+      track("ask", { category, action: limit ? "limit" : "error" });
     } finally {
       setStreaming("");
       setWaiting(false);
@@ -363,7 +386,7 @@ export function AskChat({ item, variant }: { item: Pick<FeedItem, "clusterId" | 
           className="flex items-end gap-2"
         >
           <label htmlFor="ask-text" className="sr-only">
-            이 소식에 대해 물어볼 말
+            {"flow" in ref ? "이 분석에 대해 물어볼 말" : "이 소식에 대해 물어볼 말"}
           </label>
           <textarea
             id="ask-text"

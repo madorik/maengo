@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { askFrame } from "@/lib/ask";
+import { askFrame, parseAskRef } from "@/lib/ask";
 import { parseHistory, startAsk, type AskError } from "@/lib/server/ask";
 import { currentProfile } from "@/lib/server/session";
 
-// 글 화면의 맹고 AI(components/article/AskChat.tsx). POST { clusterId, question, history } (lib/server/ask.ts)
+// 맹고 AI(components/article/AskChat.tsx). POST { clusterId | flow: { date, slot, index }, question, history } (lib/server/ask.ts)
+// flow는 오늘 화면 오늘의 흐름 상세에서 물을 때(2026-11-14)
 // 물을 수 없으면 JSON {error}와 상태 코드. 되면 SSE로 답 조각을 흘려 보낸다: delta {text} … → done 또는 error(lib/ask.ts askFrame)
 export const maxDuration = 30;
 
@@ -13,9 +14,9 @@ export async function POST(request: NextRequest) {
   const profile = await currentProfile();
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await request.json().catch(() => null);
-  const clusterId = Number(body?.clusterId);
-  if (!Number.isInteger(clusterId) || typeof body?.question !== "string") return NextResponse.json({ error: "bad_request" }, { status: 400 });
-  const res = await startAsk(profile, clusterId, body.question, parseHistory(body.history));
+  const ref = parseAskRef(body);
+  if (!ref || typeof body?.question !== "string") return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  const res = await startAsk(profile, ref, body.question, parseHistory(body.history));
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: STATUS[res.error] });
 
   const answer = res.stream;

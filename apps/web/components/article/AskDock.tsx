@@ -8,7 +8,7 @@ import { track } from "@/lib/analytics";
 import { isAppUserAgent } from "@/lib/app-client";
 import { claimDock, releaseDock, useDock } from "@/lib/float-dock";
 import type { FeedItem } from "@/lib/types";
-import { AskChat } from "./AskChat";
+import { AskChat, articleTarget } from "./AskChat";
 
 const noSubscribe = () => () => {};
 
@@ -89,7 +89,7 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
           {open && (
             <>
               <p className="-mt-1 mb-3 truncate text-[13px] font-bold text-sub">{item.title}</p>
-              <AskChat item={item} variant="sheet" />
+              <AskChat target={articleTarget(item)} variant="sheet" />
             </>
           )}
         </Sheet>
@@ -121,7 +121,7 @@ export function AskDock({ item }: { item: Pick<FeedItem, "clusterId" | "category
               <IconChevronDown className="size-6" />
             </button>
           </header>
-          <AskChat item={item} variant="window" />
+          <AskChat target={articleTarget(item)} variant="window" />
         </div>
       )}
       {launcher}

@@ -15,6 +15,22 @@ export const ASK_CHIPS = ["더 쉽게 설명해 줘", "왜 중요한 소식이�
 
 export type AskTurn = { role: "user" | "model"; text: string };
 
+/** 무엇을 보다가 묻는지: 글 화면의 소식, 또는 오늘 화면 오늘의 흐름 하나(그 브리핑의 몇 번째 흐름, 2026-11-14) */
+export type AskRef = { clusterId: number } | { flow: { date: string; slot: "am" | "pm"; index: number } };
+
+/** 화면이 보낸 대상을 믿을 수 있는 모양으로(아니면 null). 흐름이 있으면 흐름으로 본다 */
+export function parseAskRef(body: unknown): AskRef | null {
+  const b = body as { clusterId?: unknown; flow?: { date?: unknown; slot?: unknown; index?: unknown } } | null;
+  if (b?.flow) {
+    const { date, slot, index } = b.flow;
+    if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date) || (slot !== "am" && slot !== "pm")) return null;
+    if (typeof index !== "number" || !Number.isInteger(index) || index < 0 || index > 9) return null;
+    return { flow: { date, slot, index } };
+  }
+  const clusterId = Number(b?.clusterId);
+  return b?.clusterId != null && Number.isInteger(clusterId) ? { clusterId } : null;
+}
+
 /** 답 하나의 최대 글자 수. 넘으면 서버가 그만 받는다 */
 export const ASK_ANSWER_MAX = 2000;
 
