@@ -1,6 +1,6 @@
 # 와타랩스
 
-> 와타랩스(WataLabs)는 일상에서 귀찮고 불편한 순간을 찾아, AI로 그 수고를 덜어 주는 앱을 만드는 회사예요. 첫 앱은 내 관심 분야 소식만 AI가 골라 오늘 뉴스의 핵심을 요약하고 읽어 주는 맹고(Maengo)예요.
+> 와타랩스(WataLabs)는 일상에서 귀찮고 불편한 순간을 찾아, AI로 그 수고를 덜어 주는 앱을 만드는 회사예요. 내 관심 분야 소식만 AI가 골라 오늘 뉴스의 핵심을 요약하고 읽어 주는 맹고(Maengo), 쪽 경계까지 PDF와 같은 문서 편집기 MDitor 라씨, 같이 불멍하는 웹 게임 눈꽃숲 캠핑장을 만들었어요.
 
 ## 와타랩스가 하는 일
 
@@ -54,6 +54,20 @@
 
 - 웹(https://watalabs.com/maengo)에서 바로 써요.
 - iPhone 앱은 App Store(https://apps.apple.com/kr/app/id6821451147), Android 앱은 Google Play(https://play.google.com/store/apps/details?id=kr.maengo.app)에서 받아요. 앱에서는 정한 시각에 알림을 받고, 화면을 꺼도 끝까지 이어서 들어요.
+
+## MDitor 라씨 (MDitor LaSee)
+
+보고서·계획서·회의록처럼 제목·항목·표가 반복되는 문서를 쓰는 마크다운(Markdown) 문서 편집기예요. 워드처럼 서식을 입혀 쓰고 원본은 Markdown으로 남아요. 미리보기의 쪽 경계가 내려받는 PDF와 같아요.
+
+- 주소: https://lasee.watalabs.com/ (영어판 https://lasee.watalabs.com/en/)
+- 가입 없이 써요. 문서는 브라우저에만 보관해요.
+
+## 눈꽃숲 캠핑장
+
+보름달 아래, 눈 오는 겨울 숲속 캠핑장에 여럿이 같이 접속해 불멍하는 웹 게임이에요. 마시멜로와 고구마를 굽고, 장작을 패고, 눈사람을 만들고, 별똥별에 소원을 빌어요.
+
+- 주소: https://camping.watalabs.com/
+- 설치 없이 휴대폰·PC 브라우저에서 바로 들어가요.
 
 ## 자주 묻는 질문
 

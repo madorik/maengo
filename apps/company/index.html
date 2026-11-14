@@ -6,6 +6,8 @@
   <title>와타랩스</title>
   <meta name="description" content="와타랩스는 일상에서 귀찮고 불편한 일을 찾아 AI로 편하게 만드는 앱을 만드는 회사예요. 내 관심 분야 소식만 AI가 골라 오늘 뉴스의 핵심을 요약하고 읽어 주는 맹고를 만들어요." />
   <link rel="canonical" href="https://watalabs.com/" />
+  <meta name="google-adsense-account" content="ca-pub-6951210541539723" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6951210541539723" crossorigin="anonymous"></script>
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="ko_KR" />
   <meta property="og:site_name" content="와타랩스" />
@@ -54,6 +56,25 @@
         "sameAs": ["https://apps.apple.com/kr/app/id6821451147", "https://play.google.com/store/apps/details?id=kr.maengo.app"],
         "applicationCategory": "NewsApplication",
         "operatingSystem": "Web, iOS, Android",
+        "publisher": { "@id": "https://watalabs.com/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://lasee.watalabs.com/#app",
+        "name": "MDitor 라씨",
+        "alternateName": ["MDitor LaSee", "라씨"],
+        "url": "https://lasee.watalabs.com/",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "publisher": { "@id": "https://watalabs.com/#organization" }
+      },
+      {
+        "@type": "VideoGame",
+        "@id": "https://camping.watalabs.com/#game",
+        "name": "눈꽃숲 캠핑장",
+        "url": "https://camping.watalabs.com/",
+        "gamePlatform": "Web browser",
+        "playMode": "MultiPlayer",
         "publisher": { "@id": "https://watalabs.com/#organization" }
       }
     ]
@@ -138,6 +159,8 @@
     .about dd { margin: 4px 0 0; max-width: 34em; color: var(--sub); }
 
     /* 만든 앱: 아이콘·이름·열기, 핵심 한 줄과 끌리는 점(맹고 핵심 가치에서 고른 다섯) */
+    /* 앱이 여럿(2026-11-14 라씨·눈꽃숲 캠핑장): 앱 사이에 줄을 긋는다 */
+    .apps > article + article { margin-top: 48px; padding-top: 48px; border-top: 2px solid var(--line); }
     .app .head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
     .app svg { width: 72px; height: 72px; border-radius: 18px; display: block; flex: none; }
     .app h3 { margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.2; }
@@ -220,6 +243,7 @@
     <section class="app" aria-labelledby="apps-title">
       <div class="wrap">
         <h2 id="apps-title">만든 앱</h2>
+        <div class="apps">
         <article>
           <div class="head">
         <svg viewBox="0 0 200 200" role="img" aria-label="맹고 아이콘">
@@ -251,6 +275,52 @@
             <li><strong>귀로 들어요.</strong> 운전하는 출퇴근길, 만원 지하철, 손 시린 한겨울에도 휴대폰을 꺼내 읽지 않고 들어요.</li>
           </ul>
         </article>
+
+        <!-- 2026-11-14 사용자 '눈꽃숲 캠핑장이랑 라씨도 추가해줘'. 아이콘은 각 사이트 파비콘을 타일로(라씨: 쪽 경계 점선이 지나는 종이, 캠핑장: 남색 밤하늘의 보름달에 눈밭·모닥불을 더함) -->
+        <article>
+          <div class="head">
+            <svg viewBox="0 0 200 200" role="img" aria-label="MDitor 라씨 아이콘">
+              <rect width="200" height="200" fill="#E8ECEF"/>
+              <rect x="45" y="30" width="110" height="140" rx="10" fill="#FFFFFF" stroke="#1B2430" stroke-width="10"/>
+              <path d="M70 65 H130 M70 140 H110" stroke="#1B2430" stroke-width="10" stroke-linecap="round"/>
+              <path d="M22 105 H178" stroke="#1387C9" stroke-width="12" stroke-dasharray="20 14"/>
+            </svg>
+            <h3>MDitor 라씨</h3>
+            <a class="btn" href="https://lasee.watalabs.com/" aria-label="MDitor 라씨 열기">열기</a>
+          </div>
+          <p class="lede">보고서를 쓰는 문서 편집기, 쪽 경계까지 PDF와 같아요.</p>
+          <ul>
+            <li><strong>워드처럼 써요.</strong> 굵게·밑줄·글자 색을 입히고 표 칸을 끌어 합쳐요. 원본은 Markdown으로 남아요.</li>
+            <li><strong>쪽은 짐작하지 않아요.</strong> 고칠 때마다 PDF를 실제로 그려 보고, 쪽이 넘어가는 자리를 미리보기에 점선으로 보여 줘요.</li>
+            <li><strong>가입 없이 바로.</strong> 문서는 내 브라우저에만 두고, 다 쓰면 PDF로 내려받아요.</li>
+          </ul>
+        </article>
+
+        <article>
+          <div class="head">
+            <svg viewBox="0 0 200 200" role="img" aria-label="눈꽃숲 캠핑장 아이콘">
+              <rect width="200" height="200" fill="#0B1130"/>
+              <circle cx="132" cy="64" r="30" fill="#F6F1E2"/>
+              <circle cx="48" cy="44" r="3.5" fill="#F6F1E2" opacity="0.8"/>
+              <circle cx="82" cy="78" r="2.5" fill="#F6F1E2" opacity="0.6"/>
+              <circle cx="170" cy="118" r="3" fill="#F6F1E2" opacity="0.7"/>
+              <path d="M0 150 C50 128 150 128 200 150 L200 200 L0 200 Z" fill="#DCE5F4"/>
+              <path d="M100 116 C112 130 114 146 100 154 C86 146 88 130 100 116 Z" fill="#FF9F2E"/>
+              <path d="M100 132 C106 140 106 148 100 152 C94 148 94 140 100 132 Z" fill="#FFC23D"/>
+              <path d="M78 160 L122 150 M78 150 L122 160" stroke="#7A4A2A" stroke-width="8" stroke-linecap="round"/>
+            </svg>
+            <h3>눈꽃숲 캠핑장</h3>
+            <a class="btn" href="https://camping.watalabs.com/" aria-label="눈꽃숲 캠핑장 열기">열기</a>
+          </div>
+          <p class="lede">눈 오는 겨울밤, 같이 불멍해요.</p>
+          <ul>
+            <li><strong>같이 모여요.</strong> 들어온 사람들이 한 캠핑장에 모여 모닥불 앞에 앉고 서로 인사해요.</li>
+            <li><strong>할 거리가 많아요.</strong> 마시멜로와 고구마를 굽고, 장작을 패고, 눈사람을 만들고, 별똥별에 소원을 빌어요.</li>
+            <li><strong>소리까지 겨울.</strong> 장작 타는 소리, 눈 밟는 소리, 고양이 골골송이 들려요.</li>
+            <li><strong>설치 없이 바로.</strong> 휴대폰이든 PC든 브라우저에서 열면 돼요.</li>
+          </ul>
+        </article>
+        </div>
       </div>
     </section>
 

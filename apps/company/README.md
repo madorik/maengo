@@ -8,7 +8,11 @@
 - 새 서비스를 붙일 때도 같은 방식: 그 앱에 basePath를 주고 여기 `vercel.json`에 rewrite를 더한다.
 - `robots.txt`는 도메인 전체 규칙이라 맹고의 막는 경로도 여기에 같이 둔다.
 - 배포: 이 폴더에서 `npx vercel deploy --prod`
-- 첫 화면은 회사 소개(하는 일)가 중심이고, 앱은 아이콘·한 줄 소개·기능 몇 줄만 둔다(2026-10-28). 화면 캡처는 두지 않는다. 앱 화면·소개 영상은 각 앱 소개 페이지에 있다(맹고: `apps/web/public/promo/`, `components/landing/PromoVideo.tsx`).
+- 광고(AdSense, 2026-11-13): 이 사이트에는 광고를 넣지 않는다. 하위 도메인(`lasee.watalabs.com` 등)에 광고를 걸려면 Google 이
+  루트 도메인의 `ads.txt` 를 보므로 `ads.txt` 와 `index.html` 의 `google-adsense-account` 메타 · AdSense 코드(소유권 확인)만 둔다.
+  광고 칸은 없으니 AdSense 에서 이 사이트의 자동 광고를 켜지 않는다(켜면 회사 소개 쪽에 광고가 뜬다).
+  게시자 ID 는 `pub-6951210541539723`. AdSense 에는 루트 도메인 `watalabs.com` 을 사이트로 올린다.
+- 첫 화면은 회사 소개(하는 일)가 중심이고, 앱은 아이콘·한 줄 소개·기능 몇 줄만 둔다(2026-10-28). 2026-11-14 '만든 앱'에 MDitor 라씨(https://lasee.watalabs.com/)·눈꽃숲 캠핑장(https://camping.watalabs.com/)을 더함(맹고 → 라씨 → 캠핑장, 아이콘은 각 사이트 파비콘을 타일로). 앱을 더하면 JSON-LD·llms.txt·sitemap lastmod도 같이 고친다. 화면 캡처는 두지 않는다. 앱 화면·소개 영상은 각 앱 소개 페이지에 있다(맹고: `apps/web/public/promo/`, `components/landing/PromoVideo.tsx`).
 - 검색·AI 노출(2026-10-18):
   - `index.html`의 JSON-LD `Organization`(@id `https://watalabs.com/#organization`)을 맹고 페이지가 운영사로 가리킨다(`apps/web/lib/site.ts`의 `organizationJsonLd`). 이름·메일을 바꾸면 둘 다 바꾼다.
   - `og.png`: 링크 공유 카드(1200×630).
