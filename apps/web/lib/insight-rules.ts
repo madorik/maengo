@@ -248,6 +248,39 @@ export function dropOwnership(text: string, b: Basis): string {
   return text.replace(/(보유한|보유 중인|가지고 있는|갖고 있는) /g, "");
 }
 
+/**
+ * 큰 제목(형식 13)의 '하시는'은 '~해요'로 알려 준 사정(주식을 해요·IT·개발 일을 해요·제조업에서 일해요)에만 둔다.
+ * 신경 쓰는 것·관심만 알려 준 회원에게는 뺀다(하지 않는 걸 한다고 단정하지 않게)
+ */
+export function leadOwnership(text: string, b: Basis): string {
+  const doing = b.kind === "fact" && /해요$/.test(b.line.trim());
+  const t = dropOwnership(text, b);
+  return doing ? t : t.replace(/하시는 /g, "");
+}
+
+/** 꼬리표에서 사정 이름이 아닌 말(누구 이야기인지 가르지 못한다) */
+const LABEL_STOP = new Set(["신경", "쓰는", "관심", "있는", "내", "키워드", "오늘", "아침", "어제", "그제", "들은", "읽은", "북마크한", "자주", "보는", "고른"]);
+
+/**
+ * 제목에 근거 사정의 말(꼬리표 낱말)이 하나라도 있는지(형식 13). 없으면 제목만 보고 누구 이야기인지 알 수 없다
+ * (2026-11-16 사용자: '나에게' 같은 꼬리표 말고 글만 보고 나한테 주는 인사이트인지 알아야 한다)
+ */
+export function mentionsBasis(text: string, label: string): boolean {
+  const words = label
+    .split(/[\s·]+/)
+    .map((w) => w.replace(/(소식|일)$/, ""))
+    .filter((w) => w.length >= 2 && !LABEL_STOP.has(w));
+  return !words.length || words.some((w) => text.includes(w));
+}
+
+const numbersIn = (t: string) => (t.match(/\d[\d,.]*/g) ?? []).map((n) => n.replace(/,/g, "").replace(/\.$/, ""));
+
+/** 글 속 숫자 가운데 소식 글에 없는 것이 있는지(지어낸 숫자). 쉼표는 떼고 수 하나씩 견준다(소수점 아래를 뗀 것은 같은 수로 본다: 42.51 → 42) */
+export function unknownNumber(text: string, source: string): boolean {
+  const src = new Set(numbersIn(source));
+  return numbersIn(text).some((n) => !src.has(n) && ![...src].some((s) => s.startsWith(`${n}.`)));
+}
+
 /** 맞춤 체크 차례: 이어지는 이야기 → 신경 쓰는 경제 부문·일·경제 사정 → 최근 소식 → 키워드 → 분야 */
 export function basisRank(b: Basis, linked: boolean): number {
   if (b.kind === "recent") return linked ? 0 : 2;

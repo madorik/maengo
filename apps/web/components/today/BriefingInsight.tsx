@@ -61,10 +61,12 @@ export function BriefingHero({
   return (
     <>
       <ForYou pm={pm} label={label} />
-      <h1 id="briefing-title" className="mt-1.5 text-[25px] font-bold leading-[1.3] tracking-[-0.035em] text-balance">
-        {insight.headline}
+      {/* 2026-11-15 사용자 '인사이트가 눈에 띄지 않네, 제일 처음 보는 화면이고 인사이트 타이틀이 딱 눈에 띄어야 가입할만하지' →
+          25px → 30px 굵게, 망고 형광펜을 한 번 긋는다(globals.css insight-mark). 아래 흐름 카드보다 먼저 눈이 가게 */}
+      <h1 id="briefing-title" className="mt-3 text-[30px] font-extrabold leading-[1.3] tracking-[-0.045em] text-balance">
+        <span className={`insight-mark ${pm ? "insight-mark-night" : ""}`}>{insight.headline}</span>
       </h1>
-      <Basis insight={insight} pm={pm} />
+      <Lead insight={insight} pm={pm} common={!!label} personalOff={personalOff} />
       <DateBelow pm={pm} />
       <Flows insight={insight} pm={pm} />
       <MatchCheck insight={insight} personalOff={personalOff} />
@@ -90,10 +92,20 @@ function withName(insight: BriefingInsight, name: string | null): BriefingInsigh
   };
 }
 
-/** 'OO님에게 맞춤 인사이트'(OO은 프로필 이름. 없으면 '나에게'). label을 주면 그 말(토스 미니앱 공통판: 회원 맞춤이 아니라서) */
-function ForYou({ pm, label }: { pm: boolean; label?: string }) {
+/**
+ * 'OO님에게 맞춤 인사이트'(OO은 프로필 이름. 없으면 '나에게'). label을 주면 그 말(토스 미니앱 공통판: 회원 맞춤이 아니라서).
+ * 2026-11-15 작은 망고색 글자 → 망고 바탕 꼬리표(반짝이 + 남색 글자). 출근길(흰 바탕)·퇴근길(남색 바탕) 둘 다에서 보인다
+ */
+function ForYou({ label }: { pm?: boolean; label?: string }) {
   const name = useCallName();
-  return <p className={`text-[13px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>{label ?? `${name ? `${name}님에게` : "나에게"} 맞춤 인사이트`}</p>;
+  return (
+    <p className="inline-flex items-center gap-1 rounded-full bg-mango py-1 pl-2 pr-2.5 text-[13px] font-bold tracking-[-0.01em] text-[#1F2340]">
+      <svg viewBox="0 0 24 24" className="size-3.5" aria-hidden="true">
+        <path d="M12 2C12.7 7.3 16.7 11.3 22 12C16.7 12.7 12.7 16.7 12 22C11.3 16.7 7.3 12.7 2 12C7.3 11.3 11.3 7.3 12 2Z" fill="currentColor" />
+      </svg>
+      {label ?? `${name ? `${name}님에게` : "나에게"} 맞춤 인사이트`}
+    </p>
+  );
 }
 
 /**
@@ -108,9 +120,43 @@ function Basis({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
   const seen = b.seen ?? b.recent >= 3;
   const parts = [b.sections.length ? `${seen ? "자주 보는" : "고른"} ${b.sections.join("·")} 분야` : "", b.recent ? `이번 주 본 소식 ${b.recent}개` : ""].filter(Boolean);
   return (
-    <p className={`mt-2 text-[14px] font-medium leading-snug ${pm ? "text-white/85" : "text-ink/80"}`}>
+    <p className={`mt-3 text-[14px] font-medium leading-snug ${pm ? "text-white/85" : "text-ink/80"}`}>
       {name ? `${name}님이 ` : ""}{parts.join("와 ")}를 바탕으로 엮었어요.
     </p>
+  );
+}
+
+/**
+ * 큰 제목 아래 줄(형식 13, 2026-11-16 사용자: 오늘 뉴스가 나한테 무슨 영향이 있을지, 어떤 의미인지를 알려 줘야 인사이트).
+ * 성격 배지 + 제목의 근거 사실(숫자). 오늘 소식이 회원 사정에 닿지 않아 제목이 일반 해석인 날은
+ * '오늘은 OO님 맞춤 소식이 없어요'와 많이 읽고 들을수록 더 잘 짚는다는 말(사용자 지정). 토스 공통판·맞춤 인사이트를 끈 회원에게는 띄우지 않는다.
+ * 예전 형식(12까지)은 무엇을 바탕으로 엮었는지(Basis)
+ */
+function Lead({ insight, pm, common, personalOff }: { insight: BriefingInsight; pm: boolean; common: boolean; personalOff: boolean }) {
+  const name = useCallName();
+  const lead = insight.lead;
+  if (!lead) return <Basis insight={insight} pm={pm} />;
+  const none = !lead.about && !common && !personalOff;
+  return (
+    <>
+      {lead.fact && (
+        <p className={`mt-3 text-[14px] font-semibold leading-[1.65] ${pm ? "text-white" : "text-ink"}`}>
+          <ToneChip tone={lead.tone} onDark={pm} className="mr-1.5 align-[1px]" />
+          {lead.fact}
+        </p>
+      )}
+      {none && (
+        <div role="note" className={`mt-3 self-stretch rounded-2xl px-4 py-3 ${pm ? "bg-white/8" : "bg-snow"}`}>
+          <p className={`text-[14px] font-bold leading-snug tracking-[-0.02em] ${pm ? "text-white" : "text-ink"}`}>
+            오늘은 {name ? `${name}님 ` : ""}맞춤 소식이 없어요
+          </p>
+          <p className={`mt-1 text-[13px] leading-relaxed ${pm ? "text-white/70" : "text-sub"}`}>소식을 많이 읽고 들을수록 더 의미 있는 인사이트를 드릴 수 있어요.</p>
+          <Link href="/settings#personal" className={`mt-1.5 inline-block text-[13px] font-semibold underline underline-offset-4 ${pm ? "text-mango" : "text-mango-deep"}`}>
+            맞춤 정보 고르기
+          </Link>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -182,9 +228,10 @@ function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
                 {/* 나에게 미칠 영향이 있으면 그것을 먼저(2026-11-13 사용자: 나한테 유용한지 부각되지 않는다), 없으면 흐름 설명 */}
                 {f.effect ? (
                   <span className="mt-2 flex flex-col gap-1">
+                    {/* '나에게' 대신 성격(2026-11-16 사용자: '나에게' 같은 말 쓰지 말고 글만 보고 나한테 주는 인사이트인지 알게) */}
                     <span className={`flex items-center gap-1 text-[12px] font-bold ${tone.count}`}>
                       <ToneIcon tone={f.tone ?? "watch"} className="size-3.5" />
-                      나에게
+                      {TONE_LABEL[f.tone ?? "watch"]}
                     </span>
                     <span className="line-clamp-3 text-[15px] font-semibold leading-[1.5]">{f.effect}</span>
                   </span>
@@ -226,7 +273,9 @@ function MatchCheck({ insight, personalOff }: { insight: BriefingInsight; person
   // 맞춤 체크가 비었거나 읽은 소식이 적으면 왜인지와 어떻게 하면 좋아지는지 알린다(2026-11-13 사용자: '이전에 읽던 소식이 아직 없다', '많이 읽을수록 분석을 잘해 준다')
   const recent = insight.basis?.recent ?? 0;
   const few = recent < SEEN_MIN;
-  const hint = !personalOff && (!personal.length || few);
+  // 제목 아래에서 이미 '오늘은 맞춤 소식이 없어요'를 말했으면(형식 13 Lead) 여기서 또 말하지 않는다
+  const noted = !!insight.lead && !insight.lead.about;
+  const hint = !personalOff && !noted && (!personal.length || few);
   if (!personal.length && !checks.length && !hint) return null;
   const tokenOf = (id: number) => data.items.find((i) => i.clusterId === id)?.token;
   // 퇴근길(남색 바탕)에서는 글자를 밝게(2026-11-13: 제목이 남색 글자라 안 보였다)
@@ -338,7 +387,7 @@ function ToneIcon({ tone, className = "size-3.5" }: { tone: InsightTone; classNa
 }
 
 /** 성격 배지(긍정 요인 파랑, 부담 요인 주황, 지켜볼 변수 빨강). onDark: 남색 바탕 위 */
-function ToneChip({ tone, onDark = false }: { tone: InsightTone; onDark?: boolean }) {
+function ToneChip({ tone, onDark = false, className = "" }: { tone: InsightTone; onDark?: boolean; className?: string }) {
   const cls =
     tone === "plus"
       ? onDark
@@ -352,7 +401,7 @@ function ToneChip({ tone, onDark = false }: { tone: InsightTone; onDark?: boolea
           ? "bg-[#FF8A8F]/20 text-[#FFB6B9]"
           : "bg-watch-tint text-watch";
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${cls}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${cls} ${className}`}>
       <ToneIcon tone={tone} />
       {TONE_LABEL[tone]}
     </span>
@@ -583,9 +632,9 @@ export function InsightFallback() {
       <h1 id="briefing-title" className="sr-only">
         {SLOT_LABEL[data.slot ?? "am"]} 브리핑
       </h1>
-      <div aria-hidden="true" className="mt-2.5">
-        <div className={`h-6 w-[88%] rounded-lg ${pm ? "sk-night" : "sk"}`} />
-        <div className={`mt-2 h-6 w-[58%] rounded-lg ${pm ? "sk-night" : "sk"}`} />
+      <div aria-hidden="true" className="mt-3.5">
+        <div className={`h-[30px] w-[88%] rounded-lg ${pm ? "sk-night" : "sk"}`} />
+        <div className={`mt-2.5 h-[30px] w-[58%] rounded-lg ${pm ? "sk-night" : "sk"}`} />
       </div>
       <DateBelow pm={pm} />
       <div className={`mt-4 rounded-[22px] px-5 pb-5 pt-4 ${pm ? "bg-white/10" : "bg-[#1F2340]"}`}>

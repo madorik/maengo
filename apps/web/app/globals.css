@@ -568,6 +568,39 @@
 /* 오늘의 흐름을 만드는 동안의 진행 카드(components/today/BriefingInsight.tsx InsightFallback, 2026-11-13 사용자: 무엇을 하는지·진행률).
    서버가 먼저 그린 대체 화면은 브라우저에서 스크립트로 살아나지 않아 말 바뀜·막대·%를 CSS만으로 한다.
    막대와 %는 같은 곡선으로 24초에 걸쳐 6%→94%(처음 빠르고 나중에 거의 멈춘다: 6초쯤 70%, 10초쯤 80%대). 다 되면 카드가 통째로 바뀐다 */
+/* 오늘 인사이트 큰 제목의 망고 형광펜(2026-11-15 사용자: 인사이트 타이틀이 딱 눈에 띄어야). 밝은 바탕은 글자 아래쪽 42%에 줄마다 긋는다.
+   화면을 열 때 왼쪽에서 한 번 그어지고(0.25초 뒤 0.7초) 끝. 움직임 줄이기면 전역 규칙으로 바로 다 그어진 채 */
+.insight-mark {
+  --insight-hl: rgb(255 194 61 / 0.5);
+  --insight-hl-h: 0.42em;
+  background-image: linear-gradient(var(--insight-hl), var(--insight-hl));
+  background-repeat: no-repeat;
+  background-position: 0 92%;
+  background-size: 100% var(--insight-hl-h);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 0.08em;
+  margin: 0 -0.08em;
+  animation: insight-mark 700ms cubic-bezier(0.23, 1, 0.32, 1) 250ms both;
+}
+/* 어두운 바탕(퇴근길 남색·다크 모드)에서는 옅은 망고가 탁한 갈색이 되어, 밝은 망고 밑줄로 긋는다 */
+.insight-mark-night,
+:root[data-theme="dark"] .insight-mark {
+  --insight-hl: var(--color-mango);
+  --insight-hl-h: 0.13em;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .insight-mark {
+    --insight-hl: var(--color-mango);
+    --insight-hl-h: 0.13em;
+  }
+}
+@keyframes insight-mark {
+  from {
+    background-size: 0% var(--insight-hl-h);
+  }
+}
+
 @property --making-pct {
   syntax: "<integer>";
   inherits: false;

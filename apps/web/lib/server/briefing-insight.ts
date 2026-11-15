@@ -16,10 +16,13 @@ import {
   factBases,
   findLinks,
   fixClaims,
+  leadOwnership,
+  mentionsBasis,
   politicsToMarket,
   recentBases,
   sectionBases,
   trimVague,
+  unknownNumber,
   type Basis,
   type RecentRead,
 } from '../insight-rules';
@@ -70,6 +73,11 @@ export interface BriefingInsight {
   personal?: { id: number; about: string; title: string; text: string; tone?: InsightTone }[];
   /** 무엇을 바탕으로 엮었는지(서버가 DB에서 센 값, 머리의 한 줄): 분야, 최근 7일 읽거나 들은 소식 수, '자주 보는'이라 부를 만큼 봤는지 */
   basis?: { sections: string[]; recent: number; seen?: boolean };
+  /**
+   * 큰 제목 아래 줄(13): 제목이 짚은 소식의 사실(숫자·날짜)과 성격, 제목이 닿는 회원 사정의 꼬리표.
+   * about이 비면 오늘 소식 가운데 회원 사정에 닿는 게 없다(화면에 '오늘은 OO님 맞춤 소식이 없어요')
+   */
+  lead?: { fact: string; tone: InsightTone; about: string };
 }
 
 // 4: 회원을 부르지 않는다(2026-11-11 사용자: 맞춤 체크에 이름 빼자, 이름이 너무 많다)
@@ -84,7 +92,11 @@ export interface BriefingInsight {
 // 11: 영향이 오는 길(chain) 뺌('어떻게 닿나요는 필요 없다'), 핵심 사실(fact) 더함, 말투를 단정하고 신뢰감 있게('~수 있어요'를 줄이고 사실은 단정, 판단은 '~요인이에요')
 // 12: 세 질문으로 분석(2026-11-13 사용자: 중요한 핵심 소식이 내가 등록한 관심사와 어떤 연관인지, 앞으로 유의 깊게 볼 것, 나에게 미칠 영향) —
 //     links(닿는 내 관심 근거 번호 → 꼬리표)·relation(어떻게 이어지는지), watch를 구체적으로 1~3개
-const VERSION = 12;
+// 13: 큰 제목을 '오늘 소식이 이 회원 사정에 주는 영향'으로(2026-11-16 사용자: 오늘 뉴스가 나한테 무슨 영향이 있을지, 어떤 의미인지를 알려 줘야 인사이트,
+//     '나에게' 같은 꼬리표 말고 글만 보고 나한테 주는 인사이트인지 알게). 예전 제목은 소식 두세 개를 늘어놓은 요약이었다(11-14~15 18건 중 15건).
+//     제목 아래 줄은 사실(숫자)·성격(lead), 닿는 사정이 없으면 억지로 잇지 않고 화면이 '오늘은 맞춤 소식이 없어요'.
+//     '안 해요'로 답한 사정(주식은 안 해요)에 닿는 영향은 쓰지 않는다(11-15: 주식 안 하는 회원에게 'AI 관련 자산엔 부담 요인'), 흐름은 회원 사정에 닿는 것부터
+const VERSION = 13;
 /** 미리 만들기(lib/server/insight-prewarm.ts)가 이미 새 형식으로 만들어 뒀는지 볼 때 쓴다 */
 export const INSIGHT_VERSION = VERSION;
 
@@ -112,13 +124,28 @@ const SYSTEM = `너는 재테크하는 출퇴근길 직장인에게 오늘 받�
 입력: 오늘 브리핑 소식들(id, 분야, 종류, 다룬 언론 수, 제목, 요약)과 [회원 정보].
 [회원 정보]의 근거에는 번호가 있다. F: 회원이 직접 고른 사정·관심(맨 앞이 요즘 신경 쓰는 경제 부문). R: 최근 끝까지 듣거나 열어 보거나 북마크한 소식(때 표시가 있다). K: 회원이 직접 적은 내 키워드 가운데 오늘 소식과 이어지는 것(이어지는 오늘 소식 id가 붙어 있다). S: 고르거나 자주 보는 분야.
 '이어지는 이야기'는 서버가 내용으로 찾은, 오늘 소식과 이어지는 최근 소식이다. 퇴근길이면 '오늘 아침에 한 말'도 있다.
-출력: JSON {headline, flows, checks, personal}
-- headline: 오늘 브리핑 전체를 한 줄로(30자 안팎). 알림 첫 줄로도 쓴다. 예: "반도체 급락에 증권사 해킹까지, 흔들린 아침"
+출력: JSON {headline, headlineBasis, headlineFact, headlineTone, flows, checks, personal}
+- headline: 화면 맨 위 큰 제목이자 이 기능에서 가장 중요한 한 줄. 오늘 소식 하나가 이 회원의 사정에 어떤 영향·의미가 있는지를 말한다(30자 안팎).
+  · 오늘 브리핑을 요약하거나 소식 여러 개를 늘어놓지 않는다(나쁜 예: "AI주 변동성 예고, 건설 실적 개선과 개인정보 유출").
+  · 꼴: '[회원 사정], [그 사정에 무엇이 달라지는지·어떤 의미인지]'. 제목만 보고 나한테 하는 말인 줄 알 수 있게 근거의 사정 이름(국내 주식·미국 주식·IT·개발 일·제조 일·대출 이자·내 키워드 반도체 등)을 앞에 넣는다.
+  · 예: "하시는 미국 주식, 이번 하락은 엔비디아만의 악재예요", "하시는 제조 일, 반도체 밖 업종은 이익 전망이 내려갔어요", "신경 쓰는 대출 이자, 내려갈 때가 늦어져요", "신경 쓰는 국내 주식, AI 기판주엔 기대가 이미 반영됐어요", "하시는 IT·개발 일, 반복 코딩 시간을 줄일 모델이 나왔어요", "수출입 일, 중국 출장에 출국 제한 위험이 더해졌어요".
+  · 고르는 차례: 오늘 소식이 실제로 닿는 근거 가운데 F 사정(요즘 신경 쓰는 경제 부문 → 일 → 경제 사정) → K 내 키워드 → R 최근 본 소식. 영향이 가장 크고 구체적인 것 하나.
+  · 그 사정에 무엇이 달라지는지를 요약 속 사실로 설명할 수 있는 근거만 쓴다. 설명할 수 없으면(예: AI 인프라 부채 경고와 '일할 때 AI 도구를 가끔 써요') 그 근거는 건너뛰고 다음 근거를 본다. 일(하는 일·수출입 일)은 출장·수출·원가·업황처럼 일에 직접 닿는 소식이 있으면 먼저 쓴다.
+  · 끝맺음은 결과로 쓴다: 무엇이 오르는지·내리는지·늘어나는지·줄어드는지·늦어지는지, 또는 '~엔 부담 요인이에요·~엔 긍정 요인이에요'. '중요해요·부각됐어요·변수예요·주목돼요·커지고 있어요'처럼 무엇이 달라지는지 없이 끝내지 않는다.
+  · R(최근 본 소식)로 고를 때도 "해임 논의가 사임으로 이어졌어요"처럼 소식을 잇기만 하지 않는다. 그 다음 이야기가 무엇을 뜻하는지까지 말한다.
+  · '하시는'은 F에 '~해요'(주식을 해요·~ 일을 해요·~에서 일해요)로 알려 준 사정에만 쓴다. 신경 쓰는 것은 '신경 쓰는', 관심은 '관심 있는', 최근 본 소식은 '어제 들은'처럼 근거 그대로.
+  · '나에게'·'당신에게'·'맞춤' 같은 말로 맞춤이라고 써 붙이지 않는다. 글 자체로 알 수 있게 쓴다.
+  · 숫자·날짜는 headlineFact에 넣고 제목에는 꼭 필요할 때만 넣는다.
+  · F·K·R 가운데 오늘 소식이 실제로 닿는 근거가 없으면(분야 S만 있거나 근거가 '없음') 억지로 잇지 않는다. headlineBasis는 빈 문자열로 두고, 제목은 오늘 가장 큰 소식 하나가 갖는 의미를 사정 이름 없이 쓴다(예: "엔비디아 악재, 반도체 전체로 번지진 않았어요").
+  · personal에 F·K·R 근거로 만든 것이 있으면 제목도 그 가운데 영향이 가장 큰 것과 같은 소식·같은 근거로 쓴다(제목은 일반 해석인데 아래 맞춤 체크가 회원 사정을 짚으면 어긋난다).
+- headlineBasis: 제목이 짚은 근거 번호 하나(F·K·R만, 입력에 있는 번호). 없으면 빈 문자열.
+- headlineFact: 제목 아래 한 줄. 제목의 근거가 되는 사실을 요약에 있는 숫자·날짜·주체로 단정형 해요체(60자 안팎). 예: "젠슨 황 사임 뒤 엔비디아는 4.34% 내렸고, AMD·브로드컴은 5% 넘게 올랐어요."
+- headlineTone: 제목의 의미가 이 회원에게 plus(긍정 요인) / minus(부담 요인) / watch(방향이 갈리는 변수) 중 하나.
 - flows: 2~3개. 서로 이어지는 소식들을 묶어 '무슨 일이 벌어지고 있는지'를 짚는다. 서로 상관없는 소식을 한 흐름에 억지로 넣지 않는다.
   · title: 12자 안팎의 짧은 이름. 예: "AI 쏠림이 흔들려요"
   · text: 1~2문장(90자 안팎). 묶은 소식들을 이어 왜 함께 봐야 하는지, 앞으로 무엇을 지켜보면 되는지. 소식 제목을 그대로 되풀이하지 않는다.
   · ids: 이 흐름에 든 소식 id(1개 이상, 입력에 있는 id만). 소식 하나뿐인 흐름은 그 소식이 정말 클 때만.
-  · 흐름은 중요한 차례로. 다룬 언론이 많고 경제(기업 실적·금리·환율·집값·대출)에 닿는 것부터, 그다음 일·생활.
+  · 흐름 차례: 첫 흐름은 제목과 같은 소식. 그다음은 회원 사정(F·K·R)에 닿는 흐름, 그다음 다룬 언론이 많고 경제(기업 실적·금리·환율·집값·대출)에 닿는 것, 그다음 일·생활.
   · text에는 이 흐름이 경제에 닿는 길(실적·금리·환율·수요·규제 등)이 있으면 한 마디 넣는다. 없으면 억지로 잇지 않는다.
   · basis: 이 흐름을 회원과 잇는 근거 번호 하나(입력에 있는 F·R·K·S 번호만). '이어지는 이야기'가 이 흐름에 있으면 그 R 번호를 쓴다. 근거가 없으면 빈 문자열.
   · topic: basis가 R일 때만 그 최근 소식이 다룬 대상 2~8자(예: 엔비디아, 코스피, 제미나이). 아니면 빈 문자열.
@@ -152,6 +179,7 @@ const SYSTEM = `너는 재테크하는 출퇴근길 직장인에게 오늘 받�
 - 퇴근길이면 '오늘 아침에 한 말'과 어긋나는 말을 하지 않는다. 같은 이야기를 다시 다루면 아침보다 무엇이 달라졌는지를 말한다.
 
 지켜야 할 것
+- [회원 정보]의 '참고(근거 번호 없음)'에 '~ 안 해요·없어요'로 적힌 것은 그 사정이 없다는 뜻이다. 그 사정에 닿는 영향은 제목·흐름·맞춤 체크 어디에도 쓰지 않는다(예: '주식은 안 해요'면 주가·주식·자산 가격 영향을 말하지 않는다).
 - 입력 소식의 요약에 있는 사실만 쓴다. 숫자·날짜·이름을 지어내지 않는다. 확실하지 않으면 쓰지 않는다.
 - 오르고 내린 방향은 요약에 쓰인 그대로 옮긴다. 원화 강세는 원·달러 환율 하락, 원화 약세는 환율 상승이다.
 - '요약에는·입력에는·소식에 따르면'처럼 자료를 가리키는 말은 쓰지 않고 사실을 그대로 쓴다.
@@ -168,6 +196,9 @@ const SCHEMA = {
   type: 'object',
   properties: {
     headline: { type: 'string' },
+    headlineBasis: { type: 'string' },
+    headlineFact: { type: 'string' },
+    headlineTone: { type: 'string', enum: ['plus', 'minus', 'watch'] },
     flows: {
       type: 'array',
       items: {
@@ -206,7 +237,7 @@ const SCHEMA = {
       },
     },
   },
-  required: ['headline', 'flows', 'checks', 'personal'],
+  required: ['headline', 'headlineBasis', 'headlineFact', 'headlineTone', 'flows', 'checks', 'personal'],
 };
 
 /** 같은 브리핑을 동시에 두 번 만들지 않게(같은 서버 인스턴스 안) */
@@ -284,7 +315,14 @@ export async function publicInsight(items: TodayData['items']): Promise<Briefing
   if (items.length < 2) return null;
   const made = await make(items, NO_PERSONAL, false);
   if (!made) return null;
-  return { v: VERSION, headline: made.headline, flows: made.flows.map((f) => ({ ...f, tag: '', why: '' })), checks: [], personal: [] };
+  return {
+    v: VERSION,
+    headline: made.headline,
+    ...(made.lead ? { lead: { ...made.lead, about: '' } } : {}),
+    flows: made.flows.map((f) => ({ ...f, tag: '', why: '' })),
+    checks: [],
+    personal: [],
+  };
 }
 
 const vectorOf = (v: unknown) => (Array.isArray(v) ? (v as number[]) : typeof v === 'string' && v.startsWith('[') ? (JSON.parse(v) as number[]) : null);
@@ -387,7 +425,15 @@ function personalText(p: Personal): string {
   return lines.join('\n');
 }
 
-type RawInsight = { headline?: unknown; flows?: unknown; checks?: unknown; personal?: unknown };
+type RawInsight = {
+  headline?: unknown;
+  headlineBasis?: unknown;
+  headlineFact?: unknown;
+  headlineTone?: unknown;
+  flows?: unknown;
+  checks?: unknown;
+  personal?: unknown;
+};
 
 async function make(items: TodayData['items'], personal: Personal, pm: boolean, generate?: InsightGenerator): Promise<BriefingInsight | null> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -483,11 +529,7 @@ function impactOf(f: { fact?: unknown; effect?: unknown; tone?: unknown }, b: Ba
  * 모양을 맞추고 입력에 없는 소식 번호·근거 번호는 버린다. 꼬리표는 근거 번호로 서버가 붙인다(lib/insight-rules.ts).
  * 흐름이 하나도 안 남으면 null
  */
-function clean(
-  out: { headline?: unknown; flows?: unknown; checks?: unknown; personal?: unknown },
-  items: TodayData['items'],
-  p: Personal,
-): BriefingInsight | null {
+function clean(out: RawInsight, items: TodayData['items'], p: Personal): BriefingInsight | null {
   const known = new Set(items.map((i) => i.clusterId));
   const byItem = new Map(items.map((i) => [i.clusterId, i]));
   const bases = new Map(p.bases.map((b) => [b.id, b]));
@@ -549,15 +591,64 @@ function clean(
   // 다 걸러졌으면 비우지 않고 하나는 남긴다(2026-11-11 사용자: 맞춤 체크가 없어지면 안 된다). 분야만 근거로 경제와 먼 소식을 이은 것은 남기지 않는다
   const fallback = ok.length ? [] : candidates.filter((x) => x.b!.kind !== 'section' || MONEY_CATEGORIES.has(byItem.get(x.id)?.category ?? '')).slice(0, 1);
   const seenIds = new Set<number>();
-  const personalChecks = [...ok, ...fallback]
+  const ranked = [...ok, ...fallback]
     .map((x, order) => ({ ...x, order, rank: basisRank(x.b!, !!p.links.get(x.id)?.includes(x.b!.id)) }))
     .sort((a, b) => a.rank - b.rank || a.order - b.order)
     .filter((x) => (seenIds.has(x.id) ? false : (seenIds.add(x.id), true)))
     .slice(0, 3)
-    .map((x) => ({ id: x.id, about: basisLabel(x.b!, x.topic).slice(0, 24), title: x.title, text: x.text, tone: x.tone }));
+    .map((x) => ({ ...x, about: basisLabel(x.b!, x.topic).slice(0, 24) }));
+  const personalChecks = ranked.map((x) => ({ id: x.id, about: x.about, title: x.title, text: x.text, tone: x.tone }));
+  // 제목이 회원 사정에 닿지 않았는데 사정·키워드·최근 본 소식으로 만든 맞춤 체크가 있으면 그것을 제목으로(형식 13: '맞춤 소식이 없어요'와 아래 맞춤 체크가 어긋나지 않게)
+  const strong = ranked.find((x) => x.b!.kind !== 'section');
   // 근거가 있는데 맞춤 체크가 비면 왜 비었는지 남긴다(모델이 안 줬는지, 걸렀는지)
   if (p.bases.length && !personalChecks.length) {
     console.warn('[insight] 맞춤 체크 없음', raw.length ? `걸러짐 ${raw.length}개: ${raw.map((x) => `${String(x?.basis ?? '')} ${String(x?.title ?? '')} / ${String(x?.text ?? '')}`.slice(0, 120)).join(' | ')}` : '모델이 빈 배열');
   }
-  return { headline: plainWords(str(out.headline, 60)) || flows[0]!.title, flows, checks, personal: personalChecks };
+  return { ...leadOf(out, items, bases, fix, flows, strong), flows, checks, personal: personalChecks };
+}
+
+/**
+ * 큰 제목과 그 아래 줄(13). 제목이 짚은 근거가 사정·키워드·최근 본 소식이면 회원에게 닿는 제목(about에 그 꼬리표),
+ * 분야만이거나 없으면 닿는 소식이 없는 날(about 빈 문자열 → 화면이 '오늘은 맞춤 소식이 없어요').
+ * 제목에 사정 이름이 없으면 앞에 꼬리표를 붙이고, 소식 글에 없는 숫자를 쓰거나 투자 권유면 첫 흐름의 의미로 바꾼다.
+ * 모델이 일반 제목을 줬는데 회원 사정으로 만든 맞춤 체크(strong)가 있으면 그 맞춤 체크를 제목으로 쓴다
+ */
+function leadOf(
+  out: RawInsight,
+  items: TodayData['items'],
+  bases: Map<string, Basis>,
+  fix: (t: string) => string,
+  flows: BriefingInsight['flows'],
+  strong?: { id: number; about: string; title: string; tone: InsightTone },
+): Pick<BriefingInsight, 'headline' | 'lead'> {
+  const source = items.map((i) => `${i.title} ${i.short} ${i.body.join(' ')}`).join(' ');
+  /** 회원 사정·내 키워드 꼬리표(분야 꼬리표는 맞춤이 아니다). 최근 본 소식 꼬리표는 b4Recent로 */
+  const ownTags = new Set([...bases.values()].filter((x) => x.kind === 'fact' || x.kind === 'keyword').map((x) => x.label));
+  const b = bases.get(str(out.headlineBasis, 6).toUpperCase());
+  const hit = b && b.kind !== 'section' ? b : undefined;
+  const first = flows[0]!;
+  const raw = plainWords(fix(str(out.headlineFact, 100)));
+  const modelFact = raw && !unknownNumber(raw, source) ? raw : '';
+  if (!hit && strong) {
+    const headline = mentionsBasis(strong.title, strong.about) ? strong.title : `${strong.about}, ${strong.title}`;
+    const fact = flows.find((f) => f.ids.includes(strong.id))?.fact || modelFact || first.fact || '';
+    return { headline, lead: { fact, tone: strong.tone, about: strong.about } };
+  }
+  // 맞춤 체크는 없어도 흐름 카드가 회원 사정 꼬리표를 달았으면 그 흐름의 의미를 제목으로('맞춤 소식이 없어요'와 카드 꼬리표가 어긋나지 않게)
+  const own = !hit ? flows.find((f) => f.effect && f.tag && (ownTags.has(f.tag) || b4Recent(f.tag))) : undefined;
+  if (own) {
+    const effect = own.effect!.replace(/\.$/, '');
+    return {
+      headline: mentionsBasis(effect, own.tag!) ? effect : `${own.tag}, ${effect}`,
+      lead: { fact: own.fact || modelFact || '', tone: own.tone ?? 'watch', about: own.tag! },
+    };
+  }
+  const about = hit ? basisLabel(hit, '') : '';
+  let headline = fix(str(out.headline, 60));
+  if (hit) {
+    headline = leadOwnership(alignReadClaim(headline, hit), hit);
+    if (headline && !mentionsBasis(headline, about)) headline = `${about}, ${headline}`;
+  }
+  if (!headline || INVESTING.test(headline) || unknownNumber(headline, source)) headline = first.effect || first.title;
+  return { headline, lead: { fact: modelFact || first.fact || '', tone: toneOf(out.headlineTone), about } };
 }

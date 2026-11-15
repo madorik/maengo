@@ -129,3 +129,26 @@ test('내 계정 오늘 퇴근길(11-13)에서 본 것: 확인한도 근거대�
   assert.equal(alignReadClaim('3일 전 확인한 앤스로픽 IPO 추진이 흥행으로 이어졌어요.', b), '그제 들은 앤스로픽 IPO 추진이 흥행으로 이어졌어요.');
   assert.equal(trimVague('사임으로 이어지며 주가가 14% 폭락 후 내림세로 마감했어요. 새로운 경영진이 핵심 사업을 안정적으로 이끌지 지켜볼 필요가 있어요.'), '사임으로 이어지며 주가가 14% 폭락 후 내림세로 마감했어요.');
 });
+
+// 형식 13(2026-11-16 사용자: 오늘 뉴스가 나한테 무슨 영향인지 알려 줘야 인사이트, '나에게' 같은 꼬리표 말고 글로)
+test('큰 제목: 하시는은 해요로 알려 준 사정에만, 사정 이름이 글에 있는지, 지어낸 숫자', async () => {
+  const { leadOwnership, mentionsBasis, unknownNumber } = await import('../insight-rules');
+  const ctx = { stock: at('yes'), stock_market: at('both'), focus: at('kr_stock'), job: at('maker'), trade: at('yes') };
+  const { bases } = factBases(contextFactItems(ctx));
+  const by = (label: string) => bases.find((b) => b.label === label)!;
+  assert.equal(leadOwnership('하시는 미국 주식, 이번 하락은 엔비디아만의 악재예요', by('국내·미국 주식')), '하시는 미국 주식, 이번 하락은 엔비디아만의 악재예요');
+  assert.equal(leadOwnership('하시는 제조 일, 반도체 밖 업종은 이익 전망이 내려갔어요', by('제조 일')), '하시는 제조 일, 반도체 밖 업종은 이익 전망이 내려갔어요');
+  // 신경 쓴다고만 알려 줬으면 한다고 단정하지 않는다
+  assert.equal(leadOwnership('하시는 국내 주식, AI 기판주엔 기대가 이미 반영됐어요', by('신경 쓰는 국내 주식')), '국내 주식, AI 기판주엔 기대가 이미 반영됐어요');
+  assert.equal(leadOwnership('하시는 수출입 일, 원화 강세가 실적을 눌러요', by('수출입 일')), '수출입 일, 원화 강세가 실적을 눌러요');
+
+  assert.equal(mentionsBasis('하시는 미국 주식, 이번 하락은 엔비디아만의 악재예요', '국내·미국 주식'), true);
+  assert.equal(mentionsBasis('하시는 IT·개발 일, 반복 코딩 시간을 줄일 모델이 나왔어요', 'IT·개발 일'), true);
+  assert.equal(mentionsBasis('반도체 밖 업종은 이익 전망이 내려갔어요', '제조 일'), false);
+  assert.equal(mentionsBasis('해임 논의 뒤 엔비디아 경영 공백이 길어져요', '어제 들은 소식'), true);
+
+  const src = '젠슨 황 사임 후 엔비디아 4.34% 하락 마감. AMD와 브로드컴은 5% 넘게 올랐다. 수도권 4만 4천 가구, 2,077억 원';
+  assert.equal(unknownNumber('엔비디아는 4.34% 내렸고, AMD·브로드컴은 5% 넘게 올랐어요.', src), false);
+  assert.equal(unknownNumber('롯데건설 영업이익 2077억 원', src), false);
+  assert.equal(unknownNumber('엔비디아 7% 급락', src), true);
+});
