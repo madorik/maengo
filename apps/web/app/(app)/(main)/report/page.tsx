@@ -1,14 +1,14 @@
 import { addDays, kstDate, kstDayLabel } from "@maengo/core/kst";
-import { reportRange, reportTitle, weekStart, type ReportPeriod } from "@maengo/core/report";
+import { reportPreview, reportRange, reportTitle, weekStart, type ReportPeriod } from "@maengo/core/report";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { IconBack, IconChevronRight } from "@/components/icons";
 import { Mascot } from "@/components/Mascot";
 import { ReportBody } from "@/components/report/ReportBody";
+import { ReportFree } from "@/components/report/ReportFree";
 import { MakeReport, ReportSeen } from "@/components/report/ReportClient";
 import { ReportTeaser } from "@/components/report/ReportTeaser";
 import { Bubble } from "@/components/ui/Bubble";
-import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { entitlements } from "@/lib/server/profile";
 import { makeableStart, reportList, reportOf } from "@/lib/server/report";
 import { requireProfile } from "@/lib/server/session";
@@ -16,9 +16,10 @@ import { requireProfile } from "@/lib/server/session";
 export const metadata: Metadata = { title: "주간 리포트" };
 
 /**
- * 주간 리포트(2026-11-10, Premium. 월간은 뺐다). ?d=그 주 월요일(없으면 가장 최근 리포트). 예전 알림 주소의 ?p=는 무시한다.
+ * 주간 리포트(2026-11-10. 월간은 뺐다). ?d=그 주 월요일(없으면 가장 최근 리포트). 예전 알림 주소의 ?p=는 무시한다.
  * 리포트는 아침 작업(08:00 KST)이 만들어 두고, 다 끝난 지난 기간 리포트가 아직 없으면 '지금 만들기'로 바로 만든다.
- * Free는 예시와 Premium 안내(ReportTeaser). 규칙은 맹고-문서/리포트.md
+ * Premium은 전체(ReportBody), Free는 총평·숫자와 맛보기까지(ReportFree, 2026-11-19 사용자: Free에게도 보내고 더 보기는 Premium으로).
+ * Free는 서버에서 추린 요약(reportPreview)만 받는다. 아직 리포트가 없는 Free에게는 예시와 Premium 안내(ReportTeaser). 규칙은 맹고-문서/리포트.md
  */
 export default async function ReportPage({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
   const [profile, sp] = await Promise.all([requireProfile(), searchParams]);
@@ -27,16 +28,13 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="mx-auto max-w-[640px] px-4 py-6 lg:py-10">
-      <div className="flex items-center gap-2">
-        <h1 className="text-[28px] font-bold tracking-[-0.04em]">주간 리포트</h1>
-        {!premium && <PremiumBadge className="mt-1" />}
-      </div>
-      {premium ? <PremiumReport period={period} wanted={sp.d} /> : <div className="mt-5"><ReportTeaser /></div>}
+      <h1 className="text-[28px] font-bold tracking-[-0.04em]">주간 리포트</h1>
+      <WeeklyReport period={period} wanted={sp.d} premium={premium} />
     </div>
   );
 }
 
-async function PremiumReport({ period, wanted }: { period: ReportPeriod; wanted?: string }) {
+async function WeeklyReport({ period, wanted, premium }: { period: ReportPeriod; wanted?: string; premium: boolean }) {
   const profile = await requireProfile();
   const today = kstDate();
   const list = await reportList(profile, period);
@@ -44,7 +42,7 @@ async function PremiumReport({ period, wanted }: { period: ReportPeriod; wanted?
   const at = Math.max(0, wanted ? ready.findIndex((r) => r.start === wanted) : 0);
   const current = ready[at];
   const report = current ? await reportOf(profile, period, current.start) : null;
-  // 다 끝난 지난 기간 리포트가 아직 없으면(아침 작업 전이거나 그 뒤에 Premium이 됨) 지금 만들 수 있다
+  // 다 끝난 지난 기간 리포트가 아직 없으면(아침 작업 전이거나 그 뒤에 가입·Premium이 됨) 지금 만들 수 있다
   const makeable = makeableStart(period, today);
   const canMake = !!makeable && !list.some((r) => r.start === makeable);
   const older = ready[at + 1];
@@ -75,17 +73,25 @@ async function PremiumReport({ period, wanted }: { period: ReportPeriod; wanted?
             <Step to={newer && href(newer.start)} label="다음 리포트" dir="next" />
           </div>
           <div className="mt-4">
-            <ReportBody period={period} data={report.data} />
+            {premium ? <ReportBody period={period} data={report.data} /> : <ReportFree period={period} preview={reportPreview(report.data)} />}
           </div>
         </>
       ) : (
         !canMake && (
-          <div className="mt-10 flex items-end gap-3">
-            <Mascot className="size-24 shrink-0" />
-            <Bubble className="mb-6 flex-1">
-              <p className="text-[16px] font-bold leading-relaxed">{emptyMessage(list[0]?.status === "empty", today)}</p>
-            </Bubble>
-          </div>
+          <>
+            <div className="mt-10 flex items-end gap-3">
+              <Mascot className="size-24 shrink-0" />
+              <Bubble className="mb-6 flex-1">
+                <p className="text-[16px] font-bold leading-relaxed">{emptyMessage(list[0]?.status === "empty", today)}</p>
+              </Bubble>
+            </div>
+            {/* Free에게는 어떤 리포트가 오는지 예시와 Premium 안내도 */}
+            {!premium && (
+              <div className="mt-6">
+                <ReportTeaser />
+              </div>
+            )}
+          </>
         )
       )}
     </>

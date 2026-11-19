@@ -6,7 +6,8 @@ import { geminiChatJson } from '@maengo/core/gemini';
 import { addDays, kstDate } from '@maengo/core/kst';
 import {
   cleanDigest, DIGEST_MAX_ITEMS, DIGEST_SCHEMA, DIGEST_SYSTEM, digestPrompt, dueReports, periodEnd, pickDigestItems, prevStart, REPORT_MIN_ITEMS,
-  reportPushTitle, reportRange, reportTitle, type DigestItem, type ReportCounts, type ReportData, type ReportDigest, type ReportGroup, type ReportPeriod,
+  reportPushBody, reportPushTitle, reportRange, reportTitle, weekDates, type DigestItem, type ReportCounts, type ReportData, type ReportDigest, type ReportGroup,
+  type ReportPeriod, type ReportShare,
 } from '@maengo/core/report';
 import { groupOf, isLinkTopicId, TOPIC_BY_ID } from '@maengo/core/topics';
 import { aiBlockedReason } from './lib/ai-guard';
@@ -16,9 +17,11 @@ import { pushToUser } from './lib/push';
 import { flushUsage, recordUsage } from './lib/usage';
 
 // 주간 리포트 만들기(2026-11-10, Premium. 월간은 뺐다). 규칙은 맹고-문서/리포트.md, 기간 셈·AI 정리 규칙은 packages/core/src/report.ts.
-// - 서버 스케줄러 작업 reports(하루 한 번 08:00 KST)가 runReports를 부른다: 다 끝난 지난주(1~7일이면 지난달도) 리포트가 없는
-//   Premium 회원 것을 만들고, 새로 만든 사람에게 푸시를 한 번(지난달이 같이 나왔으면 지난달 쪽으로) 보낸다.
-// - 리포트 화면에서 Premium이 '지금 만들기'를 누르면 웹이 buildReport를 바로 부른다(apps/web/app/api/report/route.ts). 푸시는 없다.
+// - 서버 스케줄러 작업 reports(하루 한 번 08:00 KST)가 runReports를 부른다: 다 끝난 지난주 리포트가 없는 회원 것을 만들고,
+//   새로 만든 사람에게 푸시를 한 번 보낸다. Premium 먼저, Free도 만든다(2026-11-19: Free는 총평·숫자와 맛보기까지만 보여 주고 나머지는 Premium, apps/web/.../report).
+//   Free는 그 주(이후)에 앱을 연 사람만 만든다(안 오는 사람 몫의 정리 비용을 쓰지 않게).
+//   푸시 본문은 그 사람 맞춤 체크 첫 줄(없으면 놓친 주요 소식, 그것도 없으면 총평, packages/core/src/report.ts reportPushBody).
+// - 리포트 화면에서 '지금 만들기'를 누르면 웹이 buildReport를 바로 부른다(apps/web/app/api/report/route.ts). 푸시는 없다.
 // 숫자는 DB에서 세고, 총평·분야별 정리·떠오른 키워드·맞춤 체크·다음 주 지켜볼 것만 Gemini 한 번(gemini-3.1-flash-lite, 주간 약 ₩5)으로 만든다.
 // 맞춤 체크는 회원이 알려 준 내 맞춤 정보(user_context) 문장으로. 설정에서 맞춤 인사이트를 껐으면 보내지 않는다(2026-11-11).
 // 정리를 못 만들면(오류·지출 상한) 저장하지 않는다: 다음 날 작업이나 화면에서 다시 만든다.
@@ -102,7 +105,17 @@ async function topicNames(ids: string[]): Promise<Map<string, string>> {
   return out;
 }
 
-export type BuildResult = { status: 'ready'; headline: string } | { status: 'empty' } | { status: 'exists' };
+/** 이 기간에 앱을 연 날(visits). 못 읽으면 null(차트의 '연 날'을 그리지 않는다) */
+async function visitsOf(userId: string, from: string, to: string): Promise<string[] | null> {
+  const { data, error } = await db.from('visits').select('date').eq('user_id', userId).gte('date', from).lte('date', to);
+  if (error) {
+    console.error('[reports] 접속한 날 읽기 실패', error.message);
+    return null;
+  }
+  return (data as { date: string }[]).map((r) => r.date);
+}
+
+export type BuildResult = { status: 'ready'; headline: string; body: string } | { status: 'empty' } | { status: 'exists' };
 
 /**
  * 한 사람·한 기간의 리포트를 만들어 저장한다. 이미 있으면 'exists'(두 실행이 겹쳐도 먼저 넣은 쪽을 둔다).
@@ -123,7 +136,7 @@ export async function buildReport(userId: string, period: ReportPeriod, start: s
     await db.from('reports').upsert({ ...key, end_date: end, status: 'ready', data: report }, { onConflict: 'user_id,period,start_date', ignoreDuplicates: true }).select('user_id'),
     'reports save',
   ) as unknown[];
-  return saved.length ? { status: 'ready', headline: report.digest.headline } : { status: 'exists' };
+  return saved.length ? { status: 'ready', headline: report.digest.headline, body: reportPushBody(report) } : { status: 'exists' };
 }
 
 /**
@@ -137,7 +150,7 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
 
   const pStart = prevStart(period, start);
   const ids = rows.map((r) => r.cluster_id);
-  const [reads, summaries, prevRows, topicRows, personal] = await Promise.all([
+  const [reads, summaries, prevRows, topicRows, personal, visits] = await Promise.all([
     readsOf(userId, ids),
     inIds<SummaryRow>(ids, (c) => db.from('summaries').select('cluster_id,title,short,category,impact').eq('tier', 'basic').in('cluster_id', c), 'summaries'),
     receivedIn(userId, pStart, periodEnd(period, pStart)),
@@ -152,6 +165,7 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
       .lt('created_at', `${addDays(end, 1)}T00:00:00${KST}`)
       .then((r) => check(r, 'user_topics added') as { topic_id: string }[]),
     factsOf(userId),
+    visitsOf(userId, pStart, end),
   ]);
   const readBy = new Map(reads.map((r) => [r.cluster_id, r]));
   const prevReads = new Map((await readsOf(userId, prevRows.map((r) => r.cluster_id))).map((r) => [r.cluster_id, r]));
@@ -211,6 +225,15 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
     if (s) items[id] = { title: s.title, category: isCategory(s.category) ? s.category : 'etc' };
   }
 
+  // 요일별 차트(그날 받은 소식과 그중 본 소식)와 큰 소식을 챙겨 본 정도(2026-11-19)
+  const days = weekDates(start).map((date) => {
+    const day = rows.filter((r) => r.date === date);
+    return { date, received: day.length, consumed: day.filter((r) => consumed(readBy.get(r.cluster_id))).length };
+  });
+  const share = (w: Impact): ReportShare => {
+    const list = digestItems.filter((i) => i.impact === w);
+    return { received: list.length, consumed: list.filter((i) => i.consumed).length };
+  };
   const prev = countsOf(prevRows, prevReads);
   return {
     v: 1,
@@ -221,6 +244,10 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
     digest,
     missed,
     items,
+    personalized: personal.on,
+    days,
+    ...(visits ? { openDays: visits.filter((d) => d >= start && d <= end), prevOpenDays: visits.filter((d) => d >= pStart && d < start).length } : {}),
+    weight: { major: share('major'), notable: share('notable') },
   };
 }
 
@@ -298,38 +325,42 @@ export interface ReportsRun {
 }
 
 /**
- * 서버 스케줄러 작업 reports(하루 한 번 08:00 KST). 오늘 만들 기간(dueReports) 중 아직 없는 리포트를 Premium(기한 안) 회원마다 만들고,
+ * 서버 스케줄러 작업 reports(하루 한 번 08:00 KST). 오늘 만들 기간(dueReports) 중 아직 없는 리포트를 회원마다(Premium 먼저, Free도) 만들고,
  * 새로 만든 사람에게 푸시 한 번(알림을 켠 사람만). 시간이 모자라면 unfinished로 알려 다음 실행(5분 뒤)이 잇는다.
  * 정리를 못 만든 사람은 오늘은 두고 다음 날 다시(그 사이 화면에서 만들 수도 있다). 지출 상한에 닿으면 오늘은 그만둔다
  */
 export async function runReports(now = new Date(), deadline = now.getTime() + 240_000): Promise<ReportsRun> {
   const due = dueReports(kstDate(now));
   const stats: ReportsRun['stats'] = { users: 0, ready: 0, empty: 0, failed: 0, pushed: 0, later: 0, blocked: 0 };
-  const users = (
-    check(
-      await db.from('profiles').select('id,push_enabled,premium_until,created_at').eq('plan', 'plus').not('onboarded_at', 'is', null),
-      'profiles plus',
-    ) as { id: string; push_enabled: boolean; premium_until: string | null; created_at: string }[]
-  ).filter((u) => !u.premium_until || Date.parse(u.premium_until) > now.getTime());
+  // 회원: Premium(기한 안)이 먼저, 그다음 Free. 시간이 모자라 다음 실행으로 넘어가도 낸 사람 몫이 먼저 만들어진다
+  const all = await selectAll<{ id: string; push_enabled: boolean; plan: string; premium_until: string | null; created_at: string; last_seen_at: string | null }>((f, t) =>
+    db.from('profiles').select('id,push_enabled,plan,premium_until,created_at,last_seen_at').not('onboarded_at', 'is', null).order('id').range(f, t),
+  );
+  const isPremium = (u: (typeof all)[number]) => u.plan === 'plus' && (!u.premium_until || Date.parse(u.premium_until) > now.getTime());
+  const users = [...all.filter(isPremium), ...all.filter((u) => !isPremium(u))];
   if (!users.length) return { stats, unfinished: false };
 
-  const have = new Set(
-    (
-      check(
-        await db
-          .from('reports')
-          .select('user_id,period,start_date')
-          .in('user_id', users.map((u) => u.id))
-          .in('start_date', [...new Set(due.map((d) => d.start))]),
-        'reports have',
-      ) as { user_id: string; period: string; start_date: string }[]
-    ).map((r) => `${r.user_id}|${r.period}|${r.start_date}`),
-  );
+  // 이미 있는 리포트(회원이 많아도 주소가 길어지지 않게 나눠서 읽는다)
+  const have = new Set<string>();
+  const starts = [...new Set(due.map((d) => d.start))];
+  for (let i = 0; i < users.length; i += 100) {
+    const rows = check(
+      await db.from('reports').select('user_id,period,start_date').in('user_id', users.slice(i, i + 100).map((u) => u.id)).in('start_date', starts),
+      'reports have',
+    ) as { user_id: string; period: string; start_date: string }[];
+    for (const r of rows) have.add(`${r.user_id}|${r.period}|${r.start_date}`);
+  }
 
   let unfinished = false;
   outer: for (const [n, u] of users.entries()) {
     // 기간이 끝난 뒤에 가입한 사람은 그 기간 리포트가 없다
-    const todo = due.filter((d) => !have.has(`${u.id}|${d.period}|${d.start}`) && kstDate(new Date(u.created_at)) <= periodEnd(d.period, d.start));
+    // Free는 그 주(이후)에 앱을 연 사람만(last_seen_at). 안 오는 사람 몫의 정리 비용을 쓰지 않는다
+    const todo = due.filter(
+      (d) =>
+        !have.has(`${u.id}|${d.period}|${d.start}`) &&
+        kstDate(new Date(u.created_at)) <= periodEnd(d.period, d.start) &&
+        (isPremium(u) || (!!u.last_seen_at && kstDate(new Date(u.last_seen_at)) >= d.start)),
+    );
     if (!todo.length) continue;
     if (deadline - Date.now() < BUILD_MS * todo.length) {
       stats.later += users.length - n;
@@ -337,13 +368,13 @@ export async function runReports(now = new Date(), deadline = now.getTime() + 24
       break;
     }
     stats.users++;
-    const built: { period: ReportPeriod; start: string; headline: string }[] = [];
+    const built: { period: ReportPeriod; start: string; body: string }[] = [];
     for (const d of todo) {
       try {
         const r = await buildReport(u.id, d.period, d.start);
         if (r.status === 'ready') {
           stats.ready++;
-          built.push({ ...d, headline: r.headline });
+          built.push({ ...d, body: r.body });
         } else if (r.status === 'empty') stats.empty++;
       } catch (e) {
         if (e instanceof ReportAiBlocked) {
@@ -363,15 +394,15 @@ export async function runReports(now = new Date(), deadline = now.getTime() + 24
   return { stats, unfinished };
 }
 
-/** 새로 만든 리포트 알림 한 번. 결과는 그 리포트 줄에 적는다. 보냈으면 true */
-async function notify(userId: string, pushEnabled: boolean, built: { period: ReportPeriod; start: string; headline: string }[]): Promise<boolean> {
+/** 새로 만든 리포트 알림 한 번(본문은 그 사람 맞춤 문구, reportPushBody). 결과는 그 리포트 줄에 적는다. 보냈으면 true */
+async function notify(userId: string, pushEnabled: boolean, built: { period: ReportPeriod; start: string; body: string }[]): Promise<boolean> {
   const main = built[0]!;
   let result = 'muted';
   if (pushEnabled) {
     try {
       const r = await pushToUser(userId, {
         title: reportPushTitle(main.period, main.start),
-        body: main.headline,
+        body: main.body,
         path: `/report?d=${main.start}&from=push`,
       });
       result = 'note' in r ? `${r.status}: ${r.note}` : r.status;

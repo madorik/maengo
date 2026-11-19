@@ -2,7 +2,7 @@ import 'server-only';
 import { kstDate } from '@maengo/core/kst';
 import { lastCompleted, type ReportData, type ReportPeriod } from '@maengo/core/report';
 import { db } from './db';
-import { entitlements, type Profile } from './profile';
+import type { Profile } from './profile';
 
 // 주간 리포트 읽기(2026-11-10, Premium. 월간은 뺐다). 만드는 쪽은 pipeline/src/reports.ts(스케줄러 08:00 KST, 화면의 '지금 만들기'는 api/report).
 // reports 표가 없을 때(코드를 먼저 배포하고 마이그레이션 전)는 리포트가 없는 것으로 본다. 규칙은 맹고-문서/리포트.md.
@@ -54,9 +54,8 @@ export function makeableStart(period: ReportPeriod, today = kstDate()): string |
   return lastCompleted(period, today);
 }
 
-/** 오늘 화면 안내 카드: 아직 열어 보지 않은 리포트 중 이레 안에 만든 것. Premium만 */
+/** 오늘 화면 안내: 아직 열어 보지 않은 리포트 중 이레 안에 만든 것(2026-11-19부터 Free도, Free는 요약까지 보인다) */
 export async function freshReport(profile: Profile): Promise<{ period: ReportPeriod; start: string; headline: string } | null> {
-  if (!entitlements(profile).reports) return null;
   const since = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
   const rows = soft(
     await db

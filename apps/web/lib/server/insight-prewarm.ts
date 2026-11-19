@@ -1,15 +1,16 @@
 import 'server-only';
 import { addDays, kstDate } from '@maengo/core/kst';
-import { briefingInsight } from './briefing-insight';
+import { briefingInsight, type BriefingInsight } from './briefing-insight';
 import { db } from './db';
 import { getTodayData } from './feed';
 import { loadProfile } from './profile';
 import { getUserContext } from './user-context';
+import type { PushInsight } from '@maengo/pipeline/deliveries';
 
 // 오늘의 흐름 미리 만들기(2026-11-11 사용자: 성능 1번 — 매일 처음 열 때 인사이트 자리가 몇 초 회색).
-// 배송(1분마다, app/api/cron/deliveries)이 오늘 브리핑을 만든 사람의 오늘의 흐름을 그 자리에서 만들어 둔다. 열면 바로 보인다.
+// 배송(5분마다, app/api/cron/deliveries)이 오늘 브리핑을 만든 사람의 오늘의 흐름을 그 자리에서 만들어 둔다. 열면 바로 보인다.
 // 최근 3일 이상 접속하지 않은 사람은 만들지 않는다(사용자 결정: 안 볼 사람 몫의 Gemini 비용을 쓰지 않게). 그 사람은 열 때 만든다(지금과 같다).
-// 한 번에 몇 명씩, 마감 안에서만. 못 한 사람은 다음 실행(1분 뒤)이 잇거나 열 때 만든다.
+// 한 번에 몇 명씩, 마감 안에서만. 못 한 사람은 다음 실행(5분 뒤)이 잇거나 열 때 만든다.
 
 /** 이 날 이후 접속한 사람만(오늘·어제·그제). 그보다 오래 안 온 사람은 '3일 이상 접속 안 함' */
 const ACTIVE_DAYS = 2;
@@ -22,6 +23,31 @@ const PARALLEL = 3;
 const PER_USER_MS = 15_000;
 
 const BUILT = ['ready', 'sending', 'sent', 'no_device'];
+
+/**
+ * 한 사람의 그 브리핑 오늘의 흐름을 읽거나(이미 있으면) 만든다. 만들 수 없는 상황이면 'skipped'(프로필이 없음, 지금 보여 줄 브리핑이
+ * 그 브리핑이 아님, 소식이 2개 미만), 만들다 실패했으면 null. 미리 만들기와 알림 문구(pushInsightFor)가 같이 쓴다
+ */
+export async function insightFor(userId: string, slot: 'am' | 'pm'): Promise<BriefingInsight | 'skipped' | null> {
+  const profile = await loadProfile(userId, { provider: 'google', email: null, avatarUrl: null, demo: false });
+  if (!profile) return 'skipped';
+  const data = await getTodayData(profile);
+  // 지금 보여 줄 브리핑이 그 줄의 브리핑일 때만(오전 줄인데 이미 퇴근길 시간이면 열 때 만든다)
+  if (data.slot !== slot || data.items.length < 2) return 'skipped';
+  const ctx = await getUserContext(profile.id).catch(() => ({}));
+  return briefingInsight(profile, data, ctx);
+}
+
+/**
+ * 알림 문구에 쓸 흐름(2026-11-19 사용자: 알림도 뉴스 제목이 아니라 그 사람이 관심 가질 내용으로). 배송이 알림 직전에 부른다.
+ * 흐름이 없거나 만들지 못하면 null → 첫 소식 제목으로 보낸다. 이때 만든 흐름은 저장되니 앱을 열면 같은 글이 맨 위에 보인다(미리 만들기도 건너뛴다)
+ */
+export async function pushInsightFor(userId: string, slot: 'am' | 'pm'): Promise<PushInsight | null> {
+  const made = await insightFor(userId, slot);
+  if (!made || made === 'skipped') return null;
+  // 형식 13 이전에 만든 것은 lead가 없다 → about이 비어 큰 제목은 쓰지 않는다
+  return { headline: made.headline, about: made.lead?.about ?? '', ...(made.checks[0]?.text ? { check: made.checks[0].text } : {}) };
+}
 
 export async function prewarmInsights(deadline: number): Promise<{ candidates: number; made: number; skipped: number; failed: number }> {
   const out = { candidates: 0, made: 0, skipped: 0, failed: 0 };
@@ -53,19 +79,9 @@ export async function prewarmInsights(deadline: number): Promise<{ candidates: n
     while (next < todo.length && deadline - Date.now() > PER_USER_MS) {
       const job = todo[next++]!;
       try {
-        const profile = await loadProfile(job.user_id, { provider: 'google', email: null, avatarUrl: null, demo: false });
-        if (!profile) {
-          out.skipped++;
-          continue;
-        }
-        const data = await getTodayData(profile);
-        // 지금 보여 줄 브리핑이 그 줄의 브리핑일 때만(오전 줄인데 이미 퇴근길 시간이면 열 때 만든다)
-        if (data.slot !== (job.slot ?? 'am') || data.items.length < 2) {
-          out.skipped++;
-          continue;
-        }
-        const ctx = await getUserContext(profile.id).catch(() => ({}));
-        if (await briefingInsight(profile, data, ctx)) out.made++;
+        const made = await insightFor(job.user_id, job.slot ?? 'am');
+        if (made === 'skipped') out.skipped++;
+        else if (made) out.made++;
         else out.failed++;
       } catch (e) {
         out.failed++;

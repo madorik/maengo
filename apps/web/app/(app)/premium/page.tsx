@@ -32,7 +32,7 @@ function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string
     // 음성 엔진: 음성 듣기 플랜은 Gemini, 그 밖은 기본 음성(Chirp, lib/server/ai.ts ttsEngineFor)
     { label: "목소리", ...both((l) => (l.audio ? "더 자연스러운 AI 목소리" : l.dailyListens > 0 ? "기본" : "불가")) },
     { label: "맹고 AI 질문", free: `하루 ${ASK_DAILY.free}번`, plus: `하루 ${ASK_DAILY.plus}번` },
-    { label: "주간 리포트", free: "불가", plus: "가능" },
+    { label: "주간 리포트", free: "요약만", plus: "전체" },
     { label: "받은 소식 보관(북마크는 계속)", ...both((l) => archiveLabel(l.archiveDays)) },
   ];
 }

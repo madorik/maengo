@@ -10,6 +10,7 @@ import { env } from './lib/env';
 import type { PushMessage } from './lib/fcm';
 import { mapLimit } from './lib/limit';
 import { pushToUser } from './lib/push';
+import { gatherInsights, insightBody, insightKey, type InsightFetcher, type Slot } from './lib/push-copy';
 import { DELIVERY_BUILT_BY, existingFeedResult, isInactive, SEND_RETRY_MINUTES, sendRetryAt } from './lib/retry';
 import { flushUsage, recordUsage } from './lib/usage';
 
@@ -25,6 +26,7 @@ import { flushUsage, recordUsage } from './lib/usage';
 //      일주일 넘게 앱을 안 연 사람은 새로 요약하지 않고 이미 요약된 소식으로만 만든다(알림은 보내 다시 부른다)
 //      한 사람이 실패하면(DB 오류 등) 그 사람만 5분 뒤 다시(세 번까지). 배송이 만든 피드(built_by 'delivery')가 이미 있으면 지난 실행이 멈춘 것이라 이어서 알린다
 //   4. ready 줄을 FCM으로 보낸다 → sent / no_device / muted(알림 꺼 둠). 만든 그 실행에서 바로 보낸다
+//      본문은 뉴스 제목이 아니라 그 사람 사정에 닿는 오늘의 흐름 큰 제목(또는 확인할 것)으로(2026-11-19, lib/push-copy.ts). 흐름이 없거나 시간을 넘기면 첫 소식 제목
 //      FCM이 잠깐 실패하면(429·5xx·인증) 1분 → 5분 → 15분 뒤 다시 보낸다(그날 안에서만)
 // 서버가 잠깐 멈췄어도 그날 안이면 다음 실행이 알림 시각이 지난 사람을 이어서 챙긴다.
 
@@ -53,14 +55,28 @@ const EMPTY_TRIES = 3;
 /** 한 사람을 만들다 실패했을 때(DB 오류 등) 다시 해 볼 간격과 횟수(reclaim_stuck_deliveries도 세 번이면 failed) */
 const FAILED_RETRY_MS = 5 * 60_000;
 const BUILD_TRIES = 3;
+/**
+ * 알림 직전에 오늘의 흐름을 읽거나 만드는 시간(2026-11-19). 이미 만들어 둔 것은 바로 읽고, 없으면 한 사람에 5~15초쯤 걸린다.
+ * 사람당·전체 상한을 넘으면 그 사람은 첫 소식 제목으로 보낸다(알림이 늦어지는 것보다 낫다). 전체는 300초 함수 안에서 보내기 시간을 남기도록 INSIGHT_UNTIL_MS 앞에서 끊는다
+ */
+const INSIGHT_PER_USER_MS = 20_000;
+const INSIGHT_TOTAL_MS = 60_000;
+const INSIGHT_UNTIL_MS = 250_000;
+const INSIGHT_CONCURRENCY = 3;
 /** 1분마다 도는데 한 번이 길어져도 겹치지 않게(이보다 오래 붙잡고 있으면 죽은 것으로 보고 넘겨받는다) */
 const TICK_STALE_MS = 5 * 60_000;
 const STALE_NOTE = '날짜가 지나 만들거나 보내지 않음';
 
 /** delivery_jobs 한 줄. attempts는 만들기를 가져간 횟수, ready부터는 보내기가 잠깐 실패한 횟수 */
 type JobRow = { user_id: string; date: string; attempts: number; slot: Slot };
-/** 하루 두 번 브리핑(2026-11-10): 오전 출근길, 오후 퇴근길. 오후 것은 같은 날짜 피드 뒤에 이어 붙인다 */
-type Slot = 'am' | 'pm';
+/** 하루 두 번 브리핑(2026-11-10): 오전 출근길, 오후 퇴근길(Slot 'am' | 'pm', lib/push-copy.ts). 오후 것은 같은 날짜 피드 뒤에 이어 붙인다 */
+export type { PushInsight, Slot } from './lib/push-copy';
+
+/** 웹 쪽에서 넘기는 것. 흐름은 웹 코드(lib/server/briefing-insight.ts)라 pipeline이 직접 부르지 못해 콜백으로 받는다(scheduler의 recheckPremium과 같은 방식) */
+export interface DeliveryHooks {
+  /** 알림 직전에 그 사람의 오늘의 흐름을 읽거나 만든다. 없거나 null을 돌려주면 첫 소식 제목으로 보낸다 */
+  insightFor?: InsightFetcher;
+}
 
 export interface DeliveryResult {
   planned: number;
@@ -83,6 +99,8 @@ export interface DeliveryResult {
   muted: number;
   /** 푸시가 잠깐 실패해 잠시 뒤 다시 보낼 사람 */
   retried: number;
+  /** 첫 소식 제목이 아니라 오늘의 흐름(큰 제목·확인할 것)으로 문구를 쓴 알림 수 */
+  insightPush: number;
 }
 
 function makeCtx(now: Date, aiUntil: number): Ctx {
@@ -308,8 +326,11 @@ export async function buildFeedsFor(
   }
 }
 
-/** 알림 문구: 그 브리핑(출근길·퇴근길)의 첫 소식 제목과 개수. 보여 줄 소식이 없으면 null(빈 알림을 보내지 않는다) */
-async function messageFor(userId: string, date: string, slot: Slot = 'am'): Promise<PushMessage | null> {
+/**
+ * 알림 문구. 제목은 그대로('출근길 소식이 도착했어요'), 본문은 오늘의 흐름이 있으면 그 사람 사정에 닿는 큰 제목이나 확인할 것(insightBody),
+ * 없으면 그 브리핑의 첫 소식 제목과 개수. 보여 줄 소식이 없으면 null(빈 알림을 보내지 않는다)
+ */
+async function messageFor(userId: string, date: string, slot: Slot = 'am', body: string | null = null): Promise<PushMessage | null> {
   const day = check(await db.from('feed_days').select('visible').eq('user_id', userId).eq('date', date).maybeSingle(), 'feed_days visible') as { visible: number } | null;
   if (!day?.visible) return null;
   const rows = check(await db.from('feeds').select('cluster_id,rank').eq('user_id', userId).eq('date', date).eq('slot', slot).lte('rank', day.visible).order('rank'), 'feeds slot') as { cluster_id: number }[];
@@ -321,7 +342,7 @@ async function messageFor(userId: string, date: string, slot: Slot = 'am'): Prom
   const n = rows.length;
   return {
     title: slot === 'pm' ? '퇴근길 소식이 도착했어요' : '출근길 소식이 도착했어요',
-    body: title ? (n > 1 ? `${title} 외 ${n - 1}개` : title) : `관심사로 고른 소식 ${n}개가 준비됐어요`,
+    body: body ?? (title ? (n > 1 ? `${title} 외 ${n - 1}개` : title) : `관심사로 고른 소식 ${n}개가 준비됐어요`),
     path: '/today?from=push',
   };
 }
@@ -346,10 +367,10 @@ async function expireStale(today: string): Promise<number> {
   return rows.length;
 }
 
-export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
+export async function runDeliveries(now = new Date(), hooks: DeliveryHooks = {}): Promise<DeliveryResult> {
   const started = Date.now();
   const ctx = makeCtx(now, started + AI_RETRY_BUDGET_MS);
-  const out: DeliveryResult = { planned: 0, reclaimed: 0, expired: 0, built: 0, had: 0, empty: 0, blocked: 0, later: 0, summarized: 0, failed: 0, sent: 0, noDevice: 0, muted: 0, retried: 0 };
+  const out: DeliveryResult = { planned: 0, reclaimed: 0, expired: 0, built: 0, had: 0, empty: 0, blocked: 0, later: 0, summarized: 0, failed: 0, sent: 0, noDevice: 0, muted: 0, retried: 0, insightPush: 0 };
   const deadline = started + BUILD_BUDGET_MS;
   out.planned = Number(check(await db.rpc('plan_deliveries', { p_date: ctx.date }), 'plan_deliveries') ?? 0);
   out.reclaimed = Number(check(await db.rpc('reclaim_stuck_deliveries'), 'reclaim') ?? 0);
@@ -437,6 +458,14 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       ? (check(await db.from('profiles').select('id').in('id', sends.map((j) => j.user_id)).eq('push_enabled', true), 'profiles push_enabled') as { id: string }[]).map((p) => p.id)
       : [],
   );
+  // 알림 문구에 쓸 오늘의 흐름을 사람마다 모은다(알림을 보낼 사람만). 못 모으면 첫 소식 제목으로 보낸다
+  const insights = hooks.insightFor
+    ? await gatherInsights(
+        sends.filter((j) => pushOn.has(j.user_id)).map((j) => ({ userId: j.user_id, slot: (j.slot ?? 'am') as Slot })),
+        hooks.insightFor,
+        { totalMs: Math.max(0, Math.min(INSIGHT_TOTAL_MS, started + INSIGHT_UNTIL_MS - Date.now())), perUserMs: INSIGHT_PER_USER_MS, concurrency: INSIGHT_CONCURRENCY },
+      )
+    : new Map();
   /** 잠깐의 실패: 그날 안이면 잠시 뒤 다시 보낼 차례로, 횟수를 다 쓰면 no_device */
   const retryLater = async (job: JobRow, note: string) => {
     const tries = job.attempts + 1;
@@ -456,7 +485,9 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       continue;
     }
     try {
-      const msg = await messageFor(job.user_id, job.date, job.slot ?? 'am');
+      const slot = job.slot ?? 'am';
+      const body = insightBody(insights.get(insightKey(job.user_id, slot)));
+      const msg = await messageFor(job.user_id, job.date, slot, body);
       if (!msg) {
         out.failed++;
         await setStatus(job, { status: 'failed', last_error: '보낼 소식이 없음' });
@@ -465,6 +496,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
       const r = await pushToUser(job.user_id, msg);
       if (r.status === 'sent') {
         out.sent++;
+        if (body) out.insightPush++;
         await setStatus(job, { status: 'sent', sent_at: new Date().toISOString(), last_error: null });
         await db.from('notifications_log').upsert({ user_id: job.user_id, date: job.date, channel: job.slot === 'pm' ? 'push_pm' : 'push' }, { onConflict: 'user_id,date,channel', ignoreDuplicates: true });
       } else if (r.status === 'retry') {
@@ -487,7 +519,7 @@ export async function runDeliveries(now = new Date()): Promise<DeliveryResult> {
  * 1분마다 한 번(/api/cron/deliveries). scheduler_tasks의 deliveries 줄을 잠금으로 써서 겹쳐 돌지 않게 하고 결과를 남긴다.
  * 그 줄은 enabled=false라 서버 스케줄러(ingest·daily)는 가져가지 않는다.
  */
-export async function runDeliveryTick(now = new Date()): Promise<DeliveryResult | 'busy'> {
+export async function runDeliveryTick(now = new Date(), hooks: DeliveryHooks = {}): Promise<DeliveryResult | 'busy'> {
   const stale = new Date(now.getTime() - TICK_STALE_MS).toISOString();
   const claimed = check(
     await db
@@ -500,7 +532,7 @@ export async function runDeliveryTick(now = new Date()): Promise<DeliveryResult 
   ) as { name: string }[];
   if (!claimed.length) return 'busy';
   try {
-    const out = await runDeliveries(now);
+    const out = await runDeliveries(now, hooks);
     await db.from('scheduler_tasks').update({ running_since: null, last_finished_at: new Date().toISOString(), last_status: 'ok', last_error: null, last_stats: out }).eq('name', 'deliveries');
     return out;
   } catch (e) {

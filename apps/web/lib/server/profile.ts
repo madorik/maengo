@@ -140,7 +140,7 @@ export function entitlements(p: Profile) {
     linkLimit: l.linkLimit,
     canBuyMaengo: l.canBuyMaengo,
     archiveDays: l.archiveDays,
-    /** 주간 리포트(2026-11-10, Premium만. 월간은 뺐다. plans 표 칸 없이 플랜으로 정한다, 맹고-문서/리포트.md) */
+    /** 주간 리포트 전체(2026-11-10, Premium만. 월간은 뺐다. plans 표 칸 없이 플랜으로 정한다, 맹고-문서/리포트.md). Free는 2026-11-19부터 총평·숫자와 맛보기까지(ReportFree) */
     reports: l.id === 'plus',
   };
 }

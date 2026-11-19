@@ -107,6 +107,19 @@ export interface ReportDigest {
   next?: { text: string; ids: number[] }[];
 }
 
+/** 하루치(요일별 차트): 그날 받은 소식과 그중 본(읽거나 들은) 소식 */
+export interface ReportDay {
+  date: string;
+  received: number;
+  consumed: number;
+}
+
+/** 큰 소식(무게 major·notable)을 받은 수와 그중 본 수 */
+export interface ReportShare {
+  received: number;
+  consumed: number;
+}
+
 export interface ReportData {
   v: 1;
   counts: ReportCounts;
@@ -121,6 +134,92 @@ export interface ReportData {
   missed: number[];
   /** 위에서 가리키는 소식의 제목(리포트를 만든 때 그대로) */
   items: Record<string, ReportItem>;
+  /** 맞춤 인사이트를 켠 회원의 리포트인지. 끈 회원은 읽은 기록으로 만든 알림 문구를 쓰지 않는다(2026-11-19). 이 칸이 생기기 전 리포트에는 없다 */
+  personalized?: boolean;
+  /** 요일별(월~일 7칸) 받은·본 소식(2026-11-19 차트). 이 칸이 생기기 전 리포트에는 없다 */
+  days?: ReportDay[];
+  /** 이 주에 앱을 연 날(KST 날짜)과 앞 주에 연 날 수. 못 읽었으면 없다 */
+  openDays?: string[];
+  prevOpenDays?: number | null;
+  /** 큰 소식을 얼마나 챙겨 봤는지(major·notable 따로) */
+  weight?: { major: ReportShare; notable: ReportShare };
+}
+
+// ---- 요일별 차트 ----
+
+const DAY_NAMES = ['월', '화', '수', '목', '금', '토', '일'];
+
+/** 'YYYY-MM-DD'의 요일 이름(월~일) */
+export const dayName = (date: string) => DAY_NAMES[(weekday(date) + 6) % 7]!;
+
+/** 그 주 7일의 날짜(월~일) */
+export const weekDates = (start: string) => Array.from({ length: 7 }, (_, i) => addDays(start, i));
+
+/** 가장 많이 본 날(같으면 앞선 날). 하루도 안 봤으면 null */
+export function busiestDay(days: readonly ReportDay[]): ReportDay | null {
+  let best: ReportDay | null = null;
+  for (const d of days) if (d.consumed > 0 && (!best || d.consumed > best.consumed)) best = d;
+  return best;
+}
+
+// ---- 알림 문구 ----
+
+/** 알림 본문 글자 수 상한(잠금 화면에서 잘리지 않게) */
+export const PUSH_BODY_MAX = 80;
+const clamp = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+const firstSentence = (s: string) => s.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? s;
+
+/**
+ * 리포트가 나왔다는 알림 본문(2026-11-19 사용자: 알림도 그 사람 맞춤으로). 제목은 그대로('지난주 리포트가 나왔어요').
+ * ① 맞춤 체크 첫 줄 — 그 사람 사정에 닿은 이번 주 일: '국내 주식 · AI 투자 위축 우려로 삼성전자가 크게 떨어졌어요.'
+ * ② 놓친 주요 소식(맞춤 인사이트를 켠 사람만. 읽은 기록으로 만든 말이라 끈 사람에겐 쓰지 않는다)
+ * ③ 한 줄 총평
+ */
+export function reportPushBody(data: ReportData): string {
+  const p = data.digest.personal?.[0];
+  if (p) return clamp(`${p.about} · ${firstSentence(p.text)}`, PUSH_BODY_MAX);
+  if (data.personalized) {
+    const shown = data.missed.filter((id) => data.items[id]);
+    if (shown.length) return clamp(`놓친 주요 소식 ${shown.length}개 · ${data.items[shown[0]!]!.title}`, PUSH_BODY_MAX);
+  }
+  return clamp(data.digest.headline, PUSH_BODY_MAX);
+}
+
+// ---- Free에게 보여 줄 요약(2026-11-19) ----
+
+/** Free가 보는 맛보기 글자 수(여기까지만 서버가 내려보낸다. 가림은 화면의 그라데이션이지만 내용은 애초에 보내지 않는다) */
+export const PEEK_CHARS = 80;
+
+export interface ReportPreview {
+  counts: ReportCounts;
+  prev: ReportCounts | null;
+  headline: string;
+  /** 요약 바로 아래 살짝 보이는 첫 칸(맞춤 체크 첫 줄, 없으면 첫 분야 정리)의 앞부분 */
+  peek: { label: string; about: string; title: string; text: string } | null;
+  /** Premium에서 더 보이는 칸과 개수 */
+  locked: { label: string; count: number | null }[];
+}
+
+/** Free에게 내려보낼 것만 추린다: 총평·숫자, 첫 칸의 앞부분, 나머지는 이름과 개수만 */
+export function reportPreview(data: ReportData): ReportPreview {
+  const { digest } = data;
+  const p = digest.personal?.[0];
+  const s = digest.sections[0];
+  const peek: ReportPreview['peek'] = p
+    ? { label: '맞춤 체크', about: p.about, title: p.title, text: clamp(p.text, PEEK_CHARS) }
+    : s
+      ? { label: '분야별로 보면', about: s.group, title: `${s.group} 소식 정리`, text: clamp(s.summary, PEEK_CHARS) }
+      : null;
+  const locked: ReportPreview['locked'] = [];
+  if (digest.personal?.length) locked.push({ label: '맞춤 체크', count: digest.personal.length });
+  if (digest.next?.length) locked.push({ label: '다음 주 지켜볼 것', count: digest.next.length });
+  if (data.days?.length) locked.push({ label: '요일별로 본 흐름 차트', count: null });
+  if (digest.sections.length) locked.push({ label: '분야별 정리', count: digest.sections.length });
+  if (data.groups.length) locked.push({ label: '많이 본 분야 차트', count: null });
+  if (digest.keywords.length) locked.push({ label: '자주 나온 키워드', count: digest.keywords.length });
+  const missed = data.missed.filter((id) => data.items[id]).length;
+  if (missed) locked.push({ label: '놓친 주요 소식', count: missed });
+  return { counts: data.counts, prev: data.prev, headline: digest.headline, peek, locked };
 }
 
 // ---- AI 정리 ----

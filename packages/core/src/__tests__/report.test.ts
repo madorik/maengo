@@ -109,3 +109,92 @@ test('맞춤 체크·다음 주 지켜볼 것: 사정을 알려 준 회원만, �
   // 사정이 없으면 맞춤 체크는 비운다(지어낸 것)
   assert.deepEqual(cleanDigest(base, ['AI'], [1, 2])!.personal, []);
 });
+
+// ---- 알림 문구·Free 요약·요일별 차트(2026-11-19) ----
+import { busiestDay, dayName, PEEK_CHARS, PUSH_BODY_MAX, reportPreview, reportPushBody, weekDates, type ReportData } from '../report';
+
+const data = (over: Partial<ReportData> = {}, digest: Partial<ReportData['digest']> = {}): ReportData => ({
+  v: 1,
+  counts: { received: 20, consumed: 9, listened: 4, bookmarked: 1 },
+  prev: { received: 18, consumed: 7, listened: 2, bookmarked: 0 },
+  groups: [{ id: 'stock', name: '주식', received: 12, consumed: 6, prevConsumed: 4 }],
+  added: [],
+  digest: {
+    headline: '엔비디아 실적과 HBM 경쟁이 한 주를 이끌었어요',
+    sections: [{ group: '주식', summary: '삼성전자와 SK하이닉스가 HBM 공급 경쟁 소식에 크게 오르내렸고 코스피도 출렁였어요.', ids: [1] }],
+    keywords: [{ word: 'HBM4', ids: [1] }],
+    personal: [],
+    next: [],
+    ...digest,
+  },
+  missed: [],
+  items: { '1': { title: '삼성전자 HBM4 공급 확정', category: 'etc' } },
+  ...over,
+});
+
+test('알림 문구: 맞춤 체크가 있으면 그 사정과 첫 문장', () => {
+  const d = data({}, { personal: [{ about: '국내 주식', title: '반도체가 흔든 한 주', text: 'AI 투자 위축 우려로 삼성전자·SK하이닉스가 크게 떨어졌어요. 다음 주 미국 물가 발표가 분위기를 가를 수 있어요.', ids: [1] }] });
+  assert.equal(reportPushBody(d), '국내 주식 · AI 투자 위축 우려로 삼성전자·SK하이닉스가 크게 떨어졌어요.');
+});
+
+test('알림 문구: 맞춤 체크가 없으면 놓친 주요 소식(맞춤 인사이트를 켠 사람만), 아니면 총평', () => {
+  const missed = { missed: [1], personalized: true };
+  assert.equal(reportPushBody(data(missed)), '놓친 주요 소식 1개 · 삼성전자 HBM4 공급 확정');
+  // 끈 사람(또는 이 칸이 생기기 전 리포트)에게는 읽은 기록으로 만든 말을 쓰지 않는다
+  assert.equal(reportPushBody(data({ missed: [1], personalized: false })), '엔비디아 실적과 HBM 경쟁이 한 주를 이끌었어요');
+  assert.equal(reportPushBody(data({ missed: [1] })), '엔비디아 실적과 HBM 경쟁이 한 주를 이끌었어요');
+  // 제목을 모르는 소식은 세지 않는다
+  assert.equal(reportPushBody(data({ missed: [99], personalized: true })), '엔비디아 실적과 HBM 경쟁이 한 주를 이끌었어요');
+});
+
+test('알림 문구: 너무 길면 줄임표로 자른다', () => {
+  const d = data({}, { personal: [{ about: '국내 주식', title: '긴 제목이에요', text: `${'가'.repeat(120)}.`, ids: [1] }] });
+  const body = reportPushBody(d);
+  assert.equal(body.length, PUSH_BODY_MAX);
+  assert.ok(body.endsWith('…'));
+});
+
+test('Free 요약: 총평·숫자와 첫 칸의 앞부분만, 나머지는 이름과 개수만 내려보낸다', () => {
+  const text = `반도체 변동성이 커진 한 주였어요. 다음 주 미국 물가 발표와 삼성전자 실적 발표 일정을 확인해 보세요. ${'가'.repeat(60)} 비밀스러운 끝부분이에요.`;
+  const full = data(
+    { days: weekDates('2026-11-09').map((date) => ({ date, received: 3, consumed: 1 })), missed: [1] },
+    { personal: [{ about: '국내 주식', title: '반도체가 흔든 한 주', text, ids: [1] }, { about: '대출', title: '이자 부담', text: '둘째 맞춤 체크의 본문이에요. 이것은 새면 안 돼요.', ids: [1] }], next: [{ text: '19일 미국 물가 발표', ids: [1] }] },
+  );
+  const p = reportPreview(full);
+  assert.equal(p.headline, full.digest.headline);
+  assert.deepEqual(p.counts, full.counts);
+  assert.equal(p.peek?.label, '맞춤 체크');
+  assert.equal(p.peek?.about, '국내 주식');
+  assert.ok((p.peek?.text.length ?? 0) <= PEEK_CHARS);
+  assert.ok(p.peek?.text.endsWith('…'));
+  assert.deepEqual(p.locked, [
+    { label: '맞춤 체크', count: 2 },
+    { label: '다음 주 지켜볼 것', count: 1 },
+    { label: '요일별로 본 흐름 차트', count: null },
+    { label: '분야별 정리', count: 1 },
+    { label: '많이 본 분야 차트', count: null },
+    { label: '자주 나온 키워드', count: 1 },
+    { label: '놓친 주요 소식', count: 1 },
+  ]);
+  // 내려보내는 값 어디에도 뒷부분·둘째 맞춤 체크·다음 주 지켜볼 것 본문·키워드 말은 없다
+  const sent = JSON.stringify(p);
+  for (const secret of ['비밀스러운 끝부분', '둘째 맞춤 체크', '19일 미국 물가', 'HBM4', '삼성전자 HBM4 공급 확정']) assert.ok(!sent.includes(secret), secret);
+});
+
+test('Free 요약: 맞춤 체크가 없으면 첫 분야 정리의 앞부분', () => {
+  const p = reportPreview(data());
+  assert.equal(p.peek?.label, '분야별로 보면');
+  assert.equal(p.peek?.about, '주식');
+  assert.ok((p.peek?.text.length ?? 0) <= PEEK_CHARS);
+  // 이 칸이 생기기 전 리포트(days 없음)에는 차트 줄을 쓰지 않는다
+  assert.ok(!p.locked.some((l) => l.label === '요일별로 본 흐름 차트'));
+});
+
+test('요일별 차트: 요일 이름과 한 주 7일, 가장 많이 본 날', () => {
+  assert.equal(dayName('2026-11-09'), '월');
+  assert.equal(dayName('2026-11-15'), '일');
+  assert.deepEqual(weekDates('2026-11-09'), ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15']);
+  const days = weekDates('2026-11-09').map((date, i) => ({ date, received: 4, consumed: [0, 2, 5, 5, 1, 0, 0][i]! }));
+  assert.equal(busiestDay(days)?.date, '2026-11-11'); // 5개가 둘이면 앞선 날
+  assert.equal(busiestDay(days.map((d) => ({ ...d, consumed: 0 }))), null);
+});

@@ -25,7 +25,7 @@ export function ReportTeaser() {
     <div>
       <ul className="flex flex-col gap-2 text-[16px] font-bold leading-relaxed">
         <li>매주 월요일 아침, 한 주 받은 소식을 정리하고 내 상황에 맞춰 짚어 드려요</li>
-        <li className="text-sub">한 줄 총평, 맞춤 체크, 다음 주 지켜볼 것, 분야별 정리, 놓친 주요 소식까지 한 장에</li>
+        <li className="text-sub">한 줄 총평과 숫자는 Free에서도 보여 드려요. 맞춤 체크, 요일별 차트, 다음 주 지켜볼 것, 분야별 정리, 놓친 주요 소식은 Premium에서 한 장에</li>
       </ul>
 
       {/* 예시. 화면 읽기 프로그램에는 숨기고 위 설명으로 대신한다 */}
