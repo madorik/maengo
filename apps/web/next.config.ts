@@ -33,7 +33,13 @@ const nextConfig: NextConfig = {
   // 코드로 그리는 apple-icon.tsx는 basePath가 안 붙은 주소(/apple-icon)로 나가서 파일로 둔다.
   async headers() {
     const immutable = [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }];
+    // 공개 분야 화면(/topics…)은 누가 열어도 같다(로그인 버튼만 브라우저에서 바뀐다, components/public/PublicPage.tsx).
+    // 주소의 ?page=·기간(searchParams) 때문에 요청마다 서버가 그려서 한 번에 CPU 0.5초쯤 들고(2026-11-21 Vercel 표본), 검색·SNS 로봇이 자주 읽는다.
+    // Vercel CDN에만 10분 담아 둔다(Vercel-CDN-Cache-Control은 브라우저·다른 CDN에 가지 않고 Next의 Cache-Control보다 우선). 10분 안에 새 소식이 늦게 보일 수 있다.
+    // 캐시 키에 배포 주소가 들어 있어 새 배포는 빈 캐시로 시작한다
+    const publicCdn = [{ key: "Vercel-CDN-Cache-Control", value: "max-age=600, stale-while-revalidate=3600" }];
     return [
+      { source: "/topics/:path*", headers: publicCdn },
       { source: "/icon.svg", headers: immutable },
       { source: "/apple-icon.png", headers: immutable },
       { source: "/manifest.webmanifest", headers: [{ key: "Cache-Control", value: "public, max-age=86400" }] },
