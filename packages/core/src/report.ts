@@ -187,29 +187,59 @@ export function reportPushBody(data: ReportData): string {
 
 // ---- Free에게 보여 줄 요약(2026-11-19) ----
 
-/** Free가 보는 맛보기 글자 수(여기까지만 서버가 내려보낸다. 가림은 화면의 그라데이션이지만 내용은 애초에 보내지 않는다) */
-export const PEEK_CHARS = 80;
+/**
+ * Free가 보는 맛보기 본문 글자 수(여기까지만 서버가 내려보낸다. 가림은 화면의 그라데이션이지만 내용은 애초에 보내지 않는다).
+ * 2026-11-21 사용자: 한 줄만 살짝이 아니라 3~4줄까지 보여 궁금해지게. 390px 화면에서 14px 본문이 한 줄에 35자 안팎(좁은 폰은 31자)이라 4줄 ≈ 130자
+ */
+export const PEEK_CHARS = 130;
+
+/** 맛보기가 가려야 하는 뒷부분의 최소 비율: 짧은 글도 끝까지 보여 주지 않고 뒤 20%는 남긴다(궁금증) */
+const PEEK_HIDDEN = 0.2;
+
+/**
+ * 맛보기로 자른 글: 최대 max자(줄임표 포함). 글이 짧아도 뒤 PEEK_HIDDEN만큼은 가려 '그다음은?'을 남긴다.
+ * 낱말 중간이 아니라 띄어쓰기에서 자르고, 끝의 쉼표·마침표는 떼고 '…'를 붙인다
+ */
+export function peekCut(text: string, max: number): string {
+  const limit = Math.max(1, Math.min(max - 1, Math.floor(text.length * (1 - PEEK_HIDDEN))));
+  const head = text.slice(0, limit);
+  const space = head.lastIndexOf(' ');
+  const cut = space >= limit * 0.6 ? head.slice(0, space) : head;
+  return `${cut.replace(/[\s,.·]+$/, '')}…`;
+}
+
+/** 첫 문장과 나머지('첫 문장. 나머지…'). 문장이 하나뿐이면 나머지는 빈 말 */
+const splitFirst = (s: string): [string, string] => {
+  const first = firstSentence(s);
+  return [first, s.slice(first.length).trim()];
+};
 
 export interface ReportPreview {
   counts: ReportCounts;
   prev: ReportCounts | null;
   headline: string;
-  /** 요약 바로 아래 살짝 보이는 첫 칸(맞춤 체크 첫 줄, 없으면 첫 분야 정리)의 앞부분 */
+  /** 요약 바로 아래 3~4줄 보이는 첫 칸(맞춤 체크 첫 줄, 없으면 첫 분야 정리)의 앞부분. 제목은 전부, 본문은 PEEK_CHARS까지 */
   peek: { label: string; about: string; title: string; text: string } | null;
   /** Premium에서 더 보이는 칸과 개수 */
   locked: { label: string; count: number | null }[];
 }
 
-/** Free에게 내려보낼 것만 추린다: 총평·숫자, 첫 칸의 앞부분, 나머지는 이름과 개수만 */
+/**
+ * Free에게 내려보낼 것만 추린다: 총평·숫자, 첫 칸의 앞부분, 나머지는 이름과 개수만.
+ * 맞춤 체크가 없을 때(근거가 없는 회원)의 첫 분야 정리는 '주식 소식 정리' 같은 밋밋한 제목 대신 첫 문장(그 분야의 가장 큰 일)을 제목으로 쓴다
+ */
 export function reportPreview(data: ReportData): ReportPreview {
   const { digest } = data;
   const p = digest.personal?.[0];
   const s = digest.sections[0];
-  const peek: ReportPreview['peek'] = p
-    ? { label: '맞춤 체크', about: p.about, title: p.title, text: clamp(p.text, PEEK_CHARS) }
-    : s
-      ? { label: '분야별로 보면', about: s.group, title: `${s.group} 소식 정리`, text: clamp(s.summary, PEEK_CHARS) }
-      : null;
+  let peek: ReportPreview['peek'] = null;
+  if (p) peek = { label: '맞춤 체크', about: p.about, title: p.title, text: peekCut(p.text, PEEK_CHARS) };
+  else if (s) {
+    const [first, rest] = splitFirst(s.summary);
+    peek = rest
+      ? { label: '분야별로 보면', about: s.group, title: first, text: peekCut(rest, PEEK_CHARS) }
+      : { label: '분야별로 보면', about: s.group, title: `${s.group} 소식 정리`, text: peekCut(s.summary, PEEK_CHARS) };
+  }
   const locked: ReportPreview['locked'] = [];
   if (digest.personal?.length) locked.push({ label: '맞춤 체크', count: digest.personal.length });
   if (digest.next?.length) locked.push({ label: '다음 주 지켜볼 것', count: digest.next.length });
@@ -259,12 +289,13 @@ export const DIGEST_SYSTEM = `회원이 한 기간 동안 맹고에서 받은 [�
 - personal: 1~3개. 이 리포트에서 가장 중요한 칸이다. 회원은 재테크하는 직장인이다. 회원이 관심 가지고 보던 분야의 이번 주 소식이 재테크하는 이 회원에게(가진 주식·코인·집·대출·예금 같은 경제 쪽에) 어떤 영향이었는지 짚는다. 근거는 [회원이 알려 준 사정](있으면 먼저)과 ✓ 표시(읽거나 들은) 소식뿐이다.
   - 먼저 재테크로 닿는 것(기업 실적·업종 흐름, 금리·대출 이자, 환율, 집값·청약·대출 규제, 코인). 생활 쪽(출퇴근·통신사·응원 팀 등)은 재테크로 닿는 소식이 하나도 없을 때만 1개까지.
   - about: 근거의 짧은 이름(사정이면 "국내 주식"·"변동금리 대출"·"자가용 출퇴근"·"SKT", 읽은 소식이면 "읽던 반도체 소식"·"들은 금리 소식").
-  - title: 20자 안팎. text: 두 문장, 60~130자, 해요체. 영향이 오는 길(이자·환율·수요·실적·규제·요금·일정 등)을 말하고, 덧붙이는 말은 확인할 것(공지·일정·내 조건)까지만.
+  - title: 20자 안팎, 읽고 싶어지는 한 줄. 이번 주 그 사정에 닿은 구체적인 사건·이름·숫자를 넣고('~ 정리', '~ 소식' 같은 밋밋한 말은 쓰지 않는다), '맞춤'·'나에게' 같은 꼬리표는 붙이지 않는다.
+  - text: 두 문장, 100~150자, 해요체. 앞부분만 먼저 보이는 글이라 첫 문장에 무엇이 어떻게 바뀌었는지를 회사·숫자로 구체적으로 쓰고, 영향이 오는 길(이자·환율·수요·실적·규제·요금·일정 등)은 뒤가 궁금해지게 둘째 문장으로 넘긴다. 덧붙이는 말은 확인할 것(공지·일정·내 조건)까지만.
   - ids: 근거 소식 번호 1~3개.
-  - 예: 사정 "국내 주식을 해요" + 이번 주 "반도체주 급락", "코스피 5000선 공방" → about "국내 주식", title "반도체가 흔든 한 주", text "AI 투자 위축 우려로 삼성전자·SK하이닉스가 크게 떨어지며 코스피가 출렁였어요. 다음 주 미국 물가 발표가 분위기를 가를 수 있어요."
-  - 예(분야→재테크): ✓ "빅테크 AI 투자 경쟁"을 읽었고 이번 주 "데이터센터 투자 확대" → about "읽던 AI 소식", title "AI 투자가 반도체 실적으로", text "빅테크가 데이터센터 투자를 늘리며 메모리 수요 기대가 커졌어요. 다음 주 반도체 기업 실적 발표의 투자 계획을 확인해 보세요."
+  - 예: 사정 "국내 주식을 해요" + 이번 주 "반도체주 급락", "코스피 5000선 공방" → about "국내 주식", title "삼성전자·하이닉스가 흔든 한 주", text "AI 투자 위축 우려로 삼성전자·SK하이닉스가 일주일 새 크게 떨어지며 코스피가 출렁였어요. 다음 주 미국 물가 발표가 이 분위기를 되돌릴지, 더 누를지 가를 수 있으니 발표 일정을 확인해 보세요."
+  - 예(분야→재테크): ✓ "빅테크 AI 투자 경쟁"을 읽었고 이번 주 "데이터센터 투자 확대" → about "읽던 AI 소식", title "데이터센터 투자가 메모리 실적으로", text "빅테크가 데이터센터 투자를 늘리며 HBM 같은 메모리 수요 기대가 커졌어요. 다음 주 반도체 기업 실적 발표에서 투자 계획이 얼마나 반영됐는지, 하반기 전망이 달라지는지 확인해 보세요."
   - 사정마다, 이어서 읽은 흐름마다 이번 주에 가장 크게 닿은 것 하나씩. 사정이나 ✓ 소식이 하나라도 있으면 반드시 1개 이상. 근거 없는 연결은 지어내지 않는다. 사정도 ✓ 소식도 없으면 빈 배열.
-  - 예(읽은 소식): ✓ "HBM 공급 경쟁 본격화"를 읽었고 이번 주 "삼성전자 급락" → about "읽던 반도체 소식", title "지켜보던 HBM 경쟁이 주가로", text "읽어 온 HBM 공급 경쟁이 이번 주 반도체주 급락으로 이어졌어요. 다음 주 실적 발표에서 HBM 물량 전망을 확인해 보세요."
+  - 예(읽은 소식): ✓ "HBM 공급 경쟁 본격화"를 읽었고 이번 주 "삼성전자 급락" → about "읽던 반도체 소식", title "지켜보던 HBM 경쟁이 주가로", text "읽어 온 HBM 공급 경쟁이 이번 주 삼성전자 등 반도체주 급락으로 이어졌어요. 다음 주 실적 발표에서 HBM 물량 전망이 어떻게 달라지는지, 경쟁사와 격차가 벌어지는지 확인해 보세요."
   - 사라·팔라, 비중·포트폴리오를 바꾸라, 투자를 점검·대비하라는 말과 수익·손실 장담은 하지 않는다.
   - '재테크'·'돈'이라는 말은 쓰지 않는다('돈 쪽' 대신 '경제 쪽'). 경제 쪽 영향은 실적·이자·환율·집값처럼 구체적으로 말한다.
 - next: 다음 주에 지켜볼 것 0~3개. 소식 요약에 나온 발표·일정·수치만(예: "19일 미국 물가 발표", "한국은행 기준금리 결정"). text 40자 안팎, ids 근거 소식 번호 1~2개. 없으면 빈 배열.

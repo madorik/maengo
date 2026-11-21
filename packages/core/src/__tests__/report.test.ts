@@ -111,7 +111,7 @@ test('맞춤 체크·다음 주 지켜볼 것: 사정을 알려 준 회원만, �
 });
 
 // ---- 알림 문구·Free 요약·요일별 차트(2026-11-19) ----
-import { busiestDay, dayName, PEEK_CHARS, PUSH_BODY_MAX, reportPreview, reportPushBody, weekDates, type ReportData } from '../report';
+import { busiestDay, dayName, PEEK_CHARS, peekCut, PUSH_BODY_MAX, reportPreview, reportPushBody, weekDates, type ReportData } from '../report';
 
 const data = (over: Partial<ReportData> = {}, digest: Partial<ReportData['digest']> = {}): ReportData => ({
   v: 1,
@@ -166,6 +166,7 @@ test('Free 요약: 총평·숫자와 첫 칸의 앞부분만, 나머지는 이�
   assert.equal(p.peek?.label, '맞춤 체크');
   assert.equal(p.peek?.about, '국내 주식');
   assert.ok((p.peek?.text.length ?? 0) <= PEEK_CHARS);
+  assert.ok((p.peek?.text.length ?? 0) >= 90); // 3줄 안팎은 보인다(2026-11-21 사용자: 한 줄만이 아니라 3~4줄)
   assert.ok(p.peek?.text.endsWith('…'));
   assert.deepEqual(p.locked, [
     { label: '맞춤 체크', count: 2 },
@@ -188,6 +189,33 @@ test('Free 요약: 맞춤 체크가 없으면 첫 분야 정리의 앞부분', (
   assert.ok((p.peek?.text.length ?? 0) <= PEEK_CHARS);
   // 이 칸이 생기기 전 리포트(days 없음)에는 차트 줄을 쓰지 않는다
   assert.ok(!p.locked.some((l) => l.label === '요일별로 본 흐름 차트'));
+});
+
+test('Free 요약: 첫 분야 정리가 두 문장이면 첫 문장을 제목으로, 둘째 문장을 앞부분만', () => {
+  const summary = '삼성전자가 HBM4 공급을 따내며 반도체주가 일제히 올랐어요. 다음 주 엔비디아 실적 발표에서 물량 전망이 나오면 코스피 흐름이 한 번 더 갈릴 수 있어요.';
+  const p = reportPreview(data({}, { sections: [{ group: '주식', summary, ids: [1] }] }));
+  assert.equal(p.peek?.title, '삼성전자가 HBM4 공급을 따내며 반도체주가 일제히 올랐어요.');
+  assert.equal(p.peek?.about, '주식');
+  assert.ok(p.peek?.text.endsWith('…'));
+  assert.ok(!JSON.stringify(p).includes('코스피 흐름이 한 번 더 갈릴'));
+});
+
+test('맛보기 자르기: 길면 PEEK_CHARS 안에서 낱말 끝으로, 짧아도 뒤 20%는 가린다', () => {
+  const long = '삼성전자와 SK하이닉스가 AI 투자 위축 우려로 일주일 새 크게 떨어지며 코스피가 출렁였어요. 다음 주 미국 물가 발표가 이 분위기를 되돌릴지 가를 수 있어요.';
+  const a = peekCut(long, PEEK_CHARS);
+  assert.ok(a.length <= PEEK_CHARS && a.endsWith('…'));
+  assert.ok(long.startsWith(a.slice(0, -1))); // 앞부분 그대로
+  assert.ok(!/ …$/.test(a)); // 줄임표 앞에 빈칸·쉼표가 없다
+  assert.ok(a.length >= 60); // 3줄 안팎은 보인다
+
+  const short = '반도체주가 올랐어요. 다음 주 실적 발표를 확인해 보세요.';
+  const b = peekCut(short, PEEK_CHARS);
+  assert.ok(b.endsWith('…'));
+  assert.ok(b.length - 1 <= Math.floor(short.length * 0.8)); // 끝까지 보여 주지 않는다
+  assert.ok(short.startsWith(b.slice(0, -1)));
+
+  // 낱말 경계가 없는 글도 max를 넘지 않는다
+  assert.ok(peekCut('가'.repeat(300), PEEK_CHARS).length <= PEEK_CHARS);
 });
 
 test('요일별 차트: 요일 이름과 한 주 7일, 가장 많이 본 날', () => {
