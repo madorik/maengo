@@ -22,6 +22,7 @@ export type AnalyticsEvent =
   | "notify_toggle"
   | "push_open"
   | "widget_open"
+  | "review_ask"
   | "voice_change"
   | "more_receive"
   | "share"

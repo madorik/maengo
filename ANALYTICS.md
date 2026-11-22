@@ -6,6 +6,7 @@
 > 2026-11-07: GTM 버전 3 게시(둘러보기 try_* 이벤트·값 items·heard·where·signed_in, 이 파일 병합 가져오기). GA4 맞춤 정의 16개 등록(이벤트 14: mode·category·kind·action·reason·topic·voice·provider·product·charged·items·heard·where·signed_in, 사용자 2: plan·platform). GA4 속성은 계정 '정민균'(352006364)의 '맹고(Maengo)'(559406417), GTM은 계정 '와타랩스'(6383117467) 컨테이너 267447389. 같은 GA 계정에 다른 속성(또닥 AI 등)이 있어 기본으로 그쪽이 열린다.
 > 2026-11-07 밤: GTM 버전 4 '북마크 이벤트' 게시(트리거 '맹고 이벤트' 정규식에 `bookmark`, 값 `on`·`category`·`where`는 기존 변수·태그 매개변수). GA4 맞춤 정의 `on`(이벤트 범위, 켰는지: 북마크·알림 켜고 끄기) 등록 → 17개. 둘 다 전용 크롬 창(`~/.maengo/chrome-youtube`, 포트 9333)에 원격으로 붙어서 함.
 > 2026-11-11: GTM 버전 5 '앱 받기·주간 리포트 이벤트' 게시(트리거 '맹고 이벤트' 정규식에 `app_install_click`·`report_open`·`report_make`. 리포트 이벤트는 11-10 코드에 넣고 GTM엔 빠져 있었다). 값 `where`·`kind`는 기존 태그 매개변수·맞춤 정의. 전용 크롬 창(포트 9333)으로 함.
+> 2026-11-22: GTM 버전 6 '별점 요청 이벤트' 게시(트리거 '맹고 이벤트' 정규식에 `review_ask`. 값 `count`는 기존 태그 매개변수). 작업공간 변경이 이 트리거 1건뿐인 걸 보고 게시했고, 공개 `gtm.js`의 정규식에서 확인. 전용 크롬 창(포트 9333)으로 함. GA4 맞춤 정의는 `count`를 등록하지 않았다(이벤트 횟수·플랫폼별은 그대로 보이고, `count`로 나눠 보려면 이벤트 범위로 등록).
 > 개인정보: 이름·이메일·직접 적은 관심사는 보내지 않는다. 사용자 ID는 회원 id의 SHA-256 앞 24자리. 처리방침에 Google 애널리틱스를 넣었다(2026-10-11).
 
 ## 사용자가 할 일
@@ -24,7 +25,7 @@
   - 이벤트 매개변수: `user_id`·`provider`·`mode`·`count`·`category`·`kind`·`today`·`topics`·`reason`·`action`·`group`·`picks`·`topic`·`on`·`voice`·`charged`·`product`·`items`·`heard`·`where`·`signed_in` ← 같은 이름의 변수(뒤의 넷은 둘러보기, 2026-11-07)
   - 사용자 속성: `plan` ← `{{dlv - plan}}`, `platform` ← `{{dlv - platform}}`
   - 트리거: 맞춤 이벤트, 이벤트 이름 정규식 일치
-    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|voice_change|more_receive|share|bookmark|ask|purchase_start|purchase_complete|try_start|try_complete|try_trial_click|try_ask|report_open|report_make|app_install_click)$`
+    `^(identify|login_start|onboarding_complete|today_build|item_open|source_open|listen_start|listen_complete|script_tab_open|feedback|topic_edit|link_edit|notify_toggle|push_open|widget_open|review_ask|voice_change|more_receive|share|bookmark|ask|purchase_start|purchase_complete|try_start|try_complete|try_trial_click|try_ask|report_open|report_make|app_install_click)$`
 - 이벤트를 새로 넣으면 `lib/analytics.ts`의 `AnalyticsEvent`, 이 문서, `gtm-import.json`의 정규식을 같이 고치고 GTM에 다시 게시한다
 
 ## 이벤트
@@ -46,6 +47,7 @@
 | `notify_toggle` | 알림 켜고 끄기(설정. 온보딩 '시작하기'에서 권한을 물은 결과는 `group`=onboarding) | `on`, `group` |
 | `push_open` | 알림을 눌러 들어옴(`?from=push`) | — |
 | `widget_open` | 홈 화면 위젯을 눌러 들어옴(`?from=widget`, 앱 1.3부터) | — |
+| `review_ask` | 앱이 스토어 별점 창을 부탁한 순간(앱 1.3부터, `lib/native/review.ts`). 서로 다른 2일 이상 오늘 소식을 다 본 사람에게 120일에 한 번. OS가 창을 실제로 띄웠는지·별점을 줬는지는 알 수 없어서 부탁을 보낸 횟수만 센다(별점은 App Store Connect·Play Console에서 본다) | `count`(오늘 소식을 다 본 날 수) |
 | `voice_change` | 목소리 바꾸기(설정) | `voice`(f·m) |
 | `more_receive` | 하나 더 받기로 소식을 받음 | `charged`(지갑 맹고를 썼는지) |
 | `share` | 글 화면 '공유'(1.2 앱·웹) | `category`, `action`(shared: 공유 시트를 띄움, copied: 공유 시트가 없어 복사), `place`(header: 머리말 아이콘, body: 본문 '공유하기' 버튼, 2026-10-31부터) |
