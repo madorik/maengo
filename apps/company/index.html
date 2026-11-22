@@ -22,7 +22,7 @@
   <meta name="twitter:title" content="와타랩스" />
   <meta name="twitter:description" content="일상의 귀찮고 불편한 일을 AI로 편하게 만드는 앱을 만들어요." />
   <meta name="twitter:image" content="https://watalabs.com/og.png" />
-  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#F6F7FA" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#151722" media="(prefers-color-scheme: dark)" />
   <!-- 검색엔진용 운영사·사이트 정보. 맹고 페이지(apps/web lib/site.ts organizationJsonLd)가 같은 @id로 운영사를 가리킨다 -->
   <script type="application/ld+json">
@@ -37,7 +37,7 @@
         "url": "https://watalabs.com/",
         "logo": "https://watalabs.com/apple-touch-icon.png",
         "email": "watalabs.help@gmail.com",
-        "description": "일상에서 귀찮고 불편한 일을 찾아 AI로 편하게 만드는 앱을 만드는 회사. 내 관심 분야 소식만 AI가 골라 오늘 뉴스의 핵심을 요약하고 읽어 주는 맹고를 만든다."
+        "description": "일상에서 귀찮고 불편한 일을 찾아 AI로 편하게 만드는 앱을 만드는 회사. 내 관심 분야 소식만 AI가 골라 오늘 뉴스의 핵심을 요약하고 읽어 주는 맹고, 문서 편집기 MDitor 라씨, 소중한 사람을 기억해 두는 기억해유, 웹 게임 눈꽃숲 캠핑장을 만든다."
       },
       {
         "@type": "WebSite",
@@ -76,6 +76,16 @@
         "gamePlatform": "Web browser",
         "playMode": "MultiPlayer",
         "publisher": { "@id": "https://watalabs.com/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://remember-you.watalabs.com/#app",
+        "name": "기억해유",
+        "alternateName": ["Remember You", "기억해U"],
+        "url": "https://remember-you.watalabs.com/",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "Web",
+        "publisher": { "@id": "https://watalabs.com/#organization" }
       }
     ]
   }
@@ -87,259 +97,505 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <style>
-    :root {
-      --mango: #FFC23D;
-      --mango-dark: #E09A12;
-      --leaf: #23914F;
-      --ink: #1F2340;
-      --sub: #5E6380;
-      --line: #E4E6EE;
-      --paper: #FFFFFF;
-      --mark-tile: #1F2340;
+  /* 레이아웃: 큰 문장 + 만든 앱 네 개의 아이콘으로 여는 첫 화면 → 소개글 → 앱마다 실제 화면과 짜임을 달리한 장(맹고 폰 네 장, 라씨 창 하나, 기억해유 크림색 판, 캠핑장 꽉 찬 밤 풍경) → 문의 */
+  :root {
+    /* 밤처럼 차분한 다크가 기본, 회사 포인트는 망고색 하나 */
+    --bg: #151722;
+    --panel: #1B1E2C;
+    --ink: #F1F2F8;
+    --sub: #A6ABC0;
+    --sub2: #7F85A0;
+    --line: #2A2E42;
+    --accent: #FFC23D;
+    --focus: #FFC23D;
+    --tile: #2A2E48;
+    --smile: #FFC23D;
+    --wash: rgba(255, 255, 255, 0.05);
+    --shadow: rgba(0, 0, 0, 0.5);
+    /* 앱마다 하나씩 */
+    --maengo: #FFC23D;
+    --lasee: #1387C9;
+    --ry: #E8607A;
+    --camp: #FF8A3D;
+    /* 기억해유의 크림색 판 */
+    --cream: #FBF6EA;
+    --cream-ink: #2D3048;
+    --cream-sub: #6B6872;
+    --cream-line: rgba(43, 42, 51, 0.14);
+    /* 눈꽃숲의 밤은 어느 테마에서나 어둡다 */
+    --night: #0B1130;
+    --night-ink: #F1F2F8;
+    --night-sub: #C3C9DD;
+    --night-line: rgba(236, 238, 245, 0.2);
+    --jua: "Jua", "Pretendard Variable", sans-serif;
+    --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #F6F7FA; --panel: #ECEEF4; --ink: #1F2340; --sub: #5E6380; --sub2: #7C819B; --line: #DDE0EA;
+      --accent: #D68A00; --focus: #1F2340; --tile: #1F2340; --wash: rgba(31, 35, 64, 0.045); --shadow: rgba(31, 35, 64, 0.2);
       color-scheme: light;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --leaf: #3CC77A;
-        --ink: #ECEEF5;
-        --sub: #A6ABC0;
-        --line: #2A2E40;
-        --paper: #151722;
-        --mark-tile: #2A2E48;
-        color-scheme: dark;
-      }
-    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F6F7FA; --panel: #ECEEF4; --ink: #1F2340; --sub: #5E6380; --sub2: #7C819B; --line: #DDE0EA;
+    --accent: #D68A00; --focus: #1F2340; --tile: #1F2340; --wash: rgba(31, 35, 64, 0.045); --shadow: rgba(31, 35, 64, 0.2);
+    color-scheme: light;
+  }
 
-    * { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; }
-    body {
-      margin: 0;
-      background: var(--paper);
-      color: var(--ink);
-      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-      font-size: 17px;
-      line-height: 1.65;
-      word-break: keep-all;
-      -webkit-font-smoothing: antialiased;
-    }
-    a { color: inherit; }
-    a:focus-visible, button:focus-visible { outline: 3px solid #1A8FE0; outline-offset: 3px; border-radius: 8px; }
-    .wrap { width: min(100% - 32px, 920px); margin-inline: auto; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.7; word-break: keep-all; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, p, ul, dl, dd { margin: 0; }
+  ul { padding: 0; list-style: none; }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 8px; }
+  .wrap { width: min(100%, 1120px); margin-inline: auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 
-    /* 첫 화면: 심볼(웃는 w)을 이름 왼쪽에 둔다. 심볼은 이름 글자 크기(em)를 따라 커진다. 들어올 때 미소를 한 번 그린다(미소 길이 88 = 반원 두 개) */
-    .sign { text-align: center; padding: calc(72px + env(safe-area-inset-top)) 0 72px; }
-    .sign .lockup { display: flex; align-items: center; justify-content: center; gap: 0.2em; font-size: clamp(48px, 15vw, 136px); }
-    /* Jua 한글은 줄 상자보다 위에 그려져서, 타일을 글자 높이에 맞추고 조금 올려 위아래 끝을 맞춘다 */
-    .sign .mark { display: block; flex: none; width: 0.84em; height: auto; transform: translateY(-0.075em); }
-    .sign .mark rect { fill: var(--mark-tile); }
-    .sign .mark path { stroke: var(--mango); stroke-dasharray: 88 200; animation: smile 640ms cubic-bezier(.2, .8, .2, 1) 120ms both; }
-    @keyframes smile { from { stroke-dashoffset: 110; } to { stroke-dashoffset: 0; } }
-    @media (prefers-reduced-motion: reduce) { .sign .mark path { animation: none; } }
-    .sign h1 {
-      margin: 0;
-      font-family: "Jua", "Pretendard Variable", sans-serif;
-      font-weight: 400;
-      font-size: 1em;
-      line-height: 1.05;
-    }
-    .sign p { margin: 20px auto 0; max-width: 30ch; font-size: clamp(18px, 2.4vw, 22px); font-weight: 600; color: var(--sub); }
+  /* 첫 화면 */
+  .stage { position: relative; isolation: isolate; }
+  .stage::before { content: ""; position: absolute; inset: 0 0 auto; height: 600px; z-index: -1; pointer-events: none; background: radial-gradient(70% 100% at 50% 0, var(--wash), transparent); }
+  .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; padding-block: calc(22px + env(safe-area-inset-top, 0px)) 22px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--jua); font-weight: 400; font-size: 26px; line-height: 1; letter-spacing: -0.01em; }
+  .brand .mk { width: 34px; height: 34px; flex: none; }
+  .brand .mk rect { fill: var(--tile); }
+  .brand .mk path { stroke: var(--smile); stroke-dasharray: 88 200; }
+  .top nav { display: flex; gap: 4px 6px; }
+  .top nav a { padding: 6px 12px; border-radius: 10px; color: var(--sub); font-size: 15px; font-weight: 600; text-decoration: none; transition: color 160ms ease; }
+  .top nav a:hover { color: var(--ink); }
+  .hero { padding-block: clamp(56px, 10vw, 120px) clamp(56px, 8vw, 96px); }
+  .tagline { font-size: clamp(34px, 7.4vw, 82px); font-weight: 750; line-height: 1.25; letter-spacing: -0.045em; }
+  .tagline span { display: block; text-wrap: balance; }
+  .tagline .l1 { color: var(--sub2); }
+  .tagline .dot { display: inline-block; font-style: normal; color: var(--accent); }
+  .made { margin-top: clamp(40px, 6vw, 64px); padding-top: 20px; border-top: 1px solid var(--line); text-align: center; }
+  .made p { color: var(--sub); font-size: 14px; font-weight: 600; }
+  .made ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 30px; margin-top: 14px; }
+  .made a { display: flex; align-items: center; gap: 12px; text-decoration: none; font-family: var(--jua); font-size: 21px; line-height: 1; }
+  .made .icon { width: 42px; height: 42px; border-radius: 12px; transition: transform 160ms ease; }
+  .made a:hover .icon { transform: translateY(-3px); }
 
-    section { padding: 64px 0; border-top: 2px solid var(--line); }
-    /* 칸마다 왼쪽에 제목, 오른쪽에 내용. 좁으면 위아래로 */
-    section .wrap { display: grid; gap: 20px; }
-    h2 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.5; }
+  /* 칸 */
+  section { padding-block: clamp(56px, 9vw, 104px); border-top: 1px solid var(--line); }
+  .sec { display: grid; gap: 22px 48px; }
+  h2 { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; line-height: 1.7; color: var(--sub); }
+  #apps-title { text-align: center; }
 
-    /* 하는 일: 목표 한 문장, 어디서 시작하는지, 만드는 원칙 */
-    .about .lead { margin: 0; max-width: 22em; font-size: clamp(23px, 3vw, 29px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.42; }
-    .about .origin { margin: 14px 0 0; max-width: 34em; color: var(--sub); }
-    .about dl { margin: 40px 0 0; }
-    .about dl div { padding: 20px 0; border-top: 2px solid var(--line); }
-    .about dl div:last-child { padding-bottom: 0; }
-    .about dt { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
-    .about dd { margin: 4px 0 0; max-width: 34em; color: var(--sub); }
+  /* 소개 */
+  .lead { max-width: 20em; font-size: clamp(25px, 3.7vw, 38px); font-weight: 800; line-height: 1.38; letter-spacing: -0.04em; text-wrap: balance; }
+  .story { display: grid; gap: 16px; margin-top: 28px; max-width: 35em; color: var(--sub); }
+  .story b { color: var(--ink); font-weight: 700; }
+  .rules-label { margin-top: clamp(40px, 6vw, 64px); font-size: 15px; font-weight: 700; color: var(--sub); }
+  .rules { margin-top: 10px; }
+  .rules div { display: grid; gap: 4px 40px; padding-block: 22px; border-top: 1px solid var(--line); }
+  .rules div:last-child { padding-bottom: 0; }
+  .rules dt { font-size: 19px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.5; }
+  .rules dd { color: var(--sub); }
 
-    /* 만든 앱: 아이콘·이름·열기, 핵심 한 줄과 끌리는 점(맹고 핵심 가치에서 고른 다섯) */
-    /* 앱이 여럿(2026-11-14 라씨·눈꽃숲 캠핑장): 앱 사이에 줄을 긋는다 */
-    .apps > article + article { margin-top: 48px; padding-top: 48px; border-top: 2px solid var(--line); }
-    .app .head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
-    .app svg { width: 72px; height: 72px; border-radius: 18px; display: block; flex: none; }
-    .app h3 { margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.2; }
-    .app .lede { margin: 18px 0 0; font-size: clamp(21px, 2.6vw, 24px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.4; }
-    .app ul { margin: 14px 0 0; padding: 0; list-style: none; color: var(--sub); max-width: 40em; }
-    .app strong { color: var(--ink); font-weight: 800; }
-    .app li { padding-left: 22px; position: relative; }
-    .app li + li { margin-top: 6px; }
-    .app li::before { content: ""; position: absolute; left: 4px; top: 0.66em; width: 8px; height: 8px; border-radius: 50%; background: var(--leaf); }
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; flex: none;
-      min-height: 44px; padding: 0 20px;
-      border-radius: 14px;
-      background: var(--ink); color: var(--paper);
-      font-size: 16px; font-weight: 800; text-decoration: none;
-      transition: transform 120ms ease;
-    }
-    .btn:hover { background: var(--mango-dark); color: #1F2340; }
-    .btn:active { transform: scale(0.97); }
+  /* 만든 앱: 글은 짧게, 화면은 글 옆에. 좌우를 번갈아 놓는다 */
+  .chaps { --gap: clamp(56px, 8vw, 96px); display: grid; gap: var(--gap); }
+  .chap { --pad: clamp(20px, 4.5vw, 48px); }
+  .chap-grid { position: relative; display: grid; gap: 16px 56px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "lede" "visual" "list"; }
+  .chap-grid > * { min-width: 0; }
+  .copy { display: contents; }
+  .chap-head { grid-area: head; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+  .icon { width: 56px; height: 56px; border-radius: 14px; display: block; flex: none; }
+  .chap-name { font-family: var(--jua); font-weight: 400; font-size: clamp(34px, 5vw, 46px); line-height: 1.1; letter-spacing: -0.01em; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; flex: none; min-height: 44px; padding: 0 20px; border-radius: 12px; background: var(--ink); color: var(--bg); font-size: 16px; font-weight: 800; text-decoration: none; transition: transform 120ms ease, background-color 160ms ease; }
+  .btn:hover { background: var(--tone); color: var(--on-tone, #1F2340); }
+  .btn:active { transform: scale(0.97); }
+  .lede { grid-area: lede; max-width: 17em; font-size: clamp(21px, 2.6vw, 28px); font-weight: 800; line-height: 1.38; letter-spacing: -0.035em; text-wrap: balance; }
+  .list { grid-area: list; max-width: 34em; color: var(--sub); }
+  .list li { position: relative; padding-left: 22px; }
+  .list li + li { margin-top: 6px; }
+  .list li::before { content: ""; position: absolute; left: 4px; top: 0.7em; width: 7px; height: 7px; border-radius: 50%; background: var(--tone); }
+  .list strong { color: var(--ink); font-weight: 800; }
+  .visual { grid-area: visual; position: relative; margin-block: 8px; }
+  .maengo { --tone: var(--maengo); }
+  .lasee { --tone: var(--lasee); --on-tone: #fff; }
+  .ry { --tone: var(--ry); }
+  .camp { --tone: var(--camp); }
+  .maengo .chap-name { font-size: clamp(40px, 6vw, 54px); }
+  .maengo .icon { width: 64px; height: 64px; border-radius: 16px; }
 
-    .contact p { margin: 0; }
-    .contact a { font-size: 20px; font-weight: 800; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  /* 폰 화면 줄: 아래에서 올라오는 모양으로 아래가 잘린다 */
+  .phones { display: flex; align-items: flex-end; gap: clamp(10px, 1.6vw, 16px); }
+  .phones img { display: block; flex: 1 1 0; min-width: 0; width: 100%; height: auto; border: 1px solid var(--line); border-bottom: 0; border-radius: clamp(14px, 2vw, 22px) clamp(14px, 2vw, 22px) 0 0; box-shadow: 0 16px 36px var(--shadow); }
+  .band { overflow: hidden; padding: clamp(22px, 3vw, 32px) clamp(18px, 3vw, 32px) 0; border: 1px solid var(--line); border-radius: 24px; background: color-mix(in srgb, var(--tone) 8%, var(--panel)); }
 
-    footer { padding: 32px 0 calc(40px + env(safe-area-inset-bottom)); border-top: 2px solid var(--line); color: var(--sub); font-size: 14px; }
-    footer .row { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; }
-    footer .biz { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-block: 12px 0; font-size: 12px; line-height: 1.6; }
+  /* 라씨: 창 하나, 탭으로 문서·MD·미리보기·PDF를 바꿔 본다 */
+  .lasee { position: relative; }
+  .lasee::before { content: ""; position: absolute; left: 0; right: 0; top: calc(var(--gap) / -2); border-top: 1px solid var(--line); }
+  .frame { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 24px 60px var(--shadow); }
+  .frame-bar { display: flex; gap: 4px; padding: 8px; overflow-x: auto; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+  .frame-bar button { flex: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--sub); background: none; border: 0; border-radius: 8px; padding: 6px 14px; cursor: pointer; transition: color 160ms ease; }
+  .frame-bar button:hover { color: var(--ink); }
+  .frame-bar button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+  .frame-view { aspect-ratio: 1200 / 860; background: #fff; }
+  .frame-view img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+  .frame-view img[hidden] { display: none; }
 
-    @media (min-width: 760px) {
-      section .wrap { grid-template-columns: 150px minmax(0, 1fr); gap: 0 48px; }
-      /* 제목을 오른쪽 첫 줄과 맞춘다 */
-      .about h2 { padding-top: 0.35em; }
-      .app h2 { padding-top: 1.3em; }
-    }
-    @media (max-width: 560px) {
-      .sign { padding: calc(48px + env(safe-area-inset-top)) 0 56px; }
-      section { padding: 48px 0; }
-      .about dl { margin-top: 32px; }
-      .app svg { width: 60px; height: 60px; border-radius: 16px; }
-      .app h3 { font-size: 28px; }
-    }
-  </style>
+  /* 기억해유: 지금 앱의 크림색 바탕 판. 글 옆에 폰 세 장이 아래에서 올라온다 */
+  .ry .chap-grid { --ink: var(--cream-ink); --sub: var(--cream-sub); --bg: var(--cream); --line: var(--cream-line); --shadow: rgba(43, 42, 51, 0.2); grid-template-areas: "head" "lede" "list" "visual"; overflow: hidden; padding: var(--pad) var(--pad) 0; border-radius: 28px; background: var(--cream); color: var(--cream-ink); box-shadow: inset 0 0 0 1px rgba(43, 42, 51, 0.1); }
+  .ry .list { padding-bottom: var(--pad); }
+  .ry .visual { margin-block: 0; }
+  .ry .phones img + img { margin-left: -5%; }
+
+  /* 눈꽃숲 캠핑장: 어두운 밤 판. 글 옆에 실제 게임 장면, 그 위로 눈이 내린다 */
+  .camp .chap-grid { --ink: var(--night-ink); --sub: var(--night-sub); --bg: var(--night); --line: var(--night-line); grid-template-areas: "head" "lede" "list" "visual"; isolation: isolate; overflow: hidden; padding: var(--pad) var(--pad) 0; border-radius: 28px; background: var(--night); color: var(--night-ink); }
+  .camp .chap-head, .camp .lede, .camp .list { position: relative; z-index: 3; }
+  .camp .visual { margin: 8px calc(var(--pad) * -1) 0; }
+  .camp .visual img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; object-position: 62% 55%; }
+  .camp .visual::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, var(--night) 0%, transparent 38%); }
+  #snow { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
+
+  .contact p { font-size: clamp(22px, 3.4vw, 30px); font-weight: 800; letter-spacing: -0.03em; }
+  .contact a { text-decoration-thickness: 2px; text-underline-offset: 6px; transition: color 160ms ease; }
+  .contact a:hover { color: var(--accent); }
+
+  footer { border-top: 1px solid var(--line); padding-block: 36px calc(48px + env(safe-area-inset-bottom, 0px)); color: var(--sub); }
+  footer .copy { font-size: 14px; }
+  .biz { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 14px; font-size: 13px; line-height: 1.8; }
+  .biz li { min-width: 0; }
+  .biz span { margin-right: 6px; color: var(--sub2); }
+  .biz a { text-underline-offset: 3px; }
+
+  /* 좁은 화면: 글, 화면 순서로 쌓고 폰 줄은 옆으로 밀어서 본다 */
+  @media (max-width: 859px) {
+    .phones { overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+    .phones img { flex: 0 0 min(56%, 220px); scroll-snap-align: start; }
+    .band { padding-inline: 0; }
+    .band .phones { padding-inline: clamp(18px, 3vw, 32px); }
+    .ry .visual { margin-inline: calc(var(--pad) * -1); }
+    .ry .phones { padding-inline: var(--pad); }
+    .ry .phones img + img { margin-left: 0; }
+  }
+  @media (min-width: 860px) {
+    .sec { grid-template-columns: 150px minmax(0, 1fr); }
+    .sec.stack { grid-template-columns: minmax(0, 1fr); }
+    .rules div { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+    .chap-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); grid-template-areas: "copy visual"; align-items: center; }
+    .flip .chap-grid { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); grid-template-areas: "visual copy"; }
+    .copy { grid-area: copy; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
+    .visual { margin-block: 0; }
+    .maengo .phones img:nth-child(even) { transform: translateY(8%); }
+    .ry .chap-grid { grid-template-areas: "copy visual"; }
+    .ry .visual { align-self: end; }
+    .camp .chap-grid { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); grid-template-areas: "visual copy"; padding: var(--pad); }
+    .camp .visual { margin: calc(var(--pad) * -1) 0 calc(var(--pad) * -1) calc(var(--pad) * -1); align-self: stretch; }
+    .camp .visual img { height: 100%; min-height: 360px; aspect-ratio: auto; }
+    .camp .visual::after { background: linear-gradient(to right, transparent 55%, var(--night)); }
+  }
+
+  /* 움직임은 은은하게. 동작 줄이기를 켠 기기에서는 처음부터 완성된 모습으로 멈춰 있다 */
+  @keyframes smile { from { stroke-dashoffset: 110; } to { stroke-dashoffset: 0; } }
+  @keyframes settle { from { opacity: 0; transform: translateY(-0.18em); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: no-preference) {
+    .brand .mk path { animation: smile 640ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms both; }
+    .tagline .dot { animation: settle 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.45s both; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
 </head>
 <body>
-  <header class="sign wrap">
-    <div class="lockup">
-      <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
-        <rect width="120" height="120" rx="30"/>
-        <path d="M32 53 A14 14 0 0 0 60 53 A14 14 0 0 0 88 53" fill="none" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <h1>와타랩스</h1>
-    </div>
-    <p>일상에서 귀찮고 불편한 일을 찾아,<br />AI로 편하게 만드는 앱을 만들어요.</p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-maengo" viewBox="0 0 200 200">
+    <rect width="200" height="200" fill="#FFC23D"/>
+    <path d="M200 105 L200 200 L80 200 C140 196 190 160 200 105 Z" fill="#FF9F2E"/>
+    <ellipse cx="44" cy="58" rx="11" ry="22" transform="rotate(-35 44 58)" fill="#FFE08A"/>
+    <rect x="110" y="28" width="9" height="17" rx="3" transform="rotate(20 114 36)" fill="#7A4A2A"/>
+    <path d="M118 40 C130 14 164 6 184 14 C174 38 144 50 118 40 Z" fill="#34B36A"/>
+    <path d="M123 38 C140 30 160 22 178 16" fill="none" stroke="#23914F" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="70" cy="110" r="22" fill="#FFFFFF"/><circle cx="130" cy="110" r="22" fill="#FFFFFF"/>
+    <circle cx="74" cy="114" r="11" fill="#191C32"/><circle cx="126" cy="114" r="11" fill="#191C32"/>
+    <circle cx="78" cy="108" r="3.5" fill="#FFFFFF"/><circle cx="130" cy="108" r="3.5" fill="#FFFFFF"/>
+    <ellipse cx="50" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/><ellipse cx="150" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
+    <path d="M86 142 Q100 156 114 142" fill="none" stroke="#191C32" stroke-width="6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-lasee" viewBox="0 0 200 200">
+    <rect width="200" height="200" fill="#E8ECEF"/>
+    <rect x="45" y="30" width="110" height="140" rx="10" fill="#FFFFFF" stroke="#1B2430" stroke-width="10"/>
+    <path d="M70 65 H130 M70 140 H110" stroke="#1B2430" stroke-width="10" stroke-linecap="round"/>
+    <path d="M22 105 H178" stroke="#1387C9" stroke-width="12" stroke-dasharray="20 14"/>
+  </symbol>
+  <symbol id="i-camp" viewBox="0 0 200 200">
+    <rect width="200" height="200" fill="#0B1130"/>
+    <circle cx="132" cy="64" r="30" fill="#F6F1E2"/>
+    <circle cx="48" cy="44" r="3.5" fill="#F6F1E2" opacity="0.8"/><circle cx="82" cy="78" r="2.5" fill="#F6F1E2" opacity="0.6"/><circle cx="170" cy="118" r="3" fill="#F6F1E2" opacity="0.7"/>
+    <path d="M0 150 C50 128 150 128 200 150 L200 200 L0 200 Z" fill="#DCE5F4"/>
+    <path d="M100 116 C112 130 114 146 100 154 C86 146 88 130 100 116 Z" fill="#FF9F2E"/>
+    <path d="M100 132 C106 140 106 148 100 152 C94 148 94 140 100 132 Z" fill="#FFC23D"/>
+    <path d="M78 160 L122 150 M78 150 L122 160" stroke="#7A4A2A" stroke-width="8" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<div class="stage">
+  <header class="top wrap">
+    <h1 class="brand">
+      <svg class="mk" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="30"/><path d="M32 53 A14 14 0 0 0 60 53 A14 14 0 0 0 88 53" fill="none" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>와타랩스</span>
+    </h1>
+    <nav aria-label="바로가기"><a href="#about">소개</a><a href="#apps">만든 앱</a><a href="#contact">문의</a></nav>
   </header>
 
-  <main>
-    <section class="about" aria-labelledby="about-title">
-      <div class="wrap">
-        <h2 id="about-title">하는 일</h2>
-        <div>
-          <p class="lead">정보를 찾고, 읽고, 챙기느라 드는 시간과 주의를 줄여요.</p>
-          <p class="origin">사람들이 매일 겪지만 그냥 참고 넘기는 불편에서 시작해요.</p>
-          <dl>
-            <div>
-              <dt>필요한 만큼만 드려요</dt>
-              <dd>앱에 오래 붙잡아 두는 대신, 할 일을 끝내면 닫을 수 있게 만들어요.</dd>
-            </div>
-            <div>
-              <dt>출처를 숨기지 않아요</dt>
-              <dd>AI가 만든 결과에는 근거가 되는 원문을 함께 보여 줘요.</dd>
-            </div>
-            <div>
-              <dt>손과 눈이 바쁠 때도 쓸 수 있게 만들어요</dt>
-              <dd>읽을 수 없는 순간엔 들을 수 있게요.</dd>
-            </div>
-          </dl>
-        </div>
-      </div>
-    </section>
-
-    <section class="app" aria-labelledby="apps-title">
-      <div class="wrap">
-        <h2 id="apps-title">만든 앱</h2>
-        <div class="apps">
-        <article>
-          <div class="head">
-        <svg viewBox="0 0 200 200" role="img" aria-label="맹고 아이콘">
-          <rect width="200" height="200" fill="#FFC23D"/>
-          <path d="M200 105 L200 200 L80 200 C140 196 190 160 200 105 Z" fill="#FF9F2E"/>
-          <ellipse cx="44" cy="58" rx="11" ry="22" transform="rotate(-35 44 58)" fill="#FFE08A"/>
-          <rect x="110" y="28" width="9" height="17" rx="3" transform="rotate(20 114 36)" fill="#7A4A2A"/>
-          <path d="M118 40 C130 14 164 6 184 14 C174 38 144 50 118 40 Z" fill="#34B36A"/>
-          <path d="M123 38 C140 30 160 22 178 16" fill="none" stroke="#23914F" stroke-width="3.5" stroke-linecap="round"/>
-          <circle cx="70" cy="110" r="22" fill="#FFFFFF"/>
-          <circle cx="130" cy="110" r="22" fill="#FFFFFF"/>
-          <circle cx="74" cy="114" r="11" fill="#191C32"/>
-          <circle cx="126" cy="114" r="11" fill="#191C32"/>
-          <circle cx="78" cy="108" r="3.5" fill="#FFFFFF"/>
-          <circle cx="130" cy="108" r="3.5" fill="#FFFFFF"/>
-          <ellipse cx="50" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
-          <ellipse cx="150" cy="143" rx="11" ry="7" fill="#FF6F61" opacity="0.45"/>
-          <path d="M86 142 Q100 156 114 142" fill="none" stroke="#191C32" stroke-width="6" stroke-linecap="round"/>
-        </svg>
-            <h3>맹고</h3>
-            <a class="btn" href="/maengo" aria-label="맹고 소개 페이지 열기">열기</a>
-          </div>
-          <p class="lede">내 관심 분야 소식, 오늘 뉴스 핵심 요약.</p>
-          <ul>
-            <li><strong>맞춤 인사이트.</strong> 관심 분야 소식이 나에게 어떤 영향을 줄지 짚어 드려요. 사라·팔라는 말은 하지 않아요.</li>
-            <li><strong>관심사는 맹고가.</strong> 고르지 않아도 읽고 듣는 소식에 맞춰 내 관심 소식만 골라 와요.</li>
-            <li><strong>하루 두 번.</strong> 출근길·퇴근길에 맞춰 브리핑을 챙겨 드려요.</li>
-            <li><strong>핵심만 요약.</strong> 긴 글은 AI가 중요한 부분만 추려 짧게 정리하고, 원문 링크도 함께 붙여요.</li>
-            <li><strong>귀로 들어요.</strong> 운전하는 출퇴근길, 만원 지하철, 손 시린 한겨울에도 휴대폰을 꺼내 읽지 않고 들어요.</li>
-          </ul>
-        </article>
-
-        <!-- 2026-11-14 사용자 '눈꽃숲 캠핑장이랑 라씨도 추가해줘'. 아이콘은 각 사이트 파비콘을 타일로(라씨: 쪽 경계 점선이 지나는 종이, 캠핑장: 남색 밤하늘의 보름달에 눈밭·모닥불을 더함) -->
-        <article>
-          <div class="head">
-            <svg viewBox="0 0 200 200" role="img" aria-label="MDitor 라씨 아이콘">
-              <rect width="200" height="200" fill="#E8ECEF"/>
-              <rect x="45" y="30" width="110" height="140" rx="10" fill="#FFFFFF" stroke="#1B2430" stroke-width="10"/>
-              <path d="M70 65 H130 M70 140 H110" stroke="#1B2430" stroke-width="10" stroke-linecap="round"/>
-              <path d="M22 105 H178" stroke="#1387C9" stroke-width="12" stroke-dasharray="20 14"/>
-            </svg>
-            <h3>MDitor 라씨</h3>
-            <a class="btn" href="https://lasee.watalabs.com/" aria-label="MDitor 라씨 열기">열기</a>
-          </div>
-          <p class="lede">보고서를 쓰는 문서 편집기, 쪽 경계까지 PDF와 같아요.</p>
-          <ul>
-            <li><strong>워드처럼 써요.</strong> 굵게·밑줄·글자 색을 입히고 표 칸을 끌어 합쳐요. 원본은 Markdown으로 남아요.</li>
-            <li><strong>쪽은 짐작하지 않아요.</strong> 고칠 때마다 PDF를 실제로 그려 보고, 쪽이 넘어가는 자리를 미리보기에 점선으로 보여 줘요.</li>
-            <li><strong>가입 없이 바로.</strong> 문서는 내 브라우저에만 두고, 다 쓰면 PDF로 내려받아요.</li>
-          </ul>
-        </article>
-
-        <article>
-          <div class="head">
-            <svg viewBox="0 0 200 200" role="img" aria-label="눈꽃숲 캠핑장 아이콘">
-              <rect width="200" height="200" fill="#0B1130"/>
-              <circle cx="132" cy="64" r="30" fill="#F6F1E2"/>
-              <circle cx="48" cy="44" r="3.5" fill="#F6F1E2" opacity="0.8"/>
-              <circle cx="82" cy="78" r="2.5" fill="#F6F1E2" opacity="0.6"/>
-              <circle cx="170" cy="118" r="3" fill="#F6F1E2" opacity="0.7"/>
-              <path d="M0 150 C50 128 150 128 200 150 L200 200 L0 200 Z" fill="#DCE5F4"/>
-              <path d="M100 116 C112 130 114 146 100 154 C86 146 88 130 100 116 Z" fill="#FF9F2E"/>
-              <path d="M100 132 C106 140 106 148 100 152 C94 148 94 140 100 132 Z" fill="#FFC23D"/>
-              <path d="M78 160 L122 150 M78 150 L122 160" stroke="#7A4A2A" stroke-width="8" stroke-linecap="round"/>
-            </svg>
-            <h3>눈꽃숲 캠핑장</h3>
-            <a class="btn" href="https://camping.watalabs.com/" aria-label="눈꽃숲 캠핑장 열기">열기</a>
-          </div>
-          <p class="lede">눈 오는 겨울밤, 같이 불멍해요.</p>
-          <ul>
-            <li><strong>같이 모여요.</strong> 들어온 사람들이 한 캠핑장에 모여 모닥불 앞에 앉고 서로 인사해요.</li>
-            <li><strong>할 거리가 많아요.</strong> 마시멜로와 고구마를 굽고, 장작을 패고, 눈사람을 만들고, 별똥별에 소원을 빌어요.</li>
-            <li><strong>소리까지 겨울.</strong> 장작 타는 소리, 눈 밟는 소리, 고양이 골골송이 들려요.</li>
-            <li><strong>설치 없이 바로.</strong> 휴대폰이든 PC든 브라우저에서 열면 돼요.</li>
-          </ul>
-        </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="contact" aria-labelledby="contact-title">
-      <div class="wrap">
-        <h2 id="contact-title">문의</h2>
-        <p><a href="mailto:watalabs.help@gmail.com">watalabs.help@gmail.com</a></p>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="wrap row">
-      <span>© 2026 와타랩스</span>
+  <div class="hero wrap">
+    <p class="tagline"><span class="l1">일상에서 귀찮고 불편한 일을 찾아,</span><span class="l2">AI로 편하게 만드는 앱을 만들어요<i class="dot">.</i></span></p>
+    <div class="made">
+      <p>만든 앱</p>
+      <ul>
+        <li><a href="#maengo"><svg class="icon" aria-hidden="true"><use href="#i-maengo"/></svg>맹고</a></li>
+        <li><a href="#lasee"><svg class="icon" aria-hidden="true"><use href="#i-lasee"/></svg>MDitor 라씨</a></li>
+        <li><a href="#ry"><img class="icon" src="img/ry-icon.webp" alt="" width="42" height="42">기억해유</a></li>
+        <li><a href="#camp"><svg class="icon" aria-hidden="true"><use href="#i-camp"/></svg>눈꽃숲 캠핑장</a></li>
+      </ul>
     </div>
-    <!-- 사업자 정보. 맹고 쪽 값(apps/web/lib/site.ts BUSINESS)과 같이 고친다 -->
-    <p class="wrap biz">
-      <span>상호 와타랩스</span><span>대표 정민균</span><span>사업자등록번호 422-17-02792</span><span>통신판매업 신고 제2026-서울서초-3688호</span><span>주소 서울특별시 서초구 방배로 141, 4층 415-47호(방배동, 텔콤빌딩 내방)</span><span>전화 010-2809-7499</span><span>이메일 watalabs.help@gmail.com</span><a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=4221702792" target="_blank" rel="noopener noreferrer">사업자정보 확인</a>
-    </p>
-  </footer>
+  </div>
+</div>
+
+<main>
+  <section id="about" aria-labelledby="about-title">
+    <div class="wrap sec">
+      <h2 id="about-title">소개</h2>
+      <div>
+        <p class="lead">정보를 찾고, 읽고, 챙기느라 드는 시간과 주의를 줄여요.</p>
+        <div class="story">
+          <p>와타랩스(WataLabs)는 사람들이 매일 겪지만 그냥 참고 넘기는 불편에서 시작해요. 뉴스를 고르고 읽는 일, 보고서의 쪽을 맞추는 일, 가까운 사람의 사이즈와 생일을 떠올리는 일처럼 작아 보여도 하루를 조금씩 가져가는 일들이에요.</p>
+          <p>지금은 네 가지를 만들어 운영해요. 내 관심 분야 소식을 골라 요약하고 읽어 주는 <b>맹고</b>, 쪽 경계까지 PDF와 같은 문서 편집기 <b>MDitor 라씨</b>, 소중한 사람의 취향과 챙길 날을 기억해 두는 <b>기억해유</b>, 눈 오는 겨울밤에 같이 불멍하는 웹 게임 <b>눈꽃숲 캠핑장</b>이에요.</p>
+        </div>
+        <p class="rules-label">만드는 원칙</p>
+        <dl class="rules">
+          <div><dt>필요한 만큼만 드려요</dt><dd>앱에 오래 붙잡아 두는 대신, 할 일을 끝내면 닫을 수 있게 만들어요.</dd></div>
+          <div><dt>출처를 숨기지 않아요</dt><dd>AI가 만든 결과에는 근거가 되는 원문을 함께 보여 줘요.</dd></div>
+          <div><dt>손과 눈이 바쁠 때도 쓸 수 있게 만들어요</dt><dd>읽을 수 없는 순간엔 들을 수 있게요.</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="apps" aria-labelledby="apps-title">
+    <div class="wrap sec stack">
+      <h2 id="apps-title">만든 앱</h2>
+      <div class="chaps">
+
+        <article class="chap maengo" id="maengo">
+          <div class="chap-grid">
+            <div class="copy">
+              <div class="chap-head">
+                <svg class="icon" role="img" aria-label="맹고 아이콘"><use href="#i-maengo"/></svg>
+                <h3 class="chap-name">맹고</h3>
+                <a class="btn" href="/maengo" aria-label="맹고 소개 페이지 열기">열기</a>
+              </div>
+              <p class="lede">내 관심 분야 소식, 오늘 뉴스 핵심 요약.</p>
+              <ul class="list">
+                <li><strong>맞춤 인사이트.</strong> 소식이 나에게 줄 영향을 짚어 줘요. 사라·팔라는 말은 안 해요.</li>
+                <li><strong>하루 두 번.</strong> 출근길·퇴근길에 브리핑을 챙겨 줘요.</li>
+                <li><strong>핵심만 요약.</strong> 원문 링크와 함께 짧게 정리해요.</li>
+                <li><strong>귀로 들어요.</strong> 손이 바쁜 출퇴근길에도 들을 수 있어요.</li>
+              </ul>
+            </div>
+            <div class="visual band">
+              <div class="phones">
+                <img loading="lazy" decoding="async" src="img/maengo-today.webp" alt="맹고 오늘 화면: 맞춤 인사이트와 출근길 브리핑 듣기" width="600" height="1301">
+                <img loading="lazy" decoding="async" src="img/maengo-pm.webp" alt="맹고 퇴근길 브리핑: 소식이 시간 순서로 이어지는 노선" width="600" height="1301">
+                <img loading="lazy" decoding="async" src="img/maengo-listen.webp" alt="맹고 플레이어: 소식을 이어서 읽어 주는 화면" width="600" height="1301">
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="chap lasee flip" id="lasee">
+          <div class="chap-grid">
+            <div class="copy">
+              <div class="chap-head">
+                <svg class="icon" role="img" aria-label="MDitor 라씨 아이콘"><use href="#i-lasee"/></svg>
+                <h3 class="chap-name">MDitor 라씨</h3>
+                <a class="btn" href="https://lasee.watalabs.com/" aria-label="MDitor 라씨 열기">열기</a>
+              </div>
+              <p class="lede">보고서를 쓰는 문서 편집기, 쪽 경계까지 PDF와 같아요.</p>
+              <ul class="list">
+                <li><strong>워드처럼 써요.</strong> 서식을 입히고 표 칸을 합쳐요. 원본은 Markdown이에요.</li>
+                <li><strong>쪽은 짐작하지 않아요.</strong> 쪽이 넘어가는 자리를 점선으로 보여 줘요.</li>
+                <li><strong>가입 없이 바로.</strong> 문서는 내 브라우저에만 두고, PDF로 받아요.</li>
+              </ul>
+            </div>
+            <div class="visual frame">
+              <div class="frame-bar" role="group" aria-label="보는 방식">
+                <button type="button" aria-pressed="false">문서</button>
+                <button type="button" aria-pressed="false">MD</button>
+                <button type="button" aria-pressed="true">미리보기</button>
+                <button type="button" aria-pressed="false">PDF</button>
+              </div>
+              <div class="frame-view">
+                <img loading="lazy" decoding="async" src="img/lasee-doc.webp" alt="MDitor 라씨 문서 화면: 표가 있는 보고서를 보이는 모양 그대로 고치는 모습" width="1200" height="1040" hidden>
+                <img loading="lazy" decoding="async" src="img/lasee-md.webp" alt="MDitor 라씨 MD 화면: 같은 문서의 Markdown 원본" width="1200" height="1040" hidden>
+                <img loading="lazy" decoding="async" src="img/lasee-preview.webp" alt="MDitor 라씨 미리보기: 쪽이 넘어가는 자리에 점선 경계" width="1200" height="1040">
+                <img loading="lazy" decoding="async" src="img/lasee-pdf.webp" alt="MDitor 라씨 PDF 화면: 내려받는 PDF의 쪽 모양" width="1200" height="1040" hidden>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="chap ry" id="ry">
+          <div class="chap-grid">
+            <div class="copy">
+              <div class="chap-head">
+                <img class="icon" src="img/ry-icon.webp" alt="기억해유 아이콘" width="56" height="56">
+                <h3 class="chap-name">기억해유</h3>
+                <a class="btn" id="ry-open" href="https://remember-you.watalabs.com/get?from=share_company" aria-label="기억해유 앱 열기·받기">열기</a>
+              </div>
+              <p class="lede">사랑하는 사람들의 컨닝페이퍼.</p>
+              <ul class="list">
+                <li><strong>말이나 글로 적어요.</strong> 한 문장이면 사람과 항목을 알아서 나눠 넣어요.</li>
+                <li><strong>모르는 건 물어봐요.</strong> 링크로 물어보면 답이 내 기록에 들어와요.</li>
+                <li><strong>챙길 날에 선물까지.</strong> 음력 생일과 기념일을 알려 주고, 가격대별 선물을 골라 줘요.</li>
+                <li><strong>나만 보는 기록.</strong> 알레르기·사이즈·메모는 암호화해서 저장해요.</li>
+              </ul>
+            </div>
+            <div class="visual">
+              <div class="phones">
+                <img loading="lazy" decoding="async" src="img/ry-home.webp" alt="기억해유 홈: 다가오는 엄마 칠순과 이번 주 챙길 날" width="600" height="1067">
+                <img loading="lazy" decoding="async" src="img/ry-person.webp" alt="기억해유 사람 화면: 아내의 기록과 한 줄 적기" width="600" height="1067">
+                <img loading="lazy" decoding="async" src="img/ry-request.webp" alt="기억해유 물어보기: 누구에게 무엇을 물어볼지 고르는 화면" width="600" height="1067">
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="chap camp" id="camp">
+          <div class="chap-grid">
+            <div class="copy">
+              <div class="chap-head">
+                <svg class="icon" role="img" aria-label="눈꽃숲 캠핑장 아이콘"><use href="#i-camp"/></svg>
+                <h3 class="chap-name">눈꽃숲 캠핑장</h3>
+                <a class="btn" href="https://camping.watalabs.com/" aria-label="눈꽃숲 캠핑장 열기">열기</a>
+              </div>
+              <p class="lede">눈 오는 겨울밤, 같이 불멍해요.</p>
+              <ul class="list">
+                <li><strong>같이 모여요.</strong> 한 캠핑장에 모여 모닥불 앞에 앉아요.</li>
+                <li><strong>할 거리가 많아요.</strong> 마시멜로 굽기, 장작 패기, 눈사람 만들기, 별똥별에 소원 빌기.</li>
+                <li><strong>설치 없이 바로.</strong> 휴대폰이든 PC든 브라우저에서 열어요.</li>
+              </ul>
+            </div>
+            <div class="visual"><img loading="lazy" decoding="async" src="img/camp.webp" alt="눈꽃숲 캠핑장 게임 화면: 눈 덮인 숲속 모닥불 앞 캠핑장" width="1600" height="900"></div>
+            <canvas id="snow" aria-hidden="true"></canvas>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="contact" aria-labelledby="contact-title">
+    <div class="wrap sec">
+      <h2 id="contact-title">문의</h2>
+      <p><a href="mailto:watalabs.help@gmail.com">watalabs.help@gmail.com</a></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="copy">© 2026 와타랩스</p>
+    <ul class="biz">
+      <li><span>상호</span>와타랩스</li>
+      <li><span>대표</span>정민균</li>
+      <li><span>사업자등록번호</span>422-17-02792</li>
+      <li><span>통신판매업 신고</span>제2026-서울서초-3688호</li>
+      <li><span>주소</span>서울특별시 서초구 방배로 141, 4층 415-47호(방배동, 텔콤빌딩 내방)</li>
+      <li><span>전화</span>010-2809-7499</li>
+      <li><span>이메일</span>watalabs.help@gmail.com</li>
+      <li><a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=4221702792" target="_blank" rel="noopener noreferrer">사업자정보 확인</a></li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+  /* 라씨: 문서 · MD · 미리보기 · PDF 바꿔 보기 */
+  (function () {
+    var btns = document.querySelectorAll('.frame-bar button');
+    var imgs = document.querySelectorAll('.frame-view img');
+    btns.forEach(function (b, i) {
+      b.addEventListener('click', function () {
+        btns.forEach(function (x, j) { x.setAttribute('aria-pressed', String(i === j)); imgs[j].hidden = i !== j; });
+      });
+    });
+  })();
+
+  /* 눈꽃숲 캠핑장: 장면 위로 가늘게 내리는 눈. 보일 때만 돌고, 동작 줄이기에서는 한 장면만 그린다 */
+  (function () {
+    var cv = document.getElementById('snow');
+    if (!cv || !cv.getContext) return;
+    var ctx = cv.getContext('2d');
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var flakes = [], W = 0, H = 0, raf = 0, last = 0, onscreen = true;
+    function make(anywhere) {
+      return { x: Math.random() * W, y: anywhere ? Math.random() * H : -6, r: 0.7 + Math.random() * 1.5, v: 8 + Math.random() * 14, a: 0.3 + Math.random() * 0.5, p: Math.random() * 6.28, s: 0.4 + Math.random() * 0.8 };
+    }
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#F6F1E2';
+      for (var i = 0; i < flakes.length; i++) {
+        var f = flakes[i];
+        ctx.globalAlpha = f.a;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.2832); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    function size() {
+      var box = cv.parentNode.getBoundingClientRect();
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = box.width; H = box.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var n = Math.max(24, Math.min(64, Math.round(W * H / 12000)));
+      flakes = [];
+      for (var i = 0; i < n; i++) flakes.push(make(true));
+      draw();
+    }
+    function step(t) {
+      if (!onscreen || document.hidden) { raf = 0; return; }
+      var dt = Math.min((t - last) / 1000, 0.05); last = t;
+      for (var i = 0; i < flakes.length; i++) {
+        var f = flakes[i];
+        f.y += f.v * dt; f.p += f.s * dt; f.x += Math.sin(f.p) * 8 * dt;
+        if (f.y > H + 4) flakes[i] = make(false);
+      }
+      draw();
+      raf = requestAnimationFrame(step);
+    }
+    function start() { if (reduce || raf) return; last = performance.now(); raf = requestAnimationFrame(step); }
+    size();
+    window.addEventListener('resize', size);
+    if (reduce) return;
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { onscreen = es[0].isIntersecting; if (onscreen) start(); }).observe(cv.parentNode);
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) start(); });
+    start();
+  })();
+</script>
+<script>
+  /* 기억해유 열기: 웹 화면(로그인)을 거치지 않고 앱을 받는 곳으로 보낸다.
+     아이폰·아이패드는 앱 받기 주소(/get)가 App Store로 보낸다(앱이 깔려 있으면 거기에 '열기'가 뜬다).
+     안드로이드는 앱의 홈을 먼저 열어 보고(kr.readme.app://home), 없거나 못 열면 /get(Play 스토어)으로 보낸다.
+     맥·윈도 PC는 /get이 Play로 보내는데 Play는 아직 비공개 테스트라 열리지 않으므로 App Store 화면으로 바로 보낸다 */
+  (function () {
+    var a = document.getElementById('ry-open');
+    if (!a) return;
+    var ua = navigator.userAgent || '';
+    var store = a.href;
+    if (/Android/i.test(ua)) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        var t = setTimeout(function () { if (!document.hidden) location.href = store; }, 2000);
+        document.addEventListener('visibilitychange', function () { if (document.hidden) clearTimeout(t); });
+        location.href = 'intent://home#Intent;scheme=kr.readme.app;package=kr.readme.app;S.browser_fallback_url=' + encodeURIComponent(store) + ';end';
+      });
+    } else if (!/iPhone|iPad|iPod/.test(ua)) {
+      a.href = 'https://apps.apple.com/kr/app/id6834970170';
+    }
+  })();
+</script>
 </body>
 </html>
