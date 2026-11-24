@@ -13,8 +13,17 @@ export async function embed(ctx: Ctx) {
   const since = new Date(ctx.now.getTime() - ctx.windowHours * HOUR).toISOString();
   // 출처마다 최신 글부터 돌아가며. 서버 스케줄러는 한 번에 embedLimit개까지만(남은 것은 다음 실행)
   // 그냥 최신 id순이면 수집 순서상 맨 뒤인 뉴스 분야 피드가 상한을 다 차지했다(2026-10-21~22 임베딩 1,200개가 전부 언론사 글, 긱뉴스 0/81)
+  // 받은 시각 순으로 읽어야 items_fetched_idx로 창 안만 본다. id 순이면 DB가 기본 키를 거꾸로 훑어 마지막 페이지에서
+  // 표 전체(8만여 줄)를 읽었다: 벡터를 7일 뒤 지워 '벡터 없음'이 대부분이 된 뒤 14.7초, API 한도 8초에 걸렸다(2026-11-25 점검)
   const all = await selectAll<{ id: number; title: string; excerpt: string | null; source_id: number | null }>((from, to) =>
-    db.from('items').select('id,title,excerpt,source_id').is('embedding', null).gte('fetched_at', since).order('id', { ascending: false }).range(from, to),
+    db
+      .from('items')
+      .select('id,title,excerpt,source_id')
+      .is('embedding', null)
+      .gte('fetched_at', since)
+      .order('fetched_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, to),
   );
   // 분야 8개(정치·경제·…·스포츠·엔터)는 받는 회원이 없어도 늘 거른다: 온보딩 '끌리는 소식' 고르기에 분야마다 소식이 있어야 한다(2026-11-10).
   // 섹션 피드 글만 더 들어와서 임베딩이 조금 는다(요약은 summarize의 분야 몫이 정한다)
