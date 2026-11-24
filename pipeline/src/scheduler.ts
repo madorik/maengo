@@ -99,6 +99,26 @@ async function expirePremium(now: Date, deadline: number, hooks: SchedulerHooks)
   return { expired: (data as number | null) ?? 0, rechecked, skipped: skip.length };
 }
 
+/** prune_storage 한 번에 단계마다 지우는 수. API는 문장 하나를 8초에 끊는다(마이그레이션 20261125070000. 500개에 3.9초라 200으로) */
+const PRUNE_BATCH = 200;
+/** prune_storage를 한 번 더 부르려면 이만큼은 남아 있어야 한다(한 번은 8초 안에 끝난다) */
+const PRUNE_MIN_LEFT_MS = 30_000;
+
+/** 오래된 벡터·행을 조금씩 나눠 지운다. 시간이 모자라면 unfinished로 다음 실행(5분 뒤)이 잇는다 */
+async function pruneStorage(deadline: number) {
+  const total = { item_vecs: 0, items: 0, clusters: 0, cluster_vecs: 0, calls: 0 };
+  for (;;) {
+    const r = check(await db.rpc('prune_storage', { p_limit: PRUNE_BATCH }), 'prune_storage') as typeof total & { more: boolean };
+    total.item_vecs += r.item_vecs;
+    total.items += r.items;
+    total.clusters += r.clusters;
+    total.cluster_vecs += r.cluster_vecs;
+    total.calls++;
+    if (!r.more) return { pruned: total, unfinished: false };
+    if (deadline - Date.now() < PRUNE_MIN_LEFT_MS) return { pruned: total, unfinished: true };
+  }
+}
+
 /** 작업 결과. unfinished면 다 못 해서 놓아줘 다음 실행이 잇는다 */
 type TaskOutcome = { stats: Record<string, unknown>; unfinished?: boolean };
 
@@ -107,13 +127,13 @@ async function runTask(task: Task, now: Date, deadline: number, hooks: Scheduler
     const premium = await expirePremium(now, deadline, hooks);
     // 보관 기간(가장 긴 플랜, Premium 6개월)이 지난 피드·읽음·플레이리스트 정리(마이그레이션 20261026170000). 피드가 빠진 뒤에 벡터·행을 정리한다
     const archive = check(await db.rpc('prune_archive'), 'prune_archive');
-    // 오래된 벡터·행 정리(무료 DB 500MB 안에 머물게, 마이그레이션 20261017150000)
-    const pruned = check(await db.rpc('prune_storage'), 'prune_storage');
+    // 오래된 벡터·행 정리(무료 DB 500MB 안에 머물게, 마이그레이션 20261017150000·20261125070000)
+    const { pruned, unfinished } = await pruneStorage(deadline);
     // 오늘의 흐름·맞춤 체크는 만든 날부터 30일(개인정보 처리방침 3조, 2026-11-11)
     const insightCut = new Date(now.getTime() + 9 * 3600_000 - 30 * 86_400_000).toISOString().slice(0, 10);
     const { count: insights, error: insightError } = await db.from('briefing_insights').delete({ count: 'exact' }).lt('date', insightCut);
     if (insightError) console.error('[daily] briefing_insights 정리 실패', insightError.message);
-    return { stats: { ...premium, archive, pruned, insights: insights ?? 0 } };
+    return { stats: { ...premium, archive, pruned, insights: insights ?? 0 }, unfinished };
   }
   if (task.name === 'trial_reminder') return remindTrialEnding(now, deadline);
   if (task.name === 'reports') return runReports(now, deadline);

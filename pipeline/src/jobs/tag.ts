@@ -50,8 +50,10 @@ export function tagsFor(centroid: number[], topics: Map<string, number[]>) {
 export async function tag(ctx: Ctx) {
   const topics = await topicVectors(ctx);
   const since = new Date(ctx.now.getTime() - 7 * 24 * HOUR).toISOString();
-  const clusters = await selectAll<{ id: number; centroid: unknown; tagged_at: string | null; last_seen_at: string }>((from, to) =>
-    db.from('clusters').select('id,centroid,tagged_at,last_seen_at').is('skip_reason', null).gte('last_seen_at', since).not('centroid', 'is', null).order('id').range(from, to),
+  // 중심 벡터는 여기서 읽지 않고 다시 태그할 묶음만 아래에서 id로 읽는다.
+  // 7일 치 묶음(1만여 개) 벡터를 페이지마다 다 읽어 정렬하면 한 번에 2~8초가 걸려 API 한도(8초)에 걸렸다(2026-11-25 점검)
+  const clusters = await selectAll<{ id: number; tagged_at: string | null; last_seen_at: string }>((from, to) =>
+    db.from('clusters').select('id,tagged_at,last_seen_at').is('skip_reason', null).gte('last_seen_at', since).not('centroid', 'is', null).order('id').range(from, to),
   );
   // AI가 이미 토픽을 붙인(요약이 있는) 묶음은 건드리지 않는다
   const summarized = new Set<number>();
@@ -61,14 +63,23 @@ export async function tag(ctx: Ctx) {
   });
   const todo = clusters.filter((c) => !summarized.has(c.id) && (ctx.force || !c.tagged_at || c.tagged_at < c.last_seen_at));
   const linkOnly = await linkOnlyClusters(todo.map((c) => c.id));
+  const centroids = new Map<number, number[]>();
+  await inChunks(todo.filter((c) => !linkOnly.has(c.id)).map((c) => c.id), 200, async (ids) => {
+    const got = check(await db.from('clusters').select('id,centroid').in('id', ids), 'clusters centroid') as { id: number; centroid: unknown }[];
+    for (const r of got) {
+      const v = fromVector(r.centroid);
+      if (v) centroids.set(r.id, v);
+    }
+  });
 
   const rows: { cluster_id: number; topic_id: string; relevance: number }[] = [];
   const tops: number[] = [];
   for (const c of todo) {
-    if (linkOnly.has(c.id)) continue;
+    const centroid = centroids.get(c.id);
+    if (!centroid) continue;
     // 상세 관심사로 잡히면 큰 분류에도 잡히게 한다("백엔드"만 고른 사람에게도 PostgreSQL 소식이 가게)
-    const tags = withParents(tagsFor(fromVector(c.centroid)!, topics));
-    const top = [...topics.values()].reduce((m, v) => Math.max(m, cosine(fromVector(c.centroid)!, v)), -1);
+    const tags = withParents(tagsFor(centroid, topics));
+    const top = [...topics.values()].reduce((m, v) => Math.max(m, cosine(centroid, v)), -1);
     tops.push(top);
     for (const t of tags) rows.push({ cluster_id: c.id, topic_id: t.topicId, relevance: Number(t.relevance.toFixed(3)) });
   }
