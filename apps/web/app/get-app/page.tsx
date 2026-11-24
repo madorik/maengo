@@ -8,6 +8,8 @@ import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/site";
 // 앱 받기(2026-11-12 사용자 '앱에서 알림 받는 게 메인이어야 해, PC 웹에서 접속하면 다 앱 다운로드로 돌리자').
 // PC 브라우저로 로그인·오늘·보관함 같은 앱 화면을 열면 proxy.ts가 여기로 보낸다(관리자는 예외).
 // 휴대폰 카메라로 QR을 찍으면 /go/app?from=qr_get → 그 휴대폰의 스토어. 소개·1분 요약·공유 글·약관은 PC에서도 그대로 읽는다
+// 2026-11-23: PC에서도 웹으로 가입하고, 가입을 마치면 여기로 온다(?from=signup, 둘러보기에서 체험을 누르고 왔으면 ?from=trial, app/actions.ts).
+// 그때는 '가입했어요'로 맞이하고, 앱에서 같은 계정으로 로그인하면 고른 관심 분야가 이어진다고 알린다
 
 export const metadata: Metadata = {
   title: "맹고 앱 받기",
@@ -17,17 +19,21 @@ export const metadata: Metadata = {
 
 const POINTS = ["출근길·퇴근길에 알림으로 브리핑이 와요", "화면을 꺼도 이어서 들어요", "관심 분야 소식과 맞춤 인사이트를 한 번에"];
 
-export default function GetAppPage() {
+type Props = { searchParams: Promise<{ from?: string }> };
+
+export default async function GetAppPage({ searchParams }: Props) {
+  const { from } = await searchParams;
+  const joined = from === "signup" || from === "trial";
   return (
     <main className="flex min-h-dvh items-center justify-center bg-paper px-5 py-12">
       <div className="w-full max-w-[720px]">
         <div className="flex flex-col items-center gap-10 md:flex-row md:items-center md:gap-14">
           <div className="flex-1 text-center md:text-left">
-            <Mascot mood="listen" className="mx-auto size-16 md:mx-0" />
+            <Mascot mood={joined ? "cheer" : "listen"} className="mx-auto size-16 md:mx-0" />
             <h1 className="mt-4 text-[30px] font-bold leading-[1.25] tracking-[-0.04em] md:text-[38px]">
-              맹고는
+              {joined ? "가입했어요!" : "맹고는"}
               <br />
-              앱에서 받아요
+              {joined ? "이제 앱에서 받아요" : "앱에서 받아요"}
             </h1>
             <ul className="mt-5 flex flex-col gap-2 text-[16px] font-semibold text-ink">
               {POINTS.map((p) => (
@@ -37,7 +43,12 @@ export default function GetAppPage() {
                 </li>
               ))}
             </ul>
-            <p className="mt-5 text-[14px] font-medium leading-relaxed text-sub">이미 가입했다면 앱에서 같은 계정(구글·애플)으로 로그인하면 그대로 이어져요.</p>
+            <p className="mt-5 text-[14px] font-medium leading-relaxed text-sub">
+              {joined
+                ? "앱에서 방금 가입한 계정(구글·애플)으로 로그인하면 고른 관심 분야가 그대로 이어져요."
+                : "이미 가입했다면 앱에서 같은 계정(구글·애플)으로 로그인하면 그대로 이어져요."}
+              {from === "trial" && " Premium 무료 체험도 앱에서 바로 시작해요."}
+            </p>
           </div>
 
           <div className="flex shrink-0 flex-col items-center">

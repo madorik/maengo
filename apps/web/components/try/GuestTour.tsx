@@ -3,7 +3,7 @@
 import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Crown, IconCheck, IconChevronDown, IconExternal, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { Crown, IconCheck, IconChevronDown, IconClose, IconExternal, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { AuthLink, useSignedIn } from "@/components/landing/AuthLink";
 import { Mascot } from "@/components/Mascot";
 import { SeekBar } from "@/components/listen/SeekBar";
@@ -57,6 +57,8 @@ type Status = "idle" | "loading" | "playing" | "paused" | "error";
 const noSubscribe = () => () => {};
 /** 처음 열면 전체 듣기를 짚어 준다. 이 탭에서 한 번(닫거나 들으면 다시 안 띄움) */
 const SPOT_KEY = "maengo_try_spot";
+/** 소식 하나를 다 들으면 가입을 제안한다. 이 탭에서 한 번(SignupNudge) */
+const NUDGE_KEY = "maengo_try_nudge";
 
 /** 듣기를 처음 누른 자리(try_start where): 머리 카드의 큰 버튼 · 처음 짚어 주는 안내 · 소식 카드 */
 type StartFrom = "hero" | "spot" | "card";
@@ -80,8 +82,16 @@ const setAfterLogin = (value: "trial" | null) => {
   document.cookie = value ? `${AFTER_LOGIN_COOKIE}=${value}; path=/; max-age=86400; samesite=lax` : `${AFTER_LOGIN_COOKIE}=; path=/; max-age=0; samesite=lax`;
 };
 
-/** 화면에 하나 있는 오디오로 목록을 차례로 튼다. 한 소식이 끝나면 다음 소식, 마지막이 끝나면 onFinish(들어 본 소식 수) */
-function useGuestPlayer(items: GuestItem[], onFinish: (heard: number) => void, audioSrc?: (item: GuestItem) => string) {
+/**
+ * 화면에 하나 있는 오디오로 목록을 차례로 튼다. 한 소식이 끝나면 다음 소식, 마지막이 끝나면 onFinish(들어 본 소식 수).
+ * onItemEnd는 소식 하나를 끝까지 들었을 때(다음 버튼으로 넘긴 건 빼고) 그 소식 번호·들어 본 소식 수로 부른다
+ */
+function useGuestPlayer(
+  items: GuestItem[],
+  onFinish: (heard: number) => void,
+  audioSrc?: (item: GuestItem) => string,
+  onItemEnd?: (index: number, heard: number) => void,
+) {
   const n = items.length;
   const [cur, setCur] = useState(-1);
   const [status, setStatus] = useState<Status>("idle");
@@ -163,15 +173,36 @@ function useGuestPlayer(items: GuestItem[], onFinish: (heard: number) => void, a
   };
 
   useEffect(() => {
-    onEndedRef.current = next;
+    onEndedRef.current = () => {
+      onItemEnd?.(curRef.current, heard.size);
+      next();
+    };
   });
 
   return { cur, status, posMs, heard, play, pause, seek, retry, next };
 }
 
-export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items: GuestItem[]; toss?: TossMode } & Offer) {
+export function GuestTour({
+  items,
+  perks,
+  priceLabel,
+  trialDays,
+  toss,
+  signup,
+}: {
+  items: GuestItem[];
+  toss?: TossMode;
+  /**
+   * 중간 가입 제안에 넣을 구글·애플 로그인 버튼(app/try/page.tsx가 로그인 화면과 같은 LoginButtons·signIn으로 만들어 넘긴다).
+   * 여기서 서버 액션을 직접 가져오면 이 컴포넌트를 함께 쓰는 토스 미니앱(apps/toss, Vite) 빌드가 깨져서 바깥에서 받는다. 없으면 제안을 띄우지 않는다
+   */
+  signup?: React.ReactNode;
+} & Offer) {
   const n = items.length;
   const [finished, setFinished] = useState(false);
+  const signedIn = useSignedIn();
+  /** 중간 가입 제안을 띄웠는지(들어 본 소식 수와 함께, SignupNudge) */
+  const [nudge, setNudge] = useState<{ heard: number } | null>(null);
   const p = useGuestPlayer(
     items,
     (heard) => {
@@ -179,7 +210,21 @@ export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items
       track("try_complete", { heard, items: n });
     },
     toss?.audioSrc,
+    // 소식 하나를 끝까지 들은 순간 한 번(이 탭에서) 가입을 제안한다. 마지막 소식이면 끝 팝업(FinishDialog)이 대신 뜬다
+    (index, heard) => {
+      if (!signup || toss || signedIn || index >= n - 1) return;
+      try {
+        if (sessionStorage.getItem(NUDGE_KEY) === "1") return;
+        sessionStorage.setItem(NUDGE_KEY, "1");
+      } catch {}
+      setNudge({ heard });
+      track("try_signup_prompt", { action: "show", heard, items: n });
+    },
   );
+  const closeNudge = () => {
+    if (nudge) track("try_signup_prompt", { action: "dismiss", heard: nudge.heard, items: n });
+    setNudge(null);
+  };
   const started = useRef(false);
   const offer: Offer = { perks, priceLabel, trialDays };
   const playing = p.status === "playing" || p.status === "loading";
@@ -352,6 +397,7 @@ export function GuestTour({ items, perks, priceLabel, trialDays, toss }: { items
           onPrev={() => p.play(Math.max(0, p.cur - 1))}
           onNext={p.next}
           onRetry={p.retry}
+          top={nudge && signup && !signedIn ? <SignupNudge heard={nudge.heard} total={n} onClose={closeNudge}>{signup}</SignupNudge> : null}
         />
       )}
 
@@ -519,6 +565,7 @@ function MiniPlayer({
   onPrev,
   onNext,
   onRetry,
+  top,
 }: {
   item: GuestItem;
   index: number;
@@ -530,6 +577,8 @@ function MiniPlayer({
   onPrev: () => void;
   onNext: () => void;
   onRetry: () => void;
+  /** 플레이어 위에 붙일 것(중간 가입 제안). 막대 안에 넣어야 높이가 --tour-bar-h에 들어가 맹고 AI 버튼이 그 위로 올라간다 */
+  top?: React.ReactNode;
 }) {
   const barRef = useRef<HTMLDivElement>(null);
   // 막대 높이만큼 목록 아래를 비운다(오류 줄이 붙으면 높아진다)
@@ -553,6 +602,7 @@ function MiniPlayer({
   return (
     <div ref={barRef} className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-line bg-paper">
       <div className="mx-auto max-w-[640px] px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2.5">
+        {top}
         {status === "error" && (
           <div className="mb-2 flex items-center gap-2">
             <p role="alert" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed text-cherry">
@@ -622,6 +672,41 @@ function FreeStart() {
     <Link href="/login" onClick={() => setAfterLogin(null)} className="btn btn-ghost min-h-12 w-full text-[16px] no-underline">
       무료로 시작하기
     </Link>
+  );
+}
+
+/**
+ * 둘러보기 중간 가입 제안(2026-11-23 사용자). 소식 하나를 끝까지 들은 순간 플레이어 위에 한 번 붙는다(소리는 멈추지 않는다).
+ * 그전엔 가입 버튼이 소식 목록 맨 아래와 다 들은 뒤 팝업에만 있었는데, 끝까지 들은 사람은 2주에 1명이었다(GA4 try_complete, 11/8~22).
+ * 로그인 화면을 한 번 덜 거치게 구글·애플 버튼(children, app/try/page.tsx)을 바로 둔다. 누르면 체험 표시는 지운다(무료 가입 → 관심사 고르기)
+ */
+function SignupNudge({ heard, total, onClose, children }: { heard: number; total: number; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby="try-nudge-title" aria-live="polite" className="pop mb-3 rounded-2xl bg-mango-tint p-4">
+      <div className="flex items-start gap-3">
+        <Mascot mood="cheer" className="size-11 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <h2 id="try-nudge-title" className="text-[16px] font-bold leading-snug tracking-[-0.03em]">
+            이런 소식, 내 관심 분야로 받아 볼래요?
+          </h2>
+          <p className="mt-0.5 text-[14px] font-medium leading-relaxed text-sub">가입하면 출근길·퇴근길 하루 두 번, 내 관심 분야 소식만 골라 읽어 드려요.</p>
+        </div>
+        <button type="button" onClick={onClose} aria-label="가입 제안 닫고 계속 듣기" className="-mr-2 -mt-2 flex size-11 shrink-0 items-center justify-center rounded-full text-sub hover:bg-paper/60">
+          <IconClose className="size-5" />
+        </button>
+      </div>
+      <div
+        className="mt-3 flex flex-col gap-2"
+        onClickCapture={(e) => {
+          const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[name=provider]");
+          if (!b || b.disabled) return;
+          setAfterLogin(null);
+          track("try_signup_prompt", { action: "start", provider: b.value, heard, items: total });
+        }}
+      >
+        {children}
+      </div>
+    </section>
   );
 }
 

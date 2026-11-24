@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Mascot } from "@/components/Mascot";
 import { GuestTour, type TourPerk } from "@/components/try/GuestTour";
+import { signIn } from "@/app/actions";
+import { LoginButtons } from "@/app/login/LoginButtons";
 import { ASK_DAILY } from "@/lib/ask";
 import { guestTour } from "@/lib/server/guest-tour";
 import { getPlans } from "@/lib/server/plans";
@@ -44,7 +46,20 @@ export default async function TryPage() {
     { label: `맹고 AI 질문 하루 ${ASK_DAILY.plus}번`, note: `Free ${ASK_DAILY.free}번` },
     { label: "주간 리포트" },
   ];
-  return <GuestTour items={items} perks={perks} priceLabel={`월 ${plus.priceKrw.toLocaleString("ko-KR")}원`} trialDays={TRIAL_DAYS} />;
+  return (
+    <GuestTour
+      items={items}
+      perks={perks}
+      priceLabel={`월 ${plus.priceKrw.toLocaleString("ko-KR")}원`}
+      trialDays={TRIAL_DAYS}
+      // 소식 하나를 다 들으면 뜨는 중간 가입 제안의 로그인 버튼(로그인 화면과 같은 것, 2026-11-23)
+      signup={
+        <form action={signIn} className="flex flex-col gap-2">
+          <LoginButtons demo={false} />
+        </form>
+      }
+    />
+  );
 }
 
 function Empty() {

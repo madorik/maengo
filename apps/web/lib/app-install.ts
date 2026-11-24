@@ -18,6 +18,14 @@ export function mobileOsOf(ua: string | null | undefined): MobileOs | null {
 }
 
 /**
+ * PC 브라우저인지(앱도 휴대폰도 아닌 것, iPad 사파리는 맥으로 보여서 여기 든다). proxy.ts·가입 마침이 같이 쓴다.
+ * 2026-11-23 사용자: PC도 웹에서 가입(둘러보기·로그인·온보딩)하고, 가입을 마치면 앱 받기(/get-app)로 보낸다
+ */
+export function isPcBrowser(ua: string | null | undefined): boolean {
+  return !isAppUserAgent(ua) && !mobileOsOf(ua);
+}
+
+/**
  * iPhone 사파리인지. 애플 기본 배너(apple-itunes-app)는 사파리에만 뜬다.
  * 카카오톡·네이버·인스타그램 안 브라우저와 iPhone의 Chrome·Firefox·Edge에는 안 떠서 직접 만든 띠를 보인다
  */

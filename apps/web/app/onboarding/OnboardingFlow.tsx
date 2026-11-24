@@ -10,6 +10,7 @@ import { answerContextAction } from "@/app/(app)/context-actions";
 import { CONTEXT_QUESTIONS, QUESTION_BY_KEY } from "@/lib/context";
 import type { YoutubeSections } from "@/lib/youtube-sections";
 import { track } from "@/lib/analytics";
+import { isPcBrowser } from "@/lib/app-install";
 import { withBase } from "@/lib/base-path";
 import { registerThisBrowser } from "@/lib/web-push";
 
@@ -76,10 +77,13 @@ export function OnboardingFlow({ youtube = null, name = null }: { youtube?: Yout
     setBusy(true);
     track("onboarding_complete", { topics: weights.size });
     track("onboarding_focus", { focus: focus.join(","), job: job ?? "", picked: focus.length + (job ? 1 : 0) });
-    // 누를 때 알림 권한을 묻고(앱은 기기 창, 웹은 브라우저 창) 허용하면 이 기기를 등록한다
-    const r = await registerThisBrowser().catch(() => ({ ok: false as const }));
-    track("notify_toggle", { on: r.ok, group: "onboarding" });
-    setPushOn(r.ok);
+    // 누를 때 알림 권한을 묻고(앱은 기기 창, 웹은 브라우저 창) 허용하면 이 기기를 등록한다.
+    // PC 브라우저는 묻지 않는다: 가입을 마치면 앱 받기로 가고 알림은 앱에서 받는다(2026-11-23, actions.ts finishOnboarding)
+    if (!isPcBrowser(navigator.userAgent)) {
+      const r = await registerThisBrowser().catch(() => ({ ok: false as const }));
+      track("notify_toggle", { on: r.ok, group: "onboarding" });
+      setPushOn(r.ok);
+    }
     // 고른 대분류의 주제를 모두 내 맞춤 정보에, 신경 쓰는 것·하는 일도(실패해도 이어 간다, 설정에서 다시 고른다)
     await Promise.all([
       ...chosen.map((key) => {

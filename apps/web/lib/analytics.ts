@@ -34,6 +34,7 @@ export type AnalyticsEvent =
   | "try_complete"
   | "try_trial_click"
   | "try_ask"
+  | "try_signup_prompt"
   | "report_open"
   | "report_make"
   | "app_install_click";

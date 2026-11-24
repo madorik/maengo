@@ -5,6 +5,7 @@ import type { Voice } from "@maengo/core/types";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { isPcBrowser } from "@/lib/app-install";
 import { withBase } from "@/lib/base-path";
 import { isRate } from "@/lib/player/rate";
 import { allowedOrigin, googleAuthUrl, googleDirectEnabled, LOGIN_TTL_SEC, randomToken, signState, STATE_COOKIE } from "@/lib/server/google-login";
@@ -161,7 +162,10 @@ async function finishOnboarding(userId: string, formData: FormData): Promise<nev
     "profiles onboarded",
   );
   // 둘러보기 끝에서 'Premium 무료 체험하기'를 누르고 가입했으면 오늘 대신 요금제로 가 체험 안내를 바로 띄운다(lib/server/sign-in.ts)
-  redirect((await takeTrialIntent()) ? TRIAL_PATH : "/today");
+  const trial = await takeTrialIntent();
+  // PC 브라우저로 가입했으면 앱 받기로(2026-11-23 사용자 '가입 완료하면 앱 다운로드 페이지로, 모바일이 아닌 경우'). 체험·알림·결제는 앱에서 한다
+  if (isPcBrowser((await headers()).get("user-agent"))) redirect(`/get-app?from=${trial ? "trial" : "signup"}`);
+  redirect(trial ? TRIAL_PATH : "/today");
 }
 
 /**

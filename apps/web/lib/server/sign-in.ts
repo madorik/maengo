@@ -1,6 +1,7 @@
 import 'server-only';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import type { NextResponse } from 'next/server';
+import { isPcBrowser } from '../app-install';
 import { db } from './db';
 import { redirectInApp } from './redirect';
 import { AFTER_LOGIN_COOKIE, SESSION_COOKIE, SIGNED_IN_HINT } from '../session-cookie';
@@ -16,7 +17,10 @@ export async function afterSignIn(userId: string): Promise<NextResponse> {
   jar.set(SIGNED_IN_HINT, '1', { path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 30 });
   const { data: profile } = await db.from('profiles').select('onboarded_at').eq('id', userId).maybeSingle();
   if (!profile?.onboarded_at) return redirectInApp('/onboarding');
-  return redirectInApp((await takeTrialIntent()) ? TRIAL_PATH : '/today');
+  const trial = await takeTrialIntent();
+  // PC 브라우저에서 체험을 누르고 온 기존 회원은 앱 받기로(체험·결제는 앱에서). 그 밖의 PC 회원은 /today로 보내면 proxy.ts가 앱 받기로 돌린다(관리자는 그대로)
+  if (trial && isPcBrowser((await headers()).get('user-agent'))) return redirectInApp('/get-app?from=trial');
+  return redirectInApp(trial ? TRIAL_PATH : '/today');
 }
 
 /** 요금제에서 체험 안내 팝업을 바로 띄우는 주소(PremiumBuy autoTrial) */
