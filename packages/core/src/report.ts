@@ -198,6 +198,54 @@ export const dayName = (date: string) => DAY_NAMES[(weekday(date) + 6) % 7]!;
 /** 그 주 7일의 날짜(월~일) */
 export const weekDates = (start: string) => Array.from({ length: 7 }, (_, i) => addDays(start, i));
 
+/** 챙겨 볼 일정 줄에서 읽은 날짜 */
+export interface ScheduleDate {
+  /** 'YYYY-MM-DD'(KST) */
+  date: string;
+  month: number;
+  day: number;
+  /** 요일 이름(월~일) */
+  weekday: string;
+}
+
+/**
+ * 챙겨 볼 일정 글('26일 엔비디아 실적 발표', '12월 1일 수출 발표', '27~28일 금통위')에서 날짜를 읽는다(2026-11-26 화면 개편: 줄마다 날짜 칸).
+ * start는 그 리포트 주의 월요일. 달이 없으면 다음 주 월요일부터 다섯 주 안에서 그 '일'이 처음 오는 날로 본다.
+ * '3일 연속'·'5일간'처럼 날짜가 아닌 말은 읽지 않고, 못 읽으면 null(화면은 달력 아이콘 칸)
+ */
+export function scheduleDate(text: string, start: string): ScheduleDate | null {
+  const re = /(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*(?:[~\-–]\s*\d{1,2}\s*)?일(?!\s*(?:연속|동안|간|째|만에|이내|전|후|뒤|이상|이하|넘|내내))/g;
+  for (const m of text.matchAll(re)) {
+    const day = Number(m[2]);
+    if (day < 1 || day > 31) continue;
+    let date: string | null = null;
+    if (m[1]) {
+      const month = Number(m[1]);
+      if (month < 1 || month > 12) continue;
+      // 올해 그 날이 리포트 주보다 두 달 넘게 앞서면 다음 해로('12월 리포트의 1월 3일')
+      for (const year of [Number(start.slice(0, 4)), Number(start.slice(0, 4)) + 1]) {
+        const d = new Date(Date.UTC(year, month - 1, day));
+        if (d.getUTCMonth() !== month - 1) break;
+        const iso = d.toISOString().slice(0, 10);
+        if (iso >= addDays(start, -60)) {
+          date = iso;
+          break;
+        }
+      }
+    } else {
+      for (let i = 7; i < 7 + 35; i++) {
+        const iso = addDays(start, i);
+        if (Number(iso.slice(8, 10)) === day) {
+          date = iso;
+          break;
+        }
+      }
+    }
+    if (date) return { date, month: Number(date.slice(5, 7)), day: Number(date.slice(8, 10)), weekday: dayName(date) };
+  }
+  return null;
+}
+
 /** 가장 많이 본 날(같으면 앞선 날). 하루도 안 봤으면 null */
 export function busiestDay(days: readonly ReportDay[]): ReportDay | null {
   let best: ReportDay | null = null;
@@ -269,8 +317,8 @@ export interface ReportPreview {
   tones: Record<ReportTone, number> | null;
 }
 
-/** 맞춤 체크 칸 이름: 쪽을 나눈 리포트(2026-11-25~)는 '내 관심사에 준 영향' */
-export const interestLabel = (personal: readonly ReportInterest[] | undefined) => (personal?.some((p) => p.tone) ? '내 관심사에 준 영향' : '맞춤 체크');
+/** 맞춤 체크 칸 이름: 쪽을 나눈 리포트(2026-11-25~)는 화면 이름 '관심사별로 자세히'(2026-11-26 개편: 판정 줄 + 관심사별 자세히) */
+export const interestLabel = (personal: readonly ReportInterest[] | undefined) => (personal?.some((p) => p.tone) ? '관심사별로 자세히' : '맞춤 체크');
 
 /**
  * Free에게 내려보낼 것만 추린다: 총평·숫자, 첫 칸의 앞부분, 나머지는 이름과 개수만.
@@ -288,16 +336,15 @@ export function reportPreview(data: ReportData): ReportPreview {
       ? { label: '분야별로 보면', about: s.group, title: first, text: peekCut(rest, PEEK_CHARS) }
       : { label: '분야별로 보면', about: s.group, title: `${s.group} 소식 정리`, text: peekCut(s.summary, PEEK_CHARS) };
   }
+  // 화면(Premium) 순서대로. 2026-11-26 개편으로 분야별 정리·많이 본 분야는 화면에서 빠져 여기서도 뺀다(없는 것을 잠겼다고 하지 않게)
   const locked: ReportPreview['locked'] = [];
   if (digest.personal?.length) locked.push({ label: interestLabel(digest.personal), count: digest.personal.length });
-  if (data.markets?.length) locked.push({ label: '지난주 경제 지표', count: data.markets.length });
-  if (digest.next?.length) locked.push({ label: '다음 주 지켜볼 것', count: digest.next.length });
-  if (data.days?.length) locked.push({ label: '요일별로 본 흐름 차트', count: null });
-  if (digest.sections.length) locked.push({ label: '분야별 정리', count: digest.sections.length });
-  if (data.groups.length) locked.push({ label: '많이 본 분야 차트', count: null });
-  if (digest.keywords.length) locked.push({ label: '자주 나온 키워드', count: digest.keywords.length });
+  if (digest.next?.length) locked.push({ label: '이번 주 챙겨 볼 일정', count: digest.next.length });
+  if (data.markets?.length) locked.push({ label: '지난주 시장', count: data.markets.length });
   const missed = data.missed.filter((id) => data.items[id]).length;
   if (missed) locked.push({ label: '놓친 주요 소식', count: missed });
+  if (data.days?.length) locked.push({ label: '요일별로 본 흐름 차트', count: null });
+  if (digest.keywords.length) locked.push({ label: '자주 나온 키워드', count: digest.keywords.length });
   return { counts: data.counts, prev: data.prev, headline: digest.headline, peek, locked, tones: toneTotals(digest.personal) };
 }
 

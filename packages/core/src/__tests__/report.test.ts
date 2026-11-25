@@ -168,14 +168,13 @@ test('Free 요약: 총평·숫자와 첫 칸의 앞부분만, 나머지는 이�
   assert.ok((p.peek?.text.length ?? 0) <= PEEK_CHARS);
   assert.ok((p.peek?.text.length ?? 0) >= 90); // 3줄 안팎은 보인다(2026-11-21 사용자: 한 줄만이 아니라 3~4줄)
   assert.ok(p.peek?.text.endsWith('…'));
+  // 화면(Premium) 순서대로. 2026-11-26 개편으로 분야별 정리·많이 본 분야 차트는 화면에서 빠져 잠금 목록에도 없다
   assert.deepEqual(p.locked, [
     { label: '맞춤 체크', count: 2 },
-    { label: '다음 주 지켜볼 것', count: 1 },
-    { label: '요일별로 본 흐름 차트', count: null },
-    { label: '분야별 정리', count: 1 },
-    { label: '많이 본 분야 차트', count: null },
-    { label: '자주 나온 키워드', count: 1 },
+    { label: '이번 주 챙겨 볼 일정', count: 1 },
     { label: '놓친 주요 소식', count: 1 },
+    { label: '요일별로 본 흐름 차트', count: null },
+    { label: '자주 나온 키워드', count: 1 },
   ]);
   // 내려보내는 값 어디에도 뒷부분·둘째 맞춤 체크·다음 주 지켜볼 것 본문·키워드 말은 없다
   const sent = JSON.stringify(p);
@@ -276,13 +275,31 @@ test('프롬프트: 시장 지표가 있으면 [시장] 줄, 없으면 없음', 
   assert.match(p, /\[시장\] 앞 주 마지막 거래일 → 이 기간 마지막 거래일\n- kospi 코스피: 5,290.53 → 4,869.96 \(▼ 7\.9%\)\n\[소식\]/);
 });
 
-test('Free 요약: 쪽을 나눈 리포트는 칸 이름이 내 관심사에 준 영향, 쪽별 수와 지표 칸 이름', () => {
+test('Free 요약: 쪽을 나눈 리포트는 칸 이름이 관심사별로 자세히, 쪽별 수와 시장 칸 이름', () => {
   const personal = [{ about: '국내 주식', title: '외국인이 팔았어요', text: '외국인 자금이 닷새 동안 빠져나가며 코스피가 내렸어요. 다음 주 실적 발표를 확인해 보세요.', ids: [1], tone: 'minus' as const, tally: { minus: [1, 2], plus: [3], watch: [] } }];
   const p = reportPreview(data({ markets: [{ key: 'kospi', name: '코스피', unit: '', points: [] }] }, { personal }));
-  assert.equal(p.peek?.label, '내 관심사에 준 영향');
+  assert.equal(p.peek?.label, '관심사별로 자세히');
   assert.deepEqual(p.tones, { minus: 2, plus: 1, watch: 0 });
-  assert.deepEqual(p.locked.slice(0, 2), [{ label: '내 관심사에 준 영향', count: 1 }, { label: '지난주 경제 지표', count: 1 }]);
+  assert.deepEqual(p.locked.slice(0, 2), [{ label: '관심사별로 자세히', count: 1 }, { label: '지난주 시장', count: 1 }]);
   assert.equal(reportPreview(data()).tones, null);
+});
+
+test('챙겨 볼 일정: 글에서 날짜를 읽는다(달이 없으면 다음 주부터, 날짜가 아닌 말은 읽지 않는다)', async () => {
+  const { scheduleDate } = await import('../report');
+  const start = '2026-11-16'; // 월요일, 다음 주는 11/23~
+  assert.deepEqual(scheduleDate('26일 엔비디아 실적 발표', start), { date: '2026-11-26', month: 11, day: 26, weekday: '목' });
+  assert.deepEqual(scheduleDate('12월 1일 11월 수출 발표', start), { date: '2026-12-01', month: 12, day: 1, weekday: '화' });
+  // 달이 없고 '1일'이면 다음 달 1일(다음 주부터 첫 번째 1일)
+  assert.equal(scheduleDate('1일 수출 발표', start)?.date, '2026-12-01');
+  assert.equal(scheduleDate('27~28일 한국은행 금통위', start)?.date, '2026-11-27');
+  // 날짜가 아닌 '3일 연속'은 건너뛰고 뒤의 날짜를 읽는다
+  assert.equal(scheduleDate('3일 연속 매도, 26일 실적 발표', start)?.date, '2026-11-26');
+  assert.equal(scheduleDate('3일 연속 매도 여부', start), null);
+  assert.equal(scheduleDate('한국은행 기준금리 결정', start), null);
+  assert.equal(scheduleDate('11월 수출 발표', start), null);
+  // 없는 날은 읽지 않고, 해를 넘긴 달은 다음 해로
+  assert.equal(scheduleDate('2월 30일 발표', start), null);
+  assert.equal(scheduleDate('1월 8일 미국 고용 발표', '2026-12-28')?.date, '2027-01-08');
 });
 
 test('투자 권유 거르기: 시장 참여자의 매매를 전하는 사실은 통과, 권유는 그대로 걸린다', async () => {
