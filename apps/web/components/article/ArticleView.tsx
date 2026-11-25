@@ -6,10 +6,8 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useSwipeSurface } from "@/components/app/SwipePager";
 import { IconBack, IconExternal, IconNext, IconThumbDown, IconThumbUp } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SourceChip } from "@/components/ui/SourceChip";
-import { Bubble } from "@/components/ui/Bubble";
 import { BookmarkButton } from "@/components/ui/BookmarkButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import type { FeedItem } from "@/lib/types";
@@ -153,12 +151,12 @@ export function ArticleView({
         {item.kind === "video" && <VideoThumb item={item} />}
         {item.kind === "article" && <ArticlePhoto item={item} />}
 
-        {/* 맹고가 말풍선으로 요약을 건넨다 */}
-        <section aria-label="요약" className="mt-6 flex items-start gap-2">
-          <Mascot className="size-14 shrink-0" />
-          <Bubble className="flex-1">
-            <p className="text-[17px] font-bold leading-[1.65]">{item.short}</p>
-          </Bubble>
+        {/* 핵심 요약(2026-11-25 사용자: 맹고 말풍선 대신 '핵심 요약'이라고만) */}
+        <section aria-labelledby="summary-title" className="mt-6 rounded-2xl bg-snow px-5 py-4">
+          <h2 id="summary-title" className="text-[14px] font-extrabold text-mango-deep">
+            핵심 요약
+          </h2>
+          <p className="mt-1.5 text-[17px] font-bold leading-[1.65]">{item.short}</p>
         </section>
 
         <article aria-label="전체 글" className="mt-8 flex flex-col gap-4">
