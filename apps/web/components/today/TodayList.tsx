@@ -11,7 +11,7 @@ import { CATEGORY_LABEL } from "@maengo/core/categories";
 import { SECTION_LABEL, SLOT_LABEL, isSection } from "@maengo/core/sections";
 import { useMoreArrival } from "./arrival";
 import { InsightHead } from "./BriefingInsight";
-import { MakeToday } from "./MakeToday";
+import { EmptyToday } from "./EmptyToday";
 import { FillToday } from "./FillToday";
 import { MORE_MAX } from "@/lib/more";
 import { SignupGift } from "./SignupGift";
@@ -25,9 +25,23 @@ import type { FeedItem } from "@/lib/types";
  * ② 오늘의 흐름(사진 카드를 옆으로 넘긴다, BriefingInsight.tsx) ③ 맞춤 소식(분야 칩 + 보관함과 같은 소식 줄).
  * 예전(2026-11-10 G안)의 남색 듣기 막대·출근길 노선·목록/노선 전환·맞춤 체크 칸은 시안에 없어서 뺐다(맞춤 체크는 흐름 상세 시트의 '챙겨 볼 것'으로).
  * 퇴근길이라고 화면을 남색으로 바꾸지 않는다(2026-11-26 사용자): 출근길·퇴근길 모두 사용자가 고른 밝기를 따르고, 제목 글자로만 구분한다.
- * notice는 맨 위 결제 안내 띠, head·flows는 오늘의 인사이트(서버가 Suspense로 끼운다, today/page.tsx)
+ * notice는 맨 위 결제 안내 띠, head·flows는 오늘의 인사이트(서버가 Suspense로 끼운다, today/page.tsx).
+ * 오늘 소식이 아직 없으면 ②③ 대신 empty(EmptyToday: 남색 카드 + 어제 못 본 소식·다시 듣기·이번 주 일정, 2026-11-26 시안 '오늘 소식 오기 전')
  */
-export function TodayList({ notice, head, flows }: { notice?: ReactNode; /** 머리의 인사이트 제목 */ head?: ReactNode; /** 오늘의 흐름 */ flows?: ReactNode }) {
+export function TodayList({
+  notice,
+  head,
+  flows,
+  empty,
+}: {
+  notice?: ReactNode;
+  /** 머리의 인사이트 제목 */
+  head?: ReactNode;
+  /** 오늘의 흐름 */
+  flows?: ReactNode;
+  /** 오늘 소식이 아직 없을 때 남색 카드와 '기다리는 동안' 칸들(서버가 끼운다). 없으면 카드만 */
+  empty?: ReactNode;
+}) {
   const { data, game, consumed, listenAccess } = useToday();
   const player = usePlayer();
   const { expect, settle } = useMoreArrival(data.items.map((i) => i.clusterId));
@@ -73,9 +87,7 @@ export function TodayList({ notice, head, flows }: { notice?: ReactNode; /** 머
           <NewsSection items={items} consumed={consumed} ride={ride} onToggle={toggle} />
         </>
       ) : (
-        <div className="mt-4">
-          <MakeToday reason={data.emptyReason} notifyLabel={data.notifyLabel} />
-        </div>
+        <div className="mt-4">{empty ?? <EmptyToday data={null} />}</div>
       )}
 
       {/* 브리핑을 다 받은 뒤 '더 보기'(10개씩, 브리핑마다 30개까지, 2026-11-12 사용자). 맹고 '하나 더 받기'를 대신한다 */}

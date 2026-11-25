@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatChange, formatMarket, marketChange, weekPoints, type ReportMarket } from "@maengo/core/markets";
-import { dayName, REPORT_TONES, scheduleDate, toneTotals, type ReportData, type ReportPeriod, type ReportTone } from "@maengo/core/report";
+import { dayName, REPORT_TONES, scheduleDate, scheduleTask, toneTotals, type ReportData, type ReportPeriod, type ReportTone } from "@maengo/core/report";
 import { IconCalendar, IconChevronRight } from "@/components/icons";
 import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 import { articleToken } from "@/lib/server/share-token";
@@ -15,9 +15,6 @@ import { ReportSection, ReportWeek, verdictOf, VerdictFrame, weekLead } from "./
 // 상자는 ①·②(관심사 카드)·나의 한 주 칸에만, 나머지는 얇은 구분선. Free는 ①(총평·판정 개수)·나의 한 주·맛보기만 본다(ReportFree.tsx, 2026-11-19).
 // 숫자·막대는 DB에서 센 값, 총평·맞춤 체크·다음 주 지켜볼 것·키워드는 Gemini가 쓴 것(pipeline/src/reports.ts). 맹고-문서/리포트.md
 // 예전 형식 리포트(관심사 영향·경제·일정이 없는 것)는 있는 칸만 그린다: 상자는 총평만(맞춤 체크가 있으면 판정 줄 자리에 그 문장들), 없는 칸은 숨김.
-
-/** 일정 글 맨 앞의 날짜('26일 ', '12월 1일 ', '27~28일 목요일 '): 왼쪽 날짜 칸에 있으니 제목에서는 뺀다 */
-const LEAD_DATE = /^(?:\d{1,2}\s*월\s*)?\d{1,2}\s*(?:[~\-–]\s*\d{1,2}\s*)?일(?:\s*\(?[월화수목금토일]요일\)?)?\s*/;
 
 /** 'YYYY-MM-DD' → '11월 20일' */
 const monthDay = (date: string) => `${Number(date.slice(5, 7))}월 ${Number(date.slice(8, 10))}일`;
@@ -130,7 +127,7 @@ function ScheduleBlock({ next, personal, items, start }: { next: NonNullable<Rep
         {next.map((n) => {
           const id = n.ids.find((x) => items[x]);
           const at = scheduleDate(n.text, start);
-          const task = (at && n.text.replace(LEAD_DATE, "").trim()) || n.text;
+          const task = scheduleTask(n.text, !!at);
           // 이 소식이 닿은 관심사(쪽별 소식 또는 흐름을 바꾼 소식에 들어 있는 것)
           const about = personal
             .filter((p) => n.ids.some((x) => p.ids.includes(x) || REPORT_TONES.some((t) => p.tally?.[t].includes(x))))

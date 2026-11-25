@@ -138,9 +138,10 @@ function useDone(e: LibraryEntry): boolean {
  * 소식 줄(2026-11-26 사용자 시안): 회색 상자 대신 바탕 위의 줄, 줄 사이는 얇은 선.
  * 왼쪽에 분야 이름(망고 진한 글자)·제목 두 줄·'출처, 시각'과 같은 줄 오른쪽 끝 북마크, 오른쪽에 둥근 정사각 사진(옅은 안쪽 선).
  * 읽은 소식은 '읽음' 글자를 적지 않고 제목·분야를 흐리게, 사진을 옅게 한다(화면 읽기에는 '읽음'). 사진이 없으면 사진 자리를 비우지 않고 글이 넓어진다.
- * 고르는 중에는 왼쪽에 체크 자리가 생긴다(PickTarget)
+ * 고르는 중에는 왼쪽에 체크 자리가 생긴다(PickTarget).
+ * 오늘 소식이 아직 없을 때 화면의 '어제 못 본 소식'도 이 줄을 그대로 쓴다(PlaylistPicker 안에서, 고르기는 꺼진 채)
  */
-function EntryRow({ entry: e }: { entry: LibraryEntry }) {
+export function EntryRow({ entry: e }: { entry: LibraryEntry }) {
   const done = useDone(e);
   const picking = usePicking();
   const label = sectionLabel(e);

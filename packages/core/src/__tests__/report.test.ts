@@ -302,6 +302,17 @@ test('챙겨 볼 일정: 글에서 날짜를 읽는다(달이 없으면 다음 �
   assert.equal(scheduleDate('1월 8일 미국 고용 발표', '2026-12-28')?.date, '2027-01-08');
 });
 
+test('챙겨 볼 일정: 날짜 칸이 있으면 제목에서 맨 앞 날짜를 뗀다', async () => {
+  const { scheduleTask } = await import('../report');
+  assert.equal(scheduleTask('26일 엔비디아 실적 발표', true), '엔비디아 실적 발표');
+  assert.equal(scheduleTask('12월 1일 수출 발표', true), '수출 발표');
+  assert.equal(scheduleTask('27~28일 목요일 한국은행 금통위', true), '한국은행 금통위');
+  // 날짜를 못 읽은 글·떼면 비는 글은 그대로
+  assert.equal(scheduleTask('한국은행 기준금리 결정', false), '한국은행 기준금리 결정');
+  assert.equal(scheduleTask('26일 엔비디아 실적 발표', false), '26일 엔비디아 실적 발표');
+  assert.equal(scheduleTask('26일', true), '26일');
+});
+
 test('투자 권유 거르기: 시장 참여자의 매매를 전하는 사실은 통과, 권유는 그대로 걸린다', async () => {
   const { isAdvice } = await import('../report');
   assert.equal(isAdvice('외국인·기관 매도와 AI 투자 불안에 국내 증시가 크게 밀렸어요'), false);

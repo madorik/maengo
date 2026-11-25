@@ -589,6 +589,47 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
   };
 }
 
+/**
+ * 오늘 피드에 보여 줄 줄이 하나라도 있는지. 오늘 화면이 비었을 때만 읽는 곁가지('기다리는 동안' 칸)가 먼저 본다.
+ * 오늘 피드는 레이아웃이 이미 읽었고(todayFeed 캐시) 같은 요청 안에서는 다시 읽지 않는다
+ */
+export async function todayHasRows(profile: Profile): Promise<boolean> {
+  return visibleRows(await todayFeed(profile)).length > 0;
+}
+
+/** 오늘 바로 앞에 받은 브리핑(출근길·퇴근길 한 번). 다시 듣기 줄이 쓴다 */
+export interface LastBriefing {
+  /** 받은 날 'YYYY-MM-DD' */
+  date: string;
+  slot: BriefingSlot;
+  /** 그 브리핑의 소식(보여 준 것만, 차례대로) */
+  ids: number[];
+  /** 그때 만든 오늘의 인사이트 제목. 없으면 null */
+  headline: string | null;
+}
+
+/**
+ * 오늘 앞의 가장 최근 브리핑: 보여 준 소식이 있는 가장 가까운 지난 날의 퇴근길(없으면 출근길).
+ * 보관함이 보여 주는 기간 안에서만, 줄과 그날 인사이트 제목만 가볍게 읽는다(소식 내용은 읽지 않는다)
+ */
+export async function lastBriefing(profile: Profile): Promise<LastBriefing | null> {
+  const today = kstDate();
+  const from = archiveFrom(profile, today);
+  let dayQuery = db.from('feed_days').select('date,visible').eq('user_id', profile.id).lt('date', today).gt('visible', 0);
+  if (from) dayQuery = dayQuery.gte('date', from);
+  const day = must(await dayQuery.order('date', { ascending: false }).limit(1).maybeSingle(), 'feed_days last') as { date: string; visible: number } | null;
+  if (!day) return null;
+  const rows = must(await db.from('feeds').select('cluster_id,slot').eq('user_id', profile.id).eq('date', day.date).order('rank'), 'feeds last') as { cluster_id: number; slot: BriefingSlot | null }[];
+  // 보이는 칸은 그날 앞에서부터 visible개(보관함·오늘 화면과 같다)
+  const shown = rows.slice(0, day.visible);
+  const slot: BriefingSlot = shown.some((r) => r.slot === 'pm') ? 'pm' : 'am';
+  const ids = shown.filter((r) => (r.slot ?? 'am') === slot).map((r) => r.cluster_id);
+  if (!ids.length) return null;
+  const { data: insight } = await db.from('briefing_insights').select('headline:data->>headline').eq('user_id', profile.id).eq('date', day.date).eq('slot', slot).maybeSingle();
+  const headline = (insight as { headline?: unknown } | null)?.headline;
+  return { date: day.date, slot, ids, headline: typeof headline === 'string' && headline.trim() ? headline.trim() : null };
+}
+
 /** 홈 화면 위젯이 보이는 오늘 소식 한 줄 */
 export interface WidgetItem {
   id: number;

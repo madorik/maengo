@@ -246,6 +246,17 @@ export function scheduleDate(text: string, start: string): ScheduleDate | null {
   return null;
 }
 
+/** 일정 글 맨 앞의 날짜('26일 ', '12월 1일 ', '27~28일 목요일 ') */
+const LEAD_DATE = /^(?:\d{1,2}\s*월\s*)?\d{1,2}\s*(?:[~\-–]\s*\d{1,2}\s*)?일(?:\s*\(?[월화수목금토일]요일\)?)?\s*/;
+
+/**
+ * 일정 줄의 할 일: 날짜를 읽어 왼쪽 날짜 칸에 적었으면(dated) 글 맨 앞의 날짜는 제목에서 뺀다. 날짜를 못 읽었거나 떼고 나면 비면 글 그대로.
+ * 주간 리포트의 '이번 주 챙겨 볼 일정'과 오늘 화면의 같은 줄이 같이 쓴다
+ */
+export function scheduleTask(text: string, dated: boolean): string {
+  return (dated && text.replace(LEAD_DATE, '').trim()) || text;
+}
+
 /** 가장 많이 본 날(같으면 앞선 날). 하루도 안 봤으면 null */
 export function busiestDay(days: readonly ReportDay[]): ReportDay | null {
   let best: ReportDay | null = null;

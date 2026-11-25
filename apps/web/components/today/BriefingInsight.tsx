@@ -74,7 +74,7 @@ export function InsightHead({
 }
 
 /** AI가 쓴 글에 남은 'OO님'·'회원님'을 프로필 이름으로(이름 없는 계정(운영엔 없다)만 '회원님') */
-function callName(s: string, name: string | null): string {
+export function callName(s: string, name: string | null): string {
   return s.replace(/(?:OO|○○|회원)님/g, name ? `${name}님` : "회원님");
 }
 

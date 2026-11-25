@@ -2,6 +2,7 @@ import 'server-only';
 import { kstDate } from '@maengo/core/kst';
 import { lastCompleted, type ReportData, type ReportPeriod } from '@maengo/core/report';
 import { db } from './db';
+import type { ScheduleInput } from '../today-empty';
 import type { Profile } from './profile';
 
 // 주간 리포트 읽기(2026-11-10, Premium. 월간은 뺐다). 만드는 쪽은 pipeline/src/reports.ts(스케줄러 08:00 KST, 화면의 '지금 만들기'는 api/report).
@@ -72,6 +73,28 @@ export async function freshReport(profile: Profile): Promise<{ period: ReportPer
   );
   const r = rows[0];
   return r ? { period: r.period, start: r.start_date, headline: r.headline ?? '' } : null;
+}
+
+/**
+ * 오늘 화면('기다리는 동안')이 쓰는 가장 최근 주간 리포트의 일정. 일정과 관심사 줄만 읽는다(본문 전체를 읽지 않는다).
+ * 리포트가 없거나 일정이 없으면 null
+ */
+export async function latestSchedule(profile: Profile): Promise<ScheduleInput | null> {
+  const rows = soft(
+    await db
+      .from('reports')
+      .select('start_date,next:data->digest->next,personal:data->digest->personal')
+      .eq('user_id', profile.id)
+      .eq('period', 'week')
+      .eq('status', 'ready')
+      .order('start_date', { ascending: false })
+      .limit(1),
+    'reports schedule',
+    [] as { start_date: string; next: ScheduleInput['next'] | null; personal: ScheduleInput['personal'] | null }[],
+  );
+  const r = rows[0];
+  if (!r?.next?.length) return null;
+  return { start: r.start_date, next: r.next, personal: r.personal ?? [] };
 }
 
 /** 리포트 화면에서 처음 열었다(오늘 화면 안내 카드를 거둔다) */
