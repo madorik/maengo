@@ -1,6 +1,7 @@
 import type { CategoryId } from './categories';
 import { INVESTING_ADVICE } from './context';
 import type { Impact } from './feed/impact';
+import { isMarketKey, type MarketKey, type ReportMarket } from './markets';
 import { addDays } from './util/kst';
 
 // 주간 리포트(2026-11-10, Premium) 공용 규칙: 기간 셈·이름, 저장 모양(ReportData), AI 정리 프롬프트와 결과 다듬기.
@@ -89,6 +90,31 @@ export interface ReportGroup {
 export interface ReportItem {
   title: string;
   category: CategoryId;
+  /** 그 기간에 처음 받은 날(KST). 지표 선 그래프에 그날을 점으로 찍는다. 2026-11-25 전 리포트에는 없다 */
+  date?: string;
+}
+
+/** 소식이 그 관심사에 어느 쪽이었는지(오늘의 흐름과 같은 말): 긍정 요인·부담 요인·지켜볼 변수 */
+export type ReportTone = 'plus' | 'minus' | 'watch';
+export const REPORT_TONES: readonly ReportTone[] = ['minus', 'plus', 'watch'];
+export const isReportTone = (v: unknown): v is ReportTone => v === 'plus' || v === 'minus' || v === 'watch';
+export const TONE_NAME: Record<ReportTone, string> = { plus: '긍정 요인', minus: '부담 요인', watch: '지켜볼 변수' };
+
+/** 맞춤 체크 한 칸(관심사 하나) */
+export interface ReportInterest {
+  about: string;
+  title: string;
+  text: string;
+  /** 흐름을 바꾼 소식(그 관심사에 가장 크게 닿은 것) */
+  ids: number[];
+  /** 2026-11-25부터(내 관심사에 준 영향): 그 관심사에 이번 주 소식이 전체로 어느 쪽이었는지 */
+  tone?: ReportTone;
+  /** 그 관심사에 닿은 소식 번호를 쪽마다(한 소식은 한 쪽에만) */
+  tally?: Record<ReportTone, number[]>;
+  /** 이 관심사와 가장 가까운 시장 지표(ReportData.markets에 있는 것만) */
+  metric?: MarketKey;
+  /** 다음 주 이 관심사에서 확인할 것 */
+  next?: string;
 }
 
 export interface ReportDigest {
@@ -102,9 +128,11 @@ export interface ReportDigest {
    * 맞춤 체크(2026-11-11 사용자: 주간 리포트도 맞춤형 인사이트로): 회원이 알려 준 사정(내 맞춤 정보)과 읽거나 들은 소식을 바탕으로 이번 주 소식이 무슨 뜻이었는지, 최대 3개.
    * 근거(사정·읽은 소식)가 없거나 설정에서 맞춤 인사이트를 껐으면 없다. 이 칸이 생기기 전 리포트에도 없다
    */
-  personal?: { about: string; title: string; text: string; ids: number[] }[];
+  personal?: ReportInterest[];
   /** 다음 주 지켜볼 것(소식에 나온 발표·일정·수치), 최대 3개. 이 칸이 생기기 전 리포트에는 없다 */
   next?: { text: string; ids: number[] }[];
+  /** 지난주 경제(2026-11-25): 시장 지표가 왜 그렇게 움직였는지. 지표를 못 받았거나 소식에서 원인을 못 찾으면 없다 */
+  economy?: { headline: string; notes: { key: MarketKey; text: string }[] };
 }
 
 /** 하루치(요일별 차트): 그날 받은 소식과 그중 본(읽거나 들은) 소식 */
@@ -143,6 +171,21 @@ export interface ReportData {
   prevOpenDays?: number | null;
   /** 큰 소식을 얼마나 챙겨 봤는지(major·notable 따로) */
   weight?: { major: ReportShare; notable: ReportShare };
+  /** 앞 주와 그 주의 시장 지표(한국은행 ECOS, 2026-11-25). 못 받았으면 없다 */
+  markets?: ReportMarket[];
+  /** 정리한 모델(gpt-6-luna·gemini-3.1-flash-lite, 2026-11-25~). 품질을 견줄 때 본다 */
+  model?: string;
+}
+
+/** 관심사들에 닿은 소식을 쪽마다 센다(같은 소식이 여러 관심사에 닿아도 한 번). 쪽을 나눈 칸이 없으면 null */
+export function toneTotals(personal: readonly ReportInterest[] | undefined): Record<ReportTone, number> | null {
+  const withTally = (personal ?? []).filter((p) => p.tally);
+  if (!withTally.length) return null;
+  const seen = new Map<number, ReportTone>();
+  for (const p of withTally) for (const t of REPORT_TONES) for (const id of p.tally![t]) if (!seen.has(id)) seen.set(id, t);
+  const out: Record<ReportTone, number> = { plus: 0, minus: 0, watch: 0 };
+  for (const t of seen.values()) out[t]++;
+  return out;
 }
 
 // ---- 요일별 차트 ----
@@ -222,7 +265,12 @@ export interface ReportPreview {
   peek: { label: string; about: string; title: string; text: string } | null;
   /** Premium에서 더 보이는 칸과 개수 */
   locked: { label: string; count: number | null }[];
+  /** 내 관심사에 닿은 소식을 쪽마다 센 수(총평 아래 숫자, 2026-11-25). 쪽을 나누기 전 리포트는 null */
+  tones: Record<ReportTone, number> | null;
 }
+
+/** 맞춤 체크 칸 이름: 쪽을 나눈 리포트(2026-11-25~)는 '내 관심사에 준 영향' */
+export const interestLabel = (personal: readonly ReportInterest[] | undefined) => (personal?.some((p) => p.tone) ? '내 관심사에 준 영향' : '맞춤 체크');
 
 /**
  * Free에게 내려보낼 것만 추린다: 총평·숫자, 첫 칸의 앞부분, 나머지는 이름과 개수만.
@@ -233,7 +281,7 @@ export function reportPreview(data: ReportData): ReportPreview {
   const p = digest.personal?.[0];
   const s = digest.sections[0];
   let peek: ReportPreview['peek'] = null;
-  if (p) peek = { label: '맞춤 체크', about: p.about, title: p.title, text: peekCut(p.text, PEEK_CHARS) };
+  if (p) peek = { label: interestLabel(digest.personal), about: p.about, title: p.title, text: peekCut(p.text, PEEK_CHARS) };
   else if (s) {
     const [first, rest] = splitFirst(s.summary);
     peek = rest
@@ -241,7 +289,8 @@ export function reportPreview(data: ReportData): ReportPreview {
       : { label: '분야별로 보면', about: s.group, title: `${s.group} 소식 정리`, text: peekCut(s.summary, PEEK_CHARS) };
   }
   const locked: ReportPreview['locked'] = [];
-  if (digest.personal?.length) locked.push({ label: '맞춤 체크', count: digest.personal.length });
+  if (digest.personal?.length) locked.push({ label: interestLabel(digest.personal), count: digest.personal.length });
+  if (data.markets?.length) locked.push({ label: '지난주 경제 지표', count: data.markets.length });
   if (digest.next?.length) locked.push({ label: '다음 주 지켜볼 것', count: digest.next.length });
   if (data.days?.length) locked.push({ label: '요일별로 본 흐름 차트', count: null });
   if (digest.sections.length) locked.push({ label: '분야별 정리', count: digest.sections.length });
@@ -249,7 +298,7 @@ export function reportPreview(data: ReportData): ReportPreview {
   if (digest.keywords.length) locked.push({ label: '자주 나온 키워드', count: digest.keywords.length });
   const missed = data.missed.filter((id) => data.items[id]).length;
   if (missed) locked.push({ label: '놓친 주요 소식', count: missed });
-  return { counts: data.counts, prev: data.prev, headline: digest.headline, peek, locked };
+  return { counts: data.counts, prev: data.prev, headline: digest.headline, peek, locked, tones: toneTotals(digest.personal) };
 }
 
 // ---- AI 정리 ----
@@ -276,9 +325,9 @@ export function pickDigestItems(items: DigestItem[], groups: string[], max: numb
 
 export const DIGEST_SYSTEM = `회원이 한 기간 동안 맹고에서 받은 [소식] 목록을 보고, 그 기간 리포트에 넣을 정리를 쓴다.
 
-출력은 JSON {headline, sections, keywords, personal, next}
+출력은 JSON {headline, sections, keywords, personal, next, economy}
 
-- headline: 이 기간 회원의 관심 분야에서 가장 큰 흐름 한 문장. 구체적인 이름·사건을 넣어 22~45자, '~했어요'·'~였어요' 같은 해요체로 끝낸다.
+- headline: 한 문장, 22~45자, '~했어요'·'~였어요' 같은 해요체로 끝낸다. [회원이 알려 준 사정]이나 ✓ 소식이 있으면 이번 주 소식이 그 관심사들에 어느 쪽이었는지를 구체적인 사건과 함께 쓴다(예: '외국인 자금이 빠져 국내 주식엔 부담, 반도체엔 기회가 많았어요'). 없으면 관심 분야에서 가장 큰 흐름을 이름·사건을 넣어 쓴다.
 - sections: 소식이 많은 [분야]부터 최대 4개.
   - group: [분야] 목록의 이름 그대로.
   - summary: 그 분야에서 이 기간 무슨 일이 있었는지 두 문장, 60~130자, 해요체. 회사·제품·숫자 같은 구체적인 말을 쓰고, 소식 하나를 옮기지 말고 여러 소식을 묶어 흐름으로 쓴다.
@@ -286,19 +335,28 @@ export const DIGEST_SYSTEM = `회원이 한 기간 동안 맹고에서 받은 [�
 - keywords: 여러 소식에 거듭 나온 구체적인 말(회사·제품·기술·사건·인물) 3~5개.
   - word: 2~14자 명사. 분야 이름(AI, 주식 같은 것)이나 '실적', '출시', '전망'처럼 막연한 말은 쓰지 않는다.
   - ids: 그 말이 나온 소식 번호 1~3개.
-- personal: 1~3개. 이 리포트에서 가장 중요한 칸이다. 회원은 재테크하는 직장인이다. 회원이 관심 가지고 보던 분야의 이번 주 소식이 재테크하는 이 회원에게(가진 주식·코인·집·대출·예금 같은 경제 쪽에) 어떤 영향이었는지 짚는다. 근거는 [회원이 알려 준 사정](있으면 먼저)과 ✓ 표시(읽거나 들은) 소식뿐이다.
-  - 먼저 재테크로 닿는 것(기업 실적·업종 흐름, 금리·대출 이자, 환율, 집값·청약·대출 규제, 코인). 생활 쪽(출퇴근·통신사·응원 팀 등)은 재테크로 닿는 소식이 하나도 없을 때만 1개까지.
+- personal: 1~4개. 이 리포트에서 가장 중요한 칸이다(화면 이름 '내 관심사에 준 영향'). 회원은 재테크하는 직장인이다. 회원이 관심 가지고 보던 분야의 이번 주 소식이 재테크하는 이 회원에게(가진 주식·코인·집·대출·예금 같은 경제 쪽에) 어떤 영향이었는지 짚는다. 근거는 [회원이 알려 준 사정](있으면 먼저)과 ✓ 표시(읽거나 들은) 소식뿐이다.
+  - 칸 고르는 순서: [회원이 알려 준 사정]에 경제 쪽(주식·코인·집·청약·대출·예금·환율·해외 결제)이 있으면 그 사정마다 먼저 칸을 만든다(이번 주 닿는 소식이 있는 것). 하는 일·업무 도구·개발 분야 같은 사정과 읽던 분야는 경제 쪽 칸을 다 만든 뒤 남는 자리에만. 생활 쪽(출퇴근·통신사·응원 팀 등)은 재테크로 닿는 소식이 하나도 없을 때만 1개까지.
+  - 재테크로 닿는 것: 기업 실적·업종 흐름, 금리·대출 이자, 환율, 집값·청약·대출 규제, 코인.
   - about: 근거의 짧은 이름(사정이면 "국내 주식"·"변동금리 대출"·"자가용 출퇴근"·"SKT", 읽은 소식이면 "읽던 반도체 소식"·"들은 금리 소식").
   - title: 20자 안팎, 읽고 싶어지는 한 줄. 이번 주 그 사정에 닿은 구체적인 사건·이름·숫자를 넣고('~ 정리', '~ 소식' 같은 밋밋한 말은 쓰지 않는다), '맞춤'·'나에게' 같은 꼬리표는 붙이지 않는다.
   - text: 두 문장, 100~150자, 해요체. 앞부분만 먼저 보이는 글이라 첫 문장에 무엇이 어떻게 바뀌었는지를 회사·숫자로 구체적으로 쓰고, 영향이 오는 길(이자·환율·수요·실적·규제·요금·일정 등)은 뒤가 궁금해지게 둘째 문장으로 넘긴다. 덧붙이는 말은 확인할 것(공지·일정·내 조건)까지만.
-  - ids: 근거 소식 번호 1~3개.
+  - ids: 흐름을 바꾼 소식(그 관심사에 가장 크게 닿은 것) 번호 1~3개.
+  - tone: 이번 주 그 관심사에 닿은 소식을 모아 봤을 때 전체로 어느 쪽인지. plus(긍정 요인: 실적·수요가 좋아지거나 이자 부담이 줄어드는 것처럼 그 사정에 좋은 쪽), minus(부담 요인: 이자·물가·비용이 늘거나 주가·실적에 압력이 되는 쪽), watch(지켜볼 변수: 아직 방향이 정해지지 않은 발표·일정·논쟁).
+  - plus, minus, watch: [소식] 중 그 관심사에 닿은 소식 번호를 쪽마다 나눠 담는다. 흐름을 바꾼 몇 개만이 아니라 그 관심사에 닿은 소식을 빠짐없이 모두 담는다(한 주에 보통 관심사마다 5~15개). 한 소식은 한 쪽에만, 닿지 않는 소식은 넣지 않는다. 쪽마다 0~12개. 화면에 막대로 그려진다. ids의 소식도 여기 어느 한 쪽에 든다.
+  - metric: [시장] 목록에서 그 관심사와 가장 가까운 지표 키 하나(국내 주식·반도체 → kospi 또는 kosdaq, 대출 이자·예금 → ktb3y, 환율·미국 주식·해외 결제 → usdkrw). 맞는 지표가 없거나 [시장]이 없음이면 "none".
+  - next: 다음 주 이 관심사에서 확인할 것 한 문장, 40자 안팎(예: "26일 엔비디아 실적 발표"). 소식 요약에 나온 발표·일정·수치 공개를 찾아 쓴다. 정말 하나도 없을 때만 빈 말.
   - 예: 사정 "국내 주식을 해요" + 이번 주 "반도체주 급락", "코스피 5000선 공방" → about "국내 주식", title "삼성전자·하이닉스가 흔든 한 주", text "AI 투자 위축 우려로 삼성전자·SK하이닉스가 일주일 새 크게 떨어지며 코스피가 출렁였어요. 다음 주 미국 물가 발표가 이 분위기를 되돌릴지, 더 누를지 가를 수 있으니 발표 일정을 확인해 보세요."
   - 예(분야→재테크): ✓ "빅테크 AI 투자 경쟁"을 읽었고 이번 주 "데이터센터 투자 확대" → about "읽던 AI 소식", title "데이터센터 투자가 메모리 실적으로", text "빅테크가 데이터센터 투자를 늘리며 HBM 같은 메모리 수요 기대가 커졌어요. 다음 주 반도체 기업 실적 발표에서 투자 계획이 얼마나 반영됐는지, 하반기 전망이 달라지는지 확인해 보세요."
   - 사정마다, 이어서 읽은 흐름마다 이번 주에 가장 크게 닿은 것 하나씩. 사정이나 ✓ 소식이 하나라도 있으면 반드시 1개 이상. 근거 없는 연결은 지어내지 않는다. 사정도 ✓ 소식도 없으면 빈 배열.
   - 예(읽은 소식): ✓ "HBM 공급 경쟁 본격화"를 읽었고 이번 주 "삼성전자 급락" → about "읽던 반도체 소식", title "지켜보던 HBM 경쟁이 주가로", text "읽어 온 HBM 공급 경쟁이 이번 주 삼성전자 등 반도체주 급락으로 이어졌어요. 다음 주 실적 발표에서 HBM 물량 전망이 어떻게 달라지는지, 경쟁사와 격차가 벌어지는지 확인해 보세요."
   - 사라·팔라, 비중·포트폴리오를 바꾸라, 투자를 점검·대비하라는 말과 수익·손실 장담은 하지 않는다.
   - '재테크'·'돈'이라는 말은 쓰지 않는다('돈 쪽' 대신 '경제 쪽'). 경제 쪽 영향은 실적·이자·환율·집값처럼 구체적으로 말한다.
-- next: 다음 주에 지켜볼 것 0~3개. 소식 요약에 나온 발표·일정·수치만(예: "19일 미국 물가 발표", "한국은행 기준금리 결정"). text 40자 안팎, ids 근거 소식 번호 1~2개. 없으면 빈 배열.
+- next: 다음 주에 지켜볼 것 0~3개. 소식 요약에 나온 발표·일정·수치만(예: "19일 미국 물가 발표", "한국은행 기준금리 결정"). text 40자 안팎, ids 근거 소식 번호 1~2개. 소식에 그런 일정이 있으면 꼭 넣고, 정말 없을 때만 빈 배열.
+- economy: [시장]이 있을 때 지난주 경제 흐름. [시장]이 없음이면 headline은 빈 말, notes는 빈 배열.
+  - headline: 지난주 시장을 한 문장으로, 22~50자, 해요체. [시장]의 움직임과 [소식]의 사건을 이어서 쓴다(예: "외국인 자금이 빠지고 달러가 강해진 한 주였어요").
+  - notes: [시장] 지표마다 왜 그렇게 움직였는지 한 문장(40~90자, 해요체). key는 [시장] 줄의 키(kospi 같은 영어) 그대로. 원인은 [소식]에 나온 사건만, 숫자는 [시장] 줄에 있는 것만 쓴다. [소식]에서 원인을 찾을 수 없는 지표는 넣지 않는다. 앞으로 오르내릴지는 전망하지 않는다.
+- 사라·팔라는 권유로 읽힐 말('매수할 때', '팔아 보세요', '비중을 줄이세요')은 쓰지 않는다. 투자 권유로 걸러져 칸이 빠진다. 외국인·기관의 움직임은 '외국인 매도'처럼 누가 했는지 붙여 사실로 쓰거나 '자금이 빠져나갔어요'로 쓴다.
 - ✓ 표시가 있는 소식은 회원이 읽거나 들은 것이다. 흐름과 키워드를 고를 때 조금 더 무게를 둔다.
 - 회원을 부르는 말(이름·회원님·회원·고객님·당신)은 쓰지 않는다. 주어 없이 쓴다.
 - 담백하게 쓴다. 감탄·과장('놀라운', '역대급')과 이모지는 쓰지 않는다.
@@ -325,24 +383,47 @@ export const DIGEST_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        properties: { about: { type: 'string' }, title: { type: 'string' }, text: { type: 'string' }, ids: { type: 'array', items: { type: 'integer' } } },
-        required: ['about', 'title', 'text', 'ids'],
+        properties: {
+          about: { type: 'string' },
+          title: { type: 'string' },
+          text: { type: 'string' },
+          ids: { type: 'array', items: { type: 'integer' } },
+          tone: { type: 'string', enum: ['plus', 'minus', 'watch'] },
+          plus: { type: 'array', items: { type: 'integer' } },
+          minus: { type: 'array', items: { type: 'integer' } },
+          watch: { type: 'array', items: { type: 'integer' } },
+          metric: { type: 'string' },
+          next: { type: 'string' },
+        },
+        required: ['about', 'title', 'text', 'ids', 'tone', 'plus', 'minus', 'watch', 'metric', 'next'],
       },
     },
     next: {
       type: 'array',
       items: { type: 'object', properties: { text: { type: 'string' }, ids: { type: 'array', items: { type: 'integer' } } }, required: ['text', 'ids'] },
     },
+    economy: {
+      type: 'object',
+      properties: {
+        headline: { type: 'string' },
+        notes: { type: 'array', items: { type: 'object', properties: { key: { type: 'string' }, text: { type: 'string' } }, required: ['key', 'text'] } },
+      },
+      required: ['headline', 'notes'],
+    },
   },
-  required: ['headline', 'sections', 'keywords', 'personal', 'next'],
+  required: ['headline', 'sections', 'keywords', 'personal', 'next', 'economy'],
 };
 
 /**
  * 모델에게 줄 자료: 기간, 분야 목록, 회원이 알려 준 사정(내 맞춤 정보 문장, 없으면 '없음'), 분야별 소식([번호] 제목 — 요약 앞부분).
  * 사정은 이름·이메일 없이 '국내 주식을 해요' 같은 문장만(개인정보 처리방침 5조)
  */
-export function digestPrompt(label: string, groups: string[], items: DigestItem[], shortChars: number, facts: string[] = []): string {
-  const lines: string[] = [`[기간] ${label}`, `[분야] ${groups.join(', ')}`, `[회원이 알려 준 사정] ${facts.join(', ') || '없음'}`, '[소식]'];
+export function digestPrompt(label: string, groups: string[], items: DigestItem[], shortChars: number, facts: string[] = [], markets: string[] = []): string {
+  const lines: string[] = [`[기간] ${label}`, `[분야] ${groups.join(', ')}`, `[회원이 알려 준 사정] ${facts.join(', ') || '없음'}`];
+  // 시장 지표(한국은행 ECOS, marketPromptLine): '- kospi 코스피: 4,968.48 → 4,708.54 (▼ 5.2%)'
+  if (markets.length) lines.push('[시장] 앞 주 마지막 거래일 → 이 기간 마지막 거래일', ...markets);
+  else lines.push('[시장] 없음');
+  lines.push('[소식]');
   let cur = '';
   for (const i of items) {
     if (i.group !== cur) {
@@ -368,9 +449,9 @@ function ids(v: unknown, known: Set<number>, max: number): number[] {
  * 모델 답을 화면에 넣을 수 있게 다듬는다: 모르는 분야·번호는 버리고, 길이를 맞추고, 분야 이름과 같은 키워드는 뺀다.
  * 총평이 없거나 분야 정리가 하나도 안 남으면 null(부른 쪽이 실패로 본다)
  */
-export function cleanDigest(raw: unknown, groups: string[], itemIds: number[], hasBasis = false): ReportDigest | null {
+export function cleanDigest(raw: unknown, groups: string[], itemIds: number[], hasBasis = false, marketKeys: readonly MarketKey[] = []): ReportDigest | null {
   if (!raw || typeof raw !== 'object') return null;
-  const r = raw as { headline?: unknown; sections?: unknown; keywords?: unknown; personal?: unknown; next?: unknown };
+  const r = raw as { headline?: unknown; sections?: unknown; keywords?: unknown; personal?: unknown; next?: unknown; economy?: unknown };
   const known = new Set(itemIds);
   const byName = new Map(groups.map((g) => [norm(g), g]));
   const headline = str(r.headline);
@@ -399,22 +480,65 @@ export function cleanDigest(raw: unknown, groups: string[], itemIds: number[], h
   // 맞춤 체크: 근거(알려 준 사정·읽은 소식)가 있을 때만(없는데 나오면 지어낸 것), 투자 권유 말은 버린다
   const personal: NonNullable<ReportDigest['personal']> = [];
   for (const x of hasBasis && Array.isArray(r.personal) ? r.personal : []) {
-    const o = x as { about?: unknown; title?: unknown; text?: unknown; ids?: unknown };
+    const o = x as { about?: unknown; title?: unknown; text?: unknown; ids?: unknown } & Partial<Record<ReportTone | 'tone' | 'metric' | 'next', unknown>>;
     const about = str(o?.about).slice(0, 20);
     const title = str(o?.title);
     const text = str(o?.text);
     const picked = ids(o?.ids, known, 3);
-    if (!about || title.length < 4 || title.length > 40 || text.length < 15 || text.length > 240 || !picked.length || INVESTING_ADVICE.test(`${title} ${text}`)) continue;
-    personal.push({ about, title, text, ids: picked });
-    if (personal.length === 3) break;
+    if (!about || title.length < 4 || title.length > 40 || text.length < 15 || text.length > 240 || !picked.length || isAdvice(`${title} ${text}`)) continue;
+    const item: ReportInterest = { about, title, text, ids: picked };
+    // 내 관심사에 준 영향(2026-11-25): 쪽(tone)이 있을 때만 쪽별 소식·지표·다음 주를 붙인다. 한 소식은 앞선 쪽(부담→긍정→지켜볼)에만
+    if (isReportTone(o.tone)) {
+      item.tone = o.tone;
+      const used = new Set<number>();
+      const tally = { plus: [], minus: [], watch: [] } as Record<ReportTone, number[]>;
+      const put = (t: ReportTone, id: number) => {
+        if (used.has(id)) return;
+        used.add(id);
+        tally[t].push(id);
+      };
+      for (const t of REPORT_TONES) for (const id of ids(o[t], known, TALLY_MAX)) put(t, id);
+      // 흐름을 바꾼 소식이 어느 쪽에도 없으면 그 관심사의 쪽에 넣는다(막대가 비지 않게)
+      for (const id of picked) put(o.tone, id);
+      item.tally = tally;
+      if (isMarketKey(o.metric) && marketKeys.includes(o.metric)) item.metric = o.metric;
+      const next = str(o.next);
+      if (next.length >= 4 && next.length <= 70 && !isAdvice(next)) item.next = next;
+    }
+    personal.push(item);
+    if (personal.length === 4) break;
   }
   const next: NonNullable<ReportDigest['next']> = [];
   for (const x of Array.isArray(r.next) ? r.next : []) {
     const text = str((x as { text?: unknown })?.text);
     const picked = ids((x as { ids?: unknown })?.ids, known, 2);
-    if (text.length < 4 || text.length > 70 || !picked.length || INVESTING_ADVICE.test(text) || next.some((n) => norm(n.text) === norm(text))) continue;
+    if (text.length < 4 || text.length > 70 || !picked.length || isAdvice(text) || next.some((n) => norm(n.text) === norm(text))) continue;
     next.push({ text, ids: picked });
     if (next.length === 3) break;
   }
+
+  // 지난주 경제: 받은 지표가 있을 때만. 총평이 맞지 않으면 칸을 통째로 뺀다(지표 숫자는 화면이 ECOS 값으로 그린다)
+  const e = r.economy as { headline?: unknown; notes?: unknown } | undefined;
+  const eHead = str(e?.headline);
+  if (marketKeys.length && eHead.length >= 8 && eHead.length <= 80 && !isAdvice(eHead)) {
+    const notes: NonNullable<ReportDigest['economy']>['notes'] = [];
+    for (const n of Array.isArray(e?.notes) ? e.notes : []) {
+      const key = (n as { key?: unknown })?.key;
+      const text = str((n as { text?: unknown })?.text);
+      if (!isMarketKey(key) || !marketKeys.includes(key) || notes.some((x) => x.key === key) || text.length < 10 || text.length > 140 || isAdvice(text)) continue;
+      notes.push({ key, text });
+    }
+    return { headline, sections, keywords, personal, next, economy: { headline: eHead, notes } };
+  }
   return { headline, sections, keywords, personal, next };
 }
+
+/**
+ * 투자 권유인지(INVESTING_ADVICE). 다만 시장 참여자의 매매를 전하는 사실('외국인·기관 매도', '개인 순매수')은 권유가 아니라 뺀다(2026-11-25:
+ * 지난주 경제 한 줄이 '외국인·기관 매도'로 통째로 걸러졌다). '매수할 시점' 같은 말은 그대로 걸린다
+ */
+const TRADE_FACT = /(?:외국인|외인|기관|개인|연기금)(?:\s*[·,과와]\s*(?:외국인|외인|기관|개인|연기금))*(?:의)?\s*(?:동반\s*)?(?:순)?(?:매도|매수)(?:세|액|우위)?|순(?:매도|매수)(?:세|액)?/g;
+export const isAdvice = (text: string) => INVESTING_ADVICE.test(text.replace(TRADE_FACT, ''));
+
+/** 관심사 하나에서 쪽마다 담는 소식 수 상한 */
+const TALLY_MAX = 15;

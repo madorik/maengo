@@ -29,6 +29,10 @@ export const env = {
   /** 한 번 실행에서 요약할 영상 수 상한. 영상은 요약하지 않는다(2026-10-23 사용자 결정, 유튜브 출처도 뺐다) */
   videoLimit: num('PIPELINE_VIDEO_LIMIT', 0),
   maxVideoMinutes: num('PIPELINE_MAX_VIDEO_MINUTES', 20),
+  /** OpenAI 키(주간 리포트 정리, 2026-12-02 처리방침 시행부터). 없거나 AI_PROVIDER=gemini면 Gemini로 만든다 */
+  openaiKey: process.env.AI_PROVIDER?.trim() === 'gemini' ? '' : (process.env.OPENAI_API_KEY?.trim() ?? ''),
+  /** 한국은행 ECOS Open API 키(주간 리포트 시장 지표, lib/markets.ts). 없으면 지표 칸 없이 만든다 */
+  ecosKey: process.env.ECOS_API_KEY?.trim() ?? '',
   /** 알림을 눌렀을 때 열 맹고 주소(웹 푸시 링크). 도메인 + /maengo, 끝에 / 없음 */
   siteUrl: new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || DEFAULT_SITE_ORIGIN).origin + MAENGO_BASE_PATH,
 };

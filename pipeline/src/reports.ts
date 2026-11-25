@@ -1,20 +1,24 @@
-import { GEMINI_MODELS } from '@maengo/core/ai';
+import { GEMINI_MODELS, OPENAI_MODELS } from '@maengo/core/ai';
 import { isCategory } from '@maengo/core/categories';
 import { contextFacts, personalOn, type UserContext } from '@maengo/core/context';
 import { isImpact, type Impact } from '@maengo/core/feed';
 import { geminiChatJson } from '@maengo/core/gemini';
 import { addDays, kstDate } from '@maengo/core/kst';
+import { marketPromptLine, type ReportMarket } from '@maengo/core/markets';
+import { openaiChatJson } from '@maengo/core/openai';
 import {
   cleanDigest, DIGEST_MAX_ITEMS, DIGEST_SCHEMA, DIGEST_SYSTEM, digestPrompt, dueReports, periodEnd, pickDigestItems, prevStart, REPORT_MIN_ITEMS,
   reportPushBody, reportPushTitle, reportRange, reportTitle, weekDates, type DigestItem, type ReportCounts, type ReportData, type ReportDigest, type ReportGroup,
   type ReportPeriod, type ReportShare,
 } from '@maengo/core/report';
+import { REPORT_OPENAI_FROM } from '@maengo/core/site';
 import { groupOf, isLinkTopicId, TOPIC_BY_ID } from '@maengo/core/topics';
 import { aiBlockedReason } from './lib/ai-guard';
 import { check, db, selectAll } from './lib/db';
 import { env } from './lib/env';
+import { marketsFor } from './lib/markets';
 import { pushToUser } from './lib/push';
-import { flushUsage, recordUsage } from './lib/usage';
+import { flushUsage, recordOpenAiUsage, recordUsage } from './lib/usage';
 
 // 주간 리포트 만들기(2026-11-10, Premium. 월간은 뺐다). 규칙은 맹고-문서/리포트.md, 기간 셈·AI 정리 규칙은 packages/core/src/report.ts.
 // - 서버 스케줄러 작업 reports(하루 한 번 08:00 KST)가 runReports를 부른다: 다 끝난 지난주 리포트가 없는 회원 것을 만들고,
@@ -23,13 +27,26 @@ import { flushUsage, recordUsage } from './lib/usage';
 //   푸시 본문은 그 사람 맞춤 체크 첫 줄(없으면 놓친 주요 소식, 그것도 없으면 총평, packages/core/src/report.ts reportPushBody).
 // - 리포트 화면에서 '지금 만들기'를 누르면 웹이 buildReport를 바로 부른다(apps/web/app/api/report/route.ts). 푸시는 없다.
 // 숫자는 DB에서 세고, 총평·분야별 정리·떠오른 키워드·맞춤 체크·다음 주 지켜볼 것만 Gemini 한 번(gemini-3.1-flash-lite, 주간 약 ₩5)으로 만든다.
+// 2026-11-25(사용자: 지난주 소식이 경제와 내 관심사에 어떤 영향이었는지, 숫자는 차트로): 맞춤 체크는 관심사마다 부담·긍정·지켜볼 쪽과
+// 쪽별 소식 번호(막대)·가까운 시장 지표·다음 주 볼 것까지, 시장 지표는 한국은행 ECOS에서 받아(lib/markets.ts) 같은 호출에 넘기고 왜 움직였는지 한 줄씩 받는다.
 // 맞춤 체크는 회원이 알려 준 내 맞춤 정보(user_context) 문장으로. 설정에서 맞춤 인사이트를 껐으면 보내지 않는다(2026-11-11).
 // 정리를 못 만들면(오류·지출 상한) 저장하지 않는다: 다음 날 작업이나 화면에서 다시 만든다.
 
 const KST = '+09:00';
-/** 리포트 하나를 만들 시간(정리 호출 30초 + 읽기). 남은 시간이 이보다 적으면 다음 실행에 넘긴다 */
-const BUILD_MS = 45_000;
+/** 리포트 하나를 만들 시간(OpenAI 25초가 안 되면 Gemini 30초 + 읽기). 남은 시간이 이보다 적으면 다음 실행에 넘긴다 */
+const BUILD_MS = 60_000;
 const DIGEST_TIMEOUT_MS = 30_000;
+/** OpenAI는 생각 수준 낮음(기본). 2026-11-25 비교에서 중간은 25초를 넘겨 쓰지 않는다 */
+const OPENAI_TIMEOUT_MS = 25_000;
+
+/** 리포트 정리 모델 */
+export type ReportAi = 'openai' | 'gemini';
+
+/**
+ * 이 리포트를 어느 모델로 정리할지(2026-11-25 사용자 '주간 리포트도 루나로'): 처리방침 시행일(REPORT_OPENAI_FROM, 2026-12-02)부터
+ * OpenAI 키가 있으면 gpt-6-luna. 오늘의 흐름과 같은 모델이라 긍정·부담 판단이 어긋나지 않고, Gemini 하루 상한(요약과 같이 씀)에도 안 잡힌다
+ */
+export const reportAiFor = (now = new Date()): ReportAi => (env.openaiKey && kstDate(now) >= REPORT_OPENAI_FROM ? 'openai' : 'gemini');
 /** 놓친 주요 소식 최대 개수 */
 const MISSED_MAX = 3;
 
@@ -143,14 +160,19 @@ export async function buildReport(userId: string, period: ReportPeriod, start: s
  * 리포트 내용을 만든다(저장하지 않는다. 시험할 때도 이것만 부른다). 받은 소식이 너무 적으면 null.
  * 정리를 못 만들면 던진다
  */
-export async function composeReport(userId: string, period: ReportPeriod, start: string): Promise<ReportData | null> {
+export async function composeReport(
+  userId: string,
+  period: ReportPeriod,
+  start: string,
+  opts: { ai?: ReportAi; /** 다듬기 전 모델 답(모델 비교·원인 찾기용) */ onRaw?: (raw: unknown, model: string) => void } = {},
+): Promise<ReportData | null> {
   const end = periodEnd(period, start);
   const rows = await receivedIn(userId, start, end);
   if (rows.length < REPORT_MIN_ITEMS) return null;
 
   const pStart = prevStart(period, start);
   const ids = rows.map((r) => r.cluster_id);
-  const [reads, summaries, prevRows, topicRows, personal, visits] = await Promise.all([
+  const [reads, summaries, prevRows, topicRows, personal, visits, markets] = await Promise.all([
     readsOf(userId, ids),
     inIds<SummaryRow>(ids, (c) => db.from('summaries').select('cluster_id,title,short,category,impact').eq('tier', 'basic').in('cluster_id', c), 'summaries'),
     receivedIn(userId, pStart, periodEnd(period, pStart)),
@@ -166,6 +188,8 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
       .then((r) => check(r, 'user_topics added') as { topic_id: string }[]),
     factsOf(userId),
     visitsOf(userId, pStart, end),
+    // 지난주 경제(2026-11-25): 앞 주부터 받아 한 주 등락을 견준다. 키가 없거나 못 받으면 빈 배열(지표 칸 없이 만든다)
+    marketsFor(pStart, start, end),
   ]);
   const readBy = new Map(reads.map((r) => [r.cluster_id, r]));
   const prevReads = new Map((await readsOf(userId, prevRows.map((r) => r.cluster_id))).map((r) => [r.cluster_id, r]));
@@ -202,7 +226,7 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
       impact: isImpact(s.impact) ? s.impact : null,
     });
   }
-  const digest = await makeDigest(period, start, groups.map((g) => g.name), digestItems, personal);
+  const { digest, model } = await makeDigest(period, start, groups.map((g) => g.name), digestItems, personal, markets, opts.ai, opts.onRaw);
 
   // 놓친 주요 소식: 무게가 큰(major → notable) 소식 중 읽지도 듣지도 않은 것, 늦게 받은 것부터
   const weight = (i: Impact | null) => (i === 'major' ? 0 : i === 'notable' ? 1 : 9);
@@ -213,6 +237,9 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
     .slice(0, MISSED_MAX)
     .map(({ i }) => i.id);
 
+  // 소식마다 그 기간에 처음 받은 날(지표 선 그래프에 그날을 점으로 찍는다)
+  const firstDate = new Map<number, string>();
+  for (const r of rows) if (!firstDate.has(r.cluster_id) || r.date < firstDate.get(r.cluster_id)!) firstDate.set(r.cluster_id, r.date);
   const items: ReportData['items'] = {};
   for (const id of [
     ...digest.sections.flatMap((s) => s.ids),
@@ -222,7 +249,7 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
     ...missed,
   ]) {
     const s = summaryBy.get(id);
-    if (s) items[id] = { title: s.title, category: isCategory(s.category) ? s.category : 'etc' };
+    if (s) items[id] = { title: s.title, category: isCategory(s.category) ? s.category : 'etc', ...(firstDate.has(id) ? { date: firstDate.get(id)! } : {}) };
   }
 
   // 요일별 차트(그날 받은 소식과 그중 본 소식)와 큰 소식을 챙겨 본 정도(2026-11-19)
@@ -248,6 +275,8 @@ export async function composeReport(userId: string, period: ReportPeriod, start:
     days,
     ...(visits ? { openDays: visits.filter((d) => d >= start && d <= end), prevOpenDays: visits.filter((d) => d >= pStart && d < start).length } : {}),
     weight: { major: share('major'), notable: share('notable') },
+    ...(markets.length ? { markets } : {}),
+    model,
   };
 }
 
@@ -266,28 +295,102 @@ async function factsOf(userId: string): Promise<{ on: boolean; facts: string[] }
 }
 
 /** 로컬 개발 확인용(REPORT_LOCAL_DIGEST=1, 운영 빌드에서는 무시): Gemini 대신 소식 제목으로 만든 정리. 비용 0 */
-function localDigest(groups: string[], items: DigestItem[]): ReportDigest {
+function localDigest(groups: string[], items: DigestItem[], markets: ReportMarket[]): ReportDigest {
   const byGroup = groups.map((g) => ({ g, list: items.filter((i) => i.group === g) })).filter((x) => x.list.length);
+  const ids = items.map((i) => i.id);
+  // 화면 확인용 관심사 하나(쪽별 막대·지표 선 그래프가 그려지게). 문구는 제목을 옮긴 것이라 뜻은 없다
+  const personal: ReportDigest['personal'] = items[0]
+    ? [{
+        about: byGroup[0]?.g ?? '관심 분야',
+        title: items[0].title.slice(0, 30),
+        text: `${items[0].title}. 화면 확인용 정리예요.`,
+        ids: [items[0].id],
+        tone: 'plus',
+        tally: { plus: ids.slice(0, 4), minus: ids.slice(4, 6), watch: ids.slice(6, 7) },
+        ...(markets[0] ? { metric: markets[0].key } : {}),
+        next: '다음 주 발표 일정 확인',
+      }]
+    : [];
   return {
     headline: `${byGroup[0]?.g ?? '관심 분야'} 소식을 가장 많이 받았어요`,
     sections: byGroup.slice(0, 4).map(({ g, list }) => ({ group: g, summary: `${list.slice(0, 2).map((i) => i.title).join('. ')}.`, ids: list.slice(0, 3).map((i) => i.id) })),
     keywords: [],
-    personal: [],
+    personal,
     next: [],
+    ...(markets.length ? { economy: { headline: '화면 확인용 지난주 경제 한 줄이에요', notes: [] } } : {}),
   };
 }
 
-/** Gemini 한 번으로 총평·분야별 정리·떠오른 키워드. 못 만들면 던진다 */
-async function makeDigest(period: ReportPeriod, start: string, groups: string[], items: DigestItem[], { on, facts }: { on: boolean; facts: string[] }) {
+/**
+ * 모델 한 번으로 총평·분야별 정리·떠오른 키워드·맞춤 체크(쪽 나누기)·지난주 경제. 못 만들면 던진다.
+ * ai를 주지 않으면 reportAiFor로 고르고, OpenAI가 안 되면(키·크레딧·시간 초과·모양) Gemini로 다시 만든다(오늘의 흐름과 같은 방식).
+ * ai를 주면 그 모델로만(시험·비교용, 안 되면 던진다)
+ */
+async function makeDigest(
+  period: ReportPeriod,
+  start: string,
+  groups: string[],
+  items: DigestItem[],
+  { on, facts }: { on: boolean; facts: string[] },
+  markets: ReportMarket[] = [],
+  forced?: ReportAi,
+  onRaw?: (raw: unknown, model: string) => void,
+): Promise<{ digest: ReportDigest; model: string }> {
   if (process.env.NODE_ENV !== 'production' && process.env.REPORT_LOCAL_DIGEST === '1') {
-    return localDigest(groups, pickDigestItems(items, groups, DIGEST_MAX_ITEMS[period]));
+    return { digest: localDigest(groups, pickDigestItems(items, groups, DIGEST_MAX_ITEMS[period]), markets), model: 'local' };
   }
-  const blocked = await aiBlockedReason();
-  if (blocked) throw new ReportAiBlocked(blocked.note);
   const picked = pickDigestItems(items, groups, DIGEST_MAX_ITEMS[period]);
   // 맞춤 인사이트를 껐으면 읽거나 들었다는 표시(✓)도 보내지 않는다(고르는 건 여기서 이미 했다)
   const sent = on ? picked : picked.map((i) => ({ ...i, consumed: false }));
-  const prompt = digestPrompt(`${reportTitle(period, start)} (${reportRange(period, start)})`, groups, sent, 90, facts);
+  const marketLines = markets.map((m) => marketPromptLine(m, start)).filter((l): l is string => !!l);
+  const prompt = digestPrompt(`${reportTitle(period, start)} (${reportRange(period, start)})`, groups, sent, 90, facts, marketLines);
+  // 맞춤 체크의 근거: 알려 준 사정이나 읽거나 들은 소식(✓). 맞춤 인사이트를 껐으면 둘 다 보내지 않아 근거가 없다
+  const basis = facts.length > 0 || sent.some((i) => i.consumed);
+  const clean = (raw: unknown, model: string) => {
+    onRaw?.(raw, model);
+    const digest = cleanDigest(
+      raw,
+      groups,
+      picked.map((i) => i.id),
+      basis,
+      markets.map((m) => m.key),
+    );
+    if (!digest) throw new Error(`리포트 정리 모양이 맞지 않음(${model})`);
+    // 사정이 있는데 맞춤 체크가 비면 왜 비었는지 남긴다(모델이 안 줬는지, 걸렀는지)
+    if (basis && !digest.personal?.length) {
+      const got = (raw as { personal?: { title?: unknown; text?: unknown }[] } | null)?.personal;
+      console.warn('[reports] 맞춤 체크 없음', model, Array.isArray(got) && got.length ? `걸러짐 ${got.length}개: ${got.map((x) => `${String(x?.title ?? '')} / ${String(x?.text ?? '')}`.slice(0, 120)).join(' | ')}` : '모델이 빈 배열');
+    }
+    return { digest, model };
+  };
+
+  const ai = forced ?? reportAiFor();
+  if (ai === 'openai') {
+    const logs: Promise<void>[] = [];
+    try {
+      if (!env.openaiKey) throw new Error('OpenAI 키 없음');
+      const raw = await openaiChatJson<unknown>({
+        apiKey: env.openaiKey,
+        model: OPENAI_MODELS.report,
+        kind: 'report',
+        system: DIGEST_SYSTEM,
+        user: prompt,
+        schema: DIGEST_SCHEMA,
+        name: 'weekly_report',
+        timeoutMs: OPENAI_TIMEOUT_MS,
+        onUsage: (u) => logs.push(recordOpenAiUsage(u)),
+      });
+      return clean(raw, OPENAI_MODELS.report);
+    } catch (e) {
+      if (forced) throw e;
+      console.warn('[reports] OpenAI 정리 실패, Gemini로 다시', String((e as Error)?.message ?? e).slice(0, 160));
+    } finally {
+      await Promise.all(logs);
+    }
+  }
+
+  const blocked = await aiBlockedReason();
+  if (blocked) throw new ReportAiBlocked(blocked.note);
   try {
     const raw = await geminiChatJson<unknown>({
       apiKey: env.geminiKey,
@@ -299,21 +402,7 @@ async function makeDigest(period: ReportPeriod, start: string, groups: string[],
       timeoutMs: DIGEST_TIMEOUT_MS,
       onUsage: recordUsage,
     });
-    // 맞춤 체크의 근거: 알려 준 사정이나 읽거나 들은 소식(✓). 맞춤 인사이트를 껐으면 둘 다 보내지 않아 근거가 없다
-    const basis = facts.length > 0 || sent.some((i) => i.consumed);
-    const digest = cleanDigest(
-      raw,
-      groups,
-      picked.map((i) => i.id),
-      basis,
-    );
-    if (!digest) throw new Error('리포트 정리 모양이 맞지 않음');
-    // 사정이 있는데 맞춤 체크가 비면 왜 비었는지 남긴다(모델이 안 줬는지, 걸렀는지)
-    if (basis && !digest.personal?.length) {
-      const got = (raw as { personal?: { title?: unknown; text?: unknown }[] } | null)?.personal;
-      console.warn('[reports] 맞춤 체크 없음', Array.isArray(got) && got.length ? `걸러짐 ${got.length}개: ${got.map((x) => `${String(x?.title ?? '')} / ${String(x?.text ?? '')}`.slice(0, 120)).join(' | ')}` : '모델이 빈 배열');
-    }
-    return digest;
+    return clean(raw, GEMINI_MODELS.report);
   } finally {
     await flushUsage();
   }

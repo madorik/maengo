@@ -1,4 +1,5 @@
 import type { UsageEvent } from '@maengo/core/ai';
+import type { OpenAiUsage } from '@maengo/core/openai';
 import { db } from './db';
 
 // 모델별 100만 토큰당 달러(추정치, 2026-10-14 https://ai.google.dev/gemini-api/docs/pricing). 생각 토큰은 출력 요금으로 센다.
@@ -75,3 +76,10 @@ export async function flushUsage() {
   await writing;
   totals.clear();
 }
+
+/** OpenAI 호출 하나를 usage_log(provider 'openai')에 바로 남긴다(주간 리포트, 2026-11-25). Gemini 하루 상한에는 잡히지 않는다(웹 오늘의 흐름과 같다) */
+export async function recordOpenAiUsage(u: OpenAiUsage): Promise<void> {
+  const { error } = await db.from('usage_log').insert({ provider: 'openai', kind: u.kind, units: u.inputTokens + u.outputTokens, est_usd: Number(u.usd.toFixed(4)) });
+  if (error) console.error('usage_log openai', error.message);
+}
+

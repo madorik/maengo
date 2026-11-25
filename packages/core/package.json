@@ -21,8 +21,10 @@
     "./categories": "./src/categories.ts",
     "./josa": "./src/util/josa.ts",
     "./gemini": "./src/ai/gemini.ts",
+    "./openai": "./src/ai/openai.ts",
     "./plans": "./src/plans.ts",
     "./report": "./src/report.ts",
+    "./markets": "./src/markets.ts",
     "./site": "./src/site.ts",
     "./sections": "./src/sections.ts",
     "./context": "./src/context.ts"

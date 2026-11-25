@@ -60,6 +60,13 @@ https://dplqcugmgrugfrzjylqw.supabase.co/auth/v1/callback
 5. 성능 추적·세션 리플레이는 꺼 두었다(무료 한도). 크론(06시 수집·1분 배송)은 Sentry Crons로 멈추면 알림이 온다
 6. 알림: Sentry → Alerts에서 새 이슈가 생기면 메일로 받게 한다(기본값). claude.ai에서 Sentry 커넥터를 연결하면 Claude가 이슈를 직접 읽는다
 
+### 0-2. 주간 리포트 시장 지표: 한국은행 ECOS 키 — 5분
+주간 리포트 '지난주 경제는'(코스피·코스닥·원·달러 환율·국고채 3년 금리, 2026-11-25) 숫자를 한국은행 경제통계시스템 Open API에서 받는다(무료, `pipeline/src/lib/markets.ts`). 키가 없으면 리포트는 지표 칸 없이 만든다.
+1. [ecos.bok.or.kr](https://ecos.bok.or.kr/api/) → Open API → 인증키 신청(회원 가입 후 바로 나온다)
+2. `apps/web/.env.local`에 `ECOS_API_KEY=발급받은 키`를 넣는다(대화창에 붙이지 말고 파일에 직접)
+3. Vercel 운영 환경 변수에도 `ECOS_API_KEY`를 넣는다(아침 리포트 작업과 '지금 만들기'가 둘 다 웹 서버에서 돈다). 넣은 뒤 다시 배포
+- 로컬에서 키 없이 확인할 때는 `ECOS_API_KEY=sample`(한국은행 시험 키, 한 번에 10건까지라 두 주 치는 받힌다). 운영에는 쓰지 않는다
+
 ### 1. Gemini 결제 켜기 — 출시 전에
 키는 받았다(위). 플러스 유저에게 상위 모델 요약을 주려면 [AI Studio](https://aistudio.google.com/apikey)에서 결제를 연결한다. 그 전까지는 모두 Flash 요약이다.
 

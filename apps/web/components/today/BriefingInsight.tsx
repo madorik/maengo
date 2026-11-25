@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { IconCheck, IconChevronRight, IconPlay } from "@/components/icons";
+import { ToneIcon } from "@/components/ui/ToneIcon";
 import { AskChat, type AskTarget } from "@/components/article/AskChat";
 import { AiMark } from "@/components/ui/AiMark";
 import { BusyMango } from "@/components/BusyMango";
@@ -357,34 +358,6 @@ function MatchCheck({ insight, personalOff }: { insight: BriefingInsight; person
 
 /** 영향의 성격 표시(2026-11-13 사용자: 신뢰도 있는 말투 → 차분한 분석 용어) */
 const TONE_LABEL: Record<InsightTone, string> = { plus: "긍정 요인", minus: "부담 요인", watch: "지켜볼 변수" };
-
-/**
- * 성격 표시: 긍정 요인 체크, 부담 요인 경고 삼각형, 지켜볼 변수 눈.
- * 화살표(↗·↘)는 쓰지 않는다(2026-11-13 사용자: 국내 증시가 급락했는데 '↘ 부담 요인'이 부담이 내려간 것처럼 보인다). 방향이 아니라 성격을 나타낸다
- */
-function ToneIcon({ tone, className = "size-3.5" }: { tone: InsightTone; className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {tone === "plus" ? (
-        <>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M8 12.4l2.8 2.8L16.2 9.8" />
-        </>
-      ) : tone === "minus" ? (
-        <>
-          <path d="M10.3 4.2L2.6 18a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 4.2a2 2 0 00-3.4 0z" />
-          <path d="M12 9.5v4.5" />
-          <path d="M12 17.4v.1" />
-        </>
-      ) : (
-        <>
-          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" />
-          <circle cx="12" cy="12" r="2.5" />
-        </>
-      )}
-    </svg>
-  );
-}
 
 /** 성격 배지(긍정 요인 파랑, 부담 요인 주황, 지켜볼 변수 빨강). onDark: 남색 바탕 위 */
 function ToneChip({ tone, onDark = false, className = "" }: { tone: InsightTone; onDark?: boolean; className?: string }) {

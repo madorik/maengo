@@ -1,5 +1,5 @@
 // 사이트 공통 정보(SEO). 제목·설명·주소를 한곳에서 관리한다.
-import { DEFAULT_SITE_ORIGIN } from "@maengo/core/site";
+import { DEFAULT_SITE_ORIGIN, REPORT_OPENAI_FROM } from "@maengo/core/site";
 import { withBase } from "./base-path";
 
 // 화면 문구는 '소식'. 검색용(제목·키워드)에는 '뉴스 요약' 같은 검색어를 쓴다(2026-11-08 사용자 결정, 맹고-문서/검색-노출.md).
@@ -144,16 +144,20 @@ export const LEGAL_EFFECTIVE_DATE = koDate(LEGAL_EFFECTIVE_ON);
 // 2026-11-11: 내 맞춤 정보·오늘의 흐름을 더하며 11-17 예정판(Google 신호)과 합쳐 바로 시행(사용자 결정: 실사용자가 거의 없어 7일 알림 없이)
 // 2026-11-14 운영 배포: 오늘의 흐름·맹고 AI를 OpenAI(gpt-6-luna)로 만들며 OpenAI 국외 이전·요즘 신경 쓰는 경제 부문·하는 일을 더한 판.
 //   처음엔 7일 뒤(11-21) 시행으로 냈다가 같은 날 사용자 '바로 시행해'로 11-14 바로 시행(11-11처럼). 시행일부터 OpenAI로 보낸다(lib/server/openai.ts openAiKey)
-export const PRIVACY_UPDATED_ON = "2026-11-14";
-export const PRIVACY_EFFECTIVE_ON = "2026-11-14";
-export const PRIVACY_PREVIOUS_ON = "2026-11-12";
+// 2026-11-25: 주간 리포트도 OpenAI(gpt-6-luna)로 만들며 OpenAI에 맡기는 일에 주간 리포트를 더한 판. 이번엔 7일 알림을 지켜 12-02 시행
+//   (시행일은 리포트가 OpenAI로 바뀌는 날과 같다: packages/core/src/site.ts REPORT_OPENAI_FROM)
+export const PRIVACY_UPDATED_ON = "2026-11-25";
+export const PRIVACY_EFFECTIVE_ON = REPORT_OPENAI_FROM;
+export const PRIVACY_PREVIOUS_ON = "2026-11-14";
+/** 오늘의 흐름·맹고 AI를 OpenAI로 보내기 시작한 날(2026-11-14 시행 방침). 처리방침 시행일과 나눴다(2026-11-25: 다음 판이 12-02 시행이라 같이 쓰면 그때까지 Gemini로 되돌아간다) */
+export const OPENAI_SINCE = "2026-11-14";
 /**
- * 맹고 AI·오늘의 흐름을 OpenAI GPT로 만드는 날인지(처리방침 시행일부터, 개발 서버는 늘). 서버 쪽 openAiKey와 같은 기준이다.
+ * 맹고 AI·오늘의 흐름을 OpenAI GPT로 만드는 날인지(OPENAI_SINCE부터, 개발 서버는 늘). 서버 쪽 openAiKey와 같은 기준이다.
  * 시행 전에는 실제로 Gemini가 답하므로 GPT 표시(AiMark)·소개 문구도 이걸 따라 바꾼다(2026-11-14)
  */
 export const gptLive = (now = new Date()) =>
   process.env.NODE_ENV === "development" ||
-  new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(now) >= PRIVACY_EFFECTIVE_ON;
+  new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(now) >= OPENAI_SINCE;
 
 /**
  * 문의 메일. 빈 메일로 문서를 공개하지 않도록 운영에서는 비어 있으면 null(문서 페이지가 404로 숨는다).

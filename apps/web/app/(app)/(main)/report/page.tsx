@@ -73,7 +73,7 @@ async function WeeklyReport({ period, wanted, premium }: { period: ReportPeriod;
             <Step to={newer && href(newer.start)} label="다음 리포트" dir="next" />
           </div>
           <div className="mt-4">
-            {premium ? <ReportBody period={period} data={report.data} /> : <ReportFree period={period} preview={reportPreview(report.data)} />}
+            {premium ? <ReportBody period={period} start={report.start} data={report.data} /> : <ReportFree period={period} preview={reportPreview(report.data)} />}
           </div>
         </>
       ) : (

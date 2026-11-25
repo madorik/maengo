@@ -13,7 +13,7 @@ export const GEMINI_MODELS = {
   support: 'gemini-3.1-flash-lite',
   /** 글 화면의 맹고 AI 답·추천 질문의 대신 모델(OpenAI가 안 될 때, 기본은 OPENAI_MODELS.ask). 입력 $0.25 / 출력 $1.50, 한 번 약 ₩1 */
   ask: 'gemini-3.1-flash-lite',
-  /** 주간·월간 리포트 정리(사람·기간마다 한 번, pipeline/src/reports.ts). 입력 $0.25 / 출력 $1.50, 주간 한 번 약 ₩4($0.003) */
+  /** 주간 리포트 정리의 대신 모델(OpenAI 시행 전·안 될 때, 기본은 OPENAI_MODELS.report). 입력 $0.25 / 출력 $1.50, 주간 한 번 약 ₩4($0.003) */
   report: 'gemini-3.1-flash-lite',
   /** 오늘의 흐름의 대신 모델(OpenAI가 안 될 때: 키 없음·오류·처리방침 시행 전·AI_PROVIDER=gemini). 기본은 OPENAI_MODELS.insight. 입력 $0.25 / 출력 $1.50, 실측 한 번 약 $0.0052(약 ₩7, 11-13 15건 평균, 생각 토큰 포함) */
   insight: 'gemini-3.1-flash-lite',
@@ -31,6 +31,8 @@ export const OPENAI_MODELS = {
   insight: 'gpt-6-luna',
   /** 글 화면의 맹고 AI 답(흘려 보내기)·추천 질문(2026-11-13 사용자 '질문하는 것도 GPT로 바꾸자', lib/server/ask.ts·ask-suggest.ts) */
   ask: 'gpt-6-luna',
+  /** 주간 리포트 정리(2026-11-25 사용자 '주간 리포트도 루나로', pipeline/src/reports.ts). 처리방침 시행일(core/site.ts REPORT_OPENAI_FROM)부터, 안 되면 GEMINI_MODELS.report */
+  report: 'gpt-6-luna',
 } as const;
 
 /** OpenAI 추정 단가(100만 토큰당 달러). 모델을 바꾸면 같이 고친다 */

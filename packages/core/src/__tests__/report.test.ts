@@ -226,3 +226,72 @@ test('요일별 차트: 요일 이름과 한 주 7일, 가장 많이 본 날', (
   assert.equal(busiestDay(days)?.date, '2026-11-11'); // 5개가 둘이면 앞선 날
   assert.equal(busiestDay(days.map((d) => ({ ...d, consumed: 0 }))), null);
 });
+
+// ---- 내 관심사에 준 영향·지난주 경제(2026-11-25) ----
+import { REPORT_TONES, toneTotals } from '../report';
+
+test('내 관심사에 준 영향: 쪽이 있으면 쪽별 소식·지표·다음 주를 붙이고, 한 소식은 한 쪽에만', () => {
+  const base = {
+    headline: '외국인 자금이 빠져 국내 주식엔 부담, 반도체엔 기회가 많았어요',
+    sections: [{ group: 'AI', summary: '오픈AI와 구글이 새 모델을 나란히 내놓았어요. 코딩 에이전트 경쟁도 이어졌어요.', ids: [1] }],
+    keywords: [],
+    personal: [
+      {
+        about: '국내 주식', title: '외국인이 닷새 내내 팔았어요', text: '외국인 자금이 반도체 대형주에서 닷새 동안 빠져나가며 코스피가 크게 내렸어요. 다음 주 실적 발표 일정을 확인해 보세요.',
+        ids: [2], tone: 'minus', minus: [2, 3, 99], plus: [3, 4], watch: [5], metric: 'kospi', next: '26일 엔비디아 실적 발표',
+      },
+      // 흐름을 바꾼 소식(ids)이 어느 쪽에도 없으면 그 관심사의 쪽에 넣는다. 받지 않은 지표는 버린다
+      { about: '대출 이자', title: '주담대 금리 상단이 올라', text: '은행채 금리가 오르며 주담대 금리 상단이 다시 올랐어요. 변동금리라면 다음 달 이자를 확인해 보세요.', ids: [4], tone: 'minus', minus: [], plus: [], watch: [], metric: 'ktb3y', next: '' },
+      // 쪽이 없는 예전 모양은 그대로
+      { about: '반도체', title: 'HBM 경쟁이 주가로', text: '읽어 온 HBM 공급 경쟁이 이번 주 반도체주 흐름으로 이어졌어요. 다음 주 실적 발표를 확인해 보세요.', ids: [1] },
+      { about: '잘못된 쪽', title: '쪽 이름이 틀렸어요', text: '쪽 이름이 정해진 셋이 아니면 쪽 없이 둔다. 길이는 충분하게 적어 둔다.', ids: [1], tone: 'good' },
+    ],
+    next: [],
+    economy: { headline: '외국인 자금이 빠지고 달러가 강해진 한 주였어요', notes: [{ key: 'kospi', text: '외국인이 반도체 대형주를 닷새 내내 팔았어요.' }, { key: 'kospi', text: '같은 지표 두 번째는 버린다. 길이는 충분하게.' }, { key: 'gold', text: '받지 않은 지표의 설명은 버린다. 길이는 충분하게.' }] },
+  };
+  const d = cleanDigest(base, ['AI'], [1, 2, 3, 4, 5], true, ['kospi', 'usdkrw']);
+  assert.ok(d);
+  assert.deepEqual(d.personal![0], {
+    about: '국내 주식', title: '외국인이 닷새 내내 팔았어요', text: base.personal[0]!.text, ids: [2],
+    tone: 'minus', tally: { minus: [2, 3], plus: [4], watch: [5] }, metric: 'kospi', next: '26일 엔비디아 실적 발표',
+  });
+  assert.deepEqual(d.personal![1]!.tally, { minus: [4], plus: [], watch: [] });
+  assert.equal(d.personal![1]!.metric, undefined); // ktb3y는 받지 않았다
+  assert.equal(d.personal![1]!.next, undefined);
+  assert.deepEqual(Object.keys(d.personal![2]!), ['about', 'title', 'text', 'ids']);
+  assert.equal(d.personal![3]!.tone, undefined);
+  assert.deepEqual(d.economy, { headline: base.economy.headline, notes: [{ key: 'kospi', text: '외국인이 반도체 대형주를 닷새 내내 팔았어요.' }] });
+  // 지표를 받지 않았으면 경제 칸은 없다
+  assert.equal(cleanDigest(base, ['AI'], [1, 2, 3, 4, 5], true)!.economy, undefined);
+  // 관심사들에 닿은 소식을 쪽마다(같은 소식은 앞선 관심사의 쪽으로 한 번)
+  assert.deepEqual(toneTotals(d.personal), { plus: 1, minus: 2, watch: 1 }); // 4는 앞 관심사에서 긍정으로 셌다
+  assert.equal(toneTotals([{ about: 'a', title: 'b', text: 'c', ids: [1] }]), null);
+  assert.deepEqual(REPORT_TONES, ['minus', 'plus', 'watch']);
+});
+
+test('프롬프트: 시장 지표가 있으면 [시장] 줄, 없으면 없음', () => {
+  const items: DigestItem[] = [{ id: 1, group: 'AI', title: '제목', short: '요약', consumed: false, impact: null }];
+  assert.match(digestPrompt('주', ['AI'], items, 3), /\[시장\] 없음/);
+  const p = digestPrompt('주', ['AI'], items, 3, [], ['- kospi 코스피: 5,290.53 → 4,869.96 (▼ 7.9%)']);
+  assert.match(p, /\[시장\] 앞 주 마지막 거래일 → 이 기간 마지막 거래일\n- kospi 코스피: 5,290.53 → 4,869.96 \(▼ 7\.9%\)\n\[소식\]/);
+});
+
+test('Free 요약: 쪽을 나눈 리포트는 칸 이름이 내 관심사에 준 영향, 쪽별 수와 지표 칸 이름', () => {
+  const personal = [{ about: '국내 주식', title: '외국인이 팔았어요', text: '외국인 자금이 닷새 동안 빠져나가며 코스피가 내렸어요. 다음 주 실적 발표를 확인해 보세요.', ids: [1], tone: 'minus' as const, tally: { minus: [1, 2], plus: [3], watch: [] } }];
+  const p = reportPreview(data({ markets: [{ key: 'kospi', name: '코스피', unit: '', points: [] }] }, { personal }));
+  assert.equal(p.peek?.label, '내 관심사에 준 영향');
+  assert.deepEqual(p.tones, { minus: 2, plus: 1, watch: 0 });
+  assert.deepEqual(p.locked.slice(0, 2), [{ label: '내 관심사에 준 영향', count: 1 }, { label: '지난주 경제 지표', count: 1 }]);
+  assert.equal(reportPreview(data()).tones, null);
+});
+
+test('투자 권유 거르기: 시장 참여자의 매매를 전하는 사실은 통과, 권유는 그대로 걸린다', async () => {
+  const { isAdvice } = await import('../report');
+  assert.equal(isAdvice('외국인·기관 매도와 AI 투자 불안에 국내 증시가 크게 밀렸어요'), false);
+  assert.equal(isAdvice('외국인·기관의 동반 매도와 경계감에 코스닥도 7.7% 내렸어요.'), false);
+  assert.equal(isAdvice('개인은 2조 원 순매수했어요'), false);
+  assert.equal(isAdvice('삼성전자 주식을 매수할 시점이에요'), true);
+  assert.equal(isAdvice('반도체 비중을 줄여 보세요'), true);
+  assert.equal(isAdvice('외국인 매도가 이어지니 팔아 보세요'), true);
+});
+

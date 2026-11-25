@@ -36,6 +36,9 @@
   --color-minus-tint: #FFF0E1;
   --color-watch: #D7323C;
   --color-watch-tint: #FDE9EA;
+  /* 차트 막대 색(주간 리포트 내 관심사에 준 영향, 2026-11-25). 밝은 화면은 판단 색 그대로, 어두운 화면은 남색 바탕에서 눈부시지 않게 한 단계 진하게(dataviz 검사 통과) */
+  --color-plus-mark: #2563EB;
+  --color-minus-mark: #E8650A;
   --color-snow: #F6F7FB;
 
   --color-mango: #FFC23D;
@@ -72,6 +75,8 @@
   --color-minus-tint: #3A2716;
   --color-watch: #FF8A8F;
   --color-watch-tint: #3A1D20;
+  --color-plus-mark: #4F8EF0;
+  --color-minus-mark: #E46A1F;
   --color-sub: #A6ABC0;
   --color-faint: #6F7491;
   --color-line: #2A2E40;
@@ -99,6 +104,8 @@
   --color-minus-tint: #3A2716;
   --color-watch: #FF8A8F;
   --color-watch-tint: #3A1D20;
+  --color-plus-mark: #4F8EF0;
+  --color-minus-mark: #E46A1F;
     --color-sub: #A6ABC0;
     --color-faint: #6F7491;
     --color-line: #2A2E40;
@@ -137,6 +144,10 @@
   --color-sky: #1F2340;
   --color-sky-dark: #1F2340;
   --color-sky-tint: #FFF4D6;
+  /* 판단 색도 밝은 값으로(주간 리포트 총평 칸의 부담·긍정·지켜볼 수, 2026-11-25) */
+  --color-plus: #2563EB;
+  --color-minus: #E8650A;
+  --color-watch: #D7323C;
 }
 
 /* 카테고리·관심 분야 칩(TONE에 연한 바탕 + 진한 글자 hex): 다크에서는 글자색(--tone)을 옅게 깐 바탕에 밝은 글자. 유틸리티보다 앞서도록 레이어 밖에 둔다 */

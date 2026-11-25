@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { busiestDay, dayName, type ReportCounts, type ReportData, type ReportDay, type ReportGroup, type ReportPeriod } from "@maengo/core/report";
+import { formatChange, formatMarket, marketChange, weekPoints, type ReportMarket } from "@maengo/core/markets";
+import {
+  busiestDay, dayName, REPORT_TONES, TONE_NAME, toneTotals, type ReportCounts, type ReportData, type ReportDay, type ReportGroup, type ReportPeriod, type ReportTone,
+} from "@maengo/core/report";
 import { IconCheck, IconChevronRight } from "@/components/icons";
+import { ToneIcon } from "@/components/ui/ToneIcon";
 import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 import { articleToken } from "@/lib/server/share-token";
 import { ReportAppHint } from "./ReportAppHint";
+import { ReportImpact, type ImpactView } from "./ReportImpact";
 
-// 주간 리포트 한 편. 위에서부터 총평·숫자 → 맞춤 체크 → 다음 주 지켜볼 것 → 요일별로 본 흐름(차트) → 큰 소식 챙긴 정도 → 분야별 정리 → 많이 본 분야 → 자주 나온 키워드 → 놓친 주요 소식.
+// 주간 리포트 한 편. 위에서부터 총평·숫자 → 내 관심사에 준 영향(예전 리포트는 맞춤 체크) → 지난주 경제는 → 다음 주 지켜볼 것 → 요일별로 본 흐름(차트) → 큰 소식 챙긴 정도 → 분야별 정리 → 많이 본 분야 → 자주 나온 키워드 → 놓친 주요 소식.
+// 2026-11-25 사용자: 지난주 받은 소식이 경제와 내 관심사에 어떤 영향이었는지 사용자 관점으로, 숫자는 차트로. 시장 지표는 한국은행 ECOS(pipeline/src/lib/markets.ts)
 // Free는 이 전체가 아니라 총평·숫자와 맛보기만 본다(ReportFree.tsx, 2026-11-19). 차트는 DB에서 센 숫자라 지어낸 말이 없고, 이 칸이 생기기 전 리포트에는 없어 그리지 않는다
 // 숫자·막대는 DB에서 센 값, 총평·맞춤 체크·다음 주 지켜볼 것·분야별 정리·자주 나온 키워드는 Gemini가 쓴 것(pipeline/src/reports.ts). 맹고-문서/리포트.md
 // 맞춤 체크(2026-11-11 사용자: 주간 리포트도 맞춤형 인사이트로): 내 맞춤 정보에 이번 주 소식이 무슨 뜻이었는지. 이름은 넣지 않는다
@@ -13,14 +19,17 @@ import { ReportAppHint } from "./ReportAppHint";
 /** 앞 기간 이름(견주는 말에 쓴다) */
 const before = (period: ReportPeriod) => (period === "week" ? "지난주" : "");
 
-export function ReportBody({ period, data }: { period: ReportPeriod; data: ReportData }) {
+export function ReportBody({ period, start, data }: { period: ReportPeriod; start: string; data: ReportData }) {
   const { counts, prev, digest, groups, items } = data;
   const missed = data.missed.filter((id) => items[id]);
+  const interests = impactViews(data, start);
   return (
     <div className="flex flex-col gap-9">
-      <ReportHero period={period} headline={digest.headline} counts={counts} prev={prev} />
+      <ReportHero period={period} headline={digest.headline} counts={counts} prev={prev} tones={toneTotals(digest.personal)} />
 
-      <PersonalCheck personal={digest.personal ?? []} items={items} />
+      {interests.length ? <ReportImpact interests={interests} /> : <PersonalCheck personal={digest.personal ?? []} items={items} />}
+
+      {!!data.markets?.length && <EconomyBlock markets={data.markets} start={start} economy={digest.economy} />}
 
       {!!digest.next?.length && (
         <Block title="다음 주 지켜볼 것">
@@ -125,11 +134,36 @@ export function ReportBody({ period, data }: { period: ReportPeriod; data: Repor
   );
 }
 
-/** 한눈에: 총평 한 줄과 숫자 네 칸(앞 주와의 차이). Free도 이것은 그대로 본다 */
-export function ReportHero({ period, headline, counts, prev }: { period: ReportPeriod; headline: string; counts: ReportCounts; prev: ReportCounts | null }) {
+/** 한눈에: 총평 한 줄, 내 관심사에 닿은 소식을 쪽마다 센 수(2026-11-25), 숫자 네 칸(앞 주와의 차이). Free도 이것은 그대로 본다 */
+export function ReportHero({
+  period,
+  headline,
+  counts,
+  prev,
+  tones,
+}: {
+  period: ReportPeriod;
+  headline: string;
+  counts: ReportCounts;
+  prev: ReportCounts | null;
+  tones?: Record<ReportTone, number> | null;
+}) {
+  const shown = tones ? REPORT_TONES.filter((t) => tones[t] > 0) : [];
   return (
     <section aria-label="한눈에" className="keep-light rounded-2xl bg-mango px-5 pb-5 pt-5">
       <p className="text-[22px] font-bold leading-snug tracking-[-0.03em] text-balance">{headline}</p>
+      {shown.length > 0 && (
+        <ul aria-label="내 관심사에 닿은 소식" className="mt-3 flex flex-wrap gap-1.5">
+          {shown.map((t) => (
+            <li key={t} className="inline-flex items-center gap-1 rounded-full bg-white/75 px-2.5 py-1 text-[13px] font-bold tabular-nums">
+              <span className={t === "plus" ? "text-plus" : t === "minus" ? "text-minus" : "text-watch"}>
+                <ToneIcon tone={t} />
+              </span>
+              {`${TONE_NAME[t]} ${tones![t]}개`}
+            </li>
+          ))}
+        </ul>
+      )}
       <dl className="mt-4 grid grid-cols-4 gap-2">
         <Stat label="받은 소식" now={counts.received} prev={prev?.received} period={period} />
         <Stat label="본 소식" now={counts.consumed} prev={prev?.consumed} period={period} />
@@ -369,3 +403,115 @@ function ItemLinks({ ids, items, className = "" }: { ids: number[]; items: Repor
   );
 }
 
+
+/**
+ * 내 관심사에 준 영향 칸에 넘길 값(쪽을 나눈 맞춤 체크만, 2026-11-25~). 소식 주소는 서버에서만 만들 수 있어 여기서 붙인다.
+ * 지표 선 그래프: 그 관심사에 가까운 지표(metric)의 그 주 거래일. 흐름을 바꾼 소식이 나온 날을 그날(주말이면 다음 거래일, 없으면 마지막 날) 점으로
+ */
+function impactViews(data: ReportData, start: string): ImpactView[] {
+  const { items } = data;
+  const out: ImpactView[] = [];
+  for (const p of data.digest.personal ?? []) {
+    if (!p.tone || !p.tally) continue;
+    const toneOf = (id: number): ReportTone | null => REPORT_TONES.find((t) => p.tally![t].includes(id)) ?? null;
+    const news = p.ids
+      .filter((id) => items[id])
+      .map((id) => ({ id, href: `/article/${articleToken(id)}`, title: items[id]!.title, date: items[id]!.date ?? null, day: items[id]!.date ? dayName(items[id]!.date!) : null, tone: toneOf(id) }));
+    const market = p.metric ? data.markets?.find((m) => m.key === p.metric) : undefined;
+    out.push({
+      about: p.about,
+      tone: p.tone,
+      title: p.title,
+      text: p.text,
+      ...(p.next ? { next: p.next } : {}),
+      counts: { plus: p.tally.plus.length, minus: p.tally.minus.length, watch: p.tally.watch.length },
+      news: news.map(({ href, title, day, tone }) => ({ href, title, day, tone })),
+      chart: market ? metricChart(market, start, news) : null,
+    });
+  }
+  return out;
+}
+
+function metricChart(m: ReportMarket, start: string, news: { title: string; date: string | null; tone: ReportTone | null }[]): ImpactView["chart"] {
+  const week = weekPoints(m, start);
+  const change = marketChange(m, start);
+  if (week.length < 2 || !change) return null;
+  const c = formatChange(m.key, change);
+  // 등락은 앞 주 마지막 거래일과 견주니 그 값을 맨 앞('전 주')에 둔다(선의 처음과 끝이 등락 숫자와 맞게)
+  const before = m.points.filter((p) => p.date < start).at(-1);
+  const shown = before ? [before, ...week] : week;
+  const offset = before ? 1 : 0;
+  const label = (i: number) => (before && i === 0 ? "전 주" : dayName(shown[i]!.date));
+  const marks = news.flatMap((n) => {
+    if (!n.date || !n.tone) return [];
+    const at = week.findIndex((p) => p.date >= n.date!);
+    return [{ index: (at === -1 ? week.length - 1 : at) + offset, tone: n.tone, title: n.title }];
+  });
+  return {
+    name: m.name,
+    last: formatMarket(m.key, change.to),
+    change: c.text,
+    points: shown.map((p, i) => ({ label: label(i), value: p.value })),
+    marks,
+    spoken: `${m.name} ${shown.map((p, i) => `${label(i)} ${formatMarket(m.key, p.value)}`).join(", ")}. 한 주 ${c.spoken}.`,
+  };
+}
+
+/** 스파크라인 크기(viewBox) */
+const SW = 84;
+const SH = 30;
+
+/**
+ * 지난주 경제는(2026-11-25): 지표마다 앞 주(연한 선)와 지난주(진한 선), 지난주 마지막 값과 한 주 등락, 왜 움직였는지 한 줄(Gemini가 소식에서 찾은 것, 못 찾으면 없음).
+ * 등락 글자는 색 없이 ▲▼만(오르면 빨강·내리면 파랑인 증권 관례가 판단 색 — 긍정 파랑·부담 주황 — 과 섞이지 않게)
+ */
+function EconomyBlock({ markets, start, economy }: { markets: ReportMarket[]; start: string; economy: ReportData["digest"]["economy"] }) {
+  const rows = markets.flatMap((m) => {
+    const change = marketChange(m, start);
+    if (!change) return [];
+    const vals = m.points.map((p) => p.value);
+    const min = Math.min(...vals);
+    const span = Math.max(...vals) - min || 1;
+    const x = (i: number) => 3 + (i * (SW - 6)) / Math.max(1, vals.length - 1);
+    const y = (v: number) => 4 + (1 - (v - min) / span) * (SH - 8);
+    const first = m.points.findIndex((p) => p.date >= start);
+    const seg = (a: number, b: number) => `M${vals.slice(a, b + 1).map((v, k) => `${x(a + k).toFixed(1)} ${y(v).toFixed(1)}`).join(" L")}`;
+    return [
+      {
+        m,
+        change,
+        c: formatChange(m.key, change),
+        before: first > 0 ? seg(0, first) : null,
+        now: seg(Math.max(0, first), vals.length - 1),
+        end: { x: x(vals.length - 1), y: y(vals.at(-1)!) },
+        note: economy?.notes.find((n) => n.key === m.key)?.text,
+      },
+    ];
+  });
+  if (!rows.length) return null;
+  return (
+    <Block title="지난주 경제는">
+      {economy?.headline && <p className="-mt-1 mb-3 text-[15px] font-semibold leading-relaxed">{economy.headline}</p>}
+      <ul className="tile divide-y divide-line px-4 sm:px-5">
+        {rows.map(({ m, change, c, before, now, end, note }) => (
+          <li key={m.key} className="py-3.5">
+            <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_auto] items-center gap-3">
+              <span className="truncate text-[15px] font-bold">{m.name}</span>
+              <svg viewBox={`0 0 ${SW} ${SH}`} className="h-[30px] w-[84px] text-ink" role="img" aria-label={`${m.name} 2주 흐름, 지난주 ${formatMarket(m.key, change.to)}, ${c.spoken}`}>
+                {before && <path d={before} fill="none" stroke="var(--color-line-dark)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+                <path d={now} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx={end.x} cy={end.y} r="3" fill="currentColor" stroke="var(--color-paper)" strokeWidth="2" />
+              </svg>
+              <span className="text-right">
+                <span className="block text-[15px] font-bold tabular-nums">{formatMarket(m.key, change.to)}</span>
+                <span className="block text-[12px] font-bold text-sub tabular-nums">{c.text}</span>
+              </span>
+            </div>
+            {note && <p className="mt-1.5 text-[13px] leading-relaxed text-sub">{note}</p>}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-[12px] font-medium text-sub">연한 선은 그 전 주, 진한 선은 지난주예요. 출처: 한국은행 경제통계시스템(ECOS)</p>
+    </Block>
+  );
+}

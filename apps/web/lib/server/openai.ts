@@ -1,10 +1,10 @@
 import 'server-only';
-import { OPENAI_PRICE } from '@maengo/core/ai';
-import { strictSchema } from '../openai-schema';
+import { noReasoningModels, openaiChatJson, openAiUsage, type OpenAiJsonInput, type OpenAiUsage } from '@maengo/core/openai';
 import { gptLive } from '../site';
 import { db } from './db';
 
 // OpenAI Responses API로 JSON 한 번 받기(2026-11-13, 오늘의 흐름·맞춤 체크를 gpt-6-luna로. lib/server/briefing-insight.ts).
+// 2026-11-25: JSON 호출 본체는 주간 리포트(파이프라인)와 같이 쓰려고 packages/core/src/ai/openai.ts로 옮겼다. 여기는 키 확인·사용량 기록·흘려 보내기.
 // - 구조화 출력(strict)으로 스키마를 지키게 한다(lib/openai-schema.ts).
 // - store:false — OpenAI 쪽에 응답을 남기지 않는다(개인정보 처리방침 5조 OpenAI).
 // - 생각 수준은 낮게(Gemini 쪽 LOW와 맞춤). 그 설정을 받지 않는 모델이면(400) 빼고 다시 부르고, 다음부터는 빼고 부른다.
@@ -23,87 +23,21 @@ export function openAiKey(): string | null {
 }
 
 const URL = 'https://api.openai.com/v1/responses';
-/** 생각 수준 설정을 받지 않는 모델(한 번 400을 받으면 이 서버 인스턴스에서는 빼고 부른다) */
-const noReasoning = new Set<string>();
-const NO_CREDIT = /insufficient_quota|credit_balance_exhausted|billing/;
+/** 생각 수준 설정을 받지 않는 모델(JSON 호출과 같이 쓴다) */
+const noReasoning = noReasoningModels;
 
-export interface OpenAiJsonInput {
-  apiKey: string;
-  model: string;
-  /** usage_log kind(예: 'insight') */
-  kind: string;
-  system: string;
-  user: string;
-  schema: object;
-  /** 스키마 이름(영문·밑줄) */
-  name: string;
-  timeoutMs?: number;
+export type { OpenAiJsonInput };
+
+/** JSON 한 번(공용 openaiChatJson) + 사용량을 usage_log에 */
+export function openaiJson<T>(input: OpenAiJsonInput): Promise<T> {
+  return openaiChatJson<T>({ ...input, onUsage: saveOpenAiUsage });
 }
 
-export async function openaiJson<T>(input: OpenAiJsonInput): Promise<T> {
-  const { apiKey, model, kind, system, user, schema, name, timeoutMs = 25_000 } = input;
-  const format = { type: 'json_schema', name, schema: strictSchema(schema), strict: true };
-  let lastError = '';
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const reasoning = !noReasoning.has(model);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    try {
-      const res = await fetch(URL, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ model, instructions: system, input: user, store: false, text: { format }, ...(reasoning ? { reasoning: { effort: 'low' } } : {}) }),
-        signal: ctrl.signal,
-      });
-      const json = (await res.json().catch(() => ({}))) as {
-        error?: { code?: string; message?: string };
-        output?: { content?: { type?: string; text?: string }[] }[];
-        usage?: { input_tokens?: number; output_tokens?: number; output_tokens_details?: { reasoning_tokens?: number } };
-      };
-      const code = json.error?.code ?? '';
-      lastError = `openai ${res.status} ${code} ${String(json.error?.message ?? '').slice(0, 160)}`;
-      if (res.status === 400 && reasoning && /reasoning/i.test(JSON.stringify(json.error ?? ''))) {
-        noReasoning.add(model);
-        continue;
-      }
-      if (!res.ok) {
-        const retry = (res.status === 429 && !NO_CREDIT.test(`${code} ${json.error?.message ?? ''}`)) || res.status >= 500;
-        if (retry && attempt < 3) {
-          await new Promise((r) => setTimeout(r, 1500 * attempt));
-          continue;
-        }
-        throw new Error(lastError);
-      }
-      logOpenAiUsage(kind, model, json.usage);
-      const text = (json.output ?? []).flatMap((o) => o.content ?? []).find((c) => c.type === 'output_text')?.text;
-      if (!text) throw new Error('openai 빈 응답');
-      return JSON.parse(text) as T;
-    } catch (e) {
-      const err = e as Error;
-      // 시간 초과는 다시 부르지 않는다(오늘 화면을 열 때 만들기도 해서 오래 기다리게 하지 않는다, 부르는 쪽이 Gemini로 만든다)
-      if (err?.name === 'AbortError') throw new Error(`openai 시간 초과 ${timeoutMs}ms`);
-      // 네트워크가 잠깐 끊긴 것(fetch TypeError)만 한 번 더
-      if (err?.name === 'TypeError' && attempt < 3) {
-        lastError = `openai 연결 실패 ${err.message}`;
-        continue;
-      }
-      throw err;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  throw new Error(lastError || 'openai 실패');
-}
-
-/** 호출 하나의 사용량과 추정 비용(생각 토큰은 출력 단가) */
-function logOpenAiUsage(kind: string, model: string, u?: { input_tokens?: number; output_tokens?: number }) {
-  const input = u?.input_tokens ?? 0;
-  const output = u?.output_tokens ?? 0;
-  const price = OPENAI_PRICE[model] ?? { input: 0, output: 0 };
-  const usd = (input * price.input + output * price.output) / 1e6;
+/** 호출 하나의 사용량과 추정 비용(생각 토큰은 출력 단가)을 usage_log에 */
+function saveOpenAiUsage(u: OpenAiUsage) {
   void db
     .from('usage_log')
-    .insert({ provider: 'openai', kind, units: input + output, est_usd: Number(usd.toFixed(4)) })
+    .insert({ provider: 'openai', kind: u.kind, units: u.inputTokens + u.outputTokens, est_usd: Number(u.usd.toFixed(4)) })
     .then(({ error }) => error && console.error('usage_log openai', error.message));
 }
 
@@ -180,7 +114,7 @@ export async function* openaiStream(input: OpenAiStreamInput): AsyncGenerator<st
     }
   } finally {
     reader.releaseLock();
-    if (usage) logOpenAiUsage(kind, model, usage);
+    if (usage) saveOpenAiUsage(openAiUsage(kind, model, usage));
   }
   if (!wrote) throw new Error('openai 빈 답');
 }

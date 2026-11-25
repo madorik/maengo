@@ -15,7 +15,7 @@ export function ReportFree({ period, preview }: { period: ReportPeriod; preview:
   const { peek, locked } = preview;
   return (
     <div className="flex flex-col gap-5">
-      <ReportHero period={period} headline={preview.headline} counts={preview.counts} prev={preview.prev} />
+      <ReportHero period={period} headline={preview.headline} counts={preview.counts} prev={preview.prev} tones={preview.tones} />
 
       <section aria-label="Premium에서 더 보기">
         {peek && (
