@@ -27,12 +27,10 @@ import { track } from "@/lib/analytics";
  */
 export function BriefingHero({
   insight: made,
-  label,
   failed = false,
   personalOff = false,
 }: {
   insight: BriefingInsight | null;
-  label?: string;
   /** 소식은 있는데 만들지 못했다(모델 오류·키 없음). 다시 열면 다시 만든다 */
   failed?: boolean;
   /** 설정에서 맞춤 인사이트를 껐다(맞춤 체크가 비는 게 정상이라 읽을수록 좋아진다는 안내를 하지 않는다) */
@@ -60,13 +58,13 @@ export function BriefingHero({
   }
   return (
     <>
-      <ForYou pm={pm} label={label} />
+      <ForYou />
       {/* 2026-11-15 사용자 '인사이트가 눈에 띄지 않네, 제일 처음 보는 화면이고 인사이트 타이틀이 딱 눈에 띄어야 가입할만하지' →
           25px → 30px 굵게, 망고 형광펜을 한 번 긋는다(globals.css insight-mark). 아래 흐름 카드보다 먼저 눈이 가게 */}
       <h1 id="briefing-title" className="mt-3 text-[30px] font-extrabold leading-[1.3] tracking-[-0.045em] text-balance">
         <span className={`insight-mark ${pm ? "insight-mark-night" : ""}`}>{insight.headline}</span>
       </h1>
-      <Lead insight={insight} pm={pm} common={!!label} personalOff={personalOff} />
+      <Lead insight={insight} pm={pm} personalOff={personalOff} />
       <DateBelow pm={pm} />
       <Flows insight={insight} pm={pm} />
       <MatchCheck insight={insight} personalOff={personalOff} />
@@ -93,17 +91,17 @@ function withName(insight: BriefingInsight, name: string | null): BriefingInsigh
 }
 
 /**
- * 'OO님에게 맞춤 인사이트'(OO은 프로필 이름. 없으면 '나에게'). label을 주면 그 말(토스 미니앱 공통판: 회원 맞춤이 아니라서).
+ * 'OO님에게 맞춤 인사이트'(OO은 프로필 이름. 없으면 '나에게').
  * 2026-11-15 작은 망고색 글자 → 망고 바탕 꼬리표(반짝이 + 남색 글자). 출근길(흰 바탕)·퇴근길(남색 바탕) 둘 다에서 보인다
  */
-function ForYou({ label }: { pm?: boolean; label?: string }) {
+function ForYou() {
   const name = useCallName();
   return (
     <p className="inline-flex items-center gap-1 rounded-full bg-mango py-1 pl-2 pr-2.5 text-[13px] font-bold tracking-[-0.01em] text-[#1F2340]">
       <svg viewBox="0 0 24 24" className="size-3.5" aria-hidden="true">
         <path d="M12 2C12.7 7.3 16.7 11.3 22 12C16.7 12.7 12.7 16.7 12 22C11.3 16.7 7.3 12.7 2 12C7.3 11.3 11.3 7.3 12 2Z" fill="currentColor" />
       </svg>
-      {label ?? `${name ? `${name}님에게` : "나에게"} 맞춤 인사이트`}
+      {`${name ? `${name}님에게` : "나에게"} 맞춤 인사이트`}
     </p>
   );
 }
@@ -132,11 +130,11 @@ function Basis({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
  * '오늘은 OO님 맞춤 소식이 없어요'와 많이 읽고 들을수록 더 잘 짚는다는 말(사용자 지정). 토스 공통판·맞춤 인사이트를 끈 회원에게는 띄우지 않는다.
  * 예전 형식(12까지)은 무엇을 바탕으로 엮었는지(Basis)
  */
-function Lead({ insight, pm, common, personalOff }: { insight: BriefingInsight; pm: boolean; common: boolean; personalOff: boolean }) {
+function Lead({ insight, pm, personalOff }: { insight: BriefingInsight; pm: boolean; personalOff: boolean }) {
   const name = useCallName();
   const lead = insight.lead;
   if (!lead) return <Basis insight={insight} pm={pm} />;
-  const none = !lead.about && !common && !personalOff;
+  const none = !lead.about && !personalOff;
   return (
     <>
       {lead.fact && (
@@ -600,7 +598,7 @@ export function InsightFallback() {
   const lines = makingLines(name, count);
   return (
     <>
-      <ForYou pm={pm} />
+      <ForYou />
       <h1 id="briefing-title" className="sr-only">
         {SLOT_LABEL[data.slot ?? "am"]} 브리핑
       </h1>

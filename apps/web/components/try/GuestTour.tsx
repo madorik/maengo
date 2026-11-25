@@ -35,22 +35,6 @@ export interface TourPerk {
 
 type Offer = { perks: TourPerk[]; priceLabel: string; trialDays: number };
 
-/**
- * 토스 미니앱(apps/toss, 앱인토스)에서 같은 화면을 쓸 때. 앱인토스 정책상 자체 로그인·자사 결제 권유·가입 유도를 둘 수 없어
- * 머리의 로그인 버튼, Premium 권유 카드·끝 팝업, 맹고 AI 버튼만 빼고 나머지는 그대로 그린다(2026-11-12 사용자 '디자인 바꾸지 마')
- */
-export interface TossMode {
-  /** 소식 음성 주소(토스용 API) */
-  audioSrc: (item: GuestItem) => string;
-  /** 머리 위 작은 말(둘러보기의 '로그인 없이 둘러보기' 자리) */
-  label: string;
-  /** 있으면 머리('약 N분 · 소식 N개') 자리에 대신 그린다(오늘의 흐름, 앱 오늘 화면처럼) */
-  hero?: React.ReactNode;
-  /** 듣기 버튼과 노선 사이에 그린다(주간 리포트 입구) */
-  extra?: React.ReactNode;
-  /** 바깥(오늘의 흐름의 묶인 소식 등)에서 소식 번호로 그 소식부터 듣게 한다 */
-  onPlayer?: (api: { playId: (clusterId: number) => void }) => void;
-}
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
 
 const noSubscribe = () => () => {};
@@ -88,7 +72,6 @@ const setAfterLogin = (value: "trial" | null) => {
 function useGuestPlayer(
   items: GuestItem[],
   onFinish: (heard: number) => void,
-  audioSrc?: (item: GuestItem) => string,
   onItemEnd?: (index: number, heard: number) => void,
 ) {
   const n = items.length;
@@ -132,7 +115,7 @@ function useGuestPlayer(
     const it = items[i];
     if (!a || !it) return;
     if (a.dataset.key !== it.audioKey) {
-      a.src = audioSrc ? audioSrc(it) : withBase(`/api/try/audio?key=${encodeURIComponent(it.audioKey)}`);
+      a.src = withBase(`/api/try/audio?key=${encodeURIComponent(it.audioKey)}`);
       a.dataset.key = it.audioKey;
       setPosMs(0);
     }
@@ -186,14 +169,12 @@ export function GuestTour({
   perks,
   priceLabel,
   trialDays,
-  toss,
   signup,
 }: {
   items: GuestItem[];
-  toss?: TossMode;
   /**
    * 중간 가입 제안에 넣을 구글·애플 로그인 버튼(app/try/page.tsx가 로그인 화면과 같은 LoginButtons·signIn으로 만들어 넘긴다).
-   * 여기서 서버 액션을 직접 가져오면 이 컴포넌트를 함께 쓰는 토스 미니앱(apps/toss, Vite) 빌드가 깨져서 바깥에서 받는다. 없으면 제안을 띄우지 않는다
+   * 없으면 제안을 띄우지 않는다
    */
   signup?: React.ReactNode;
 } & Offer) {
@@ -205,13 +186,12 @@ export function GuestTour({
   const p = useGuestPlayer(
     items,
     (heard) => {
-      if (!toss) setFinished(true);
+      setFinished(true);
       track("try_complete", { heard, items: n });
     },
-    toss?.audioSrc,
     // 소식 하나를 끝까지 들은 순간 한 번(이 탭에서) 가입을 제안한다. 마지막 소식이면 끝 팝업(FinishDialog)이 대신 뜬다
     (index, heard) => {
-      if (!signup || toss || signedIn || index >= n - 1) return;
+      if (!signup || signedIn || index >= n - 1) return;
       try {
         if (sessionStorage.getItem(NUDGE_KEY) === "1") return;
         sessionStorage.setItem(NUDGE_KEY, "1");
@@ -279,18 +259,6 @@ export function GuestTour({
     navigator.mediaSession.metadata = new MediaMetadata({ title: curItem.title, artist: "맹고", album: "둘러보기" });
   }, [curItem]);
 
-  // 토스판: 바깥에서 소식 번호로 그 소식부터 듣게(오늘의 흐름 시트의 묶인 소식·'이 흐름부터 듣기')
-  const startRef = useRef(start);
-  startRef.current = start;
-  useEffect(() => {
-    toss?.onPlayer?.({
-      playId: (id) => {
-        const i = items.findIndex((it) => it.clusterId === id);
-        if (i >= 0) startRef.current(i, "item", "card");
-      },
-    });
-  }, [toss, items]);
-
   // 망고의 자리: 듣기 전엔 출발, 듣는 중이면 그 소식, 다 들었으면 도착(오늘 화면 노선과 같은 규칙)
   const at = p.cur >= 0 ? p.cur : p.heard.size >= n ? n : -1;
 
@@ -299,14 +267,7 @@ export function GuestTour({
       {/* 2026-11-10 새 화면: 오늘 화면과 같은 머리말·브리핑 머리·남색 듣기 버튼·노선(사진 썸네일) */}
       <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[640px] items-center justify-between gap-3 px-4">
-          {toss ? (
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="text-[20px] font-bold tracking-[-0.035em] text-ink">맹고</span>
-              <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-line-dark" />
-              <span className="truncate text-[14px] font-medium text-sub">오늘 뉴스 핵심 요약</span>
-            </div>
-          ) : (
-            <>
+          <>
               <Link href="/" aria-label="맹고 소개" className="flex min-w-0 items-center gap-2.5 no-underline">
                 <span className="text-[20px] font-bold tracking-[-0.035em] text-ink">맹고</span>
                 <span aria-hidden="true" className="h-3.5 w-px shrink-0 bg-line-dark" />
@@ -317,27 +278,20 @@ export function GuestTour({
                 signedIn={{ href: "/today", label: "내 브리핑" }}
                 className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-line px-4 text-[14px] font-semibold text-ink no-underline hover:bg-snow"
               />
-            </>
-          )}
+          </>
         </div>
       </header>
 
       {/* 아래는 맹고 AI 버튼(플레이어가 있으면 그 위)이 마지막 버튼을 가리지 않게 비운다 */}
       <main className={`mx-auto max-w-[640px] px-4 pt-5 lg:pt-8 ${curItem ? "pb-[calc(var(--tour-bar-h,140px)+96px)]" : "pb-[calc(96px+env(safe-area-inset-bottom))]"}`}>
-        {toss?.hero ? (
-          <section aria-labelledby="briefing-title" className="px-1.5">
-            {toss.hero}
-          </section>
-        ) : (
         <section aria-labelledby="try-title" className="px-1.5">
-          <p className="text-[13px] font-medium text-sub">{toss ? toss.label : "로그인 없이 둘러보기"}</p>
+          <p className="text-[13px] font-medium text-sub">로그인 없이 둘러보기</p>
           <h1 id="try-title" className="mt-1 flex items-baseline gap-2.5">
             <span className="font-round text-[36px] font-black tracking-[-0.02em]">약 {totalMin}분</span>
             <span className="text-[15px] font-medium text-sub">소식 {n}개</span>
           </h1>
           <p className="mt-1 text-[13px] text-sub">{sections.join(", ")}에서 맹고가 골랐어요.</p>
         </section>
-        )}
 
         <button
           ref={listenAllRef}
@@ -355,8 +309,6 @@ export function GuestTour({
             {p.heard.size > 0 ? `${p.heard.size}/${n}` : `첫 소식 ${koDuration(firstMs)}`}
           </span>
         </button>
-
-        {toss?.extra}
 
         <h2 className="mt-6 px-1.5 text-[15px] font-bold">오늘의 노선</h2>
         <ol aria-label="둘러볼 소식" className="mt-3 px-1">
@@ -378,10 +330,10 @@ export function GuestTour({
               onLine={(ms) => (p.cur === i ? p.seek(ms) : start(i, "item", "card"))}
             />
           ))}
-          <RouteEnd kind="end" here={at >= n} passed={false} signupNote={!toss} />
+          <RouteEnd kind="end" here={at >= n} passed={false} signupNote />
         </ol>
 
-        {!toss && <PremiumOffer offer={offer} where="list" heard={p.heard.size} total={n} className="mt-8" />}
+        <PremiumOffer offer={offer} where="list" heard={p.heard.size} total={n} className="mt-8" />
       </main>
 
       {curItem && (
@@ -400,7 +352,7 @@ export function GuestTour({
         />
       )}
 
-      {!toss && <GuestAsk item={curItem ?? items[0]!} raised={!!curItem} />}
+      <GuestAsk item={curItem ?? items[0]!} raised={!!curItem} />
 
       {spot && <Spotlight target={listenAllRef} total={n} onStart={() => listenAll("spot")} onClose={closeSpot} />}
 

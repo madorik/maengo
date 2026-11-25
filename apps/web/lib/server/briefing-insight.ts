@@ -307,24 +307,6 @@ export async function draftBriefingInsight(profile: Profile, data: TodayData, ct
 /** 맞춤 인사이트를 끈 회원: 회원 정보 없이 소식 요약만 */
 const NO_PERSONAL: Personal = { bases: [], notes: [], sections: [], recentCount: 0, seen: false, links: new Map(), keywordItems: new Map(), morning: null };
 
-/**
- * 회원 없이 소식만으로 엮은 오늘의 흐름(토스 미니앱 공통판, lib/server/toss.ts). 회원과 잇는 꼬리표·왜·맞춤 체크·확인할 것은 비운다
- * (모두가 같이 보는 글이라 '맞춤'이 아니다). 못 만들면 null
- */
-export async function publicInsight(items: TodayData['items']): Promise<BriefingInsight | null> {
-  if (items.length < 2) return null;
-  const made = await make(items, NO_PERSONAL, false);
-  if (!made) return null;
-  return {
-    v: VERSION,
-    headline: made.headline,
-    ...(made.lead ? { lead: { ...made.lead, about: '' } } : {}),
-    flows: made.flows.map((f) => ({ ...f, tag: '', why: '' })),
-    checks: [],
-    personal: [],
-  };
-}
-
 const vectorOf = (v: unknown) => (Array.isArray(v) ? (v as number[]) : typeof v === 'string' && v.startsWith('[') ? (JSON.parse(v) as number[]) : null);
 
 /**
