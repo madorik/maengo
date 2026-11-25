@@ -157,7 +157,8 @@ export function InfiniteLibrary({ groups, page, pageCount, filteredTotal, sectio
 
   return (
     <div ref={rootRef}>
-      <DayGroups groups={merged} />
+      {/* 아직 받을 쪽이 남았으면 맨 끝 날짜는 이어질 수 있어 개수를 적지 않는다 */}
+      <DayGroups groups={merged} skipLastCount={hasMore} />
       {hasMore && <div ref={sentinelRef} aria-hidden="true" className="h-px" />}
       {status === "loading" && (
         <div role="status" className="mt-6 flex justify-center">

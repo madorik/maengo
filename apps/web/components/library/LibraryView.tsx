@@ -1,17 +1,18 @@
 import Form from "next/form";
 import Link from "next/link";
 import { IconBack, IconClose, IconSearch } from "@/components/icons";
-import { MangoIcon } from "@/components/MangoIcon";
 import { libraryFilterKey, type LibraryFilters } from "@/lib/library-pages";
 import type { LibraryData } from "@/lib/types";
 import { InfiniteLibrary } from "./InfiniteLibrary";
 import { DayGroups, LibraryViewToggle } from "./LibraryCards";
-import { LibraryHeader, PickBar, PlaylistPicker } from "./Playlist";
+import { LibraryHeader, PickBar, PickSummary, PlaylistPicker } from "./Playlist";
+import { SectionTabs } from "./SectionTabs";
 
 // 보관함: 지금까지 받은 피드 전체. 서버에서 그린다(검색·페이지·분야·읽음·북마크는 주소의 ?q=&page=&section=&read=&bookmark=1).
 // 웹 브라우저는 쪽 넘기기(‹ 5 / 27 ›), 앱(iOS·안드로이드)은 끝에 가까워지면 다음 쪽을 이어 붙인다(InfiniteLibrary).
 // 앱인지는 서버가 User-Agent로 정해서(page.tsx) 서버 HTML과 첫 그림이 같고, 쪽 넘기기가 잠깐 보였다 사라지지 않는다.
 // '골라 듣기'로 고른 소식을 이어 듣는다(Playlist.tsx, Premium).
+// 2026-11-26 사용자 시안: 큰 제목 + '골라 듣기' 알약 → 둥근 회색 검색창 → 보기 칩(전체·안 읽음·북마크) → 분야 탭 → 날짜 묶음 + 소식 줄.
 
 function href(page: number, { section, read, bookmark, query }: LibraryFilters): string {
   const q = new URLSearchParams();
@@ -38,46 +39,44 @@ function emptyMessage(lib: LibraryData): string {
 export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면 이어 붙이기, 웹이면 쪽 넘기기 */ infinite: boolean }) {
   const f = filtersOf(lib);
   return (
-    <div className="mx-auto max-w-[680px] px-4 py-6 lg:py-10">
+    <div className="mx-auto max-w-[680px] px-5 pb-6 pt-[22px] lg:py-10">
       <PlaylistPicker>
-        <LibraryHeader total={lib.total} pickIds={lib.pickIds} bookmark={{ on: lib.bookmark, href: href(1, { ...f, bookmark: !lib.bookmark }) }} />
+        <LibraryHeader total={lib.total} />
 
         {lib.total > 0 && <SearchBox lib={lib} />}
 
-        {/* 한 줄 거르기: 전체 · 안 읽음 · 분야들(북마크는 위 제목 줄). 안 읽음·북마크·분야는 같이 걸 수 있고, 켜진 칸을 다시 누르면 풀린다.
-            '전체'는 북마크까지 푼다. 검색어는 그대로 둔다 */}
+        {/* 보기 칩: 전체 · 안 읽음 · 북마크. 안 읽음·북마크·분야는 같이 걸 수 있고, 켜진 칩을 다시 누르면 풀린다.
+            '전체'는 안 읽음·북마크를 푼다(분야·검색어는 그대로). 칩 줄 오른쪽 끝에 목록·카드 보기 바꾸기 */}
         {lib.matchedTotal > 0 && (
-          <nav aria-label="거르기" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-2">
-            <FilterLink
-              href={href(1, { section: null, read: null, bookmark: false, query: lib.query })}
-              active={!lib.section && !lib.readFilter && !lib.bookmark}
-              label="전체"
-              count={lib.matchedTotal}
-            />
-            <FilterLink href={href(1, { ...f, read: lib.readFilter === "unread" ? null : "unread" })} active={lib.readFilter === "unread"} label="안 읽음" count={lib.readCounts.unread} />
-            {lib.sections.map((c) => (
-              <FilterLink key={c.id} href={href(1, { ...f, section: lib.section === c.id ? null : c.id })} active={lib.section === c.id} label={c.label} count={c.count} />
-            ))}
-          </nav>
-        )}
-
-        {lib.groups.length > 0 && (
-          <div className="mt-4 flex items-center justify-between px-1">
-            <p className="text-[13px] font-semibold text-sub">최신순</p>
-            <LibraryViewToggle />
+          <div className="mt-[18px] flex items-center gap-2">
+            <nav aria-label="보기" className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <FilterChip href={href(1, { ...f, read: null, bookmark: false })} active={!lib.readFilter && !lib.bookmark} label="전체" count={lib.readCounts.all} />
+              <FilterChip href={href(1, { ...f, read: lib.readFilter === "unread" ? null : "unread" })} active={lib.readFilter === "unread"} label="안 읽음" count={lib.readCounts.unread} />
+              <FilterChip href={href(1, { ...f, bookmark: !lib.bookmark })} active={lib.bookmark} label="북마크" count={lib.bookmarkCount} />
+            </nav>
+            {lib.groups.length > 0 && <LibraryViewToggle />}
           </div>
         )}
 
+        {/* 분야 탭: 모든 분야 + 받은 소식에 있는 분야들(켠 탭을 다시 누르거나 '모든 분야'를 누르면 풀린다) */}
+        {lib.matchedTotal > 0 && lib.sections.length > 0 && (
+          <SectionTabs
+            tabs={[
+              { href: href(1, { ...f, section: null }), label: "모든 분야", on: !lib.section, count: lib.readCounts.all },
+              ...lib.sections.map((c) => ({ href: href(1, { ...f, section: lib.section === c.id ? null : c.id }), label: c.label, on: lib.section === c.id, count: c.count })),
+            ]}
+          />
+        )}
+
+        <PickSummary pickIds={lib.pickIds} />
+
         {lib.groups.length === 0 ? (
-          // 회색 둥근 상자, 그 옆(맹고 캐릭터가 있던 자리)에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘)
-          <div className="mt-10 flex items-center gap-3">
-            <MangoIcon className="size-24 shrink-0" />
-            <div className="flex-1 rounded-2xl bg-snow px-5 py-4">
-              <p className="text-[16px] font-bold leading-relaxed">{emptyMessage(lib)}</p>
-              {lib.bookmark && lib.bookmarkCount === 0 && (
-                <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">소식 카드나 글 화면에서 북마크를 누르면 여기에 모여요.</p>
-              )}
-            </div>
+          // 회색 둥근 상자에 안내 한 줄(시안, 2026-11-26)
+          <div className="mt-7 rounded-[18px] bg-snow px-[18px] py-[26px] text-center">
+            <p className="text-[15px] font-semibold leading-relaxed text-sub">{emptyMessage(lib)}</p>
+            {lib.bookmark && lib.bookmarkCount === 0 && (
+              <p className="mt-1 text-[14px] font-medium leading-relaxed text-sub">소식 카드나 글 화면에서 북마크를 누르면 여기에 모여요.</p>
+            )}
           </div>
         ) : infinite ? (
           <InfiniteLibrary
@@ -89,7 +88,7 @@ export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면
             {...f}
           />
         ) : (
-          <DayGroups groups={lib.groups} />
+          <DayGroups groups={lib.groups} skipFirstCount={lib.page > 1} skipLastCount={lib.page < lib.pageCount} />
         )}
 
         {!infinite && lib.pageCount > 1 && <Pagination lib={lib} />}
@@ -109,14 +108,14 @@ function SearchBox({ lib }: { lib: LibraryData }) {
       <label htmlFor="library-q" className="sr-only">
         보관함 검색
       </label>
-      <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-faint" />
+      <IconSearch className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-faint" />
       <input
         id="library-q"
         key={lib.query ?? ""}
         name="q"
         type="search"
         defaultValue={lib.query ?? ""}
-        placeholder="제목·요약으로 찾기"
+        placeholder="제목이나 요약으로 찾기"
         enterKeyHint="search"
         maxLength={40}
         autoComplete="off"
@@ -126,7 +125,7 @@ function SearchBox({ lib }: { lib: LibraryData }) {
         <Link
           href={href(1, { ...filtersOf(lib), query: null })}
           aria-label="검색어 지우기"
-          className="absolute right-1 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-xl text-sub hover:bg-snow"
+          className="absolute right-1 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-sub hover:bg-line"
         >
           <IconClose className="size-5" />
         </Link>
@@ -135,17 +134,18 @@ function SearchBox({ lib }: { lib: LibraryData }) {
   );
 }
 
-function FilterLink({ href: to, active, label, count }: { href: string; active: boolean; label: string; count: number }) {
+/** 보기 칩(높이 38 알약, 끝에 흐린 개수). 고르면 남색 바탕 흰 글자(오늘 화면의 고른 칩과 같다) */
+function FilterChip({ href: to, active, label, count }: { href: string; active: boolean; label: string; count: number }) {
   return (
     <Link
       href={to}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold no-underline ${
+      className={`inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[14.5px] font-bold no-underline ${
         active ? "bg-ink text-paper" : "bg-snow text-ink hover:bg-line"
       }`}
     >
       {label}
-      <span className={`font-round text-[13px] ${active ? "text-paper/70" : "text-sub"}`}>{count}</span>
+      <span className={`text-[14px] ${active ? "text-paper/60" : "text-faint"}`}>{count}</span>
     </Link>
   );
 }

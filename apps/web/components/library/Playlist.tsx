@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { createContext, useContext, useEffect, useState, useTransition } from "react";
 import { playlistAdd } from "@/app/actions";
-import { IconBookmark, IconCheck, IconClose, IconHeadphones, IconPlay } from "@/components/icons";
+import { IconCheck, IconHeadphones, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 
-// 보관함 골라 듣기(Premium). '골라 듣기'를 누르고 카드를 고르면 체크가 붙는다. 듣기·담기는 고른 순서대로(2026-10-15 정리: 위는 선택, 아래는 동작).
-//   위(제목 줄, 위에 붙음): ✕ 그만두기 · 'n개 선택' · ☐ 전체(지금 거른 소식 전부. 안 읽은 것만은 '안 읽음'으로 거른 뒤 전체)
-//   아래(고른 게 있을 때만 고정 막대): 담기(플레이리스트로) · n개 듣기. 막대가 오른쪽 아래 듣기 창 자리를 덮는다
+// 보관함 골라 듣기(Premium). '골라 듣기'를 누르고 소식을 고르면 왼쪽 둥근 자리에 망고 원(고른 차례 번호)이 붙는다. 듣기·담기는 고른 순서대로(2026-10-15 정리: 위는 선택, 아래는 동작).
+//   위(제목 줄): '골라 듣기' 알약이 남색으로 켜진다(다시 누르면 그만둔다). 목록 위에 'n개 선택' · '전체 선택'(지금 거른 소식 전부. 안 읽은 것만은 '안 읽음'으로 거른 뒤 전체)이 붙는다
+//   아래(고르는 동안 고정 막대, 2026-11-26 시안): 망고 주 버튼 'n개 듣기'(0개면 회색) · 테두리 알약 '플레이리스트에 담기'
 // 재생은 오늘 듣기와 같은 플레이어(PlayerProvider.playPlaylist)라 화면을 옮겨도 이어지고, 많으면 20개씩 이어 튼다.
 // 고른 것은 쪽·카테고리를 옮겨도 남는다(보관함 화면 안에서는 이 Provider가 그대로 유지된다).
 
@@ -32,6 +32,11 @@ function usePick(): PickApi {
   return ctx;
 }
 
+/** 지금 골라 듣기로 고르는 중인지(소식 줄이 왼쪽에 체크 자리를 비운다) */
+export function usePicking(): boolean {
+  return usePick().picking;
+}
+
 export function PlaylistPicker({ children }: { children: React.ReactNode }) {
   const [picking, setPickingState] = useState(false);
   const [ids, setIds] = useState<number[]>([]);
@@ -49,85 +54,73 @@ export function PlaylistPicker({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * 보관함 제목 줄: 보관함 n · [북마크] [골라 듣기]. 고르는 동안은 위에 붙고 ✕ · n개 선택 · ☐ 전체가 된다. Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다.
- * '북마크'는 북마크한 소식만 보는 거르기(?bookmark=1, 안 읽음·카테고리·검색은 그대로). 켜진 것을 다시 누르면 풀린다. 플랜과 상관없이 쓴다
+ * 보관함 제목 줄(2026-11-26 시안): 큰 제목 '보관함' + 오른쪽 '골라 듣기' 알약. 고르는 동안은 알약이 남색으로 켜지고 다시 누르면 그만둔다.
+ * Free는 '골라 듣기'를 Premium 배지와 함께 막아 둔다. 예전 제목 줄의 '북마크' 거르기는 아래 보기 칩(전체·안 읽음·북마크)으로 옮겼다
  */
-export function LibraryHeader({
-  total,
-  pickIds,
-  bookmark,
-}: {
-  total: number;
-  pickIds: number[];
-  /** 북마크 거르기가 켜졌는지와 누르면 갈 주소(켜기·끄기) */
-  bookmark: { on: boolean; href: string };
-}) {
+export function LibraryHeader({ total }: { total: number }) {
   const profile = useProfile();
   const pick = usePick();
+  const pill = "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[14px] font-bold no-underline";
+  return (
+    <header className="flex min-h-10 items-center gap-3">
+      <h1 className="flex-1 text-[28px] font-extrabold tracking-[-0.05em]">보관함</h1>
+      {total > 0 &&
+        (!profile.audio ? (
+          <Link href="/premium" aria-label="골라 듣기, Premium에서 쓸 수 있어요" className={`${pill} border-line bg-snow text-ink hover:bg-line`}>
+            <IconHeadphones className="size-[17px]" />
+            골라 듣기
+            <PremiumBadge />
+          </Link>
+        ) : (
+          <button
+            type="button"
+            aria-pressed={pick.picking}
+            onClick={() => pick.setPicking(!pick.picking)}
+            className={`${pill} ${pick.picking ? "border-ink bg-ink text-paper" : "border-line bg-snow text-ink hover:bg-line"}`}
+          >
+            <IconHeadphones className="size-[17px]" />
+            골라 듣기
+          </button>
+        ))}
+    </header>
+  );
+}
+
+/**
+ * 고르는 동안 목록 위에 붙는 줄: 'n개 선택' · '전체 선택'(지금 거른 소식 전부, 모든 쪽). 스크롤해도 상단바 아래에 붙어 있다.
+ * 예전엔 ✕ · n개 선택 · ☐ 전체가 제목 줄을 대신했다. 시안에서는 제목 줄의 남색 알약이 그만두기를 맡는다(2026-11-26)
+ */
+export function PickSummary({ pickIds }: { pickIds: number[] }) {
+  const pick = usePick();
+  if (!pick.picking) return null;
   const n = pick.ids.length;
   const all = pickIds.length > 0 && n === pickIds.length && pickIds.every((id, i) => pick.ids[i] === id);
-
-  if (pick.picking) {
-    return (
-      // 상단바(모바일 56px + 테두리) 아래에 붙인다. 데스크톱은 상단바가 없다
-      <div className="sticky top-[calc(58px+env(safe-area-inset-top))] z-30 -mx-4 flex items-center gap-2 border-b-2 border-line bg-paper px-3 py-2 lg:top-0">
-        <h1 className="sr-only">보관함</h1>
-        <button type="button" onClick={() => pick.setPicking(false)} aria-label="골라 듣기 그만두기" className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sub hover:bg-snow">
-          <IconClose className="size-6" />
-        </button>
-        <p aria-live="polite" className="flex-1 text-[18px] font-black tracking-[-0.02em]">
-          {n ? `${n}개 선택` : "선택"}
-        </p>
-        <button
-          type="button"
-          onClick={() => pick.pickMany(all ? [] : pickIds)}
-          disabled={!pickIds.length}
-          aria-pressed={all}
-          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-[15px] font-extrabold hover:bg-snow disabled:text-faint"
-        >
-          <span className={`flex size-6 items-center justify-center rounded-md border-2 ${all ? "border-sky bg-sky text-white" : "border-line bg-paper"}`}>
-            {all && <IconCheck className="size-4 [stroke-width:3.5]" />}
-          </span>
-          전체
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-1">
-      <h1 className="text-[26px] font-bold tracking-[-0.035em]">
-        보관함 <span className="font-round text-[20px] text-faint">{total}</span>
-      </h1>
-      {total > 0 && (
-        <div className="ml-auto flex items-center gap-2">
-          <Link
-            href={bookmark.href}
-            aria-current={bookmark.on ? "page" : undefined}
-            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold no-underline ${bookmark.on ? "bg-mango-tint text-mango-deep" : "bg-snow text-ink"}`}
-          >
-            <IconBookmark filled={bookmark.on} className={`size-4 ${bookmark.on ? "text-orange" : ""}`} />
-            북마크
-          </Link>
-          {!profile.audio ? (
-            <Link href="/premium" aria-label="골라 듣기, Premium에서 쓸 수 있어요" className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-extrabold text-sub no-underline">
-              <IconHeadphones className="size-4" />
-              골라 듣기
-              <PremiumBadge />
-            </Link>
-          ) : (
-            <button type="button" onClick={() => pick.setPicking(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-ink px-3.5 text-[14px] font-semibold text-paper">
-              <IconHeadphones className="size-4" />
-              골라 듣기
-            </button>
-          )}
-        </div>
-      )}
+    // 상단바(모바일 56px + 테두리) 아래에 붙인다. 데스크톱은 상단바가 없다
+    <div className="sticky top-[calc(58px+env(safe-area-inset-top))] z-30 -mx-5 flex items-center gap-3 bg-paper px-5 py-2 lg:top-0">
+      <p aria-live="polite" className="flex-1 text-[15px] font-extrabold tracking-[-0.03em]">
+        {n ? `${n}개 선택` : "소식을 골라 주세요"}
+      </p>
+      <button
+        type="button"
+        onClick={() => pick.pickMany(all ? [] : pickIds)}
+        disabled={!pickIds.length}
+        aria-pressed={all}
+        className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[14px] disabled:text-faint ${
+          all ? "border-ink bg-ink font-bold text-paper" : "border-line-dark font-semibold text-ink"
+        }`}
+      >
+        {all && <IconCheck className="size-4 [stroke-width:3]" />}
+        전체 선택
+      </button>
     </div>
   );
 }
 
-/** 고르는 동안 고른 게 있으면 화면 아래 고정 막대: 담기 · n개 듣기(엄지가 닿는 곳). 막대만큼 목록 아래에 빈 칸을 둔다 */
+/**
+ * 고르는 동안 화면 아래에 뜨는 고정 막대(2026-11-26 시안): 망고 주 버튼 'n개 듣기'(고른 게 없으면 회색 '소식을 골라 주세요') · 테두리 알약 '플레이리스트에 담기'.
+ * 막대만큼 목록 아래에 빈 칸을 둔다. 고르는 동안은 떠 있는 플레이어를 숨긴다(html[data-picking])
+ */
 export function PickBar() {
   const pick = usePick();
   const p = usePlayer();
@@ -149,35 +142,33 @@ export function PickBar() {
   return (
     <>
       <div aria-hidden="true" className="h-24" />
-      {n > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
-          <div className="mx-auto flex max-w-[680px] items-center gap-2">
-            {/* 고른 것만 고른 차례대로 이어 듣기(2026-11-10 사용자) */}
-            <button
-              type="button"
-              onClick={play}
-              className="flex h-[60px] flex-1 items-center gap-3 rounded-full bg-ink pl-2 pr-5 text-left text-paper shadow-[0_10px_30px_rgba(31,35,64,0.25)]"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink">
-                <IconPlay className="size-[18px]" />
-              </span>
-              <span className="flex-1 text-[16px] font-bold">고른 {n}개 듣기</span>
-            </button>
-            <button type="button" onClick={add} disabled={adding} className="h-[60px] shrink-0 rounded-full bg-snow px-5 text-[15px] font-semibold text-ink shadow-[0_10px_30px_rgba(31,35,64,0.12)]">
-              담기
-            </button>
-          </div>
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-gradient-to-b from-transparent to-paper to-40% px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-7">
+        <div className="mx-auto flex max-w-[680px] items-center gap-2">
+          {/* 고른 것만 고른 차례대로 이어 듣기(2026-11-10 사용자) */}
+          <button type="button" onClick={play} disabled={n === 0} aria-label={n ? `고른 ${n}개 듣기` : undefined} className="btn h-[54px] flex-1 px-4 font-extrabold">
+            {n > 0 && <IconPlay className="size-[15px]" />}
+            {n ? `${n}개 듣기` : "소식을 골라 주세요"}
+          </button>
+          <button
+            type="button"
+            onClick={add}
+            disabled={adding || n === 0}
+            className="h-[54px] flex-1 rounded-full border border-line-dark bg-paper px-4 text-[15px] font-bold text-ink shadow-[0_4px_16px_rgb(31_35_64/0.08)] disabled:text-faint"
+          >
+            플레이리스트에 담기
+          </button>
         </div>
-      )}
+      </div>
     </>
   );
 }
 
 /**
- * 고르는 중에 카드 위에 덮는 고르기 버튼. 고른 카드에는 망고색 테두리와 고른 차례 번호가 붙는다(2026-11-10, 고른 차례대로 듣는다)(카드의 읽음 표시는 data-pick으로 감춘다).
- * 덮개는 글자 위에 얹히므로 옅게 비치는 색만 쓴다(섞기 모드 multiply는 다크에서 카드를 거의 검게 만든다)
+ * 고르는 중에 소식 위에 덮는 고르기 버튼(2026-11-26 시안). row는 줄 왼쪽에 둥근 체크 자리가 나오고(줄이 비워 둔다, usePicking),
+ * card(큰 사진 카드)는 사진 왼쪽 위에 얹힌다. 고르면 망고 노랑 원이 되고, 안에 고른 차례 번호가 든다(고른 차례대로 듣는다, 2026-11-10).
+ * 줄의 북마크는 inert로 눌리지 않게 두고 모양은 그대로 보인다. 덮개는 글자 위에 얹히므로 아무것도 칠하지 않는다(섞기 모드 multiply는 다크에서 카드를 거의 검게 만든다)
  */
-export function PickTarget({ id, title }: { id: number; title: string }) {
+export function PickTarget({ id, title, shape = "row" }: { id: number; title: string; shape?: "row" | "card" }) {
   const pick = usePick();
   if (!pick.picking) return null;
   const on = pick.ids.includes(id);
@@ -188,12 +179,15 @@ export function PickTarget({ id, title }: { id: number; title: string }) {
       aria-pressed={on}
       aria-label={title}
       onClick={() => pick.toggle(id)}
-      className={`absolute inset-0 z-10 rounded-2xl disabled:cursor-not-allowed ${on ? "bg-mango/10 ring-2 ring-mango ring-inset" : "enabled:hover:bg-ink/[0.04]"}`}
+      className={`absolute inset-0 z-10 ${shape === "card" ? `rounded-3xl ${on ? "ring-2 ring-mango ring-inset" : ""}` : ""}`}
     >
       <span
-        className={`absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 ${on ? "border-mango bg-mango text-ink" : "border-line bg-paper"}`}
+        // 망고 위 글자는 다크에서도 남색(--color-ink가 밝아져서 text-ink를 쓰지 않는다)
+        className={`absolute flex size-[26px] items-center justify-center rounded-full border-2 ${shape === "card" ? "left-3 top-3" : "left-0 top-1/2 -translate-y-1/2"} ${
+          on ? "border-mango bg-mango text-[#1F2340]" : "border-line-dark bg-paper"
+        }`}
       >
-        {on && <span className="font-round text-[14px] font-black">{pick.ids.indexOf(id) + 1}</span>}
+        {on && <span className="font-round text-[13px] font-black leading-none">{pick.ids.indexOf(id) + 1}</span>}
       </span>
     </button>
   );
