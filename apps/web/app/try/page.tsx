@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { IconHeadphones } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { GuestTour, type TourPerk } from "@/components/try/GuestTour";
 import { signIn } from "@/app/actions";
 import { LoginButtons } from "@/app/login/LoginButtons";
@@ -65,10 +65,8 @@ export default async function TryPage() {
 function Empty() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-[400px] flex-col items-center justify-center px-6 text-center">
-      {/* 맹고 캐릭터 대신 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
-      <span aria-hidden="true" className="keep-light flex size-16 items-center justify-center rounded-full bg-mango text-ink">
-        <IconHeadphones className="size-8" />
-      </span>
+      {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+      <MangoIcon className="size-24" />
       <h1 className="mt-4 text-[22px] font-bold tracking-[-0.03em]">지금은 들려드릴 소식을 고르고 있어요</h1>
       <p className="mt-2 text-[15px] font-medium leading-relaxed text-sub">가입하면 맹고가 내 관심에 맞는 소식을 바로 골라 드려요.</p>
       <Link href="/login" className="btn mt-8 min-h-14 w-full text-[17px] no-underline">

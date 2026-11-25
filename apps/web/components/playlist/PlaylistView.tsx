@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useOptimistic, useState, useTransition } from "react";
 import { playlistClear, playlistRemove, playlistReorder, playlistRestore } from "@/app/actions";
 import { IconCheck, IconClose, IconDoc, IconGrip, IconPlay, IconPlus } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { ReadBadge } from "@/components/library/ReadBadge";
 import { CategoryChip } from "@/components/ui/CategoryChip";
@@ -97,20 +98,26 @@ export function PlaylistView({ entries, locked }: { entries: LibraryEntry[]; loc
       </div>
 
       {locked ? (
-        // (2026-11-25 사용자: 캐릭터 빼기) 맹고·말풍선 대신 회색 둥근 상자
-        <div className="mt-10 rounded-2xl bg-snow px-5 py-4">
-          <p className="text-[16px] font-bold leading-relaxed">플레이리스트는 Premium에서 쓸 수 있어요.</p>
-          <Link href="/premium" className="mt-2 inline-flex items-center gap-1 text-[15px] font-extrabold text-sky">
-            Premium 알아보기
-            <PremiumBadge />
-          </Link>
+        // 회색 둥근 상자, 그 옆(맹고 캐릭터가 있던 자리)에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘)
+        <div className="mt-10 flex items-center gap-3">
+          <MangoIcon className="size-24 shrink-0" />
+          <div className="flex-1 rounded-2xl bg-snow px-5 py-4">
+            <p className="text-[16px] font-bold leading-relaxed">플레이리스트는 Premium에서 쓸 수 있어요.</p>
+            <Link href="/premium" className="mt-2 inline-flex items-center gap-1 text-[15px] font-extrabold text-sky">
+              Premium 알아보기
+              <PremiumBadge />
+            </Link>
+          </div>
         </div>
       ) : shown.length === 0 ? (
-        <div className="mt-10 rounded-2xl bg-snow px-5 py-4">
-          <p className="text-[16px] font-bold leading-relaxed">보관함 &lsquo;골라 듣기&rsquo;에서 소식을 골라 담아 보세요.</p>
-          <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
-            보관함으로 가기
-          </Link>
+        <div className="mt-10 flex items-center gap-3">
+          <MangoIcon className="size-24 shrink-0" />
+          <div className="flex-1 rounded-2xl bg-snow px-5 py-4">
+            <p className="text-[16px] font-bold leading-relaxed">보관함 &lsquo;골라 듣기&rsquo;에서 소식을 골라 담아 보세요.</p>
+            <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
+              보관함으로 가기
+            </Link>
+          </div>
         </div>
       ) : (
         <DndContext id="playlist" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ announcements, screenReaderInstructions: SORT_INSTRUCTIONS }}>

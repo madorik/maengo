@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { IconExternal } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { withBase } from "@/lib/base-path";
 import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/site";
 
@@ -28,8 +29,9 @@ export default async function GetAppPage({ searchParams }: Props) {
       <div className="w-full max-w-[720px]">
         <div className="flex flex-col items-center gap-10 md:flex-row md:items-center md:gap-14">
           <div className="flex-1 text-center md:text-left">
-            {/* (2026-11-25 사용자: 캐릭터 빼기) 제목 위 맹고 그림을 뺐다 */}
-            <h1 className="text-[30px] font-bold leading-[1.25] tracking-[-0.04em] md:text-[38px]">
+            {/* 제목 위 맹고 캐릭터 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+            <MangoIcon className="mx-auto size-16 md:mx-0" />
+            <h1 className="mt-4 text-[30px] font-bold leading-[1.25] tracking-[-0.04em] md:text-[38px]">
               {joined ? "가입했어요!" : "맹고는"}
               <br />
               {joined ? "이제 앱에서 받아요" : "앱에서 받아요"}

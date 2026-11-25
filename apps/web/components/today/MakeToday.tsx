@@ -4,7 +4,7 @@ import { track } from "@/lib/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { IconCheck, IconDoc } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { withBase } from "@/lib/base-path";
 import type { TodayData } from "@/lib/types";
 import { useCreep, useTick } from "./making";
@@ -101,10 +101,8 @@ function Making({ p }: { p: Progress }) {
         {stageLabel(p)}
       </p>
       <div className="flex items-center gap-3">
-        {/* 맹고 캐릭터 대신 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
-        <span aria-hidden="true" className={`flex size-16 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340] ${done ? "pop" : "bob"}`}>
-          {done ? <IconCheck className="size-8" /> : <IconDoc className="size-8" />}
-        </span>
+        {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+        <MangoIcon className={`size-16 shrink-0 ${done ? "pop" : "bob"}`} />
         <div className="min-w-0 flex-1" aria-hidden>
           <p key={line} className="swap text-[18px] font-black leading-snug">
             {line}
@@ -257,13 +255,13 @@ export function MakeToday({ reason, notifyLabel }: { reason: TodayData["emptyRea
   // 다른 탭·기기에서, 또는 만드는 중에 화면을 옮겼다 돌아왔을 때(받기 버튼 없음)
   if (othersBuilding) {
     return (
-      <div className="mt-10 flex items-center gap-3 rounded-2xl bg-snow px-5 py-4">
-        <span aria-hidden="true" className="bob flex size-10 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-          <IconDoc className="size-5" />
-        </span>
-        <p role="status" className="text-[15px] font-bold leading-relaxed">
-          오늘의 소식을 만들고 있어요. 곧 도착해요.
-        </p>
+      <div className="mt-10 flex items-center gap-3">
+        <MangoIcon className="bob size-24 shrink-0" />
+        <div className="flex-1 rounded-2xl bg-snow px-5 py-4">
+          <p role="status" className="text-[15px] font-bold leading-relaxed">
+            오늘의 소식을 만들고 있어요. 곧 도착해요.
+          </p>
+        </div>
       </div>
     );
   }
@@ -271,49 +269,55 @@ export function MakeToday({ reason, notifyLabel }: { reason: TodayData["emptyRea
   // 알림 시각이 돼 배송이 만드는 중(받기 버튼 없음)
   if (reason === "arriving") {
     return (
-      <div className="mt-10 rounded-2xl bg-snow px-5 py-4">
-        <p className="text-[15px] font-bold leading-relaxed">브리핑을 준비하고 있어요. 곧 도착해요.</p>
-        <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
-          지난 소식 보기
-        </Link>
+      <div className="mt-10 flex items-center gap-3">
+        <MangoIcon className="size-24 shrink-0" />
+        <div className="flex-1 rounded-2xl bg-snow px-5 py-4">
+          <p className="text-[15px] font-bold leading-relaxed">브리핑을 준비하고 있어요. 곧 도착해요.</p>
+          <Link href="/library" className="mt-2 inline-block text-[15px] font-extrabold text-sky">
+            지난 소식 보기
+          </Link>
+        </div>
       </div>
     );
   }
 
-  // 맹고·말풍선 대신 회색 둥근 상자(2026-11-25 사용자: 캐릭터 빼기)
+  // 회색 둥근 상자, 그 옆(맹고 캐릭터가 있던 자리)에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘)
   return (
-    <div className="mt-10 rounded-2xl bg-snow px-5 py-4">
-      {state.kind === "limit" ? (
-        <p className="text-[15px] font-bold leading-relaxed">오늘은 더 받을 수 없어요. 내일 다시 시도해 주세요.</p>
-      ) : state.kind === "empty" ? (
-        <>
-          <p className="text-[15px] font-bold leading-relaxed">방금 새 소식까지 모아 봤지만 최근 사흘 동안 새 소식이 없었어요. 다음 브리핑에서 다시 찾아 드릴게요.</p>
-        </>
-      ) : (
-        <>
-          <p className="text-[15px] font-bold leading-relaxed">
-            {state.kind === "blocked"
-              ? "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요."
-              : state.kind === "error"
-              ? "브리핑을 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
-              : reason === "first"
-                ? "첫 소식을 받아 볼까요?"
-                : reason === "scheduled"
-                  ? `오늘의 소식은 ${notifyLabel}에 와요.`
-                : reason === "exhausted"
-                  ? "관심사에서 고른 소식을 다 봤어요. 새로 들어온 소식이 있는지 찾아볼까요?"
-                  : "아직 브리핑이 없어요. 지금 바로 만들어 드릴까요?"}
-          </p>
-          <button type="button" onClick={start} className="btn mt-3 w-full">
-            {state.kind === "error" || state.kind === "blocked" ? "다시 받기" : reason === "scheduled" ? "오늘 소식 지금 받기" : "오늘 소식 받기"}
-          </button>
-          {reason === "scheduled" && (
-            <Link href="/library" className="mt-2 block text-center text-[15px] font-extrabold text-sky">
-              지난 소식 보기
-            </Link>
-          )}
-        </>
-      )}
+    <div className="mt-10 flex items-center gap-3">
+      <MangoIcon className="size-24 shrink-0" />
+      <div className="flex-1 rounded-2xl bg-snow px-5 py-4">
+        {state.kind === "limit" ? (
+          <p className="text-[15px] font-bold leading-relaxed">오늘은 더 받을 수 없어요. 내일 다시 시도해 주세요.</p>
+        ) : state.kind === "empty" ? (
+          <>
+            <p className="text-[15px] font-bold leading-relaxed">방금 새 소식까지 모아 봤지만 최근 사흘 동안 새 소식이 없었어요. 다음 브리핑에서 다시 찾아 드릴게요.</p>
+          </>
+        ) : (
+          <>
+            <p className="text-[15px] font-bold leading-relaxed">
+              {state.kind === "blocked"
+                ? "지금은 요청량이 많아 새 소식을 만들 수 없어요. 조금 뒤에 다시 시도해주세요."
+                : state.kind === "error"
+                ? "브리핑을 만들지 못했어요. 잠시 뒤 다시 눌러 주세요."
+                : reason === "first"
+                  ? "첫 소식을 받아 볼까요?"
+                  : reason === "scheduled"
+                    ? `오늘의 소식은 ${notifyLabel}에 와요.`
+                  : reason === "exhausted"
+                    ? "관심사에서 고른 소식을 다 봤어요. 새로 들어온 소식이 있는지 찾아볼까요?"
+                    : "아직 브리핑이 없어요. 지금 바로 만들어 드릴까요?"}
+            </p>
+            <button type="button" onClick={start} className="btn mt-3 w-full">
+              {state.kind === "error" || state.kind === "blocked" ? "다시 받기" : reason === "scheduled" ? "오늘 소식 지금 받기" : "오늘 소식 받기"}
+            </button>
+            {reason === "scheduled" && (
+              <Link href="/library" className="mt-2 block text-center text-[15px] font-extrabold text-sky">
+                지난 소식 보기
+              </Link>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

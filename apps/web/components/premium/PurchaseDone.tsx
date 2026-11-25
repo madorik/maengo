@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Crown } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { Confetti } from "@/components/ui/Confetti";
 
 // 결제를 마치면 띄우는 축하 팝업(가입 축하 팝업 SignupGift와 같은 모양).
@@ -74,20 +75,21 @@ export function PurchaseDoneHost() {
       className="m-auto w-[min(340px,calc(100vw-40px))] max-w-none overflow-visible bg-transparent p-0"
     >
       <div className="pop overflow-hidden rounded-[28px] bg-paper text-center text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
-        {/* 축하 영역: 연한 망고색 위에 색종이, 왕관(구독)·맹고 동전(묶음). 맹고 캐릭터는 뺐다(2026-11-25 사용자: 캐릭터 빼기) */}
+        {/* 축하 영역: 연한 망고색 위에 색종이, 맹고 캐릭터가 있던 자리에 새 앱 아이콘과 왕관(구독)·맹고 동전(묶음) (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
         <div aria-hidden="true" className="keep-light relative h-[168px] bg-[#FFF4D6]">
           <Confetti />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="absolute left-1/2 top-6 -translate-x-1/2">
+            <MangoIcon className="size-[120px]" />
             <span
-              className="pop flex size-[96px] rotate-[-10deg] flex-col items-center justify-center rounded-full border-[3px] border-[#E09A12] bg-[#FFC23D] text-[#1F2340] shadow-[0_5px_0_#E09A12]"
+              className="pop absolute -bottom-1 -right-9 flex size-[62px] rotate-[-10deg] flex-col items-center justify-center rounded-full border-[3px] border-[#E09A12] bg-[#FFC23D] text-[#1F2340] shadow-[0_5px_0_#E09A12]"
               style={{ animationDelay: "220ms" }}
             >
               {detail.kind === "premium" ? (
-                <Crown className="size-12" />
+                <Crown className="size-8" />
               ) : (
                 <>
-                  <span className="font-round text-[30px] font-black leading-none tabular-nums">+{detail.amount}</span>
-                  <span className="mt-0.5 text-[13px] font-black leading-none">맹고</span>
+                  <span className="font-round text-[21px] font-black leading-none tabular-nums">+{detail.amount}</span>
+                  <span className="mt-0.5 text-[11px] font-black leading-none">맹고</span>
                 </>
               )}
             </span>

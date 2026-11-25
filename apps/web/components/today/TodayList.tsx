@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { IconPause, IconPlay } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { usePlayer, type PlayerApi } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
@@ -419,9 +420,9 @@ function Route({
             className={`block ${ride?.playing && drag.y === null ? "mango-ride" : ""} ${drag.y !== null ? "scale-110" : ""} transition-transform`}
             style={{ "--ride-dur": `${(0.8 / (rate || 1)).toFixed(2)}s` } as React.CSSProperties}
           >
-            {/* 맹고 캐릭터 대신 주황 점(2026-11-25 사용자: 캐릭터 빼기). 노선 선도 주황이라 둘레를 배경색으로 둘러 구분한다. 움직임·끌기는 그대로 */}
+            {/* 노선 위 맹고 캐릭터가 있던 자리에 작은 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘). 노선 선도 주황이라 둘레를 배경색으로 둘러 구분한다. 움직임·끌기는 그대로 */}
             <span className="flex size-10 items-center justify-center">
-              <span className={`size-7 rounded-full bg-mango shadow-[0_2px_6px_rgb(31_35_64/0.25)] ring-[3px] ${pm ? "ring-[#1F2340]" : "ring-paper"}`} />
+              <MangoIcon className={`size-8 rounded-[22%] shadow-[0_2px_6px_rgb(31_35_64/0.25)] ring-2 ${pm ? "ring-[#1F2340]" : "ring-paper"}`} />
             </span>
           </span>
         </span>

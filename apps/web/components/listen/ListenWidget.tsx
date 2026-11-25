@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { flushSync } from "react-dom";
-import { IconChevronDown, IconClose, IconHeadphones, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { IconChevronDown, IconClose, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -125,10 +126,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           aria-label={`플레이어 펼치기${playing ? ", 듣는 중" : ""}`}
           className={`pop tile pointer-events-auto flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${playing ? "border-mango" : ""}`}
         >
-          {/* 맹고 캐릭터 대신 주황 원 헤드폰 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
-          <span className={`flex size-12 items-center justify-center rounded-full ${locked ? "bg-snow text-faint" : "bg-mango text-[#1F2340]"}`}>
-            <IconHeadphones className="size-6" />
-          </span>
+          {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+          <MangoIcon className={`size-12 ${locked ? "opacity-60" : ""} ${playing ? "bob" : ""}`} />
         </button>
       </div>
     );
@@ -152,9 +151,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
         <div data-tour="player" className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
           <Link href="/premium" aria-label={`${source} 듣기, Premium에서 들을 수 있어요`} className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-snow text-faint">
-              <IconHeadphones className="size-6" />
-            </span>
+            <MangoIcon className="size-12 shrink-0 opacity-60" />
             <span className="min-w-0 truncate text-[15px] font-bold text-sub">{source} 듣기</span>
             <PremiumBadge />
           </Link>
@@ -337,9 +334,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         }}
         className="flex min-w-0 items-center gap-2.5 rounded-full py-0.5 pl-0.5 pr-2 text-left hover:bg-snow"
       >
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-          <IconHeadphones className="size-6" />
-        </span>
+        <MangoIcon className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
         <span className="min-w-0 max-w-[170px]">
           <span className="block truncate text-[15px] font-bold tracking-[-0.02em]">{ch ? ch.title : source}</span>
           <span className={`block truncate text-[12px] font-medium ${p.error ? "text-cherry" : "text-sub"}`}>{sub}</span>
@@ -364,9 +359,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       <>
         <Sheet title={heading} full open={open} onClose={close}>
           <div className="flex items-center gap-3 px-5 pb-1">
-            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-              <IconHeadphones className="size-5" />
-            </span>
+            <MangoIcon className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
             <p className="min-w-0 flex-1 truncate text-[13px] font-bold text-sub">{summary}</p>
             {rateButton}
           </div>
@@ -392,9 +385,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           className="rise tile pointer-events-auto flex max-h-[min(660px,calc(100dvh-160px-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden shadow-[0_16px_48px_rgb(31_35_64/0.2)] outline-none"
         >
           <header className="flex items-center gap-3 border-b border-line px-4 py-3">
-            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-              <IconHeadphones className="size-5" />
-            </span>
+            <MangoIcon className={`size-10 shrink-0 ${playing ? "bob" : ""}`} />
             <div className="min-w-0 flex-1">
               <h2 id="listen-widget-title" className="text-[16px] font-bold">
                 {heading}

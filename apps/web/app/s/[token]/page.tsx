@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconChevronRight, IconExternal } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { PublicPage, StartBand } from "@/components/public/PublicPage";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { sharedItem } from "@/lib/server/shared-item";
@@ -57,9 +58,12 @@ export default async function SharedItemPage({ params }: Props) {
         </div>
         <h1 className="mt-3 text-[28px] font-black leading-[1.3] tracking-[-0.03em] md:text-[34px]">{item.title}</h1>
 
-        {/* 요약은 회색 둥근 상자로(2026-11-25 사용자: 캐릭터 빼기, 맹고·말풍선 없이) */}
-        <section aria-label="요약" className="mt-6 rounded-2xl bg-snow px-5 py-4">
-          <p className="text-[17px] font-bold leading-[1.65]">{item.short}</p>
+        {/* 요약은 회색 둥근 상자, 그 옆(맹고 캐릭터가 있던 자리)에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+        <section aria-label="요약" className="mt-6 flex items-start gap-2">
+          <MangoIcon className="size-14 shrink-0" />
+          <div className="flex-1 rounded-2xl bg-snow px-5 py-4">
+            <p className="text-[17px] font-bold leading-[1.65]">{item.short}</p>
+          </div>
         </section>
 
         {/* 맹고가 다시 쓴 전체 글(글 화면과 같은 모양) */}

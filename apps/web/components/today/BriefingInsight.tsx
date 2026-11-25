@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { IconCheck, IconChevronRight, IconDoc, IconPlay } from "@/components/icons";
+import { IconCheck, IconChevronRight, IconPlay } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { ToneIcon } from "@/components/ui/ToneIcon";
 import { AskChat, type AskTarget } from "@/components/article/AskChat";
 import { AiMark } from "@/components/ui/AiMark";
@@ -612,10 +613,8 @@ export function InsightFallback() {
           맞춤 인사이트를 만들고 있어요. 보통 5~10초 걸려요
         </p>
         <div className="flex items-center gap-3" aria-hidden="true">
-          {/* 서류를 뒤지던 맹고 캐릭터 대신 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기). 스크립트 없이 CSS 움직임(bob)만 */}
-          <span className="bob flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-            <IconDoc className="size-6" />
-          </span>
+          {/* 서류를 뒤지던 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘). 스크립트 없이 CSS 움직임(bob)만 */}
+          <MangoIcon className="bob size-14 shrink-0" />
           {/* 다섯 문장을 한 자리에 겹쳐 두고 시간대마다 하나만 보인다 */}
           <div className="grid min-w-0 flex-1">
             {lines.map((l) => (

@@ -2,7 +2,8 @@ import { archiveLabel, discountPct, type PlanLimits } from "@maengo/core/plans";
 import { SECTIONS } from "@maengo/core/sections";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import { Crown, IconCheck, IconDoc, IconExternal, IconGlobe, IconHeadphones, IconPeople, IconSpeaker } from "@/components/icons";
+import { Crown, IconCheck, IconDoc, IconExternal, IconGlobe } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { JsonLd } from "@/components/public/PublicPage";
 import { SiteFooter } from "@/components/public/SiteFooter";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
@@ -135,12 +136,12 @@ const CHECKS = [
 
 /**
  * 화면을 보기 어려운 순간들(2026-10-27 사용자: 손 시린 날·만원 지하철·운전 중). 듣기가 맹고의 핵심이라 기능보다 먼저 보인다.
- * 카드마다 그 순간을 나타내는 선 아이콘(2026-11-25 사용자: 캐릭터 빼기. 전에는 순간마다 맹고 표정을 그렸다)
+ * 카드마다 제목 앞에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘). 전에는 순간마다 맹고 표정을 그렸다
  */
-const MOMENTS = [
-  { title: "손 시린 출근길", body: "브리핑 듣기를 한 번 누르고 휴대폰을 주머니에 넣어 두세요. 소식을 끝까지 이어서 읽어 드려요.", Icon: IconHeadphones },
-  { title: "만원 지하철", body: "화면을 들여다볼 틈이 없어도 이어폰만 있으면 돼요. 앱에서는 화면을 꺼도 계속 들려요.", Icon: IconPeople },
-  { title: "운전 중", body: "출발 전에 브리핑 듣기를 눌러 두면 도착할 때까지 화면을 보지 않고 들을 수 있어요.", Icon: IconSpeaker },
+const MOMENTS: { title: string; body: string }[] = [
+  { title: "손 시린 출근길", body: "브리핑 듣기를 한 번 누르고 휴대폰을 주머니에 넣어 두세요. 소식을 끝까지 이어서 읽어 드려요." },
+  { title: "만원 지하철", body: "화면을 들여다볼 틈이 없어도 이어폰만 있으면 돼요. 앱에서는 화면을 꺼도 계속 들려요." },
+  { title: "운전 중", body: "출발 전에 브리핑 듣기를 눌러 두면 도착할 때까지 화면을 보지 않고 들을 수 있어요." },
 ];
 
 /** 실제 앱 화면 한 장(휴대폰 틀) */
@@ -247,12 +248,10 @@ export async function Landing() {
             읽을 수 없을 땐, 들으면 돼요
           </h2>
           <ul className="mt-10 grid gap-4 md:grid-cols-3">
-            {MOMENTS.map(({ title, body, Icon }) => (
+            {MOMENTS.map(({ title, body }) => (
               <li key={title} className="tile flex flex-col gap-4 p-6">
                 <div className="flex items-center gap-4">
-                  <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-                    <Icon className="size-6" />
-                  </span>
+                  <MangoIcon className="size-16 shrink-0" />
                   <span className="text-[20px] font-bold">{title}</span>
                 </div>
                 <span className="text-[15px] font-medium leading-relaxed text-sub">{body}</span>
@@ -443,6 +442,8 @@ export async function Landing() {
 
         <section aria-labelledby="cta-title" className="mx-auto max-w-[1100px] px-5 py-16 md:py-24">
           <div className="keep-light flex flex-col items-center gap-6 rounded-3xl bg-mango px-6 py-12 text-center md:flex-row md:px-14 md:text-left">
+            {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+            <MangoIcon className="size-28 shrink-0 md:size-36" />
             <div className="flex-1">
               <h2 id="cta-title" className="text-[26px] font-bold leading-snug tracking-[-0.04em] md:text-[34px]">
                 오늘 퇴근길부터 들어 보세요

@@ -1,6 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 import { IconBack, IconClose, IconSearch } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { libraryFilterKey, type LibraryFilters } from "@/lib/library-pages";
 import type { LibraryData } from "@/lib/types";
 import { InfiniteLibrary } from "./InfiniteLibrary";
@@ -68,12 +69,15 @@ export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면
         )}
 
         {lib.groups.length === 0 ? (
-          // (2026-11-25 사용자: 캐릭터 빼기) 맹고·말풍선 대신 회색 둥근 상자
-          <div className="mt-10 rounded-2xl bg-snow px-5 py-4">
-            <p className="text-[16px] font-bold leading-relaxed">{emptyMessage(lib)}</p>
-            {lib.bookmark && lib.bookmarkCount === 0 && (
-              <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">소식 카드나 글 화면에서 북마크를 누르면 여기에 모여요.</p>
-            )}
+          // 회색 둥근 상자, 그 옆(맹고 캐릭터가 있던 자리)에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘)
+          <div className="mt-10 flex items-center gap-3">
+            <MangoIcon className="size-24 shrink-0" />
+            <div className="flex-1 rounded-2xl bg-snow px-5 py-4">
+              <p className="text-[16px] font-bold leading-relaxed">{emptyMessage(lib)}</p>
+              {lib.bookmark && lib.bookmarkCount === 0 && (
+                <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">소식 카드나 글 화면에서 북마크를 누르면 여기에 모여요.</p>
+              )}
+            </div>
           </div>
         ) : infinite ? (
           <InfiniteLibrary

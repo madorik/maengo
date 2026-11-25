@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { IconPlay } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import type { FeedItem } from "@/lib/types";
 
 const DEMO_BG = ["#2B2F4A", "#14385C", "#3A2350", "#1E4636"];
@@ -29,6 +30,8 @@ export function VideoThumb({ item }: { item: FeedItem }) {
             <span className="block text-[12px] font-extrabold text-white/70 sm:text-[14px]">{item.author}</span>
             <span className="mt-1 block text-[19px] font-black leading-tight text-white sm:text-[28px]">{item.title}</span>
           </span>
+          {/* 데모 썸네일 오른쪽, 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+          <MangoIcon className="size-20 shrink-0 sm:size-32" />
           <span className="absolute bottom-3 right-3 flex h-10 w-14 items-center justify-center rounded-xl bg-black/70 text-white transition-transform group-hover:scale-105 sm:bottom-5 sm:right-5">
             <IconPlay className="size-6" />
           </span>

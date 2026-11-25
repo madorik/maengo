@@ -1,6 +1,7 @@
 import { archiveLabel, type PlanLimits } from "@maengo/core/plans";
 import type { Metadata } from "next";
-import { Crown, IconHeadphones } from "@/components/icons";
+import { Crown } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { PremiumBuy, PremiumPrice, RestorePurchases } from "@/components/premium/StoreParts";
 import { PurchaseDoneHost } from "@/components/premium/PurchaseDone";
 import { BackButton } from "@/components/ui/BackButton";
@@ -67,10 +68,8 @@ export default async function PremiumPage({ searchParams }: { searchParams: Prom
               </h1>
               <p className="mt-1 text-[15px] font-semibold leading-snug text-white/75">{plus.dailyItems > free.dailyItems ? `출근길·퇴근길 ${plus.dailyItems}개씩, 귀로도 들어요` : "더 자연스러운 목소리로, 끝까지 귀로 들어요"}</p>
             </div>
-            {/* 맹고 캐릭터 대신 헤드폰 선 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
-            <span aria-hidden="true" className="flex size-[88px] shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-              <IconHeadphones className="size-10" />
-            </span>
+            {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+            <MangoIcon className="size-[88px] shrink-0" />
           </div>
           {/* 앱은 결제 버튼과 같은 스토어 가격, 웹은 plans 표 가격 */}
           <PremiumPrice uid={profile.id} priceKrw={plus.priceKrw} listPriceKrw={plus.listPriceKrw} />

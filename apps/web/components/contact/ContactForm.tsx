@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { sendInquiryAction } from "@/app/contact/actions";
-import { IconCheck } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { Spinner } from "@/components/ui/Spinner";
 import { INQUIRY_BODY_MAX, INQUIRY_CATEGORIES, type InquiryCategory } from "@/lib/inquiry";
 
@@ -19,10 +19,8 @@ export function ContactForm({ defaultEmail, home, category, preset }: { defaultE
   if (state?.ok) {
     return (
       <div className="flex flex-col items-center pt-10 text-center">
-        {/* 맹고 캐릭터 대신 주황 원 체크(2026-11-25 사용자: 캐릭터 빼기) */}
-        <span aria-hidden="true" className="keep-light flex size-16 items-center justify-center rounded-full bg-mango text-ink">
-          <IconCheck className="size-8" />
-        </span>
+        {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+        <MangoIcon className="size-28" />
         <p className="mt-5 text-[22px] font-black tracking-[-0.02em]">문의를 보냈어요</p>
         <p className="mt-2 break-all text-[15px] font-semibold text-sub">{state.replyTo}로 답을 드릴게요.</p>
         <Link href={home} className="btn btn-ghost mt-8 min-h-12 px-8 text-[15px] no-underline">

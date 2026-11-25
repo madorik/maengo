@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { IconSparkles } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { Confetti } from "@/components/ui/Confetti";
 
 /** 이 기기에서 본 가입 선물(받은 시각). 같은 선물은 한 번만 띄운다 */
@@ -55,13 +55,11 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
       className="m-auto w-[min(340px,calc(100vw-40px))] max-w-none overflow-visible bg-transparent p-0"
     >
       <div className="pop overflow-hidden rounded-[28px] bg-paper text-center text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
-        {/* 축하 영역: 연한 망고색 위에 색종이와 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
+        {/* 축하 영역: 연한 망고색 위에 색종이, 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
         <div aria-hidden="true" className="keep-light relative h-[168px] bg-[#FFF4D6]">
           <Confetti />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <span className="flex size-[88px] items-center justify-center rounded-full bg-mango text-[#1F2340]">
-              <IconSparkles className="size-11" />
-            </span>
+          <div className="absolute left-1/2 top-6 -translate-x-1/2">
+            <MangoIcon className="size-[120px]" />
           </div>
         </div>
 

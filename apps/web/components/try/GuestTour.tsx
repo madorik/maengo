@@ -3,12 +3,12 @@
 import { SECTION_LABEL, sectionOf } from "@maengo/core/sections";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Crown, IconCheck, IconChevronDown, IconClose, IconExternal, IconHeadphones, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { Crown, IconCheck, IconChevronDown, IconClose, IconExternal, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { AuthLink, useSignedIn } from "@/components/landing/AuthLink";
 import { SeekBar } from "@/components/listen/SeekBar";
+import { MangoIcon } from "@/components/MangoIcon";
 import { Thumb } from "@/components/today/Thumb";
 import { SoundWave } from "@/components/listen/SoundWave";
-import { AiMark } from "@/components/ui/AiMark";
 import { Confetti } from "@/components/ui/Confetti";
 import { Sheet } from "@/components/ui/Sheet";
 import { Spinner } from "@/components/ui/Spinner";
@@ -364,9 +364,9 @@ export function GuestTour({
 const LINE = "#FFC23D";
 const PASSED = "#D5D8E0";
 
-/** 노선 위 '지금 위치' 주황 점. 맹고 캐릭터 대신(2026-11-25 사용자: 캐릭터 빼기). 노선 선도 주황이라 둘레를 배경색으로 둘러 구분한다 */
+/** 노선 위 '지금 위치' 작은 새 앱 아이콘. 맹고 캐릭터가 있던 자리 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘). 노선 선도 주황이라 둘레를 배경색으로 둘러 구분한다 */
 function RouteDot() {
-  return <span className="size-7 rounded-full bg-mango shadow-[0_2px_6px_rgb(31_35_64/0.25)] ring-[3px] ring-paper" />;
+  return <MangoIcon className="size-8 rounded-[22%] shadow-[0_2px_6px_rgb(31_35_64/0.25)] ring-2 ring-paper" />;
 }
 
 /** 노선의 출발·도착 줄(오늘 화면 노선과 같은 모양) */
@@ -640,6 +640,8 @@ function SignupNudge({ heard, total, onClose, children }: { heard: number; total
   return (
     <section aria-labelledby="try-nudge-title" aria-live="polite" className="pop mb-3 rounded-2xl bg-mango-tint p-4">
       <div className="flex items-start gap-3">
+        {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+        <MangoIcon className="size-11 shrink-0" />
         <div className="min-w-0 flex-1">
           <h2 id="try-nudge-title" className="text-[16px] font-bold leading-snug tracking-[-0.03em]">
             이런 소식, 내 관심 분야로 받아 볼래요?
@@ -729,11 +731,8 @@ function FinishDialog({ offer, heard, total, onClose }: { offer: Offer; heard: n
       <div className="pop overflow-hidden rounded-[28px] bg-paper text-center text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
         <div aria-hidden="true" className="keep-light relative h-[150px] bg-[#FFF4D6]">
           <Confetti />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <span className="flex size-[88px] items-center justify-center rounded-full bg-mango text-[#1F2340]">
-              <IconCheck className="size-11" />
-            </span>
-          </div>
+          {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+          <MangoIcon className="absolute left-1/2 top-5 size-[112px] -translate-x-1/2" />
         </div>
         <div className="px-6 pb-6 pt-5">
           <h2 id="try-finish-title" className="text-[20px] font-bold leading-[1.45] tracking-[-0.03em]">
@@ -821,9 +820,8 @@ function Spotlight({ target, total, onStart, onClose }: { target: React.RefObjec
       <div className="fixed inset-x-4 mx-auto max-w-[360px]" style={{ top: rect.top + rect.height + 14 }}>
         <div className="pop rounded-[24px] bg-paper p-5 text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
           <div className="flex items-start gap-3">
-            <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-              <IconHeadphones className="size-6" />
-            </span>
+            {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+            <MangoIcon className="size-12 shrink-0" />
             <div className="min-w-0">
               <h2 id="try-spot-title" className="text-[18px] font-black leading-snug tracking-[-0.03em]">
                 귀로 들어 보세요
@@ -912,10 +910,8 @@ function GuestAsk({ item, raised }: { item: GuestItem; raised: boolean }) {
       aria-label={open && !inApp ? "맹고 AI 창 닫기" : "맹고 AI에게 물어보기"}
       className={`pop tile pointer-events-auto relative flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${open ? "border-mango" : ""}`}
     >
-      {/* 맹고 얼굴 대신 맹고 AI 표시(2026-11-25 사용자: 캐릭터 빼기. 로그인한 화면 물어보기 버튼과 같은 AiMark) */}
-      <span className="flex size-12 items-center justify-center rounded-full bg-snow">
-        <AiMark className="size-7" />
-      </span>
+      {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+      <MangoIcon className="size-12" />
       <span aria-hidden="true" className="absolute -left-1 -top-1 rounded-full border-2 border-paper bg-sky px-1.5 py-0.5 font-round text-[11px] font-black leading-none text-white">
         AI
       </span>
@@ -948,9 +944,7 @@ function GuestAsk({ item, raised }: { item: GuestItem; raised: boolean }) {
           className="rise tile pointer-events-auto flex max-h-[min(520px,calc(100dvh-220px-env(safe-area-inset-top)))] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden shadow-[0_16px_48px_rgb(31_35_64/0.2)]"
         >
           <header className="flex items-center gap-3 border-b-2 border-line px-4 py-3">
-            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-snow">
-              <AiMark className="size-6" />
-            </span>
+            <MangoIcon className="size-10 shrink-0" />
             <div className="min-w-0 flex-1">
               <h2 id="try-ask-title" className="text-[16px] font-black">
                 맹고 AI
@@ -1027,9 +1021,7 @@ function GuestAskChat({ messages, waiting, onAsk, variant }: { messages: AskMess
                 </li>
               ) : (
                 <li key={m.id} className="flex items-start gap-2">
-                  <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-snow">
-                    <AiMark className="size-5" />
-                  </span>
+                  <MangoIcon className="size-9 shrink-0" />
                   <div className="min-w-0 max-w-[88%] rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-3">
                     <p className="text-[15px] font-medium leading-[1.7]">{m.text}</p>
                     <Link
@@ -1048,9 +1040,7 @@ function GuestAskChat({ messages, waiting, onAsk, variant }: { messages: AskMess
             )}
             {waiting && (
               <li className="flex items-start gap-2">
-                <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-snow">
-                  <AiMark className="size-5" />
-                </span>
+                <MangoIcon className="size-9 shrink-0" />
                 <span role="status" aria-label="답을 쓰는 중" className="flex gap-1 rounded-2xl rounded-tl-md border-2 border-line bg-paper px-4 py-4">
                   {[0, 150, 300].map((d) => (
                     <span key={d} className="size-1.5 rounded-full bg-faint motion-safe:animate-bounce" style={{ animationDelay: `${d}ms` }} />

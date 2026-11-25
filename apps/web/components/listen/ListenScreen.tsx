@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
-import { IconCheck, IconClose, IconHeadphones, IconList, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { IconClose, IconList, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { MangoIcon } from "@/components/MangoIcon";
 import { Spinner } from "@/components/ui/Spinner";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -23,10 +24,8 @@ export function ListenScreen() {
   if (!p.playlist) return <TodayListenScreen />;
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center gap-5 px-6 text-center">
-      {/* 맹고 캐릭터 대신 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
-      <span aria-hidden="true" className="flex size-16 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-        <IconHeadphones className="size-8" />
-      </span>
+      {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+      <MangoIcon className="size-28" />
       <h1 className="text-[22px] font-black">플레이리스트를 듣고 있어요</h1>
       <div className="flex flex-wrap justify-center gap-2">
         <button type="button" onClick={p.exitPlaylist} className="btn btn-sky">
@@ -40,7 +39,7 @@ export function ListenScreen() {
   );
 }
 
-/** 듣기 화면. 지금 읽는 문장이 칸으로 쌓인다(2026-11-25 사용자: 캐릭터 빼기, 맹고 그림 없음) */
+/** 듣기 화면. 지금 읽는 문장이 칸으로 쌓이고, 캐릭터가 있던 자리에는 새 앱 아이콘이 있다(2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */
 function TodayListenScreen() {
   const p = usePlayer();
   const { data, game } = useToday();
@@ -104,9 +103,7 @@ function TodayListenScreen() {
       <main className="mx-auto flex min-h-0 w-full max-w-[640px] flex-1 flex-col px-5">
         {p.status === "done" ? (
           <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <span aria-hidden="true" className="pop flex size-24 items-center justify-center rounded-full bg-mango text-[#1F2340]">
-              <IconCheck className="size-12" />
-            </span>
+            <MangoIcon className="pop size-32" />
             <h1 className="mt-4 text-[26px] font-black text-mango-deep">{game.allDone ? "오늘 완료!" : "다 들었어요!"}</h1>
             {game.allDone && (
               <p className="mt-3 text-[16px] font-semibold leading-relaxed text-sub">
@@ -228,12 +225,10 @@ function Script({ lines, current, playing, intro }: { lines: { text: string }[];
   if (current < 0 && !lines.length) {
     return (
       <section aria-label="듣기 안내" className="flex min-h-0 flex-1 flex-col items-center justify-center pb-6 text-center">
-        <span aria-hidden="true" className={`flex size-20 items-center justify-center rounded-full bg-mango text-[#1F2340] ${playing ? "bob" : ""}`}>
-          <IconHeadphones className="size-10" />
-        </span>
-        <div className="mt-4 max-w-[360px] rounded-2xl bg-snow px-5 py-4">
+        <div className="max-w-[360px] rounded-2xl bg-snow px-5 py-4">
           <p className="text-[16px] font-bold leading-relaxed">{intro}</p>
         </div>
+        <MangoIcon className={`mt-4 size-36 ${playing ? "bob" : ""}`} />
       </section>
     );
   }
@@ -245,6 +240,7 @@ function Script({ lines, current, playing, intro }: { lines: { text: string }[];
         const isCurrent = i === current;
         return (
           <div key={i} className="flex items-end gap-2">
+            <span className="w-12 shrink-0">{i === 0 && <MangoIcon className={`size-12 ${isCurrent && playing ? "bob" : ""}`} />}</span>
             <div className="flex max-w-[80%] flex-col">
               <div
                 className={`rounded-2xl border-2 px-4 py-2.5 text-[17px] leading-[1.6] ${
@@ -259,6 +255,7 @@ function Script({ lines, current, playing, intro }: { lines: { text: string }[];
       })}
       {current < 0 && (
         <div className="flex items-end gap-2">
+          <MangoIcon className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
           <div className="rounded-2xl border-2 border-line px-4 py-2.5 text-[17px] font-black tracking-[0.2em] text-faint" aria-label="곧 읽어요">
             ···
           </div>
