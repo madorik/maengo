@@ -10,6 +10,7 @@ import { IconChevronRight, IconClose, IconTrendUp } from "@/components/icons";
 // - 오늘 화면에서만, 아직 안 연 리포트가 있을 때(ReportBanner가 서버에서 고른다). 누르면 그 리포트, 열면 서버가 seen_at을 남겨 다시 안 뜬다
 // - 이 기기에서 하루 한 번. 10초 동안 손대지 않으면 저절로 닫힌다. ✕는 그 리포트 알림을 다시 띄우지 않는다
 // - 맞춤 정보 질문 알림(같은 자리)이 떠 있으면 그게 닫힐 때까지 기다린다
+// - 2026-11-25 리포트 화면 개편: 모양은 그대로(어두운 둥근 알림에 주황 원 아이콘)
 
 const KEY = "maengo_report_toast";
 
@@ -54,10 +55,10 @@ export function ReportToast({ start, title, headline }: { start: string; title: 
       role="region"
       aria-label="주간 리포트 알림"
       onPointerDown={() => setTouched(true)}
-      className="rise keep-light fixed inset-x-3 bottom-[calc(96px+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-[420px] items-center gap-1 rounded-[20px] bg-[#1F2340] py-2 pl-2 pr-1 text-white shadow-[0_12px_32px_rgb(31_35_64/0.3)] lg:bottom-28"
+      className="rise keep-light fixed inset-x-3 bottom-[calc(96px+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-[420px] items-center gap-1 rounded-[20px] bg-[#17181C] py-2 pl-2 pr-1 text-white shadow-[0_12px_32px_rgb(23_24_28/0.3)] lg:bottom-28"
     >
       <Link href={`/report?d=${start}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-[14px] py-1 pl-1 pr-1 text-white no-underline">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mango text-[#17181C]">
           <IconTrendUp className="size-5" />
         </span>
         <span className="min-w-0 flex-1">
