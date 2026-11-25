@@ -5,7 +5,7 @@ export function PageSkeleton({ hero = true, cards = 3 }: { hero?: boolean; cards
       <p role="status" className="sr-only">
         불러오는 중
       </p>
-      {hero && <div className="h-32 rounded-2xl bg-mango-tint motion-safe:animate-pulse" />}
+      {hero && <div className="h-32 rounded-2xl bg-snow motion-safe:animate-pulse" />}
       {Array.from({ length: cards }, (_, i) => (
         <div key={i} className="tile mt-4 p-5">
           <div className="h-4 w-24 rounded bg-snow motion-safe:animate-pulse" />

@@ -111,7 +111,7 @@ export function AccountMenu({ placement }: { placement: "up" | "down" }) {
             </div>
           </div>
           {premium ? (
-            <p className="mx-2 mb-2 inline-flex items-center gap-1 rounded-lg bg-mango-tint px-2 py-0.5 text-[12px] font-extrabold text-mango-deep">
+            <p className="mx-2 mb-2 inline-flex items-center gap-1 rounded-lg bg-snow px-2 py-0.5 text-[12px] font-extrabold text-ink">
               <Crown className="size-3.5" />
               Premium
             </p>

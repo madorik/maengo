@@ -182,7 +182,7 @@ export function TopicSettings({ groups, news, custom }: { groups: TopicGroupView
         setPos(next ? place(e.currentTarget) : null);
       }}
       className={`tile inline-flex min-h-11 items-center gap-1.5 py-1 pl-3.5 pr-2.5 text-[14px] font-extrabold transition-colors ${
-        open === id ? "border-sky bg-sky-tint" : "hover:bg-snow"
+        open === id ? "border-sky bg-snow" : "hover:bg-snow"
       }`}
     >
       {label}

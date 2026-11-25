@@ -6,7 +6,7 @@ export function SourceChip({ item }: { item: Pick<FeedItem, "kind" | "sourceLabe
   const video = item.kind === "video";
   return (
     // 매체 이름이 길면 카드 머리줄을 넘지 않게 줄인다
-    <span className={`inline-flex min-w-0 max-w-full items-center gap-1 rounded-lg px-2 py-0.5 text-[13px] font-extrabold ${video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
+    <span className={`inline-flex min-w-0 max-w-full items-center gap-1 rounded-lg px-2 py-0.5 text-[13px] font-extrabold ${video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-snow text-sky-dark"}`}>
       {video ? <IconPlay className="size-3.5 shrink-0" /> : <IconDoc className="size-3.5 shrink-0" />}
       <span className="truncate">{item.sourceLabel}</span>
     </span>

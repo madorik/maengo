@@ -244,7 +244,7 @@ function Script({ lines, current, playing, intro }: { lines: { text: string }[];
             <div className="flex max-w-[80%] flex-col">
               <div
                 className={`rounded-2xl border-2 px-4 py-2.5 text-[17px] leading-[1.6] ${
-                  isCurrent ? "border-sky bg-sky-tint font-bold text-ink" : "border-line bg-paper font-medium text-sub"
+                  isCurrent ? "border-sky bg-snow font-bold text-ink" : "border-line bg-paper font-medium text-sub"
                 }`}
               >
                 {line.text}

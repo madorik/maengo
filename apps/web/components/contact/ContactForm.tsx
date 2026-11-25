@@ -40,7 +40,7 @@ export function ContactForm({ defaultEmail, home, category, preset }: { defaultE
             return (
               <label
                 key={c.id}
-                className={`tile flex min-h-12 cursor-pointer items-center justify-center px-3 text-[15px] font-bold transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus ${on ? "border-mango bg-mango-tint" : "hover:bg-snow"}`}
+                className={`tile flex min-h-12 cursor-pointer items-center justify-center px-3 text-[15px] font-bold transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus ${on ? "border-mango bg-snow" : "hover:bg-snow"}`}
               >
                 <input type="radio" name="category" value={c.id} checked={on} onChange={() => setKind(c.id)} className="sr-only" />
                 {c.label}

@@ -9,7 +9,7 @@ import { ReportImpact, type ImpactView } from "./ReportImpact";
 import { ReportSection, ReportWeek, verdictOf, VerdictFrame, weekLead } from "./parts";
 
 // 주간 리포트 한 편(Premium). 2026-11-26 사용자: '핵심적인 내용이 뭔지 우선순위를 세워 구성해야지, 지금 페이지 가독성이 너무 안 좋다' → 승인한 새 구성, 위에서부터:
-// ① 지난주 한 줄과 관심사별 판정(연한 주황 상자, ReportImpact) ② 관심사별로 자세히(관심사 탭 + 카드, ReportImpact) ③ 이번 주 챙겨 볼 일정(digest.next)
+// ① 지난주 한 줄과 관심사별 판정(남색 상자, ReportImpact) ② 관심사별로 자세히(관심사 탭 + 카드, ReportImpact) ③ 이번 주 챙겨 볼 일정(digest.next)
 // ④ 지난주 시장(markets + digest.economy) ⑤ 놓친 주요 소식 ⑥ 나의 한 주(숫자 네 칸 + 요일별 막대) ⑦ 자주 나온 키워드.
 // '분야별 정리'와 '많이 본 분야'는 관심사 카드와 겹쳐 화면에서 뺐다(데이터·생성은 그대로). 큰 소식을 얼마나 챙겼나 막대(weight)도 따로 두지 않고 놓친 주요 소식의 한 줄로 옮겼다.
 // 상자는 ①·②(관심사 카드)·나의 한 주 칸에만, 나머지는 얇은 구분선. Free는 ①(총평·판정 개수)·나의 한 주·맛보기만 본다(ReportFree.tsx, 2026-11-19).
@@ -90,10 +90,10 @@ function PersonalCheck({ headline, personal, items }: { headline: string; person
       {personal.length > 0 && (
         <ul aria-label="맞춤 체크" className="mt-4">
           {personal.map((x) => (
-            <li key={x.title} className="border-t border-ink/10 py-3.5">
+            <li key={x.title} className="border-t border-white/12 py-3.5">
               <p className="text-[16px] font-extrabold tracking-[-0.03em]">{x.about}</p>
-              <p className="mt-1 text-[14px] font-medium leading-[1.65] text-ink/80">{x.text}</p>
-              <ItemLinks ids={x.ids} items={items} className="mt-1" rule="border-ink/10" />
+              <p className="mt-1 text-[14px] font-medium leading-[1.65] text-white/72">{x.text}</p>
+              <ItemLinks ids={x.ids} items={items} className="mt-1" rule="border-white/12" hover="hover:text-mango" />
             </li>
           ))}
         </ul>
@@ -253,14 +253,14 @@ function MissedBlock({ ids, items, weight }: { ids: number[]; items: ReportData[
 }
 
 /** 근거 소식 줄. rule은 줄 사이 선 색(색 있는 상자 안에서는 상자 색에 맞춘다) */
-function ItemLinks({ ids, items, className = "", rule = "border-line" }: { ids: number[]; items: ReportData["items"]; className?: string; rule?: string }) {
+function ItemLinks({ ids, items, className = "", rule = "border-line", hover = "hover:text-mango-deep" }: { ids: number[]; items: ReportData["items"]; className?: string; rule?: string; hover?: string }) {
   const shown = ids.filter((id) => items[id]);
   if (!shown.length) return null;
   return (
     <ul className={className}>
       {shown.map((id) => (
         <li key={id} className={`border-t first:border-t-0 ${rule}`}>
-          <Link href={`/article/${articleToken(id)}`} className="flex min-h-11 items-center gap-2 py-2 text-[14px] font-bold no-underline hover:text-mango-deep">
+          <Link href={`/article/${articleToken(id)}`} className={`flex min-h-11 items-center gap-2 py-2 text-[14px] font-bold no-underline ${hover}`}>
             <span className="min-w-0 flex-1 truncate">{items[id]!.title}</span>
             <IconChevronRight className="size-4 shrink-0 text-faint" />
           </Link>

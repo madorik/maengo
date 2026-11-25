@@ -59,16 +59,16 @@ export function ReportImpact({ headline, interests, footnote }: { headline: stri
         <VerdictFrame headline={headline} lines>
           <ul aria-label="관심사별 판정" className="mt-4">
             {interests.map((x, i) => (
-              <li key={`${x.about}-${i}`} className="border-t border-ink/10">
+              <li key={`${x.about}-${i}`} className="border-t border-white/12">
                 <button
                   type="button"
                   aria-controls="report-detail"
                   onClick={() => show(i)}
-                  className="-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center gap-2.5 rounded-xl px-2 py-[13px] text-left transition-colors hover:bg-ink/5 active:bg-ink/5"
+                  className="-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center gap-2.5 rounded-xl px-2 py-[13px] text-left transition-colors hover:bg-white/5 active:bg-white/5"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-[16px] font-extrabold leading-[1.35] tracking-[-0.03em]">{x.about}</span>
-                    <span className="mt-0.5 line-clamp-2 block text-[14px] font-medium leading-[1.45] text-ink/80">{x.title}</span>
+                    <span className="mt-0.5 line-clamp-2 block text-[14px] font-medium leading-[1.45] text-white/72">{x.title}</span>
                   </span>
                   <VerdictPill tone={x.tone} />
                   <span className="sr-only">{`, 자세히 보기`}</span>
@@ -130,7 +130,7 @@ export function ReportImpact({ headline, interests, footnote }: { headline: stri
             )}
 
             {cur.next && (
-              <div className="mt-3 flex gap-2.5 rounded-[14px] bg-mango-tint p-3.5">
+              <div className="mt-3 flex gap-2.5 rounded-[14px] bg-snow p-3.5">
                 <IconCalendar className="mt-0.5 size-[18px] shrink-0 text-mango-deep" />
                 <p className="min-w-0 text-[14.5px] font-semibold leading-[1.6]">
                   <b className="font-extrabold text-mango-deep">이번 주 볼 것</b> {cur.next}

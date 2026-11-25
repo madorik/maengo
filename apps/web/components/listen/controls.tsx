@@ -173,7 +173,7 @@ function Item({
     <li
       ref={liRef}
       style={style}
-      className={`tile relative flex items-center ${handle ? "pl-1" : ""} ${current ? "border-sky bg-sky-tint" : ""} ${dragging ? "z-20 border-sky shadow-[0_8px_24px_rgba(0,0,0,0.12)]" : ""}`}
+      className={`tile relative flex items-center ${handle ? "pl-1" : ""} ${current ? "border-sky bg-snow" : ""} ${dragging ? "z-20 border-sky shadow-[0_8px_24px_rgba(0,0,0,0.12)]" : ""}`}
     >
       {handle}
       <button

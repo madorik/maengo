@@ -21,7 +21,7 @@ export function TodaySkeleton() {
   const { data } = useToday();
   const pm = data.slot === "pm";
   const bar = pm ? "sk-night" : "sk";
-  const mango = pm ? "sk-night" : "sk-mango";
+  const mango = pm ? "sk-night" : "sk-ink";
   return (
     <div aria-busy="true" className={pm ? "min-h-dvh bg-[#1F2340]" : ""}>
       <Status />
@@ -42,7 +42,7 @@ export function TodaySkeleton() {
               <div className={`mt-2 h-3 w-3/4 rounded-full ${pm ? "sk-night" : "sk-ink"}`} />
               <div className={`mt-auto h-3 w-24 rounded-full ${pm ? "sk-night" : "sk-ink"}`} />
             </div>
-            <div className={`flex h-[200px] w-[80%] max-w-[300px] shrink-0 flex-col rounded-[24px] p-5 ${pm ? "bg-white/10" : "bg-mango-tint"}`}>
+            <div className={`flex h-[200px] w-[80%] max-w-[300px] shrink-0 flex-col rounded-[24px] p-5 ${pm ? "bg-white/10" : "bg-snow"}`}>
               <div className={`h-6 w-24 rounded-full ${mango}`} />
               <div className={`mt-3.5 h-5 w-1/2 rounded-md ${mango}`} />
               <div className={`mt-3 h-3 w-4/5 rounded-full ${mango}`} />

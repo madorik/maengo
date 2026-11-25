@@ -30,7 +30,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="개인정보 처리방침" path="/privacy">
       {beforeEffective() && (
-        <div role="note" className="mb-8 rounded-2xl border-2 border-mango bg-mango-tint p-5 text-[15px] leading-relaxed">
+        <div role="note" className="mb-8 rounded-2xl bg-snow p-5 text-[15px] leading-relaxed">
           <p className="!mt-0 font-black">이 방침은 {koDate(PRIVACY_EFFECTIVE_ON)}부터 시행돼요</p>
           <p>
             바뀌는 점: 주간 리포트(Premium)를 OpenAI API로 만듭니다(안 될 때는 지금처럼 Google Gemini API). 주간 리포트를 만들 때 그 주에 받은 소식의 제목·요약 앞부분과 읽거나 들었는지, 회원이 알려 준 맞춤 정보 문장을 OpenAI(미국)로 보냅니다(이메일·이름·회원 번호는 보내지 않고, 설정에서 &lsquo;맞춤 인사이트&rsquo;를 끄면 맞춤 정보와 읽은 표시는 보내지 않음). 시행일 전까지는{" "}

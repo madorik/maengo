@@ -99,7 +99,7 @@ export function ShareButton({
             disabled={!url}
             className="tile mt-3 flex min-h-14 w-full items-center gap-3 px-4 text-left hover:bg-snow disabled:opacity-60"
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-tint text-sky">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-snow text-sky ring-1 ring-line">
               <IconShare className="size-5" />
             </span>
             <span className="min-w-0 flex-1">

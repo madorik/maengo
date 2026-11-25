@@ -219,7 +219,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
       </p>
       {p.preparing && (
-        <div className="mt-2 flex items-center gap-2 rounded-2xl bg-mango-tint/60 py-2 pl-3 pr-2">
+        <div className="mt-2 flex items-center gap-2 rounded-2xl bg-snow py-2 pl-3 pr-2">
           <p role="status" className="min-w-0 flex-1 text-[13px] font-semibold leading-relaxed text-ink">
             {PREPARING_TEXT}
           </p>

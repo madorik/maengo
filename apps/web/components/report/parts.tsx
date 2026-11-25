@@ -8,7 +8,6 @@ import { ToneIcon } from "@/components/ui/ToneIcon";
 /** 판정 이름: 알약에는 짧게, 자세히 칸에는 '요인·변수'까지 */
 export const VERDICT_SHORT: Record<ReportTone, string> = { minus: "부담", plus: "긍정", watch: "지켜볼" };
 export const VERDICT_LONG: Record<ReportTone, string> = { minus: "부담 요인", plus: "긍정 요인", watch: "지켜볼 변수" };
-export const VERDICT_COLOR: Record<ReportTone, string> = { minus: "text-minus", plus: "text-plus", watch: "text-watch" };
 export const VERDICT_CHIP: Record<ReportTone, string> = { minus: "bg-minus-tint text-minus", plus: "bg-plus-tint text-plus", watch: "bg-watch-tint text-watch" };
 /** 소식 앞 점 색(판정 색) */
 export const VERDICT_DOT: Record<ReportTone, string> = { minus: "bg-minus-mark", plus: "bg-plus-mark", watch: "bg-watch" };
@@ -24,10 +23,16 @@ export function verdictOf(counts: Record<ReportTone, number>, fallback: ReportTo
   return lead.length === 1 ? lead[0]! : "watch";
 }
 
-/** 연한 주황 상자 안 판정 알약(흰 바탕, 아이콘 + 짧은 이름) */
+/**
+ * 남색 상자 안 판정 알약은 다크에서도 흰 바탕이라 글자색을 밝은 모드 판단 색 hex로 고정한다(--color-plus·minus·watch의 밝은 값과 같다.
+ * 토큰을 쓰면 다크에서 연한 값이 흰 바탕 위에 올라 안 읽힌다)
+ */
+const VERDICT_PILL: Record<ReportTone, string> = { minus: "text-[#E8650A]", plus: "text-[#2563EB]", watch: "text-[#D7323C]" };
+
+/** 남색 상자 안 판정 알약(흰 바탕, 아이콘 + 짧은 이름) */
 export function VerdictPill({ tone }: { tone: ReportTone }) {
   return (
-    <span className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-paper px-2.5 text-[13px] font-extrabold ${VERDICT_COLOR[tone]}`}>
+    <span className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-white px-2.5 text-[13px] font-extrabold ${VERDICT_PILL[tone]}`}>
       <ToneIcon tone={tone} className="size-[13px]" />
       {VERDICT_SHORT[tone]}
     </span>
@@ -48,13 +53,14 @@ export function ReportSection({ id, title, lead, children }: { id: string; title
 }
 
 /**
- * 맨 위 연한 주황 상자: 작은 이름표 '지난주 한 줄' + 총평 23px/800, 그 아래 children(관심사별 판정 줄·판정 개수·맞춤 체크 문장).
- * children이 줄 목록이면 마지막 줄 아래 여백이 있어 pb를 줄인다(lines)
+ * 맨 위 남색 상자(2026-11-26 사용자: 연노랑 다 제거 → 화면의 결론 카드는 남색, 오늘 화면 남색 흐름 카드와 같은 쓰임): 작은 이름표 '지난주 한 줄'(망고 노랑) + 총평 23px/800(흰색),
+ * 그 아래 children(관심사별 판정 줄·판정 개수·맞춤 체크 문장). 다크에서도 같은 남색이라 안쪽 글자는 흰색·구분선은 white/12로 직접 적고(토큰이 다크에서 뒤집힌다),
+ * 눈에 보이는 포커스 링도 남색 위에서 보이게 망고 노랑으로 바꾼다. children이 줄 목록이면 마지막 줄 아래 여백이 있어 pb를 줄인다(lines)
  */
 export function VerdictFrame({ headline, lines = false, children }: { headline: string; lines?: boolean; children?: React.ReactNode }) {
   return (
-    <section aria-labelledby="report-sum" className={`rounded-3xl bg-mango-tint px-5 pt-[22px] ${lines ? "pb-2" : "pb-5"}`}>
-      <p className="text-[13px] font-extrabold text-mango-deep">지난주 한 줄</p>
+    <section aria-labelledby="report-sum" className={`rounded-3xl bg-[#1F2340] px-5 pt-[22px] text-white [--color-focus:#FFC23D] ${lines ? "pb-2" : "pb-5"}`}>
+      <p className="text-[13px] font-extrabold text-mango">지난주 한 줄</p>
       <h2 id="report-sum" className="mt-2 text-[23px] font-extrabold leading-[1.4] tracking-[-0.045em] text-balance">
         {headline}
       </h2>
@@ -71,7 +77,7 @@ export function ReportVerdict({ headline, tones }: { headline: string; tones?: R
       {shown.length > 0 && (
         <ul aria-label="내 관심사에 닿은 소식" className="mt-4 flex flex-wrap gap-1.5">
           {shown.map((t) => (
-            <li key={t} aria-label={`${VERDICT_LONG[t]} ${tones![t]}개`} className={`inline-flex h-7 items-center gap-1 rounded-full bg-paper px-2.5 text-[13px] font-extrabold tabular-nums ${VERDICT_COLOR[t]}`}>
+            <li key={t} aria-label={`${VERDICT_LONG[t]} ${tones![t]}개`} className={`inline-flex h-7 items-center gap-1 rounded-full bg-white px-2.5 text-[13px] font-extrabold tabular-nums ${VERDICT_PILL[t]}`}>
               <ToneIcon tone={t} className="size-[13px]" />
               {`${VERDICT_SHORT[t]} ${tones![t]}개`}
             </li>
@@ -141,7 +147,7 @@ function Stat({ label, now, last, period }: { label: string; now: number; last: 
           <span className="text-[14px] font-bold text-sub">개</span>
         </span>
         {diff !== null && (
-          <span aria-hidden="true" className={`inline-flex h-6 items-center whitespace-nowrap rounded-full px-[9px] text-[12.5px] font-extrabold tracking-normal tabular-nums ${diff > 0 ? "bg-mango-tint text-mango-deep" : "bg-line text-ink/80"}`}>
+          <span aria-hidden="true" className={`inline-flex h-6 items-center whitespace-nowrap rounded-full px-[9px] text-[12.5px] font-extrabold tracking-normal tabular-nums ${diff > 0 ? "bg-paper text-ink ring-1 ring-line" : "bg-line text-ink/80"}`}>
             {diff === 0 ? "같아요" : `${diff > 0 ? "▲" : "▼"} ${Math.abs(diff)}`}
           </span>
         )}

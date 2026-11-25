@@ -7,7 +7,7 @@ import { IconPhone } from "@/components/icons";
 export function AppOnlyNotice({ className = "" }: { className?: string }) {
   return (
     <div role="note" className={`tile flex items-start gap-3 p-4 text-left ${className}`}>
-      <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-tint text-sky-dark">
+      <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-snow text-sky-dark">
         <IconPhone className="size-5" />
       </span>
       <div className="min-w-0">

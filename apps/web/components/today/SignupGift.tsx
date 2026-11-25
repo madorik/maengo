@@ -55,8 +55,8 @@ export function SignupGift({ gift }: { gift: { amount: number; at: string } }) {
       className="m-auto w-[min(340px,calc(100vw-40px))] max-w-none overflow-visible bg-transparent p-0"
     >
       <div className="pop overflow-hidden rounded-[28px] bg-paper text-center text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
-        {/* 축하 영역: 연한 망고색 위에 색종이, 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
-        <div aria-hidden="true" className="keep-light relative h-[168px] bg-[#FFF4D6]">
+        {/* 축하 영역: 회색 면 위에 색종이, 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
+        <div aria-hidden="true" className="keep-light relative h-[168px] bg-snow">
           <Confetti />
           <div className="absolute left-1/2 top-6 -translate-x-1/2">
             <MangoIcon className="size-[120px]" />

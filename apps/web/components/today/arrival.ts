@@ -74,7 +74,8 @@ export function useArrivalHighlight(arrival: Arrival | null, card: RefObject<HTM
     if (arrival.focus) title.current?.focus({ preventScroll: true });
     const css = getComputedStyle(el);
     const sky = css.getPropertyValue("--color-sky").trim() || "#1A8FE0";
-    const tint = css.getPropertyValue("--color-sky-tint").trim() || "#E1F2FF";
+    // 바깥 고리는 연한 선 색(연노랑이던 sky-tint가 회색 면이 되어 흰 바탕에서 안 보인다, 2026-11-26 사용자: 연노랑 다 제거)
+    const tint = css.getPropertyValue("--color-line").trim() || "#E4E6EE";
     const on = { borderColor: sky, boxShadow: `0 0 0 4px ${tint}` };
     // 끝 모습은 적지 않는다(카드의 지금 테두리로 돌아간다). 클래스는 건드리지 않아 듣는 중 테두리와 섞이지 않는다
     const anim = el.animate([{ ...on, offset: 0 }, { ...on, offset: HOLD_MS / (HOLD_MS + FADE_MS), easing: reduce ? "steps(1, end)" : "ease-out" }], {

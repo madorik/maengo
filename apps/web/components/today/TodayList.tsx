@@ -355,11 +355,11 @@ function Route({
               )}
             </div>
             {/* 카드: 글(제목·요약 정보)과 사진은 글 화면으로, 사진 모서리(사진이 없으면 그 자리)의 버튼은 재생·일시정지 */}
-            <div className={`flex min-w-0 flex-1 items-center gap-3 ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-mango-tint px-3") : ""}`}>
+            <div className={`flex min-w-0 flex-1 items-center gap-3 ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-snow px-3 ring-2 ring-ink") : ""}`}>
               <Link href={`/article/${item.token}`} aria-current={listening ? "true" : undefined} className="min-w-0 flex-1 py-2.5 no-underline">
                 {/* 듣는 중은 글씨로 쓰지 않는다(줄이 늘어 보기 불편, 2026-11-11 사용자): 노선의 망고가 그 자리에서 커졌다 작아진다 */}
                 {big && headline && (
-                  <span className={`mb-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pm ? "bg-mango/20 text-mango" : "bg-mango-tint text-mango-deep"}`}>가장 많이 다룬 소식</span>
+                  <span className={`mb-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pm ? "bg-mango/20 text-mango" : "bg-snow text-ink ring-1 ring-line"}`}>가장 많이 다룬 소식</span>
                 )}
                 {/* 제목은 두 줄까지, 넘치면 …(2026-11-10 사용자) */}
                 <p

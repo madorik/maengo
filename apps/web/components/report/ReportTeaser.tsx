@@ -3,7 +3,7 @@ import type { ReportTone } from "@maengo/core/report";
 import { VerdictFrame, VerdictPill } from "./parts";
 
 // Free가 리포트 메뉴를 열면: 어떤 리포트인지 예시 한 장과 Premium 안내(요금 페이지로). 예시 숫자·문구는 지어낸 것이라 '예시'로 표시한다
-// 2026-11-26 개편: 실제 리포트와 같은 우선순위 — 연한 주황 '지난주 한 줄' 상자(총평 + 관심사별 판정 줄), 그 아래 챙겨 볼 일정 한 줄, 키워드 칩. 숫자 칸·막대는 뺐다
+// 2026-11-26 개편: 실제 리포트와 같은 우선순위 — 남색 '지난주 한 줄' 상자(총평 + 관심사별 판정 줄), 그 아래 챙겨 볼 일정 한 줄, 키워드 칩. 숫자 칸·막대는 뺐다
 
 const SAMPLE = {
   headline: "외국인 매도로 국내 주식엔 부담, 반도체엔 기회였던 한 주",
@@ -30,10 +30,10 @@ export function ReportTeaser() {
         <VerdictFrame headline={SAMPLE.headline} lines>
           <ul className="mt-4">
             {SAMPLE.verdicts.map(([about, title, tone]) => (
-              <li key={about} className="flex items-center gap-2.5 border-t border-ink/10 py-[13px]">
+              <li key={about} className="flex items-center gap-2.5 border-t border-white/12 py-[13px]">
                 <span className="min-w-0 flex-1">
                   <span className="block text-[16px] font-extrabold leading-[1.35] tracking-[-0.03em]">{about}</span>
-                  <span className="mt-0.5 block text-[14px] font-medium leading-[1.45] text-ink/80">{title}</span>
+                  <span className="mt-0.5 block text-[14px] font-medium leading-[1.45] text-white/72">{title}</span>
                 </span>
                 <VerdictPill tone={tone} />
               </li>

@@ -44,7 +44,8 @@
   --color-mango: #FFC23D;
   --color-mango-dark: #E09A12;
   --color-mango-deep: #A86A00;
-  --color-mango-tint: #FFF4D6;
+  /* 연한 망고(연노랑) 바탕은 없앴다 (2026-11-26 사용자: 연노랑 다 제거). 이름은 쓰는 곳이 남아 있을 수 있어 그대로 두고 값만 회색 면(snow)으로 둔다 */
+  --color-mango-tint: #F6F7FB;
   --color-orange: #FF8A1F;
 
   --color-leaf: #23914F;
@@ -55,11 +56,11 @@
   /* 오류(내 관심 링크를 못 가져올 때). 흰 바탕 글자 대비 4.5:1 이상 */
   --color-cherry: #D92D3A;
 
-  /* 예전 듣기 색(하늘 파랑). 2026-11-10 새 방향(망고·남색·흰색)에서 파랑을 빼고 남색 글자·연한 망고 바탕으로 바꿨다.
-     이름은 쓰는 곳이 많아 그대로 둔다 */
+  /* 예전 듣기 색(하늘 파랑). 2026-11-10 새 방향(망고·남색·흰색)에서 파랑을 빼고 남색 글자·연한 망고 바탕으로 바꿨다가,
+     연한 망고 바탕도 없앴다 (2026-11-26 사용자: 연노랑 다 제거). sky-tint는 회색 면(snow) 값. 이름은 쓰는 곳이 많아 그대로 둔다 */
   --color-sky: #1F2340;
   --color-sky-dark: #1F2340;
-  --color-sky-tint: #FFF4D6;
+  --color-sky-tint: #F6F7FB;
 
   --color-focus: #1F2340;
 }
@@ -83,14 +84,15 @@
   --color-line-dark: #383D53;
   --color-snow: #1D2030;
   --color-mango-deep: #F4B740;
-  --color-mango-tint: #3A2F14;
+  /* 연노랑 제거 (2026-11-26 사용자: 연노랑 다 제거): 다크의 snow 값 */
+  --color-mango-tint: #1D2030;
   --color-leaf: #3CC77A;
   --color-leaf-dark: #7FE0A8;
   --color-leaf-tint: #123323;
   --color-cherry: #FF6B76;
   --color-sky: #FFC23D;
   --color-sky-dark: #F4B740;
-  --color-sky-tint: #3A2F14;
+  --color-sky-tint: #1D2030;
   --color-focus: #FFC23D;
 }
 @media (prefers-color-scheme: dark) {
@@ -112,19 +114,19 @@
     --color-line-dark: #383D53;
     --color-snow: #1D2030;
     --color-mango-deep: #F4B740;
-    --color-mango-tint: #3A2F14;
+    --color-mango-tint: #1D2030;
     --color-leaf: #3CC77A;
     --color-leaf-dark: #7FE0A8;
     --color-leaf-tint: #123323;
     --color-cherry: #FF6B76;
     --color-sky: #FFC23D;
     --color-sky-dark: #F4B740;
-    --color-sky-tint: #3A2F14;
+    --color-sky-tint: #1D2030;
     --color-focus: #FFC23D;
   }
 }
 
-/* 망고색 카드처럼 다크에서도 밝게 두는 곳: 안쪽 글자·선 토큰을 밝은 값으로 되돌린다 */
+/* 망고색 카드·흰 바탕 축하 영역처럼 다크에서도 밝게 두는 곳: 안쪽 글자·선 토큰을 밝은 값으로 되돌린다(연노랑 값은 회색 면으로, (2026-11-26 사용자: 연노랑 다 제거)) */
 .keep-light {
   color-scheme: light;
   color: var(--color-ink);
@@ -136,14 +138,14 @@
   --color-line-dark: #CDD1DC;
   --color-snow: #F6F7FB;
   --color-mango-deep: #A86A00;
-  --color-mango-tint: #FFF4D6;
+  --color-mango-tint: #F6F7FB;
   --color-leaf: #23914F;
   --color-leaf-dark: #17683A;
   --color-leaf-tint: #DDF7E5;
   --color-cherry: #D92D3A;
   --color-sky: #1F2340;
   --color-sky-dark: #1F2340;
-  --color-sky-tint: #FFF4D6;
+  --color-sky-tint: #F6F7FB;
   /* 판단 색도 밝은 값으로(주간 리포트 총평 칸의 부담·긍정·지켜볼 수, 2026-11-25) */
   --color-plus: #2563EB;
   --color-minus: #E8650A;
@@ -307,12 +309,6 @@
   /* 보관함에서 골라 듣기로 고르는 동안은 떠 있는 플레이어를 숨긴다(아래 '고른 n개 듣기' 막대와 겹친다) */
   html[data-picking] [data-tour="player"] {
     visibility: hidden;
-  }
-
-  /* 형광펜이 줄마다 끊기지 않게 */
-  .hl {
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
   }
 
   .bob {
@@ -485,7 +481,8 @@
   불러오는 동안의 뼈대(2026-11-11 로딩 화면 A안: 다 불러온 화면과 같은 자리에 같은 모양, 왼쪽→오른쪽으로 은은한 빛이 지나간다).
   components/ui/Skeletons.tsx(오늘·보관함), today/BriefingInsight.tsx InsightFallback.
   색은 바탕·선 색에서 섞어 만들어 다크에서도 맞는다. color-mix를 못 쓰는 옛 웹뷰는 단색 바탕만 남는다
-  sk: 기본 회색 / sk-mango: 망고빛(머리말·망고 카드) / sk-ink: 남색 흐름 카드 안 / sk-night: 퇴근길(남색 바탕) 위
+  sk: 기본 회색 / sk-ink: 회색 면·남색 흐름 카드 안(머리말·흐름 카드 자리에도 쓴다) / sk-night: 퇴근길(남색 바탕) 위
+  (sk-mango 망고빛은 없앴다 (2026-11-26 사용자: 연노랑 다 제거))
 */
 @keyframes sk-shine {
   0% {
@@ -496,7 +493,6 @@
   }
 }
 .sk,
-.sk-mango,
 .sk-ink,
 .sk-night {
   background-size: 320% 100%;
@@ -509,15 +505,6 @@
     color-mix(in srgb, var(--color-line) 60%, var(--color-paper)) 38%,
     color-mix(in srgb, var(--color-line) 12%, var(--color-paper)) 50%,
     color-mix(in srgb, var(--color-line) 60%, var(--color-paper)) 62%
-  );
-}
-.sk-mango {
-  background-color: var(--color-mango-tint);
-  background-image: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-mango) 30%, var(--color-paper)) 38%,
-    color-mix(in srgb, var(--color-mango) 12%, var(--color-paper)) 50%,
-    color-mix(in srgb, var(--color-mango) 30%, var(--color-paper)) 62%
   );
 }
 .sk-ink {
@@ -533,13 +520,12 @@
   background-color: rgb(255 255 255 / 0.12);
   background-image: linear-gradient(90deg, rgb(255 255 255 / 0.12) 38%, rgb(255 255 255 / 0.22) 50%, rgb(255 255 255 / 0.12) 62%);
 }
-/* 흐름 카드 자리(남색 카드·망고 카드) */
+/* 흐름 카드 자리(남색 카드) */
 .sk-card-ink {
   background-color: color-mix(in srgb, var(--color-ink) 8%, var(--color-paper));
 }
 @media (prefers-reduced-motion: reduce) {
   .sk,
-  .sk-mango,
   .sk-ink,
   .sk-night {
     animation: none;
@@ -579,32 +565,21 @@
 /* 오늘의 흐름을 만드는 동안의 진행 카드(components/today/BriefingInsight.tsx InsightFallback, 2026-11-13 사용자: 무엇을 하는지·진행률).
    서버가 먼저 그린 대체 화면은 브라우저에서 스크립트로 살아나지 않아 말 바뀜·막대·%를 CSS만으로 한다.
    막대와 %는 같은 곡선으로 24초에 걸쳐 6%→94%(처음 빠르고 나중에 거의 멈춘다: 6초쯤 70%, 10초쯤 80%대). 다 되면 카드가 통째로 바뀐다 */
-/* 오늘 인사이트 큰 제목의 망고 형광펜(2026-11-15 사용자: 인사이트 타이틀이 딱 눈에 띄어야). 밝은 바탕은 글자 아래쪽 42%에 줄마다 긋는다.
+/* 오늘 인사이트 큰 제목의 망고 노랑 밑줄(2026-11-15 사용자: 인사이트 타이틀이 딱 눈에 띄어야).
+   2026-11-26 사용자: 연노랑 다 제거 → 글자 뒤를 옅게 칠하던 형광펜을 없애고, 밝은·어두운 바탕 모두 글자 아래 3px 망고 노랑 밑줄로 긋는다.
    화면을 열 때 왼쪽에서 한 번 그어지고(0.25초 뒤 0.7초) 끝. 움직임 줄이기면 전역 규칙으로 바로 다 그어진 채 */
 .insight-mark {
-  --insight-hl: rgb(255 194 61 / 0.5);
-  --insight-hl-h: 0.42em;
+  --insight-hl: var(--color-mango);
+  --insight-hl-h: 3px;
   background-image: linear-gradient(var(--insight-hl), var(--insight-hl));
   background-repeat: no-repeat;
-  background-position: 0 92%;
+  background-position: 0 100%;
   background-size: 100% var(--insight-hl-h);
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
   padding: 0 0.08em;
   margin: 0 -0.08em;
   animation: insight-mark 700ms cubic-bezier(0.23, 1, 0.32, 1) 250ms both;
-}
-/* 어두운 바탕(퇴근길 남색·다크 모드)에서는 옅은 망고가 탁한 갈색이 되어, 밝은 망고 밑줄로 긋는다 */
-.insight-mark-night,
-:root[data-theme="dark"] .insight-mark {
-  --insight-hl: var(--color-mango);
-  --insight-hl-h: 0.13em;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .insight-mark {
-    --insight-hl: var(--color-mango);
-    --insight-hl-h: 0.13em;
-  }
 }
 @keyframes insight-mark {
   from {

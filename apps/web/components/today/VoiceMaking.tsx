@@ -35,7 +35,7 @@ function Making() {
   const fill = useCreep(0.06, 0.94, 0.03);
   const line = lineAt(sec);
   return (
-    <div className="mt-3 rounded-xl bg-sky-tint px-3 py-3">
+    <div className="mt-3 rounded-xl bg-snow px-3 py-3">
       <p role="status" className="sr-only">
         음성을 만들고 있어요. 보통 5~10초 걸려요
       </p>
@@ -54,7 +54,7 @@ function Making() {
           </p>
         </div>
       </div>
-      <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/80" aria-hidden>
+      <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-paper" aria-hidden>
         <div className="stripes h-full rounded-full bg-sky transition-[width] duration-300 ease-out" style={{ width: `${Math.round(fill * 100)}%` }} />
       </div>
     </div>

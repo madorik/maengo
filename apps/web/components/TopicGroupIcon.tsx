@@ -5,8 +5,8 @@ import { IconAtom, IconChip, IconCode, IconCoin, IconGlobe, IconLandmark, IconLi
 const LOOK: Record<string, { Icon: ComponentType<{ className?: string }>; tone: string }> = {
   ai: { Icon: IconSparkles, tone: "bg-[#EFEAFF] text-[#5A3FC0] tone [--tone:#5A3FC0]" },
   stock: { Icon: IconTrendUp, tone: "bg-[#E2F5F3] text-[#0F6E66] tone [--tone:#0F6E66]" },
-  coin: { Icon: IconCoin, tone: "bg-[#FFF3D1] text-[#8A5A00] tone [--tone:#8A5A00]" },
-  "chip-robot": { Icon: IconChip, tone: "bg-sky-tint text-sky-dark" },
+  coin: { Icon: IconCoin, tone: "bg-snow text-ink" }, // (2026-11-26 사용자: 연노랑 다 제거)
+  "chip-robot": { Icon: IconChip, tone: "bg-snow text-sky-dark" },
   dev: { Icon: IconCode, tone: "bg-[#E6EBFF] text-[#3046B5] tone [--tone:#3046B5]" },
   // 뉴스 분야(헤드라인)
   politics: { Icon: IconLandmark, tone: "bg-[#EEF0F6] text-[#3B4A6B] tone [--tone:#3B4A6B]" },

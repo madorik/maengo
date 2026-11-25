@@ -187,7 +187,7 @@ function Row({ entry: e, busy, inPlayer, onAdd, onRemove }: { entry: LibraryEntr
         title={inPlayer ? "플레이어에 있어요" : "플레이어에 추가"}
         onClick={onAdd}
         disabled={inPlayer}
-        className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sky enabled:hover:bg-sky-tint disabled:text-leaf"
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sky enabled:hover:bg-snow disabled:text-leaf"
       >
         {inPlayer ? <IconCheck className="size-5 [stroke-width:2.6]" /> : <IconPlus className="size-5 [stroke-width:2.4]" />}
       </button>

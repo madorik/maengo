@@ -61,9 +61,9 @@ export function BriefingHero({
     <>
       <ForYou />
       {/* 2026-11-15 사용자 '인사이트가 눈에 띄지 않네, 제일 처음 보는 화면이고 인사이트 타이틀이 딱 눈에 띄어야 가입할만하지' →
-          25px → 30px 굵게, 망고 형광펜을 한 번 긋는다(globals.css insight-mark). 아래 흐름 카드보다 먼저 눈이 가게 */}
+          25px → 30px 굵게, 망고 노랑 밑줄을 한 번 긋는다(globals.css insight-mark; 2026-11-26 사용자: 연노랑 다 제거 → 옅게 깐 형광펜 대신 3px 밑줄). 아래 흐름 카드보다 먼저 눈이 가게 */}
       <h1 id="briefing-title" className="mt-3 text-[30px] font-extrabold leading-[1.3] tracking-[-0.045em] text-balance">
-        <span className={`insight-mark ${pm ? "insight-mark-night" : ""}`}>{insight.headline}</span>
+        <span className="insight-mark">{insight.headline}</span>
       </h1>
       <Lead insight={insight} pm={pm} personalOff={personalOff} />
       <DateBelow pm={pm} />
@@ -188,19 +188,19 @@ const TONES = {
   am: [
     { card: "bg-[#1F2340] text-white", sub: "text-white/75", count: "text-mango", ring: "ring-[#1F2340]", tag: "bg-white/12 text-mango" },
     { card: "bg-mango text-[#1F2340]", sub: "text-[#1F2340]/75", count: "text-[#1F2340]", ring: "ring-mango", tag: "bg-[#1F2340]/10 text-[#1F2340]" },
-    { card: "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]", sub: "text-sub", count: "text-mango-deep", ring: "ring-paper", tag: "bg-mango-tint text-mango-deep" },
+    { card: "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]", sub: "text-sub", count: "text-mango-deep", ring: "ring-paper", tag: "bg-snow text-ink" },
   ],
   pm: [
     { card: "bg-mango text-[#1F2340]", sub: "text-[#1F2340]/75", count: "text-[#1F2340]", ring: "ring-mango", tag: "bg-[#1F2340]/10 text-[#1F2340]" },
     { card: "bg-white/10 text-white", sub: "text-white/70", count: "text-mango", ring: "ring-[#2B2F4E]", tag: "bg-white/12 text-mango" },
-    { card: "bg-white text-[#1F2340]", sub: "text-[#1F2340]/70", count: "text-mango-deep", ring: "ring-white", tag: "bg-mango-tint text-mango-deep" },
+    { card: "bg-white text-[#1F2340]", sub: "text-[#1F2340]/70", count: "text-mango-deep", ring: "ring-white", tag: "bg-[#F6F7FB] text-[#1F2340]" },
   ],
 } as const;
 
 /**
  * 흐름 카드(2026-11-11 사용자: 회색 상자·노란 막대 목록은 너무 구리다 → 옆으로 넘기는 카드).
  * 사진이 있는 소식이 일부뿐이라 사진에 기대지 않는다: 남색·망고·흰색 바탕에 흐름 이름을 크게, 설명 세 줄, 아래 묶인 소식 사진(있으면 작은 동그라미)과 소식 수. 누르면 그 소식 카드로.
- * 확인할 것은 카드 아래 연한 망고색 줄로 따로
+ * 확인할 것은 카드 아래 줄로 따로
  */
 function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
   const { data } = useToday();
@@ -472,7 +472,7 @@ function FlowDetail({ flow, index, onClose }: { flow: BriefingInsight["flows"][n
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <p className="text-[13px] font-semibold text-sub">맹고 분석</p>
             {links.map((l) => (
-              <span key={l} className="rounded-full bg-mango-tint px-2 py-0.5 text-[12px] font-semibold text-mango-deep">
+              <span key={l} className="rounded-full bg-snow px-2 py-0.5 text-[12px] font-semibold text-ink">
                 {l}
               </span>
             ))}

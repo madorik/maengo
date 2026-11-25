@@ -70,7 +70,7 @@ export function ListenPrefs() {
                 type="button"
                 aria-pressed={on}
                 onClick={() => p.setVoice(v.id)}
-                className={`tile min-h-14 w-full pl-4 pr-14 text-left text-[15px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
+                className={`tile min-h-14 w-full pl-4 pr-14 text-left text-[15px] font-extrabold ${on ? "border-sky bg-snow text-sky-dark" : "hover:bg-snow"}`}
               >
                 {label}
               </button>

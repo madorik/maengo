@@ -166,7 +166,7 @@ export function ArticleView({
               ref={(el) => {
                 paraRefs.current[i] = el;
               }}
-              className={`-mx-3 scroll-mb-32 scroll-mt-20 rounded-xl px-3 py-1.5 text-[17px] font-medium leading-[1.85] transition-colors ${i === activePara ? "bg-sky-tint" : ""}`}
+              className={`-mx-3 scroll-mb-32 scroll-mt-20 rounded-xl px-3 py-1.5 text-[17px] font-medium leading-[1.85] transition-colors ${i === activePara ? "bg-snow" : ""}`}
             >
               {para}
             </p>
@@ -185,7 +185,7 @@ export function ArticleView({
               {item.scenes.map((s) => (
                 <li key={s.t}>
                   <a href={item.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl px-1 py-1.5 no-underline hover:bg-snow">
-                    <span className="min-w-[60px] rounded-lg bg-sky-tint px-2 py-1 text-center font-round text-[14px] font-black text-sky-dark">{s.t}</span>
+                    <span className="min-w-[60px] rounded-lg bg-snow px-2 py-1 text-center font-round text-[14px] font-black text-sky-dark">{s.t}</span>
                     <span className="text-[15px] font-semibold">{s.label}</span>
                   </a>
                 </li>
@@ -228,7 +228,7 @@ export function ArticleView({
                   type="button"
                   aria-pressed={on}
                   onClick={() => setFeedback(item.clusterId, on ? null : c.kind)}
-                  className={`tile inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold ${on ? "border-sky bg-sky-tint text-sky-dark" : "hover:bg-snow"}`}
+                  className={`tile inline-flex min-h-12 items-center justify-center gap-2 px-4 text-[15px] font-extrabold ${on ? "border-sky bg-snow text-sky-dark" : "hover:bg-snow"}`}
                 >
                   <c.Icon className="size-5" />
                   {c.label}

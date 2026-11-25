@@ -26,7 +26,7 @@ export function InquiryReplyForm({ id, to, draft, check, canSkip }: { id: number
         </label>
         <form action={redraftAction}>
           <input type="hidden" name="id" value={id} />
-          <button type="submit" disabled={redrafting || pending} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-[12px] font-extrabold text-sky-dark hover:bg-sky-tint disabled:opacity-60">
+          <button type="submit" disabled={redrafting || pending} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-[12px] font-extrabold text-sky-dark hover:bg-snow disabled:opacity-60">
             {redrafting ? <Spinner className="size-3.5" /> : <IconSparkles className="size-4" />}
             {draft ? "AI로 다시 쓰기" : "AI로 쓰기"}
           </button>

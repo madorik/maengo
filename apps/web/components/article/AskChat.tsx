@@ -297,7 +297,7 @@ export function AskChat({ target, variant }: { target: AskTarget; variant: "wind
                       key={c}
                       type="button"
                       onClick={() => ask(c)}
-                      className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-left text-[14px] font-bold hover:border-mango hover:bg-mango-tint"
+                      className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-left text-[14px] font-bold hover:border-mango hover:bg-snow"
                     >
                       {c}
                     </button>
@@ -311,7 +311,7 @@ export function AskChat({ target, variant }: { target: AskTarget; variant: "wind
             {messages.map((m) =>
               m.role === "user" ? (
                 <li key={m.id} className="flex justify-end">
-                  <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-mango-tint px-4 py-2.5 text-[15px] font-semibold leading-relaxed">
+                  <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-snow px-4 py-2.5 text-[15px] font-semibold leading-relaxed">
                     {m.text}
                   </p>
                 </li>

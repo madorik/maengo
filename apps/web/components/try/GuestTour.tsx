@@ -444,7 +444,7 @@ function GuestStation({
           />
         )}
       </div>
-      <div className={`min-w-0 flex-1 ${here ? "my-1 rounded-2xl bg-mango-tint px-3 pb-3" : ""}`}>
+      <div className={`min-w-0 flex-1 ${here ? "my-1 rounded-2xl bg-snow px-3 pb-3 ring-2 ring-ink" : ""}`}>
         <button
           type="button"
           onClick={onTap}
@@ -638,7 +638,7 @@ function FreeStart() {
  */
 function SignupNudge({ heard, total, onClose, children }: { heard: number; total: number; onClose: () => void; children: React.ReactNode }) {
   return (
-    <section aria-labelledby="try-nudge-title" aria-live="polite" className="pop mb-3 rounded-2xl bg-mango-tint p-4">
+    <section aria-labelledby="try-nudge-title" aria-live="polite" className="pop mb-3 rounded-2xl bg-snow p-4">
       <div className="flex items-start gap-3">
         {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
         <MangoIcon className="size-11 shrink-0" />
@@ -729,7 +729,7 @@ function FinishDialog({ offer, heard, total, onClose }: { offer: Offer; heard: n
       className="m-auto w-[min(340px,calc(100vw-40px))] max-w-none overflow-visible bg-transparent p-0"
     >
       <div className="pop overflow-hidden rounded-[28px] bg-paper text-center text-ink shadow-[0_24px_60px_rgb(31_35_64/0.35)]">
-        <div aria-hidden="true" className="keep-light relative h-[150px] bg-[#FFF4D6]">
+        <div aria-hidden="true" className="keep-light relative h-[150px] bg-snow">
           <Confetti />
           {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
           <MangoIcon className="absolute left-1/2 top-5 size-[112px] -translate-x-1/2" />
@@ -1006,7 +1006,7 @@ function GuestAskChat({ messages, waiting, onAsk, variant }: { messages: AskMess
                 key={c}
                 type="button"
                 onClick={() => send(c)}
-                className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-left text-[14px] font-bold hover:border-mango hover:bg-mango-tint"
+                className="min-h-11 rounded-full border-2 border-line bg-paper px-4 text-left text-[14px] font-bold hover:border-mango hover:bg-snow"
               >
                 {c}
               </button>
@@ -1017,7 +1017,7 @@ function GuestAskChat({ messages, waiting, onAsk, variant }: { messages: AskMess
             {messages.map((m) =>
               m.role === "user" ? (
                 <li key={m.id} className="flex justify-end">
-                  <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-mango-tint px-4 py-2.5 text-[15px] font-semibold leading-relaxed">{m.text}</p>
+                  <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-snow px-4 py-2.5 text-[15px] font-semibold leading-relaxed">{m.text}</p>
                 </li>
               ) : (
                 <li key={m.id} className="flex items-start gap-2">

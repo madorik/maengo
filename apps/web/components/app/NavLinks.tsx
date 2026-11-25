@@ -22,7 +22,7 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             aria-current={current ? "page" : undefined}
             className={`flex min-h-[52px] items-center gap-4 rounded-xl border-2 px-3 text-[16px] font-extrabold no-underline ${
-              current ? "border-mango bg-mango-tint text-mango-deep" : "border-transparent text-sub hover:bg-snow"
+              current ? "border-mango bg-snow text-mango-deep" : "border-transparent text-sub hover:bg-snow"
             }`}
           >
             <Icon className="size-7" />

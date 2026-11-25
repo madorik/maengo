@@ -14,8 +14,8 @@ export function TopicItem({ item: it, label }: { item: PublicTopicItem; /** ì—¬ë
   return (
     <li className="tile relative px-5 pb-3 pt-5 transition-colors hover:border-line-dark">
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-extrabold">
-        {label && <span className="rounded-lg bg-mango-tint px-2 py-0.5 text-mango-deep">{label}</span>}
-        <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-sky-tint text-sky-dark"}`}>
+        {label && <span className="rounded-lg bg-snow px-2 py-0.5 text-ink">{label}</span>}
+        <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${video ? "bg-[#FFE9E6] text-[#B8321F] tone [--tone:#B8321F]" : "bg-snow text-sky-dark"}`}>
           {video ? <IconPlay className="size-3.5" /> : <IconDoc className="size-3.5" />}
           {it.sourceLabel}
         </span>

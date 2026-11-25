@@ -137,9 +137,9 @@ export function RangeBar({ tab, range, today }: { tab: AdminTab; range: AdminRan
 
 /** 선 색. 같은 화면에 나란히 놓인 가입·온보딩처럼 다른 숫자는 다른 색으로 */
 const TONES = {
-  sky: { area: "fill-sky-tint", line: "stroke-sky", dot: "bg-sky" },
+  sky: { area: "fill-snow", line: "stroke-sky", dot: "bg-sky" },
   leaf: { area: "fill-leaf-tint", line: "stroke-leaf", dot: "bg-leaf" },
-  mango: { area: "fill-mango-tint", line: "stroke-mango-dark", dot: "bg-mango-dark" },
+  mango: { area: "fill-snow", line: "stroke-mango-dark", dot: "bg-mango-dark" },
 } as const;
 
 /** 기간 추이(선 그래프, 오른쪽 끝이 마지막 날). 날짜 위에 마우스를 올리면 그날 값이 보인다 */

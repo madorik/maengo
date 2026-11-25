@@ -96,7 +96,7 @@ export default async function PremiumPage({ searchParams }: { searchParams: Prom
                   {r.label}
                 </th>
                 <td className={`border-t-2 border-line py-3.5 text-center font-bold tabular-nums ${r.free === "불가" ? "text-faint" : "text-sub"}`}>{r.free}</td>
-                <td className="border-t-2 border-line bg-mango-tint py-3.5 text-center font-black tabular-nums">{r.plus}</td>
+                <td className="border-t-2 border-line bg-snow py-3.5 text-center font-black tabular-nums">{r.plus}</td>
               </tr>
             ))}
           </tbody>

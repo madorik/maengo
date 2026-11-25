@@ -11,7 +11,7 @@ import { PremiumBadge } from "@/components/ui/PremiumBadge";
 export function ListenLimit({ className = "" }: { className?: string }) {
   const { dailyListens } = useProfile();
   return (
-    <div className={`flex items-center gap-2 rounded-xl bg-mango-tint py-2 pl-3 pr-2 ${className}`}>
+    <div className={`flex items-center gap-2 rounded-xl bg-snow py-2 pl-3 pr-2 ${className}`}>
       <p role="status" className="min-w-0 flex-1 text-[13px] font-bold leading-relaxed">
         오늘 무료 듣기 {dailyListens}개를 다 들었어요
       </p>

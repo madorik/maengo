@@ -93,7 +93,7 @@ export function AlertBell({ alerts }: { alerts: AdminAlert[] }) {
                 type="button"
                 onClick={() => markRead(alerts.map(keyOf))}
                 disabled={unread === 0}
-                className="min-h-10 rounded-lg px-3 text-[13px] font-extrabold text-sky-dark hover:bg-sky-tint disabled:text-faint disabled:hover:bg-transparent"
+                className="min-h-10 rounded-lg px-3 text-[13px] font-extrabold text-sky-dark hover:bg-snow disabled:text-faint disabled:hover:bg-transparent"
               >
                 모두 읽음
               </button>
