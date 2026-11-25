@@ -7,6 +7,26 @@
       "source": "/index.html",
       "destination": "/",
       "permanent": true
+    },
+    {
+      "source": "/try",
+      "destination": "/maengo/try",
+      "permanent": true
+    },
+    {
+      "source": "/s/:token",
+      "destination": "/maengo/s/:token",
+      "permanent": true
+    },
+    {
+      "source": "/topics",
+      "destination": "/maengo/topics",
+      "permanent": true
+    },
+    {
+      "source": "/topics/:path*",
+      "destination": "/maengo/topics/:path*",
+      "permanent": true
     }
   ],
   "rewrites": [
