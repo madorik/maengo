@@ -28,11 +28,12 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 30 },
   },
   // 아이콘·manifest는 기본값(max-age=0)이면 화면을 옮길 때마다 서버에 다시 확인한다.
-  // 아이콘 주소에는 내용 해시가 붙어(?icon.<hash>.svg) 바뀌면 주소도 바뀌므로 오래 둔다. manifest는 하루.
+  // 화면의 아이콘 링크에는 내용 해시가 붙어(?icon.<hash>.svg) 바뀌면 주소도 바뀐다. 다만 manifest·푸시 알림(push-sw.js)·재생 화면 그림은
+  // 해시 없는 /icon.svg·/apple-icon.png를 쓰므로 1년 immutable이면 아이콘을 바꿔도(2026-11-25 소리 막대 망고) 받아 간 기기에 예전 그림이 남는다 → 하루. manifest도 하루.
   // app/apple-icon.png는 app/icon.svg를 모서리 없이 180px로 그린 것(icon.svg를 바꾸면 같이 다시 만든다).
   // 코드로 그리는 apple-icon.tsx는 basePath가 안 붙은 주소(/apple-icon)로 나가서 파일로 둔다.
   async headers() {
-    const immutable = [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }];
+    const icon = [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }];
     // 공개 분야 화면(/topics…)은 누가 열어도 같다(로그인 버튼만 브라우저에서 바뀐다, components/public/PublicPage.tsx).
     // 주소의 ?page=·기간(searchParams) 때문에 요청마다 서버가 그려서 한 번에 CPU 0.5초쯤 들고(2026-11-21 Vercel 표본), 검색·SNS 로봇이 자주 읽는다.
     // Vercel CDN에만 10분 담아 둔다(Vercel-CDN-Cache-Control은 브라우저·다른 CDN에 가지 않고 Next의 Cache-Control보다 우선). 10분 안에 새 소식이 늦게 보일 수 있다.
@@ -40,8 +41,8 @@ const nextConfig: NextConfig = {
     const publicCdn = [{ key: "Vercel-CDN-Cache-Control", value: "max-age=600, stale-while-revalidate=3600" }];
     return [
       { source: "/topics/:path*", headers: publicCdn },
-      { source: "/icon.svg", headers: immutable },
-      { source: "/apple-icon.png", headers: immutable },
+      { source: "/icon.svg", headers: icon },
+      { source: "/apple-icon.png", headers: icon },
       { source: "/manifest.webmanifest", headers: [{ key: "Cache-Control", value: "public, max-age=86400" }] },
     ];
   },
