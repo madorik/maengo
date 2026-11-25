@@ -13,8 +13,7 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { Sheet } from "@/components/ui/Sheet";
-import { minutesLabel, PREPARING_SHORT, PREPARING_TEXT } from "@/lib/player/labels";
-import { formatClock } from "@/lib/player/machine";
+import { PREPARING_SHORT, PREPARING_TEXT } from "@/lib/player/labels";
 import { claimDock, releaseDock, setPlayerDocked, useDock } from "@/lib/float-dock";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { SLOT_LABEL } from "@maengo/core/sections";
@@ -166,7 +165,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   const first = p.chapters[p.firstIndex];
   // 개수·시간은 재생 목록(챕터)에 든 소식으로 센다. 시간은 만든 음성이면 실제 길이, 아니면 대본 길이 어림값. 건너뛸 소식은 뺀다
   const count = p.ready ? p.progress.count : total;
-  const minutes = p.ready ? minutesLabel(p.progress.totalMs) : "";
+  // 듣기 시간 표시는 빼고 개수만(사용자 2026-11-25 'n분 듣기처럼 시간 보여 주지 말고 재생 버튼만')
+  const minutes = "";
   const voiceName = p.voice === "f" ? "여성" : "남성";
   const sub = p.error
       ? p.error
@@ -215,9 +215,6 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         label="재생 위치"
         className={big ? "mt-2 h-4" : "mt-0.5 h-3"}
       />
-      <p className="text-right text-[12px] font-bold tabular-nums text-sub">
-        {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
-      </p>
       {p.preparing && (
         <div className="mt-2 flex items-center gap-2 rounded-2xl bg-snow py-2 pl-3 pr-2">
           <p role="status" className="min-w-0 flex-1 text-[13px] font-semibold leading-relaxed text-ink">

@@ -16,7 +16,6 @@ import { track } from "@/lib/analytics";
 import { isAppUserAgent } from "@/lib/app-client";
 import { ASK_CHIPS, ASK_DAILY, ASK_TEXT_MAX } from "@/lib/ask";
 import { withBase } from "@/lib/base-path";
-import { formatClock } from "@/lib/player/machine";
 import { AFTER_LOGIN_COOKIE } from "@/lib/session-cookie";
 import type { GuestItem } from "@/lib/types";
 
@@ -45,14 +44,6 @@ const NUDGE_KEY = "maengo_try_nudge";
 
 /** 듣기를 처음 누른 자리(try_start where): 머리 카드의 큰 버튼 · 처음 짚어 주는 안내 · 소식 카드 */
 type StartFrom = "hero" | "spot" | "card";
-
-/** 1분 25초 · 40초 · 2분 */
-function koDuration(ms: number): string {
-  const s = Math.max(1, Math.round(ms / 1000));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return m === 0 ? `${r}초` : r === 0 ? `${m}분` : `${m}분 ${r}초`;
-}
 
 /** 지금 읽는 줄(시작 시각이 지난 마지막 줄). 시작 전이면 -1 */
 function lineAt(lines: GuestItem["lines"], ms: number): number {
@@ -249,8 +240,6 @@ export function GuestTour({
     opened.current.add(item.clusterId);
     track("item_open", { category: item.category, kind: item.kind, where: "try" });
   };
-  const firstMs = items[0]!.durationMs;
-  const totalMin = Math.max(1, Math.round(items.reduce((s, it) => s + it.durationMs, 0) / 60000));
 
   // 잠금 화면·이어폰 버튼(웹 브라우저)
   const curItem = p.cur >= 0 ? items[p.cur] : undefined;
@@ -286,10 +275,8 @@ export function GuestTour({
       <main className={`mx-auto max-w-[640px] px-4 pt-5 lg:pt-8 ${curItem ? "pb-[calc(var(--tour-bar-h,140px)+96px)]" : "pb-[calc(96px+env(safe-area-inset-bottom))]"}`}>
         <section aria-labelledby="try-title" className="px-1.5">
           <p className="text-[13px] font-medium text-sub">로그인 없이 둘러보기</p>
-          <h1 id="try-title" className="mt-1 flex items-baseline gap-2.5">
-            <span className="font-round text-[36px] font-black tracking-[-0.02em]">약 {totalMin}분</span>
-            <span className="text-[15px] font-medium text-sub">소식 {n}개</span>
-          </h1>
+          {/* 듣기 시간(약 n분)은 빼고 소식 수만(사용자 2026-11-25) */}
+          <h1 id="try-title" className="mt-1 text-[30px] font-black tracking-[-0.03em]">소식 {n}개</h1>
           <p className="mt-1 text-[13px] text-sub">{sections.join(", ")}에서 맹고가 골랐어요.</p>
         </section>
 
@@ -306,7 +293,7 @@ export function GuestTour({
           <span className="flex-1 text-[16px] font-bold">{playing ? "듣는 중" : p.cur >= 0 ? "이어 듣기" : "브리핑 들어 보기"}</span>
           {playing && <SoundWave className="text-mango" />}
           <span className="text-[13px] font-medium tabular-nums opacity-65">
-            {p.heard.size > 0 ? `${p.heard.size}/${n}` : `첫 소식 ${koDuration(firstMs)}`}
+            {p.heard.size > 0 ? `${p.heard.size}/${n}` : ""}
           </span>
         </button>
 
@@ -458,7 +445,6 @@ function GuestStation({
             <span className="mt-1 flex items-center gap-2 text-[12px] text-sub">
               {section && <span className="font-semibold text-ink">{SECTION_LABEL[section]}</span>}
               <span className="truncate">{item.author}</span>
-              <span className="shrink-0 tabular-nums">{formatClock(item.durationMs)}</span>
               {here && status === "error" ? (
                 <span className="shrink-0 font-semibold text-cherry">못 불러왔어요</span>
               ) : preparing ? (
@@ -593,10 +579,6 @@ function MiniPlayer({
           </button>
           <div className="ml-1.5 min-w-0 flex-1">
             <SeekBar valueMs={posMs} totalMs={item.durationMs} onSeek={onSeek} label="이 소식 재생 위치" className="h-2.5" />
-            <div className="flex justify-between text-[12px] font-extrabold tabular-nums text-sub">
-              <span>{formatClock(posMs)}</span>
-              <span>{formatClock(item.durationMs)}</span>
-            </div>
           </div>
         </div>
       </div>

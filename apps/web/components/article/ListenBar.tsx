@@ -6,7 +6,6 @@ import { IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { SeekBar, SKIP_MS, SkipButton } from "@/components/listen/SeekBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
-import { formatClock } from "@/lib/player/machine";
 
 /** 막대 높이(px)를 담는 CSS 변수. 플레이어 위젯(ListenWidget)이 막대 바로 위에 뜨고, 글 화면 아래 여백(ArticleView)도 이 높이를 따른다 */
 const BAR_HEIGHT_VAR = "--listen-bar-h";
@@ -121,10 +120,6 @@ export function ListenBar({ ctl, free = false }: { ctl: ListenBarCtl; free?: boo
               label="이 글 재생 위치"
               className="h-3"
             />
-            <div className="flex justify-between text-[12px] font-extrabold tabular-nums text-sub">
-              <span>{formatClock(ctl.elapsedMs)}</span>
-              <span>{formatClock(ctl.totalMs)}</span>
-            </div>
           </div>
           <button
             type="button"
@@ -168,7 +163,6 @@ export function ListenBar({ ctl, free = false }: { ctl: ListenBarCtl; free?: boo
         ) : (
           <button type="button" onClick={ctl.play} disabled={!ctl.ready} className="btn btn-sky min-h-14 flex-1 text-[17px]">
             <IconSpeaker className="size-6" />이 글 듣기
-            {ctl.totalMs > 0 && <span className="font-round text-[15px] font-extrabold opacity-85">{formatClock(ctl.totalMs)}</span>}
             {free && <span className="rounded-full bg-white/25 px-2 py-0.5 text-[12px] font-black">오늘 무료</span>}
           </button>
         )}

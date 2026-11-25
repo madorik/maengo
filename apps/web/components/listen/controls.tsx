@@ -11,7 +11,6 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { SORT_INSTRUCTIONS, sortAnnouncements } from "@/components/ui/sortable-a11y";
 import { useToast } from "@/components/ui/Toast";
-import { formatClock } from "@/lib/player/machine";
 
 export { Switch } from "@/components/ui/Switch";
 
@@ -151,7 +150,7 @@ function Item({
   const skipped = !!ch && p.skips(ch.clusterId);
   const current = index >= 0 && index === p.cur;
   const done = consumed(row.clusterId);
-  const note = current ? (playing ? "듣는 중" : "멈춤") : skipped ? "건너뜀" : ch ? formatClock(ch.endMs - ch.startMs) : "";
+  const note = current ? (playing ? "듣는 중" : "멈춤") : skipped ? "건너뜀" : ""; // 소식별 길이는 보이지 않는다(사용자 2026-11-25)
   // Free가 오늘 몫을 다 써서 못 듣는 소식: 고르는 대신 결제 페이지로
   if (p.locked(row.clusterId)) {
     return (

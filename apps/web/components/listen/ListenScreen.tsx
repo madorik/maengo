@@ -10,8 +10,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { minutesLabel, PREPARING_TEXT } from "@/lib/player/labels";
-import { formatClock } from "@/lib/player/machine";
+import { PREPARING_TEXT } from "@/lib/player/labels";
 import { Queue, Switch } from "./controls";
 import { ListenLimit } from "./ListenLimit";
 import { PlusLock } from "./PlusLock";
@@ -124,9 +123,6 @@ function TodayListenScreen() {
             <div className="pt-3">
               <p className="text-[14px] font-black text-sky">
                 {`${briefing} ${p.progress.count}개`}
-                <span className="ml-2 font-bold tabular-nums text-sub">
-                  {formatClock(p.progress.elapsedMs)} / {formatClock(p.progress.totalMs)}
-                </span>
               </p>
               <h1 className="mt-1 line-clamp-2 text-[22px] font-black leading-snug tracking-[-0.02em]">{ch?.title ?? briefing}</h1>
             </div>
@@ -134,7 +130,7 @@ function TodayListenScreen() {
               lines={active ? (ch?.lines ?? []) : []}
               current={active ? p.lineIndex : -1}
               playing={playing}
-              intro={`소식 ${p.ready ? p.progress.count : data.items.length}개${p.ready ? `, ${minutesLabel(p.progress.totalMs)}` : ""}`}
+              intro={`소식 ${p.ready ? p.progress.count : data.items.length}개`}
             />
           </>
         )}
