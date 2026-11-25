@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconChevronRight, IconExternal } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
 import { PublicPage, StartBand } from "@/components/public/PublicPage";
-import { Bubble } from "@/components/ui/Bubble";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { sharedItem } from "@/lib/server/shared-item";
 import { decodeShareToken, sharePath } from "@/lib/server/share-token";
@@ -59,12 +57,9 @@ export default async function SharedItemPage({ params }: Props) {
         </div>
         <h1 className="mt-3 text-[28px] font-black leading-[1.3] tracking-[-0.03em] md:text-[34px]">{item.title}</h1>
 
-        {/* 상세 화면처럼 맹고가 말풍선으로 요약을 건넨다 */}
-        <section aria-label="요약" className="mt-6 flex items-start gap-2">
-          <Mascot className="size-14 shrink-0" />
-          <Bubble className="flex-1">
-            <p className="text-[17px] font-bold leading-[1.65]">{item.short}</p>
-          </Bubble>
+        {/* 요약은 회색 둥근 상자로(2026-11-25 사용자: 캐릭터 빼기, 맹고·말풍선 없이) */}
+        <section aria-label="요약" className="mt-6 rounded-2xl bg-snow px-5 py-4">
+          <p className="text-[17px] font-bold leading-[1.65]">{item.short}</p>
         </section>
 
         {/* 맹고가 다시 쓴 전체 글(글 화면과 같은 모양) */}

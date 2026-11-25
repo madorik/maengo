@@ -2,8 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { IconPlus } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
+import { IconCheck, IconDoc, IconPlus } from "@/components/icons";
 import { useProfile } from "@/components/providers/ProfileProvider";
 import { track } from "@/lib/analytics";
 import { withBase } from "@/lib/base-path";
@@ -84,7 +83,7 @@ function stageLabel(p: Progress): string {
   return "남은 소식을 찾는 중";
 }
 
-/** 받는 동안 버튼 자리에 보이는 카드: 마스코트, 2초마다 바뀌는 말, 차오르는 줄무늬 막대 */
+/** 받는 동안 버튼 자리에 보이는 카드: 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기), 2초마다 바뀌는 말, 차오르는 줄무늬 막대 */
 function Filling({ p, name, mode }: { p: Progress; name: string | null; mode: Mode }) {
   const [lo, hi] = rangeOf(p);
   const shown = useCreep(lo, hi, paceOf(p));
@@ -99,7 +98,9 @@ function Filling({ p, name, mode }: { p: Progress; name: string | null; mode: Mo
         {stageLabel(p)}
       </p>
       <div className="flex items-center gap-3">
-        <Mascot mood={done ? "cheer" : "listen"} className={`size-12 shrink-0 ${done ? "pop" : "bob"}`} />
+        <span aria-hidden="true" className={`flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340] ${done ? "pop" : "bob"}`}>
+          {done ? <IconCheck className="size-6" /> : <IconDoc className="size-6" />}
+        </span>
         <div className="min-w-0 flex-1" aria-hidden>
           <p key={line} className="swap text-[16px] font-black leading-snug">
             {line}
@@ -228,7 +229,9 @@ export function FillToday({
   if (mode === "more" && (done || state.kind === "done"))
     return (
       <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-snow px-4 py-4 text-ink">
-        <Mascot mood="cheer" className="size-9 shrink-0" />
+        <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+          <IconCheck className="size-5" />
+        </span>
         <p role="status" className="text-[15px] font-bold">
           {doneLabel ?? "주요 뉴스는 다 봤어요!"}
         </p>

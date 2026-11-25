@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { IconPause, IconPlay, IconSpeaker } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
+import { IconCheck, IconHeadphones, IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { SeekBar, SKIP_MS, SkipButton } from "@/components/listen/SeekBar";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { formatClock } from "@/lib/player/machine";
@@ -74,7 +73,10 @@ export function ListenBar({ ctl, free = false }: { ctl: ListenBarCtl; free?: boo
   } else if (ctl.preparing) {
     body = (
       <div className="flex items-center gap-3">
-        <Mascot mood="listen" className="bob size-12 shrink-0" />
+        {/* 맹고 캐릭터 대신 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
+        <span aria-hidden="true" className="bob flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+          <IconHeadphones className="size-6" />
+        </span>
         <p role="status" className="min-w-0 flex-1 text-[15px] font-extrabold text-sky-dark">
           음성 만드는 중
         </p>
@@ -139,7 +141,9 @@ export function ListenBar({ ctl, free = false }: { ctl: ListenBarCtl; free?: boo
   } else if (ctl.state === "finished") {
     body = (
       <div className="flex items-center gap-3">
-        <Mascot mood="cheer" className="size-12 shrink-0" />
+        <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+          <IconCheck className="size-6" />
+        </span>
         {ctl.next ? (
           <button type="button" onClick={ctl.next} className="btn min-h-12 flex-1 px-4 text-[15px]">
             다음 글 듣기

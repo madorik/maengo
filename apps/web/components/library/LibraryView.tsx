@@ -1,8 +1,6 @@
 import Form from "next/form";
 import Link from "next/link";
 import { IconBack, IconClose, IconSearch } from "@/components/icons";
-import { Mascot } from "@/components/Mascot";
-import { Bubble } from "@/components/ui/Bubble";
 import { libraryFilterKey, type LibraryFilters } from "@/lib/library-pages";
 import type { LibraryData } from "@/lib/types";
 import { InfiniteLibrary } from "./InfiniteLibrary";
@@ -70,14 +68,12 @@ export function LibraryView({ lib, infinite }: { lib: LibraryData; /** 앱이면
         )}
 
         {lib.groups.length === 0 ? (
-          <div className="mt-10 flex items-end gap-3">
-            <Mascot className="size-24 shrink-0" />
-            <Bubble className="mb-6 flex-1">
-              <p className="text-[16px] font-bold leading-relaxed">{emptyMessage(lib)}</p>
-              {lib.bookmark && lib.bookmarkCount === 0 && (
-                <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">소식 카드나 글 화면에서 북마크를 누르면 여기에 모여요.</p>
-              )}
-            </Bubble>
+          // (2026-11-25 사용자: 캐릭터 빼기) 맹고·말풍선 대신 회색 둥근 상자
+          <div className="mt-10 rounded-2xl bg-snow px-5 py-4">
+            <p className="text-[16px] font-bold leading-relaxed">{emptyMessage(lib)}</p>
+            {lib.bookmark && lib.bookmarkCount === 0 && (
+              <p className="mt-1 text-[14px] font-semibold leading-relaxed text-sub">소식 카드나 글 화면에서 북마크를 누르면 여기에 모여요.</p>
+            )}
           </div>
         ) : infinite ? (
           <InfiniteLibrary

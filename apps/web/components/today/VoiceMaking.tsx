@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mascot } from "@/components/Mascot";
+import { IconHeadphones } from "@/components/icons";
 import { useCreep, useTick } from "./making";
 
 // 오늘 소식 카드에서 듣기를 눌렀는데 음성을 새로 만들어야 할 때 그 카드 안에 보여 주는 진행 카드(2026-11-06 사용자 요청:
@@ -40,7 +40,10 @@ function Making() {
         음성을 만들고 있어요. 보통 5~10초 걸려요
       </p>
       <div className="flex items-center gap-3" aria-hidden>
-        <Mascot mood="listen" className="bob size-12 shrink-0" />
+        {/* 맹고 캐릭터 대신 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
+        <span className="bob flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+          <IconHeadphones className="size-6" />
+        </span>
         <div className="min-w-0 flex-1">
           <p key={line} className="swap text-[16px] font-black leading-snug text-sky-dark">
             {line}

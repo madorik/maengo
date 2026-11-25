@@ -3,13 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
-import { IconClose, IconList, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
+import { IconCheck, IconClose, IconHeadphones, IconList, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { Spinner } from "@/components/ui/Spinner";
-import { Mascot } from "@/components/Mascot";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SLOT_LABEL } from "@maengo/core/sections";
-import { Bubble } from "@/components/ui/Bubble";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { minutesLabel, PREPARING_TEXT } from "@/lib/player/labels";
 import { formatClock } from "@/lib/player/machine";
@@ -25,7 +23,10 @@ export function ListenScreen() {
   if (!p.playlist) return <TodayListenScreen />;
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center gap-5 px-6 text-center">
-      <Mascot mood="listen" className="size-28" />
+      {/* 맹고 캐릭터 대신 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기) */}
+      <span aria-hidden="true" className="flex size-16 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+        <IconHeadphones className="size-8" />
+      </span>
       <h1 className="text-[22px] font-black">플레이리스트를 듣고 있어요</h1>
       <div className="flex flex-wrap justify-center gap-2">
         <button type="button" onClick={p.exitPlaylist} className="btn btn-sky">
@@ -39,7 +40,7 @@ export function ListenScreen() {
   );
 }
 
-/** 듣기 화면. 망고가 헤드폰을 쓰고, 지금 읽는 문장이 말풍선으로 쌓인다 */
+/** 듣기 화면. 지금 읽는 문장이 칸으로 쌓인다(2026-11-25 사용자: 캐릭터 빼기, 맹고 그림 없음) */
 function TodayListenScreen() {
   const p = usePlayer();
   const { data, game } = useToday();
@@ -103,7 +104,9 @@ function TodayListenScreen() {
       <main className="mx-auto flex min-h-0 w-full max-w-[640px] flex-1 flex-col px-5">
         {p.status === "done" ? (
           <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <Mascot mood="cheer" className="pop size-32" />
+            <span aria-hidden="true" className="pop flex size-24 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+              <IconCheck className="size-12" />
+            </span>
             <h1 className="mt-4 text-[26px] font-black text-mango-deep">{game.allDone ? "오늘 완료!" : "다 들었어요!"}</h1>
             {game.allDone && (
               <p className="mt-3 text-[16px] font-semibold leading-relaxed text-sub">
@@ -214,7 +217,7 @@ function TodayListenScreen() {
   );
 }
 
-/** 지금까지 읽은 문장을 말풍선으로 쌓는다. 맹고는 첫 말풍선 옆에만 */
+/** 지금까지 읽은 문장을 칸으로 쌓는다 */
 function Script({ lines, current, playing, intro }: { lines: { text: string }[]; current: number; playing: boolean; intro: string }) {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -225,10 +228,12 @@ function Script({ lines, current, playing, intro }: { lines: { text: string }[];
   if (current < 0 && !lines.length) {
     return (
       <section aria-label="듣기 안내" className="flex min-h-0 flex-1 flex-col items-center justify-center pb-6 text-center">
-        <Bubble tail="bottom" className="max-w-[360px]">
+        <span aria-hidden="true" className={`flex size-20 items-center justify-center rounded-full bg-mango text-[#1F2340] ${playing ? "bob" : ""}`}>
+          <IconHeadphones className="size-10" />
+        </span>
+        <div className="mt-4 max-w-[360px] rounded-2xl bg-snow px-5 py-4">
           <p className="text-[16px] font-bold leading-relaxed">{intro}</p>
-        </Bubble>
-        <Mascot mood="listen" className="mt-4 size-36" />
+        </div>
       </section>
     );
   }
@@ -240,7 +245,6 @@ function Script({ lines, current, playing, intro }: { lines: { text: string }[];
         const isCurrent = i === current;
         return (
           <div key={i} className="flex items-end gap-2">
-            <span className="w-12 shrink-0">{i === 0 && <Mascot mood="listen" className={`size-12 ${isCurrent && playing ? "bob" : ""}`} />}</span>
             <div className="flex max-w-[80%] flex-col">
               <div
                 className={`rounded-2xl border-2 px-4 py-2.5 text-[17px] leading-[1.6] ${
@@ -255,7 +259,6 @@ function Script({ lines, current, playing, intro }: { lines: { text: string }[];
       })}
       {current < 0 && (
         <div className="flex items-end gap-2">
-          <Mascot mood="listen" className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
           <div className="rounded-2xl border-2 border-line px-4 py-2.5 text-[17px] font-black tracking-[0.2em] text-faint" aria-label="곧 읽어요">
             ···
           </div>

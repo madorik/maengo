@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { IconCheck, IconChevronRight, IconPlay } from "@/components/icons";
+import { IconCheck, IconChevronRight, IconDoc, IconPlay } from "@/components/icons";
 import { ToneIcon } from "@/components/ui/ToneIcon";
 import { AskChat, type AskTarget } from "@/components/article/AskChat";
 import { AiMark } from "@/components/ui/AiMark";
-import { BusyMango } from "@/components/BusyMango";
 import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useCallName } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
@@ -615,8 +614,10 @@ export function InsightFallback() {
           맞춤 인사이트를 만들고 있어요. 보통 5~10초 걸려요
         </p>
         <div className="flex items-center gap-3" aria-hidden="true">
-          {/* 서류 더미를 바쁘게 뒤지는 맹고(2026-11-13 사용자: 맹고가 너무 가만히 있다). 뒤에서 종이가 휙휙 날아가고 맹고는 갸웃거린다. globals.css busy-* */}
-          <BusyMango />
+          {/* 서류를 뒤지던 맹고 캐릭터 대신 주황 원 아이콘(2026-11-25 사용자: 캐릭터 빼기). 스크립트 없이 CSS 움직임(bob)만 */}
+          <span className="bob flex size-12 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+            <IconDoc className="size-6" />
+          </span>
           {/* 다섯 문장을 한 자리에 겹쳐 두고 시간대마다 하나만 보인다 */}
           <div className="grid min-w-0 flex-1">
             {lines.map((l) => (

@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import { BusyMango } from "@/components/BusyMango";
-import { Mascot } from "@/components/Mascot";
 import { SECTION_LABEL, SECTIONS, type SectionId } from "@maengo/core/sections";
 import { completeOnboarding } from "@/app/actions";
+import { IconDoc } from "@/components/icons";
 import { answerContextAction } from "@/app/(app)/context-actions";
 import { CONTEXT_QUESTIONS, QUESTION_BY_KEY } from "@/lib/context";
 import type { YoutubeSections } from "@/lib/youtube-sections";
@@ -115,7 +114,6 @@ export function OnboardingFlow({ youtube = null, name = null }: { youtube?: Yout
     <div className="mx-auto flex min-h-dvh max-w-[560px] flex-col">
       <StepBar step={1} />
       <header className="flex items-center gap-3 px-5 pb-1 pt-2">
-        <Mascot mood={n >= 1 ? "cheer" : "listen"} className="size-12 shrink-0" />
         <div className="min-w-0">
           <h1 className="text-[21px] font-bold leading-snug tracking-[-0.04em]">어떤 소식이 궁금하세요?</h1>
           <p className="text-[14px] font-medium text-sub">고른 주제로 맞춤 인사이트를 제공해 드려요</p>
@@ -292,7 +290,6 @@ function FocusStep({
     <div className="mx-auto flex min-h-dvh max-w-[560px] flex-col">
       <StepBar step={2} onBack={onBack} />
       <header className="flex items-center gap-3 px-5 pb-1 pt-2">
-        <Mascot mood={picked >= 1 ? "cheer" : "listen"} className="size-12 shrink-0" />
         <div className="min-w-0">
           <h1 className="text-[21px] font-bold leading-snug tracking-[-0.04em]">요즘 신경 쓰는 건요?</h1>
           {/* 2026-11-13 사용자 문구. '사용자'는 프로필 이름으로 부른다 */}
@@ -413,7 +410,7 @@ function sectionWeights(chosen: string[]): Map<SectionId, number> {
 /**
  * 관심사를 찾는 동안(2.4초, 2026-11-13 사용자: 좀 동적으로, 관심사 더미를 뒤지고 분석하는 것처럼 맹고 애니메이션).
  * 분야 칩이 차례로 톡톡 나타나고(60ms 간격), 고른 분야는 하나씩 커졌다 돌아온다(맹고가 훑는 것처럼), 고르지 않은 분야는 옅어진다.
- * 가운데 맹고는 더미를 뒤지고(BusyMango) 돋보기가 이리저리 훑는다. 제목은 '관심사 더미를 뒤지고 있어요' → '맞춤 소식을 고르고 있어요'. globals.css find-*
+ * 가운데 주황 원 아이콘 위를 돋보기가 이리저리 훑는다(2026-11-25 사용자: 캐릭터 빼기, 맹고 그림은 뺐다). 제목은 '관심사 더미를 뒤지고 있어요' → '맞춤 소식을 고르고 있어요'. globals.css find-*
  */
 function Finding({ picked }: { picked: Set<string> }) {
   // 분야 9개의 자리(2026-11-11 부동산 추가)
@@ -424,7 +421,7 @@ function Finding({ picked }: { picked: Set<string> }) {
     "right-[3%] top-[32%]",
     "left-[12%] bottom-[8%]",
     "right-[10%] bottom-[2%]",
-    // 맹고 앞 종이 더미와 겹치지 않게 오른쪽으로(2026-11-13)
+    // 가운데 아이콘·돋보기와 겹치지 않게 오른쪽으로(2026-11-13)
     "right-[2%] bottom-[24%]",
     "left-[40%] top-0",
     "left-[30%] bottom-0",
@@ -448,7 +445,9 @@ function Finding({ picked }: { picked: Set<string> }) {
           );
         })}
         <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <BusyMango scale={2.4} />
+          <span aria-hidden="true" className="flex size-28 items-center justify-center rounded-full bg-mango text-[#1F2340]">
+            <IconDoc className="size-12" />
+          </span>
           <svg viewBox="0 0 64 64" aria-hidden="true" className="find-lens absolute -left-5 -top-3 size-20">
             <circle cx="34" cy="30" r="18" fill="#E1F2FF" fillOpacity="0.7" stroke="#1F2340" strokeWidth="5" />
             <path d="M25 23 Q29 17 37 17" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />

@@ -9,7 +9,6 @@ import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { SECTION_LABEL, SLOT_LABEL, isSection } from "@maengo/core/sections";
 import { useMoreArrival } from "./arrival";
-import { CommuteMango } from "./CommuteMango";
 import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
 import { MORE_MAX } from "@/lib/more";
@@ -420,7 +419,10 @@ function Route({
             className={`block ${ride?.playing && drag.y === null ? "mango-ride" : ""} ${drag.y !== null ? "scale-110" : ""} transition-transform`}
             style={{ "--ride-dur": `${(0.8 / (rate || 1)).toFixed(2)}s` } as React.CSSProperties}
           >
-            <CommuteMango slot={pm ? "pm" : "am"} className="size-10" />
+            {/* 맹고 캐릭터 대신 주황 점(2026-11-25 사용자: 캐릭터 빼기). 노선 선도 주황이라 둘레를 배경색으로 둘러 구분한다. 움직임·끌기는 그대로 */}
+            <span className="flex size-10 items-center justify-center">
+              <span className={`size-7 rounded-full bg-mango shadow-[0_2px_6px_rgb(31_35_64/0.25)] ring-[3px] ${pm ? "ring-[#1F2340]" : "ring-paper"}`} />
+            </span>
           </span>
         </span>
       )}
