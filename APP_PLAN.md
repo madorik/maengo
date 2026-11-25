@@ -52,7 +52,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 ├─ offline.html               웹을 못 불러올 때 안내 화면 원본. sync 때 서버 주소를 넣어 www/index.html로 만든다(www는 gitignore)
 ├─ ios/                       Xcode 프로젝트(커밋한다)
 ├─ android/                   Android Studio 프로젝트(커밋한다)
-├─ assets/                    아이콘·스플래시 원본 PNG(scripts/render-assets.mjs가 만든다. 아이콘은 icon.svg 망고, 스플래시는 이어폰 끼고 소식 듣는 맹고)
+├─ assets/                    아이콘·스플래시 원본 PNG(scripts/render-assets.mjs가 만든다. 아이콘은 icon.svg "소리 막대 망고", 스플래시는 남색 바탕에 같은 모양, 2026-11-25)
 └─ scripts/render-assets.mjs
 ```
 
@@ -76,7 +76,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 ### 1단계. 껍데기(1~2일)
 
 - [x] `apps/mobile` 만들기, `npx cap add ios`·`npx cap add android`(워크스페이스는 기존 `apps/*`에 포함)
-- [x] 아이콘·스플래시: `apps/web/app/icon.svg`(망고) 그림으로 `@capacitor/assets` 생성. 스플래시 바탕은 망고색 `#FFC23D`. 안드로이드 적응형 아이콘은 원·둥근 사각형 마스크에서 잎까지 들어가게 줄였다
+- [x] 아이콘·스플래시: `apps/web/app/icon.svg` 그림으로 `@capacitor/assets` 생성. 2026-11-25 "소리 막대 망고"(남색 `#1B1F3B` 바탕에 주황 막대 다섯 개와 잎)로 바꾸고 스플래시 바탕도 남색. 알림 아이콘 `ic_stat_maengo`·iOS 위젯 머리 아이콘·웹 apple-icon도 같은 그림. 안드로이드 적응형 아이콘은 원·둥근 사각형 마스크에서 잎까지 들어가게 줄였다
 - [x] 상태 표시줄·안전 영역: SystemBars `insetsHandling: native` + 웹의 `viewport-fit=cover`·`env(safe-area-inset-*)` 그대로. 앱은 밝은 화면으로 고정(iOS `UIUserInterfaceStyle Light`, 안드로이드 Light 테마·흰 창 바탕), 폰은 세로 고정
 - [x] 안드로이드 뒤로 가기: 열린 시트 닫기 → 웹 기록 뒤로 → 첫 화면(`/today`·`/login`·`/onboarding`)이면 앱을 내린다(`minimizeApp`, 안드로이드 12+ 기본 동작과 같고 듣던 음성을 끊지 않는다). 로그인 뒤 기록에 `/login`이 남아 첫 화면에서는 기록을 보지 않는다
 - [x] 원문 링크는 앱에서 `Browser.open`(인앱 브라우저). 컴포넌트마다 고치지 않고 바깥 주소 링크 클릭을 한곳(`lib/native/shell.ts`)에서 받는다

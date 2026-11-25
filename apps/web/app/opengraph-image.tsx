@@ -33,7 +33,7 @@ export default async function OpengraphImage() {
             <span>출근길에 읽어 드려요</span>
           </div>
         </div>
-        <img src={iconSrc} width={340} height={340} alt="" style={{ borderRadius: 76, boxShadow: "0 16px 0 #E09A12" }} />
+        <img src={iconSrc} width={340} height={340} alt="" style={{ borderRadius: 76, boxShadow: "0 16px 0 #0E1126" }} />
       </div>
     ),
     {
