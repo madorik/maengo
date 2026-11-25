@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties, type ReactNode } from "react";
-import { IconCheck, IconChevronRight, IconPlay } from "@/components/icons";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { IconChevronRight, IconPlay } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { ToneIcon } from "@/components/ui/ToneIcon";
 import { AskChat, type AskTarget } from "@/components/article/AskChat";
@@ -20,57 +20,62 @@ import { SEEN_MIN } from "@/lib/insight-rules";
 import { track } from "@/lib/analytics";
 
 /**
- * 오늘 화면 머리(2026-11-11 사용자: '약 15분 · 소식 10개'는 안 중요하다 → 오늘의 흐름 한 줄이 큰 제목, 'OO님에게 맞춤 인사이트'라고 부른다).
- * 흐름이 있으면: 'OO님에게 맞춤 인사이트' → 큰 제목(흐름 한 줄) → '날짜 출근길' → 흐름 카드 → 확인할 것.
- * 못 만들었으면 예전처럼 날짜 줄 → '출근길 브리핑'.
- * 언론 N곳·기사 N건은 보여 주지 않는다(2026-11-12 사용자: 날짜만)
- * 흐름은 서버가 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts). 만드는 동안은 같은 모양의 회색 줄(InsightFallback)
+ * 오늘 화면의 인사이트 두 조각(2026-11-26 시안 6안 홈). 서버가 흐름을 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts).
+ * - InsightHead: 머리. 작은 줄 '출근길 브리핑, 11월 26일 수요일' 아래 인사이트 한 줄(insight.headline)이 굵은 제목. 오른쪽의 재생 원은 TodayList가 그린다.
+ *   인사이트가 없거나 만드는 중이면 '출근길 브리핑'과 '날짜, 소식 n개' 한 줄. 시간('8분')은 적지 않는다.
+ * - InsightFlows: '오늘의 흐름'. 흐름마다 큰 사진 카드를 옆으로 넘긴다(판정 알약·소식 수·제목·그 흐름부터 듣는 재생 원). 누르면 흐름 상세 시트.
+ *   만드는 동안은 같은 자리에 진행 카드(InsightFallback).
+ * 예전의 'OO님에게 맞춤 인사이트' 꼬리표·제목 밑줄·제목 아래 줄(Lead)·맞춤 체크 칸(MatchCheck)은 시안에 없어서 뺐다.
+ * 맞춤 체크는 흐름 상세 시트 아래쪽의 '챙겨 볼 것'으로 옮겼다. 언론 N곳·기사 N건은 보여 주지 않는다(2026-11-12 사용자: 날짜만)
  */
-export function BriefingHero({
-  insight: made,
+export function InsightHead({
+  headline,
   failed = false,
-  personalOff = false,
 }: {
-  insight: BriefingInsight | null;
+  /** 인사이트 한 줄. 없으면(못 만들었거나 만드는 중) 제목만 */
+  headline: string | null;
   /** 소식은 있는데 만들지 못했다(모델 오류·키 없음). 다시 열면 다시 만든다 */
   failed?: boolean;
-  /** 설정에서 맞춤 인사이트를 껐다(맞춤 체크가 비는 게 정상이라 읽을수록 좋아진다는 안내를 하지 않는다) */
-  personalOff?: boolean;
 }) {
   const { data } = useToday();
   const name = useCallName();
-  const insight = made && withName(made, name);
-  const pm = data.slot === "pm";
   const slotLabel = SLOT_LABEL[data.slot ?? "am"];
-  if (!insight) {
+  // 인사 날짜 끝의 때(아침·저녁 등)는 떼고 출근길·퇴근길을 붙인다(저녁에 출근길 브리핑을 보면 "저녁 출근길"이 되지 않게)
+  const day = data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|저녁|밤)$/, "");
+  if (headline) {
     return (
       <>
-        <DateLine pm={pm} />
-        <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
-          {slotLabel} 브리핑
+        <p className="text-[14px] font-medium text-sub">
+          {slotLabel} 브리핑, {day}
+        </p>
+        <h1 id="briefing-title" className="mt-1 text-[22px] font-extrabold leading-[1.35] tracking-[-0.04em] text-balance">
+          {callName(headline, name)}
         </h1>
-        {failed && (
-          <p role="status" className={`mt-1.5 text-[14px] font-medium leading-snug ${pm ? "text-white/70" : "text-sub"}`}>
-            오늘의 인사이트를 만들지 못했어요. 잠시 뒤 다시 열어 주세요.
-          </p>
-        )}
       </>
     );
   }
+  const count = data.items.length;
   return (
     <>
-      <ForYou />
-      {/* 2026-11-15 사용자 '인사이트가 눈에 띄지 않네, 제일 처음 보는 화면이고 인사이트 타이틀이 딱 눈에 띄어야 가입할만하지' →
-          25px → 30px 굵게, 망고 노랑 밑줄을 한 번 긋는다(globals.css insight-mark; 2026-11-26 사용자: 연노랑 다 제거 → 옅게 깐 형광펜 대신 3px 밑줄). 아래 흐름 카드보다 먼저 눈이 가게 */}
-      <h1 id="briefing-title" className="mt-3 text-[30px] font-extrabold leading-[1.3] tracking-[-0.045em] text-balance">
-        <span className="insight-mark">{insight.headline}</span>
+      <h1 id="briefing-title" className="text-[24px] font-extrabold tracking-[-0.04em]">
+        {slotLabel} 브리핑
       </h1>
-      <Lead insight={insight} pm={pm} personalOff={personalOff} />
-      <DateBelow pm={pm} />
-      <Flows insight={insight} pm={pm} />
-      <MatchCheck insight={insight} personalOff={personalOff} />
+      <p className="mt-1 text-[14px] font-medium text-sub">
+        {day}
+        {count > 0 && `, 소식 ${count}개`}
+      </p>
+      {failed && (
+        <p role="status" className="mt-1.5 text-[14px] font-medium leading-snug text-sub">
+          오늘의 인사이트를 만들지 못했어요. 잠시 뒤 다시 열어 주세요.
+        </p>
+      )}
     </>
   );
+}
+
+/** AI가 쓴 글에 남은 'OO님'·'회원님'을 프로필 이름으로(이름 없는 계정(운영엔 없다)만 '회원님') */
+function callName(s: string, name: string | null): string {
+  return s.replace(/(?:OO|○○|회원)님/g, name ? `${name}님` : "회원님");
 }
 
 /**
@@ -78,9 +83,7 @@ export function BriefingHero({
  * 이름은 Gemini에 보내지 않는다(개인정보 처리방침 5조)
  */
 function withName(insight: BriefingInsight, name: string | null): BriefingInsight {
-  // 이름 없는 계정(운영엔 없다)만 '회원님'
-  const call = name ? `${name}님` : "회원님";
-  const n = (s: string) => s.replace(/(?:OO|○○|회원)님/g, call);
+  const n = (s: string) => callName(s, name);
   return {
     ...insight,
     headline: n(insight.headline),
@@ -91,288 +94,178 @@ function withName(insight: BriefingInsight, name: string | null): BriefingInsigh
   };
 }
 
-/**
- * 'OO님에게 맞춤 인사이트'(OO은 프로필 이름. 없으면 '나에게').
- * 2026-11-15 작은 망고색 글자 → 망고 바탕 꼬리표(반짝이 + 남색 글자). 출근길(흰 바탕)·퇴근길(남색 바탕) 둘 다에서 보인다
- */
-function ForYou() {
-  const name = useCallName();
-  return (
-    <p className="inline-flex items-center gap-1 rounded-full bg-mango py-1 pl-2 pr-2.5 text-[13px] font-bold tracking-[-0.01em] text-[#1F2340]">
-      <svg viewBox="0 0 24 24" className="size-3.5" aria-hidden="true">
-        <path d="M12 2C12.7 7.3 16.7 11.3 22 12C16.7 12.7 12.7 16.7 12 22C11.3 16.7 7.3 12.7 2 12C7.3 11.3 11.3 7.3 12 2Z" fill="currentColor" />
-      </svg>
-      {`${name ? `${name}님에게` : "나에게"} 맞춤 인사이트`}
-    </p>
-  );
-}
-
-/**
- * 무엇을 바탕으로 엮었는지(2026-11-11 사용자: 나한테 맞춤인지 확인이 안 된다). 서버가 DB에서 센 값(자주 보는 분야, 최근 7일 읽거나 들은 소식 수)
- * 예: 'OO님이 자주 보는 경제·IT/과학 분야와 이번 주 본 소식 12개를 바탕으로 엮었어요.'
- */
-function Basis({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
-  const name = useCallName();
-  const b = insight.basis;
-  if (!b || (!b.sections.length && !b.recent)) return null;
-  // 최근 본 소식이 적으면 '자주 보는'이 아니라 '고른' 분야(2026-11-13: 읽은 게 0개인데 '자주 보는 정치'라고 했다). 예전 형식은 seen이 없어 본 수로 가른다
-  const seen = b.seen ?? b.recent >= 3;
-  const parts = [b.sections.length ? `${seen ? "자주 보는" : "고른"} ${b.sections.join("·")} 분야` : "", b.recent ? `이번 주 본 소식 ${b.recent}개` : ""].filter(Boolean);
-  return (
-    <p className={`mt-3 text-[14px] font-medium leading-snug ${pm ? "text-white/85" : "text-ink/80"}`}>
-      {name ? `${name}님이 ` : ""}{parts.join("와 ")}를 바탕으로 엮었어요.
-    </p>
-  );
-}
-
-/**
- * 큰 제목 아래 줄(형식 13, 2026-11-16 사용자: 오늘 뉴스가 나한테 무슨 영향이 있을지, 어떤 의미인지를 알려 줘야 인사이트).
- * 성격 배지 + 제목의 근거 사실(숫자). 오늘 소식이 회원 사정에 닿지 않아 제목이 일반 해석인 날은
- * '오늘은 OO님 맞춤 소식이 없어요'와 많이 읽고 들을수록 더 잘 짚는다는 말(사용자 지정). 토스 공통판·맞춤 인사이트를 끈 회원에게는 띄우지 않는다.
- * 예전 형식(12까지)은 무엇을 바탕으로 엮었는지(Basis)
- */
-function Lead({ insight, pm, personalOff }: { insight: BriefingInsight; pm: boolean; personalOff: boolean }) {
-  const name = useCallName();
-  const lead = insight.lead;
-  if (!lead) return <Basis insight={insight} pm={pm} />;
-  const none = !lead.about && !personalOff;
-  return (
-    <>
-      {lead.fact && (
-        <p className={`mt-3 text-[14px] font-semibold leading-[1.65] ${pm ? "text-white" : "text-ink"}`}>
-          <ToneChip tone={lead.tone} onDark={pm} className="mr-1.5 align-[1px]" />
-          {lead.fact}
-        </p>
-      )}
-      {none && (
-        <div role="note" className={`mt-3 self-stretch rounded-2xl px-4 py-3 ${pm ? "bg-white/8" : "bg-snow"}`}>
-          <p className={`text-[14px] font-bold leading-snug tracking-[-0.02em] ${pm ? "text-white" : "text-ink"}`}>
-            오늘은 {name ? `${name}님 ` : ""}맞춤 소식이 없어요
-          </p>
-          <p className={`mt-1 text-[13px] leading-relaxed ${pm ? "text-white/70" : "text-sub"}`}>소식을 많이 읽고 들을수록 더 의미 있는 인사이트를 드릴 수 있어요.</p>
-          <Link href="/settings#personal" className={`mt-1.5 inline-block text-[13px] font-semibold underline underline-offset-4 ${pm ? "text-mango" : "text-mango-deep"}`}>
-            맞춤 정보 고르기
-          </Link>
-        </div>
-      )}
-    </>
-  );
-}
-
-/** '11월 11일 수요일'(때를 가리키는 끝말은 뗀다. 2026-11-12 사용자: 출근길·퇴근길은 빼고 날짜·요일만) */
-function useDateLabel(): string {
-  const { data } = useToday();
-  return data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|저녁|밤)$/, "");
-}
-
-function DateLine({ pm }: { pm: boolean }) {
-  return <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>{useDateLabel()}</p>;
-}
-
-/** 큰 제목 아래 날짜·출근길(2026-11-12 사용자: 언론 N곳·기사 N건은 빼고 날짜만) */
-function DateBelow({ pm }: { pm: boolean }) {
-  return <p className={`mt-1.5 text-[13px] ${pm ? "text-white/65" : "text-sub"}`}>{useDateLabel()}</p>;
-}
-
-/** 흐름 하나에 묶인 소식들의 사진(있는 것만, 셋까지). 카드 아래 작은 동그라미로 겹쳐 보인다 */
+/** 흐름 하나에 묶인 소식의 사진(있는 것만). 첫 소식 사진이 카드 바탕이 되고, 없으면 다음 소식 사진을 쓴다 */
 function photosOf(ids: number[], items: FeedItem[]): string[] {
   return ids
     .map((id) => items.find((i) => i.clusterId === id))
     .map((i) => i?.photo?.url ?? i?.thumbnail ?? "")
-    .filter(Boolean)
-    .slice(0, 3);
+    .filter(Boolean);
 }
 
-/** 카드 바탕을 번갈아(남색·망고·흰색). 퇴근길(남색 바탕)은 망고·반투명·흰색 */
-const TONES = {
-  am: [
-    { card: "bg-[#1F2340] text-white", sub: "text-white/75", count: "text-mango", ring: "ring-[#1F2340]", tag: "bg-white/12 text-mango" },
-    { card: "bg-mango text-[#1F2340]", sub: "text-[#1F2340]/75", count: "text-[#1F2340]", ring: "ring-mango", tag: "bg-[#1F2340]/10 text-[#1F2340]" },
-    { card: "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]", sub: "text-sub", count: "text-mango-deep", ring: "ring-paper", tag: "bg-snow text-ink" },
-  ],
-  pm: [
-    { card: "bg-mango text-[#1F2340]", sub: "text-[#1F2340]/75", count: "text-[#1F2340]", ring: "ring-mango", tag: "bg-[#1F2340]/10 text-[#1F2340]" },
-    { card: "bg-white/10 text-white", sub: "text-white/70", count: "text-mango", ring: "ring-[#2B2F4E]", tag: "bg-white/12 text-mango" },
-    { card: "bg-white text-[#1F2340]", sub: "text-[#1F2340]/70", count: "text-mango-deep", ring: "ring-white", tag: "bg-[#F6F7FB] text-[#1F2340]" },
-  ],
-} as const;
+/** 카드를 옆으로 넘길 때 한 장의 너비 + 사이 간격(= 보이는 너비). 가장자리 22px(머리 글자와 같은 줄)·사이 44px라 한 장씩 넘어간다 */
+const EDGE = 22;
 
 /**
- * 흐름 카드(2026-11-11 사용자: 회색 상자·노란 막대 목록은 너무 구리다 → 옆으로 넘기는 카드).
- * 사진이 있는 소식이 일부뿐이라 사진에 기대지 않는다: 남색·망고·흰색 바탕에 흐름 이름을 크게, 설명 세 줄, 아래 묶인 소식 사진(있으면 작은 동그라미)과 소식 수. 누르면 그 소식 카드로.
- * 확인할 것은 카드 아래 줄로 따로
+ * 오늘의 흐름(2026-11-26 시안): '오늘의 흐름' + 오른쪽 '전체 보기'(지금 보는 카드의 흐름 상세 시트) → 큰 사진 카드를 옆으로 넘긴다(scroll-snap) → 아래 점(지금 카드는 망고 노랑 막대).
+ * 카드는 그 흐름 첫 소식 사진(없으면 남색 바탕) 위에 어두운 그라데이션, 판정 알약·'소식 n개'·흐름 제목, 오른쪽 아래 재생 원(그 흐름의 소식부터 듣기).
+ * 카드를 누르면 흐름 상세 시트(2026-11-11 사용자: 누르면 상세를 볼 수 있어야 한다)
  */
-function Flows({ insight, pm }: { insight: BriefingInsight; pm: boolean }) {
-  const { data } = useToday();
+export function InsightFlows({
+  insight: made,
+  personalOff = false,
+}: {
+  insight: BriefingInsight;
+  /** 설정에서 맞춤 인사이트를 껐다(챙겨 볼 것이 비는 게 정상이라 읽을수록 좋아진다는 안내를 하지 않는다) */
+  personalOff?: boolean;
+}) {
+  const name = useCallName();
+  const insight = withName(made, name);
   /** 열어 본 흐름(상세 시트) */
   const [open, setOpen] = useState<number | null>(null);
+  /** 지금 보이는 카드 */
+  const [at, setAt] = useState(0);
+  const scroller = useRef<HTMLUListElement>(null);
+  const count = insight.flows.length;
+  if (!count) return null;
   const opened = open === null ? null : insight.flows[open];
+  /** 카드 한 장 넘기는 거리 */
+  const step = (el: HTMLElement) => ((el.children[1] as HTMLElement | undefined)?.offsetLeft ?? el.clientWidth) - ((el.children[0] as HTMLElement | undefined)?.offsetLeft ?? 0);
+  const go = (k: number) => {
+    const el = scroller.current;
+    if (el) el.scrollTo({ left: k * step(el), behavior: "smooth" });
+  };
   return (
-    <>
-      <ul aria-label="오늘의 흐름" className="-mx-5 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-5 px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {insight.flows.map((f, k) => {
-          const tone = TONES[pm ? "pm" : "am"][k % 3]!;
-          const photos = photosOf(f.ids, data.items);
-          return (
-            <li key={f.title} className="w-[80%] max-w-[300px] shrink-0 snap-start">
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                onClick={() => setOpen(k)}
-                className={`flex h-full w-full flex-col rounded-[22px] px-5 pb-4 pt-4 text-left active:scale-[0.98] motion-reduce:active:scale-100 ${tone.card}`}
-              >
-                {/* 이 사람과의 연결(회원 기록에서, 없으면 안 그린다) */}
-                {f.tag && <span className={`mb-2.5 inline-flex self-start rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone.tag}`}>{f.tag}</span>}
-                <span className={`text-[19px] font-bold leading-[1.3] tracking-[-0.035em] text-balance ${f.tag ? "" : "mt-1"}`}>{f.title}</span>
-                {/* 나에게 미칠 영향이 있으면 그것을 먼저(2026-11-13 사용자: 나한테 유용한지 부각되지 않는다), 없으면 흐름 설명 */}
-                {f.effect ? (
-                  <span className="mt-2 flex flex-col gap-1">
-                    {/* '나에게' 대신 성격(2026-11-16 사용자: '나에게' 같은 말 쓰지 말고 글만 보고 나한테 주는 인사이트인지 알게) */}
-                    <span className={`flex items-center gap-1 text-[12px] font-bold ${tone.count}`}>
-                      <ToneIcon tone={f.tone ?? "watch"} className="size-3.5" />
-                      {TONE_LABEL[f.tone ?? "watch"]}
-                    </span>
-                    <span className="line-clamp-3 text-[15px] font-semibold leading-[1.5]">{f.effect}</span>
-                  </span>
-                ) : (
-                  <span className={`mt-2 line-clamp-3 text-[14px] leading-[1.55] ${tone.sub}`}>{f.text}</span>
-                )}
-                <span className="mt-auto flex items-center gap-2 pt-4">
-                  {photos.length > 0 && (
-                    <span className="flex -space-x-2">
-                      {photos.map((src) => (
-                        <PhotoImg key={src} src={src} className={`size-7 rounded-full ring-2 ${tone.ring}`} />
-                      ))}
-                    </span>
-                  )}
-                  <span className={`text-[13px] font-semibold ${tone.count}`}>소식 {f.ids.length}개 · 자세히</span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
+    <section aria-labelledby="flows-title" className="mt-4">
+      <div className="flex min-h-11 items-center justify-between gap-2 px-1.5">
+        <h2 id="flows-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
+          오늘의 흐름
+        </h2>
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => setOpen(at)}
+          className="inline-flex min-h-11 items-center text-[14px] font-semibold text-sub underline underline-offset-[3px]"
+        >
+          전체 보기
+        </button>
+      </div>
+      <ul
+        ref={scroller}
+        aria-label="오늘의 흐름 카드"
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          setAt(Math.min(count - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, step(el))))));
+        }}
+        style={{ paddingInline: EDGE, scrollPaddingInline: EDGE, columnGap: EDGE * 2 }}
+        className="-mx-4 mt-1 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {insight.flows.map((f, k) => (
+          <FlowCard key={f.title} flow={f} onOpen={() => setOpen(k)} />
+        ))}
       </ul>
+      {count > 1 && (
+        <div role="group" aria-label="오늘의 흐름 고르기" className="mt-1 flex justify-center">
+          {insight.flows.map((f, k) => (
+            <button key={f.title} type="button" aria-label={`${k + 1}번째 흐름`} aria-pressed={k === at} onClick={() => go(k)} className="flex h-6 w-[26px] items-center justify-center">
+              <span className={`block h-[7px] rounded-full transition-[width,background-color] duration-200 ${k === at ? "w-5 bg-mango" : "w-[7px] bg-faint/50"}`} />
+            </button>
+          ))}
+        </div>
+      )}
       <Sheet title={opened?.title ?? ""} open={!!opened} onClose={() => setOpen(null)}>
-        {opened && open !== null && <FlowDetail key={open} flow={opened} index={open} onClose={() => setOpen(null)} />}
+        {opened && open !== null && <FlowDetail key={open} flow={opened} index={open} care={careOf(insight, open, personalOff, name)} onClose={() => setOpen(null)} />}
       </Sheet>
-    </>
+    </section>
   );
 }
 
 /**
- * 맞춤 체크(2026-11-11 사용자: 체크가 눈에 안 띈다. 사용자 맞춤 체크 항목이어야 한다. 이름은 넣지 않는다 — 이름이 너무 많다).
- * 조용한 정보 칸: 내 맞춤 정보·읽던 소식으로 짚은 영향(예: 국내 주식 → 금리 인상의 영향) → 생활 속 확인할 것. 둘 다 없으면 그리지 않는다.
- * 내 맞춤 정보 질문은 여기서 묻지 않는다(대놓고 묻지 말라는 사용자 결정, components/context/ContextAsk.tsx)
+ * 흐름 카드 한 장. 카드 전체가 흐름 상세 시트 버튼이고, 그 위에 따로 떠 있는 재생 원은 그 흐름의 첫 소식부터 듣는다(흐름 상세의 '이 흐름부터 듣기'와 같은 동작).
+ * 글자는 사진 위라 어두운 그라데이션 위의 흰색(밝기 설정과 상관없이), 판정 알약은 흰 바탕이라 다크에서도 밝은 판정 색을 쓴다(keep-light)
  */
-function MatchCheck({ insight, personalOff }: { insight: BriefingInsight; personalOff: boolean }) {
-  const { data } = useToday();
-  const name = useCallName();
-  const personal = insight.personal ?? [];
-  const checks = insight.checks.slice(0, 1);
-  // 맞춤 체크가 비었거나 읽은 소식이 적으면 왜인지와 어떻게 하면 좋아지는지 알린다(2026-11-13 사용자: '이전에 읽던 소식이 아직 없다', '많이 읽을수록 분석을 잘해 준다')
-  const recent = insight.basis?.recent ?? 0;
-  const few = recent < SEEN_MIN;
-  // 제목 아래에서 이미 '오늘은 맞춤 소식이 없어요'를 말했으면(형식 13 Lead) 여기서 또 말하지 않는다
-  const noted = !!insight.lead && !insight.lead.about;
-  const hint = !personalOff && !noted && (!personal.length || few);
-  if (!personal.length && !checks.length && !hint) return null;
-  const tokenOf = (id: number) => data.items.find((i) => i.clusterId === id)?.token;
-  // 퇴근길(남색 바탕)에서는 글자를 밝게(2026-11-13: 제목이 남색 글자라 안 보였다)
-  const pm = data.slot === "pm";
-  // 조용한 정보 칸(2026-11-11 사용자: 망고색 블록은 너무 튀고 메인 소식처럼 보인다 → 테두리도 없이). 망고색은 체크 표시와 근거 글자에만
+function FlowCard({ flow, onOpen }: { flow: BriefingInsight["flows"][number]; onOpen: () => void }) {
+  const { data, listenAccess } = useToday();
+  const p = usePlayer();
+  const related = flow.ids.map((id) => data.items.find((i) => i.clusterId === id)).filter((i): i is FeedItem => !!i);
+  const photo = photosOf(flow.ids, data.items)[0];
+  const first = related[0];
+  const canListen = p.enabled && !!first && related.some((i) => listenAccess(i.clusterId) !== null);
+  const tone: InsightTone | null = flow.effect && flow.tone ? flow.tone : null;
   return (
-    <section aria-labelledby="match-title" className="mt-7">
-      <h2 id="match-title" className="flex items-center gap-1.5 text-[15px] font-bold tracking-[-0.02em]">
-        <IconCheck className="size-4 text-mango-deep [stroke-width:3]" />
-        맞춤 체크
-      </h2>
-      <ul className={`mt-1 divide-y ${pm ? "divide-white/10" : "divide-line"}`}>
-        {personal.map((x) => {
-          const token = tokenOf(x.id);
-          const body = (
-            <>
-              <span className="flex items-center justify-between gap-2">
-                <span className="text-[12px] font-semibold text-mango-deep">{x.about}</span>
-                {x.tone && <ToneChip tone={x.tone} onDark={pm} />}
+    <li className={`relative h-[200px] w-full shrink-0 snap-start overflow-hidden rounded-[18px] bg-[#1F2340] ${photo ? "" : "ring-1 ring-inset ring-white/10"}`}>
+      {photo && <PhotoImg src={photo} size="card" className="absolute inset-0 size-full" />}
+      <button type="button" aria-haspopup="dialog" onClick={onOpen} className="absolute inset-0 text-left text-white active:opacity-95">
+        <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,16,0.12)_10%,rgba(12,13,16,0.84)_100%)]" />
+        <span className={`absolute bottom-4 left-4 block ${canListen ? "right-[74px]" : "right-4"}`}>
+          <span className="flex items-center gap-2">
+            {tone && (
+              <span className="keep-light inline-flex h-6 items-center rounded-full bg-white px-2.5">
+                <span className={`inline-flex items-center gap-1 text-[12px] font-bold ${VERDICT[tone].text}`}>
+                  <ToneIcon tone={tone} className="size-3.5" />
+                  {TONE_LABEL[tone]}
+                </span>
               </span>
-              <span className={`mt-1 block text-[16px] font-bold leading-snug tracking-[-0.02em] ${pm ? "text-white" : "text-ink"}`}>{x.title}</span>
-              <span className={`mt-1 block text-[14px] leading-relaxed ${pm ? "text-white/65" : "text-sub"}`}>{x.text}</span>
-            </>
-          );
-          return (
-            <li key={x.title}>
-              {token ? (
-                <Link href={`/article/${token}`} className="block py-3.5 no-underline">
-                  {body}
-                </Link>
-              ) : (
-                <div className="py-3.5">{body}</div>
-              )}
-            </li>
-          );
-        })}
-        {checks.map((c) => {
-          const token = tokenOf(c.id);
-          const cls = `flex items-start gap-2.5 py-3.5 text-[14px] font-medium leading-relaxed no-underline ${pm ? "text-white/85" : "text-ink"}`;
-          const body = (
-            <>
-              <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-mango" aria-hidden="true" />
-              <span>{c.text}</span>
-            </>
-          );
-          return (
-            <li key={c.text}>
-              {token ? (
-                <Link href={`/article/${token}`} className={cls}>
-                  {body}
-                </Link>
-              ) : (
-                <p className={cls}>{body}</p>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {hint && (
-        <div className={`mt-1 rounded-2xl px-4 py-3.5 ${pm ? "bg-white/8" : "bg-snow"}`}>
-          {!personal.length && (
-            <p className={`text-[15px] font-bold leading-snug tracking-[-0.02em] ${pm ? "text-white" : "text-ink"}`}>
-              {recent === 0 ? "아직 읽은 소식이 없어서 맞춤 체크를 만들지 못했어요" : "오늘은 맞춤 체크로 짚을 소식이 없어요"}
-            </p>
-          )}
-          <p className={`text-[14px] leading-relaxed ${personal.length ? "" : "mt-1"} ${pm ? "text-white/70" : "text-sub"}`}>
-            {personal.length
-              ? "소식을 많이 읽을수록 맞춤 체크가 더 정확해져요."
-              : `소식을 많이 읽고 들을수록 ${name ? `${name}님에게` : "나에게"} 맞는 인사이트를 더 정확하게 분석해 드려요.`}
-          </p>
-          <Link href="/settings#personal" className={`mt-2 inline-block text-[13px] font-semibold underline underline-offset-4 ${pm ? "text-mango" : "text-mango-deep"}`}>
-            맞춤 정보 고르기
-          </Link>
-        </div>
+            )}
+            <span className="text-[12px] font-bold text-white/85">소식 {flow.ids.length}개</span>
+          </span>
+          <span className="mt-2 line-clamp-3 block text-[18px] font-extrabold leading-[1.4] tracking-[-0.035em]">{flow.title}</span>
+        </span>
+      </button>
+      {canListen && first && (
+        <button
+          type="button"
+          // 듣기는 누른 손짓 안에서 건다(iOS)
+          onClick={() => p.playFrom(first.clusterId)}
+          aria-label={`${flow.title}, 이 흐름부터 듣기`}
+          className="absolute bottom-3.5 right-3.5 flex size-11 items-center justify-center rounded-full bg-mango text-[#1F2340] active:scale-95 motion-reduce:active:scale-100"
+        >
+          <IconPlay className="ml-0.5 size-[18px]" />
+        </button>
       )}
-    </section>
+    </li>
   );
+}
+
+/** 챙겨 볼 것(옛 맞춤 체크, 2026-11-26 홈에서 시트 아래쪽으로): 이 흐름의 소식에 닿는 맞춤 체크·할 일, 못 만들었을 때의 안내 */
+interface Care {
+  personal: NonNullable<BriefingInsight["personal"]>;
+  checks: BriefingInsight["checks"];
+  /** 비었거나 읽은 소식이 적을 때 왜인지와 어떻게 하면 좋아지는지(첫 흐름 시트에만) */
+  hint: { title: string | null; text: string } | null;
+}
+
+/**
+ * 맞춤 체크(2026-11-11 사용자: 사용자 맞춤 체크 항목이어야 한다)와 생활 속 할 일을 흐름마다 나눈다: 그 흐름의 소식(id)에 닿는 것만.
+ * 어느 흐름에도 닿지 않는 것은 첫 흐름 시트로(잃지 않게). 맞춤 체크가 비었거나 읽은 소식이 적으면 왜인지와 어떻게 하면 좋아지는지 알린다
+ * (2026-11-13 사용자: '이전에 읽던 소식이 아직 없다', '많이 읽을수록 분석을 잘해 준다'). 제목 아래에서 이미 '오늘은 맞춤 소식이 없어요'를 말한 형식 13은 또 말하지 않는다
+ */
+function careOf(insight: BriefingInsight, k: number, personalOff: boolean, name: string | null): Care {
+  const mine = (id: number) => insight.flows[k]?.ids.includes(id) || (k === 0 && !insight.flows.some((f) => f.ids.includes(id)));
+  const all = insight.personal ?? [];
+  const recent = insight.basis?.recent ?? 0;
+  const noted = !!insight.lead && !insight.lead.about;
+  const hint = !personalOff && !noted && (!all.length || recent < SEEN_MIN);
+  return {
+    personal: all.filter((x) => mine(x.id)),
+    checks: insight.checks.slice(0, 1).filter((c) => mine(c.id)),
+    hint:
+      hint && k === 0
+        ? {
+            title: all.length ? null : recent === 0 ? "아직 읽은 소식이 없어서 챙겨 볼 것을 짚지 못했어요" : "오늘은 챙겨 볼 것으로 짚을 소식이 없어요",
+            text: all.length ? "소식을 많이 읽을수록 챙겨 볼 것이 더 정확해져요." : `소식을 많이 읽고 들을수록 ${name ? `${name}님에게` : "나에게"} 맞는 인사이트를 더 정확하게 분석해 드려요.`,
+          }
+        : null,
+  };
 }
 
 /** 영향의 성격 표시(2026-11-13 사용자: 신뢰도 있는 말투 → 차분한 분석 용어) */
 const TONE_LABEL: Record<InsightTone, string> = { plus: "긍정 요인", minus: "부담 요인", watch: "지켜볼 변수" };
 
-/** 성격 배지(긍정 요인 파랑, 부담 요인 주황, 지켜볼 변수 빨강). onDark: 남색 바탕 위 */
-function ToneChip({ tone, onDark = false, className = "" }: { tone: InsightTone; onDark?: boolean; className?: string }) {
-  const cls =
-    tone === "plus"
-      ? onDark
-        ? "bg-[#8DB4FF]/20 text-[#B9D0FF]"
-        : "bg-plus-tint text-plus"
-      : tone === "minus"
-        ? onDark
-          ? "bg-[#FFA35C]/20 text-[#FFC79A]"
-          : "bg-minus-tint text-minus"
-        : onDark
-          ? "bg-[#FF8A8F]/20 text-[#FFB6B9]"
-          : "bg-watch-tint text-watch";
+/** 성격 배지(긍정 요인 파랑, 부담 요인 주황, 지켜볼 변수 빨강) */
+function ToneChip({ tone }: { tone: InsightTone }) {
+  const cls = tone === "plus" ? "bg-plus-tint text-plus" : tone === "minus" ? "bg-minus-tint text-minus" : "bg-watch-tint text-watch";
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${cls} ${className}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${cls}`}>
       <ToneIcon tone={tone} />
       {TONE_LABEL[tone]}
     </span>
@@ -429,9 +322,10 @@ function Part({ label, children }: { label: string; children: ReactNode }) {
  * 확인된 사실(숫자 그대로, 보도 언론·날짜) → 왜 나와 관련 있나요(관심과의 연결·읽던 소식) → 다음에 확인할 것 → 배경(흐리게) → 관련 소식 → 듣기.
  * 번호(①②③)는 순서가 아니라서 뺐다. 판단이 없는 예전 형식은 '왜'를 영향 자리에.
  * 2026-11-14 사용자 '인사이트에도 물어보기 기능 넣어줘': 분석 끝에 '이 분석에 대해 물어보기' → 같은 시트가 맹고 AI 대화로 바뀐다(글 화면과 같은 AskChat,
- * 하루 횟수도 같이 센다). 서버가 저장된 이 흐름과 관련 소식을 맥락으로 붙인다(lib/server/ask.ts). 추천 질문은 흐름에서 바로 만든다
+ * 하루 횟수도 같이 센다). 서버가 저장된 이 흐름과 관련 소식을 맥락으로 붙인다(lib/server/ask.ts). 추천 질문은 흐름에서 바로 만든다.
+ * 2026-11-26 시안: 홈의 맞춤 체크 칸을 없애고 그 내용을 관련 소식 아래 '챙겨 볼 것'으로 옮겼다(care)
  */
-function FlowDetail({ flow, index, onClose }: { flow: BriefingInsight["flows"][number]; index: number; onClose: () => void }) {
+function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flows"][number]; index: number; care: Care; onClose: () => void }) {
   const { data, listenAccess } = useToday();
   const [asking, setAsking] = useState(false);
   const p = usePlayer();
@@ -555,6 +449,7 @@ function FlowDetail({ flow, index, onClose }: { flow: BriefingInsight["flows"][n
           );
         })}
       </ul>
+      <TakeCare care={care} onClose={onClose} />
       {canListen && related[0] && (
         <button
           type="button"
@@ -572,6 +467,74 @@ function FlowDetail({ flow, index, onClose }: { flow: BriefingInsight["flows"][n
   );
 }
 
+/** 챙겨 볼 것: 내 맞춤 정보·읽던 소식으로 짚은 영향(예: 국내 주식 → 금리 인상의 영향) → 생활 속 확인할 것. 모두 없으면 그리지 않는다 */
+function TakeCare({ care, onClose }: { care: Care; onClose: () => void }) {
+  const { data } = useToday();
+  if (!care.personal.length && !care.checks.length && !care.hint) return null;
+  const tokenOf = (id: number) => data.items.find((i) => i.clusterId === id)?.token;
+  return (
+    <Part label="챙겨 볼 것">
+      <ul className="-mt-1 divide-y divide-line">
+        {care.personal.map((x) => {
+          const token = tokenOf(x.id);
+          const body = (
+            <>
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-[12px] font-semibold text-mango-deep">{x.about}</span>
+                {x.tone && <ToneChip tone={x.tone} />}
+              </span>
+              <span className="mt-1 block text-[16px] font-bold leading-snug tracking-[-0.02em] text-ink">{x.title}</span>
+              <span className="mt-1 block text-[14px] leading-relaxed text-sub">{x.text}</span>
+            </>
+          );
+          return (
+            <li key={x.title}>
+              {token ? (
+                <Link href={`/article/${token}`} onClick={onClose} className="block py-3.5 no-underline">
+                  {body}
+                </Link>
+              ) : (
+                <div className="py-3.5">{body}</div>
+              )}
+            </li>
+          );
+        })}
+        {care.checks.map((c) => {
+          const token = tokenOf(c.id);
+          const cls = "flex items-start gap-2.5 py-3.5 text-[14px] font-medium leading-relaxed text-ink no-underline";
+          const body = (
+            <>
+              <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-mango" aria-hidden="true" />
+              <span>{c.text}</span>
+            </>
+          );
+          return (
+            <li key={c.text}>
+              {token ? (
+                <Link href={`/article/${token}`} onClick={onClose} className={cls}>
+                  {body}
+                </Link>
+              ) : (
+                <p className={cls}>{body}</p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {care.hint && (
+        <div className="mt-1 rounded-2xl bg-snow px-4 py-3.5">
+          {care.hint.title && <p className="text-[15px] font-bold leading-snug tracking-[-0.02em] text-ink">{care.hint.title}</p>}
+          <p className={`text-[14px] leading-relaxed text-sub ${care.hint.title ? "mt-1" : ""}`}>{care.hint.text}</p>
+          <Link href="/settings#personal" onClick={onClose} className="mt-2 inline-block text-[13px] font-semibold text-mango-deep underline underline-offset-4">
+            맞춤 정보 고르기
+          </Link>
+        </div>
+      )}
+    </Part>
+  );
+}
+
+
 /** 맹고가 무엇을 하고 있는지(시작 초·끝 초, 마지막은 끝없이). 서버가 진행을 알려 주지 않아서 기다린 시간으로 바꾼다 */
 function makingLines(name: string | null, count: number): { text: string; from: number; to?: number }[] {
   const who = name ? `${name}님` : "회원님";
@@ -585,30 +548,25 @@ function makingLines(name: string | null, count: number): { text: string; from: 
 }
 
 /**
- * 흐름을 만드는 동안(처음 열 때 보통 5~10초, 미리 만들어 둔 사람은 바로 나온다).
+ * 흐름을 만드는 동안(처음 열 때 보통 5~10초, 미리 만들어 둔 사람은 바로 나온다) '오늘의 흐름' 자리의 진행 카드.
  * 2026-11-13 사용자: 회색 뼈대 대신 'OO님 관심사를 맹고가 열심히 분석하고 있어요 → 거의 다 됐어요'처럼 무엇을 하는지 보여 주고, 진행률도.
- * 머리는 다 된 화면과 같은 'OO님에게 맞춤 인사이트'·날짜(덜 밀리게), 큰 제목 자리는 빛이 지나가는 줄, 흐름 카드 자리는 서류를 뒤지는 맹고·바뀌는 말·진행 막대·%.
+ * 머리는 InsightHead(제목만), 카드 자리는 흐름 카드와 같은 크기의 남색 카드: 앱 아이콘·바뀌는 말·진행 막대·%.
  * 말 바뀜·진행률은 CSS 애니메이션만으로 한다(globals.css making-*): 서버가 먼저 그린 이 대체 화면은 React가 브라우저에서 살리지 않아(기다리는 경계의
  * 대체 화면은 하이드레이션하지 않는다) JS 타이머가 돌지 않았다. 끝을 모르므로 100%는 채우지 않는다. 다 되면 이 화면이 통째로 바뀐다
  */
 export function InsightFallback() {
   const { data } = useToday();
-  const pm = data.slot === "pm";
   const name = useCallName();
   const count = Math.min(data.items.length, data.dailyLimit || data.items.length);
   const lines = makingLines(name, count);
   return (
-    <>
-      <ForYou />
-      <h1 id="briefing-title" className="sr-only">
-        {SLOT_LABEL[data.slot ?? "am"]} 브리핑
-      </h1>
-      <div aria-hidden="true" className="mt-3.5">
-        <div className={`h-[30px] w-[88%] rounded-lg ${pm ? "sk-night" : "sk"}`} />
-        <div className={`mt-2.5 h-[30px] w-[58%] rounded-lg ${pm ? "sk-night" : "sk"}`} />
+    <section aria-labelledby="flows-title" className="mt-4">
+      <div className="flex min-h-11 items-center px-1.5">
+        <h2 id="flows-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
+          오늘의 흐름
+        </h2>
       </div>
-      <DateBelow pm={pm} />
-      <div className={`mt-4 rounded-[22px] px-5 pb-5 pt-4 ${pm ? "bg-white/10" : "bg-[#1F2340]"}`}>
+      <div className="mx-1.5 mt-1 flex h-[200px] flex-col justify-center rounded-[18px] bg-[#1F2340] px-5 ring-1 ring-inset ring-white/10">
         <p role="status" className="sr-only">
           맞춤 인사이트를 만들고 있어요. 보통 5~10초 걸려요
         </p>
@@ -628,13 +586,13 @@ export function InsightFallback() {
             ))}
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-3" aria-hidden="true">
+        <div className="mt-5 flex items-center gap-3" aria-hidden="true">
           <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/15">
             <div className="making-fill stripes h-full rounded-full bg-mango" />
           </div>
           <span className="making-pct w-11 shrink-0 text-right font-round text-[15px] font-extrabold tabular-nums text-mango" />
         </div>
       </div>
-    </>
+    </section>
   );
 }

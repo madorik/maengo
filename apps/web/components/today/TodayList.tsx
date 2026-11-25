@@ -1,31 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { IconPause, IconPlay } from "@/components/icons";
-import { MangoIcon } from "@/components/MangoIcon";
 import { usePlayer, type PlayerApi } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
+import { CATEGORY_LABEL } from "@maengo/core/categories";
 import { SECTION_LABEL, SLOT_LABEL, isSection } from "@maengo/core/sections";
 import { useMoreArrival } from "./arrival";
+import { InsightHead } from "./BriefingInsight";
 import { MakeToday } from "./MakeToday";
 import { FillToday } from "./FillToday";
 import { MORE_MAX } from "@/lib/more";
 import { SignupGift } from "./SignupGift";
 import { Thumb } from "./Thumb";
-import { SoundWave } from "@/components/listen/SoundWave";
 import { startTour, useTourSeen } from "./FeatureTour";
 import type { FeedItem } from "@/lib/types";
 
 /**
- * 오늘 화면(2026-11-10 G안): 오전에 열면 출근길, 오후에 열면 퇴근길 브리핑. 맨 위에 걸리는 시간과 '언론 N곳, 기사 N건에서 골랐어요',
- * 남색 듣기 막대, 아래는 노선(소식이 정거장, 망고가 지금 위치) 또는 사진 카드. 퇴근길은 남색 바탕.
- * 사용자가 고른 보기(노선·카드)는 이 기기에 남긴다. notice는 맨 위 결제 안내 띠(서버가 그린다, today/page.tsx)
+ * 오늘 화면(2026-11-26 시안 6안 홈): 오전에 열면 출근길, 오후에 열면 퇴근길 브리핑.
+ * 위에서부터 ① 머리(작은 줄 '출근길 브리핑, 11월 26일 수요일' + 인사이트 문장이 굵은 제목, 오른쪽에 큰 재생 원 = 브리핑 듣기)
+ * ② 오늘의 흐름(사진 카드를 옆으로 넘긴다, BriefingInsight.tsx) ③ 맞춤 소식(분야 칩 + 보관함과 같은 소식 줄).
+ * 예전(2026-11-10 G안)의 남색 듣기 막대·출근길 노선·목록/노선 전환·맞춤 체크 칸은 시안에 없어서 뺐다(맞춤 체크는 흐름 상세 시트의 '챙겨 볼 것'으로).
+ * 퇴근길이라고 화면을 남색으로 바꾸지 않는다(2026-11-26 사용자): 출근길·퇴근길 모두 사용자가 고른 밝기를 따르고, 제목 글자로만 구분한다.
+ * notice는 맨 위 결제 안내 띠, head·flows는 오늘의 인사이트(서버가 Suspense로 끼운다, today/page.tsx)
  */
-export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** 오늘의 흐름(서버가 Suspense로 끼운다, today/page.tsx) */ insight?: React.ReactNode }) {
-  const { data, game, consumed } = useToday();
+export function TodayList({ notice, head, flows }: { notice?: ReactNode; /** 머리의 인사이트 제목 */ head?: ReactNode; /** 오늘의 흐름 */ flows?: ReactNode }) {
+  const { data, game, consumed, listenAccess } = useToday();
   const player = usePlayer();
   const { expect, settle } = useMoreArrival(data.items.map((i) => i.clusterId));
   const received = Math.min(data.items.length, data.dailyLimit);
@@ -35,37 +38,13 @@ export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** �
   useEffect(() => {
     if (newMember && game.total > 0 && !tourSeen) startTour();
   }, [newMember, game.total, tourSeen]);
-  const view = useView();
-  const pm = data.slot === "pm";
-  // 퇴근길(남색)이면 페이지 바탕·머리말까지 남색으로(globals.css html[data-briefing="pm"]). 이 화면을 떠나면 뗀다
-  useEffect(() => {
-    const root = document.documentElement;
-    if (pm) root.dataset.briefing = "pm";
-    else delete root.dataset.briefing;
-    return () => {
-      delete root.dataset.briefing;
-    };
-  }, [pm]);
   const slotLabel = SLOT_LABEL[data.slot];
-  // 인사 날짜 끝의 때(아침·저녁 등)는 떼고 출근길·퇴근길을 붙인다(저녁에 출근길 브리핑을 보면 "저녁 출근길"이 되지 않게)
-  const day = data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|오후|저녁|밤)$/, "");
-  // 걸리는 시간: 플레이어가 브리핑 음성 정보를 받았으면 그 길이(플레이어 막대와 같은 값), 아니면 글자 수 어림값
-  // 걸리는 시간: 플레이어가 브리핑 음성 정보를 받았으면 그 길이(플레이어 막대와 같은 값), 아니면 글자 수 어림값.
-  // 소식마다 걸리는 시간도 같은 값으로(합이 머리의 시간과 맞게)
-  const chapterSec = new Map(player.playlist ? [] : player.chapters.map((c) => [c.clusterId, Math.round((c.endMs - c.startMs) / 1000)] as const));
-  const items = data.items.map((i) => (chapterSec.has(i.clusterId) ? { ...i, fullSeconds: chapterSec.get(i.clusterId) } : i));
-  const seconds = items.reduce((a, i) => a + (i.fullSeconds ?? 0), 0);
-  // 망고의 자리: 하나도 안 들었으면 출발(-1), 들은 게 있으면 아직 안 들은 첫 소식, 다 들었으면 도착(소식 수)
-  const firstLeft = data.items.findIndex((i) => !consumed(i.clusterId));
-  const current = !data.items.some((i) => consumed(i.clusterId)) ? -1 : firstLeft === -1 ? data.items.length : firstLeft;
-  // 브리핑을 듣는 동안(멈춤 포함) 망고는 재생 위치를 따라 노선을 달린다(2026-11-11 사용자)
+  const items = data.items;
+  // 브리핑을 듣는 동안(멈춤 포함) 듣는 소식 줄을 회색으로 표시하고 화면 위로 올린다(2026-11-11 사용자)
   const ride = rideOf(player, items);
   useFollowListening(ride);
-  // 노선에서 망고를 옮기거나 정거장을 누르면 그 소식부터 듣는다(2026-11-11 사용자). 들을 수 없는 계정(몫을 다 쓴 Free 등)은 옮기지 못한다
-  const { listenAccess } = useToday();
-  const canListen = player.enabled && data.items.some((i) => listenAccess(i.clusterId) !== null);
-  const pick = canListen ? (index: number) => items[index] && player.playFrom(items[index].clusterId) : undefined;
-  // 카드마다 재생·일시정지(2026-11-11 사용자: 버튼이 위에만 있어 불편). 듣는 카드면 멈춤·이어서, 다른 카드면 그 소식부터
+  // 줄마다 재생·일시정지(2026-11-11 사용자: 버튼이 위에만 있어 불편). 듣는 줄이면 멈춤·이어서, 다른 줄이면 그 소식부터. 들을 수 없는 계정(몫을 다 쓴 Free 등)은 버튼이 없다
+  const canListen = player.enabled && items.some((i) => listenAccess(i.clusterId) !== null);
   const toggle = canListen
     ? (index: number) => {
         const it = items[index];
@@ -76,75 +55,42 @@ export function TodayList({ notice, insight }: { notice?: React.ReactNode; /** �
     : undefined;
 
   return (
-    <div className={pm ? "min-h-dvh bg-[#1F2340] text-white" : ""}>
-      <div className="mx-auto max-w-[640px] px-4 pb-4 pt-5 lg:pt-8">
-        {notice}
-        {data.signupGift && tourSeen && <SignupGift gift={data.signupGift} />}
+    <div className="mx-auto max-w-[640px] px-4 pb-4 pt-5 lg:pt-8">
+      {notice}
+      {data.signupGift && tourSeen && <SignupGift gift={data.signupGift} />}
 
-        <section aria-labelledby="briefing-title" className="px-1.5">
-          {/* 머리는 'OO님에게 맞춤 인사이트'와 오늘의 흐름 한 줄(2026-11-11 사용자). 서버가 만들어 끼운다(today/page.tsx, BriefingInsight.tsx) */}
-          {game.total > 0 ? (
-            insight
-          ) : (
-            <>
-              <p className={`text-[13px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>
-                {day}
-              </p>
-              <h1 id="briefing-title" className="mt-1 text-[26px] font-bold tracking-[-0.035em]">
-                {slotLabel} 브리핑
-              </h1>
-            </>
-          )}
-        </section>
+      {/* 머리: 인사이트 한 줄이 제목(서버가 만들어 끼운다). 재생 원은 눌러야 해서 인사이트를 기다리지 않고 여기(브라우저에서 살아 있는 쪽)서 그린다 */}
+      <section aria-labelledby="briefing-title" className="flex items-center gap-3 px-1.5">
+        <div className="min-w-0 flex-1">{game.total > 0 ? head : <InsightHead headline={null} />}</div>
+        {game.total > 0 && <ListenCircle label={`${slotLabel} 브리핑 듣기`} />}
+      </section>
 
-        {game.total > 0 && <ListenBar pm={pm} label={`${slotLabel} 브리핑 듣기`} seconds={seconds} />}
-        {game.total > 0 && remaining > 0 && <FillToday remaining={remaining} onExpect={expect} onSettle={settle} />}
+      {game.total > 0 && remaining > 0 && <FillToday remaining={remaining} onExpect={expect} onSettle={settle} />}
 
-        {game.total > 0 ? (
-          <>
-            <div className="mt-6 flex items-center justify-between px-1.5">
-              <h2 className="text-[15px] font-bold">{slotLabel} 노선</h2>
-              <div className="flex items-center gap-1.5">
-                <ReplayButton pm={pm} />
-                <ViewToggle view={view.value} onChange={view.set} pm={pm} />
-              </div>
-            </div>
-            {view.value === "card" ? (
-              <CardGrid items={items} pm={pm} consumed={consumed} ride={ride} onToggle={toggle} />
-            ) : (
-              <Route items={items} pm={pm} current={current} consumed={consumed} ride={ride} rate={player.rate} onPick={pick} onToggle={toggle} />
-            )}
-          </>
-        ) : (
-          <div className="mt-4">
-            <MakeToday reason={data.emptyReason} notifyLabel={data.notifyLabel} />
-          </div>
-        )}
+      {game.total > 0 ? (
+        <>
+          {flows}
+          <NewsSection items={items} consumed={consumed} ride={ride} onToggle={toggle} />
+        </>
+      ) : (
+        <div className="mt-4">
+          <MakeToday reason={data.emptyReason} notifyLabel={data.notifyLabel} />
+        </div>
+      )}
 
-        {/* 브리핑을 다 받은 뒤 '더 보기'(10개씩, 브리핑마다 30개까지, 2026-11-12 사용자). 맹고 '하나 더 받기'를 대신한다 */}
-        {game.total > 0 && remaining === 0 && (
-          <FillToday
-            mode="more"
-            remaining={0}
-            done={data.items.length - data.dailyLimit >= MORE_MAX}
-            doneLabel={`${data.slot === "pm" ? "오후" : "오전"} 주요 뉴스는 다 봤어요!`}
-            onExpect={expect}
-            onSettle={settle}
-          />
-        )}
-      </div>
+      {/* 브리핑을 다 받은 뒤 '더 보기'(10개씩, 브리핑마다 30개까지, 2026-11-12 사용자). 맹고 '하나 더 받기'를 대신한다 */}
+      {game.total > 0 && remaining === 0 && (
+        <FillToday
+          mode="more"
+          remaining={0}
+          done={data.items.length - data.dailyLimit >= MORE_MAX}
+          doneLabel={`${data.slot === "pm" ? "오후" : "오전"} 주요 뉴스는 다 봤어요!`}
+          onExpect={expect}
+          onSettle={settle}
+        />
+      )}
     </div>
   );
-}
-
-/** 듣기 막대의 걸리는 시간: 1분 넘으면 'N분', 그 안이면 'N초' */
-function shortDuration(seconds: number): string {
-  return seconds >= 60 ? `${Math.round(seconds / 60)}분` : `${seconds}초`;
-}
-
-function clock(seconds?: number): string {
-  if (!seconds) return "";
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 /** 브리핑 듣는 자리: 오늘 소식 중 몇 번째를 듣는지, 그 소식을 얼마나 들었는지(0~1), 지금 소리가 나는지 */
@@ -163,7 +109,7 @@ function rideOf(p: PlayerApi, items: FeedItem[]): Ride | null {
 }
 
 /**
- * 듣는 소식이 바뀌면 그 카드를 화면 맨 위로 올린다(2026-11-11 사용자: 맹고가 옮겨 갈 때마다 카드가 맨 위에 보이게).
+ * 듣는 소식이 바뀌면 그 줄을 화면 맨 위로 올린다(2026-11-11 사용자: 듣는 소식이 옮겨 갈 때마다 그 소식이 맨 위에 보이게).
  * 소리가 나는 소식이 바뀔 때만 한 번 움직인다(멈춘 채 화면에 들어오거나, 같은 소식을 듣는 동안 내려 본 것은 건드리지 않는다)
  */
 function useFollowListening(ride: Ride | null) {
@@ -185,376 +131,162 @@ function useFollowListening(ride: Ride | null) {
   }, [index, playing]);
 }
 
-/** 소식 카드의 재생·일시정지(망고색 동그라미, 사진 위에서도 보이게 그림자) */
-function CardPlay({ playing, title, onClick, className = "", overlay = false }: { playing: boolean; title: string; onClick: () => void; className?: string; overlay?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={playing ? `${title} 일시정지` : `${title} 듣기`}
-      // 재생 단추: 망고색 대신 남색·흰 아이콘(2026-11-11 사용자: 주황색 넣지 말고 사진 가운데로). 사진 위(overlay)에서는 반투명
-      className={`flex size-9 shrink-0 items-center justify-center rounded-full text-white shadow-[0_2px_8px_rgb(31_35_64/0.25)] active:scale-95 motion-reduce:active:scale-100 ${overlay ? "bg-[#1F2340]/65 backdrop-blur-[2px]" : "bg-[#1F2340]"} ${className}`}
-    >
-      {playing ? <IconPause className="size-4" /> : <IconPlay className="ml-0.5 size-4" />}
-    </button>
-  );
-}
-
 /** 자동으로 올릴 때 위쪽 막대(모바일 머리말)에 가리지 않게 남기는 자리 */
 const FOLLOW_MARGIN = "scroll-mt-[calc(68px+env(safe-area-inset-top))] lg:scroll-mt-6";
 
-const VIEW_KEY = "maengo:today-view";
-const viewListeners = new Set<() => void>();
-function readView(): "route" | "card" {
-  try {
-    return localStorage.getItem(VIEW_KEY) === "card" ? "card" : "route";
-  } catch {
-    return "route";
-  }
+function sectionLabel(item: FeedItem): string {
+  return item.section && isSection(item.section) ? SECTION_LABEL[item.section] : CATEGORY_LABEL[item.category];
 }
 
-/** 노선·카드 보기. 이 기기에 남긴다(처음은 노선) */
-function useView(): { value: "route" | "card"; set: (v: "route" | "card") => void } {
-  const value = useSyncExternalStore(
-    (cb) => {
-      viewListeners.add(cb);
-      return () => viewListeners.delete(cb);
-    },
-    readView,
-    () => "route" as const,
-  );
-  return {
-    value,
-    set: (v) => {
-      try {
-        localStorage.setItem(VIEW_KEY, v);
-      } catch {}
-      for (const l of viewListeners) l();
-    },
-  };
-}
-
-function ViewToggle({ view, onChange, pm }: { view: "route" | "card"; onChange: (v: "route" | "card") => void; pm: boolean }) {
-  const base = "flex h-8 w-9 items-center justify-center rounded-full";
-  // 색은 글자색(currentColor)으로: 다크 모드에서도 테마 색을 따른다
-  const on = pm ? "bg-white/20 text-white" : "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]";
-  const off = pm ? "text-white/60" : "text-sub";
-  return (
-    <div role="group" aria-label="보기 방식" className={`flex gap-0.5 rounded-full p-[3px] ${pm ? "bg-white/10" : "bg-snow"}`}>
-      <button type="button" aria-pressed={view === "route"} aria-label="노선으로 보기" onClick={() => onChange("route")} className={`${base} ${view === "route" ? on : off}`}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <path d="M7 4v16" />
-          <circle cx="7" cy="7" r="2" fill="currentColor" />
-          <circle cx="7" cy="17" r="2" fill="currentColor" />
-          <path d="M12 7h8M12 17h8" />
-        </svg>
-      </button>
-      <button type="button" aria-pressed={view === "card"} aria-label="카드로 보기" onClick={() => onChange("card")} className={`${base} ${view === "card" ? on : off}`}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <rect x="4" y="4" width="7" height="7" rx="2" />
-          <rect x="13" y="4" width="7" height="7" rx="2" />
-          <rect x="4" y="13" width="7" height="7" rx="2" />
-          <rect x="13" y="13" width="7" height="7" rx="2" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
-function sectionLabel(item: FeedItem): string | null {
-  return item.section && isSection(item.section) ? SECTION_LABEL[item.section] : null;
-}
-
-function Meta({ item, pm }: { item: FeedItem; pm: boolean }) {
-  const label = sectionLabel(item);
-  return (
-    <p className={`mt-1 flex gap-2 text-[12px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>
-      {label && <span className={`font-semibold ${pm ? "text-white" : "text-ink"}`}>{label}</span>}
-      {(item.sourceCount ?? 0) >= 2 && <span>언론 {item.sourceCount}곳</span>}
-      {item.fullSeconds ? <span className="tabular-nums">{clock(item.fullSeconds)}</span> : null}
-    </p>
-  );
+/** 소식 줄 아래 흐린 글: '언론 3곳, 오늘 오전 9시'(한 곳이면 언론사 이름) */
+function metaOf(item: FeedItem): string {
+  const from = (item.sourceCount ?? 0) >= 2 ? `언론 ${item.sourceCount}곳` : item.sourceLabel;
+  return [from, item.publishedLabel].filter(Boolean).join(", ");
 }
 
 /**
- * 노선: 출발 → 소식(정거장) → 도착. 지나온 구간은 흐리게, 망고는 지금 들을 차례인 정거장에.
- * 브리핑을 듣는 동안(ride)은 망고가 재생 위치를 따라 다음 정거장 쪽으로 움직인다(2026-11-11 사용자).
- * 소리가 나는 동안은 소리에 맞춰 커졌다 작아진다(재생 속도가 빠르면 더 빨리). 듣는 카드에 글씨는 쓰지 않는다.
- * 망고를 끌어 다른 정거장에 놓거나 정거장(점)을 누르면 그 소식부터 듣는다(onPick, 2026-11-11 사용자).
- * 망고는 한 마리를 노선 위에 띄워 두고 자리만 옮긴다(정거장마다 그리지 않는다: 끌기·움직임이 이어지게)
+ * 맞춤 소식(2026-11-26 시안): 제목 + '전체 보기'(보관함) → 분야 칩 줄(최신 + 오늘 받은 소식에 있는 분야, 고르면 남색) → 소식 줄 목록.
+ * 칩은 오늘 목록만 거른다(듣기는 거른 것과 관계없이 오늘 브리핑 전체). 소식 줄은 보관함과 같은 모양(library/LibraryCards.tsx EntryRow)
  */
-function Route({
+function NewsSection({
   items,
-  pm,
-  current,
-  consumed,
-  ride,
-  rate,
-  onPick,
-  onToggle,
-}: {
-  items: FeedItem[];
-  pm: boolean;
-  current: number;
-  consumed: (id: number) => boolean;
-  ride: Ride | null;
-  rate: number;
-  /** 이 소식부터 듣기. 없으면(들을 수 없는 계정) 망고를 옮기지 못한다 */
-  onPick?: (index: number) => void;
-  /** 카드의 재생·일시정지 버튼. 없으면 버튼을 그리지 않는다 */
-  onToggle?: (index: number) => void;
-}) {
-  const line = "#FFC23D";
-  const passed = pm ? "rgba(255,255,255,0.22)" : "#D5D8E0";
-  const headline = (items[0]?.sourceCount ?? 0) >= 2;
-  const olRef = useRef<HTMLOListElement>(null);
-  const ys = useStops(olRef, items.length);
-  /** 정거장 가운데 높이. k: -1 출발, 0..n-1 소식, n 도착 */
-  const stop = (k: number): number | undefined => ys[k + 1];
-  const drag = useMangoDrag(items.length, stop, onPick);
-  const at = drag.target ?? (ride ? ride.index : current);
-  // 망고의 가운데 높이: 끄는 중이면 손가락, 듣는 중이면 듣는 정거장에서 다음 정거장(마지막이면 도착)까지 들은 만큼, 아니면 지금 정거장
-  const from = ride ? stop(ride.index) : undefined;
-  let y: number | undefined;
-  if (drag.y !== null) y = drag.y;
-  else if (ride) y = from === undefined ? undefined : from + ride.frac * ((stop(ride.index + 1) ?? from) - from);
-  else y = stop(Math.min(current, items.length));
-  const departed = (i: number) => i < at || (!!ride && drag.target === null && i === at);
-  return (
-    <ol ref={olRef} aria-label="노선" className="relative mt-3 px-1">
-      <li data-stop="20" className="flex h-12 items-center gap-3">
-        <div aria-hidden="true" className="relative h-12 w-8 shrink-0">
-          <span className="absolute bottom-0 left-[13px] top-6 w-1.5" style={{ background: at >= 0 ? passed : line }} />
-          <span className="absolute left-[10px] top-[18px] size-3 rounded-full" style={{ background: at >= 0 ? passed : line }} />
-        </div>
-        <span className={`text-[12px] font-bold ${pm ? "text-mango" : "text-mango-deep"}`}>출발</span>
-      </li>
-      {items.map((item, i) => {
-        const listening = ride?.index === i && drag.target === null;
-        const done = consumed(item.clusterId) && !listening;
-        const here = i === at;
-        const big = i === 0;
-        return (
-          <li key={item.clusterId} data-stop="28" data-listen-index={i} data-cluster={item.clusterId} className={`flex gap-3 ${FOLLOW_MARGIN}`} data-tour={i === 0 ? "card" : undefined}>
-            <div className="relative w-8 shrink-0">
-              <span aria-hidden="true" className="absolute left-[13px] top-0 h-7 w-1.5" style={{ background: i <= at ? passed : line }} />
-              <span aria-hidden="true" className="absolute bottom-0 left-[13px] top-7 w-1.5" style={{ background: i < at ? passed : line }} />
-              <span
-                aria-hidden="true"
-                className={`absolute rounded-full ${big ? "left-[6px] top-[18px] size-5 border-[5px]" : "left-[9px] top-[21px] size-3.5 border-4"}`}
-                style={{ borderColor: departed(i) ? passed : line, background: departed(i) ? passed : pm ? "#1F2340" : "var(--color-paper)" }}
-              />
-              {/* 정거장을 누르면 이 소식부터 듣는다(망고 끌기의 키보드·화면 낭독기 길) */}
-              {onPick && (
-                <button
-                  type="button"
-                  aria-label={`${item.title}부터 듣기`}
-                  onClick={() => onPick(i)}
-                  className="absolute inset-x-[-4px] bottom-0 top-0 z-[5] rounded-xl focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
-                />
-              )}
-            </div>
-            {/* 카드: 글(제목·요약 정보)과 사진은 글 화면으로, 사진 모서리(사진이 없으면 그 자리)의 버튼은 재생·일시정지 */}
-            <div className={`flex min-w-0 flex-1 items-center gap-3 ${here ? (pm ? "my-1 rounded-2xl bg-white/10 px-3" : "my-1 rounded-2xl bg-snow px-3 ring-2 ring-ink") : ""}`}>
-              <Link href={`/article/${item.token}`} aria-current={listening ? "true" : undefined} className="min-w-0 flex-1 py-2.5 no-underline">
-                {/* 듣는 중은 글씨로 쓰지 않는다(줄이 늘어 보기 불편, 2026-11-11 사용자): 노선의 망고가 그 자리에서 커졌다 작아진다 */}
-                {big && headline && (
-                  <span className={`mb-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pm ? "bg-mango/20 text-mango" : "bg-snow text-ink ring-1 ring-line"}`}>가장 많이 다룬 소식</span>
-                )}
-                {/* 제목은 두 줄까지, 넘치면 …(2026-11-10 사용자) */}
-                <p
-                  className={`line-clamp-2 ${big ? "text-[17px] font-bold" : "text-[15px] font-semibold"} leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}
-                >
-                  {item.title}
-                </p>
-                <Meta item={item} pm={pm} />
-              </Link>
-              <div className="group/media relative flex shrink-0 items-center">
-                <Link href={`/article/${item.token}`} tabIndex={-1} aria-hidden="true" className="block">
-                  <Thumb item={item} className={big ? "aspect-[3/2] w-[108px] rounded-2xl" : "aspect-[3/2] w-[84px] rounded-xl"} />
-                </Link>
-                {onToggle && (
-                  <CardPlay
-                    playing={listening && !!ride?.playing}
-                    title={item.title}
-                    onClick={() => onToggle(i)}
-                    className="group-has-[[data-photo]]/media:absolute group-has-[[data-photo]]/media:left-1/2 group-has-[[data-photo]]/media:top-1/2 group-has-[[data-photo]]/media:size-8 group-has-[[data-photo]]/media:-translate-x-1/2 group-has-[[data-photo]]/media:-translate-y-1/2 group-has-[[data-photo]]/media:bg-[#1F2340]/65 group-has-[[data-photo]]/media:backdrop-blur-[2px]"
-                  />
-                )}
-              </div>
-            </div>
-          </li>
-        );
-      })}
-      <li data-stop="24" className="flex h-12 items-center gap-3">
-        <div aria-hidden="true" className="relative h-12 w-8 shrink-0">
-          <span className="absolute left-[13px] top-0 h-3 w-1.5" style={{ background: at >= items.length ? passed : line }} />
-          <span className={`absolute left-[5px] top-[10px] flex size-[22px] items-center justify-center rounded-[7px] ${pm ? "bg-mango" : "bg-ink"}`}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={pm ? "#1F2340" : "#FFC23D"} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12.5l4.5 4.5L19 7.5" />
-            </svg>
-          </span>
-        </div>
-        <span className="text-[12px] font-bold">도착</span>
-        <span className={`text-[12px] font-medium ${pm ? "text-white/65" : "text-sub"}`}>{pm ? "집에 가기 전에 끝나요" : "회사 도착 전에 끝나요"}</span>
-      </li>
-      {/* 지나온 만큼 선을 흐리게 덮는다(듣는 정거장 → 망고) */}
-      {ride && drag.y === null && from !== undefined && y !== undefined && (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-[17px] w-1.5 transition-[height] duration-300 ease-linear motion-reduce:transition-none"
-          style={{ top: from, height: Math.max(0, y - from), background: passed }}
-        />
-      )}
-      {y !== undefined && (
-        // 위치는 0.25초마다 바뀌어서(timeupdate) 그 사이를 같은 길이로 미끄러지게 한다. 끄는 동안은 손가락을 바로 따라간다
-        <span
-          aria-hidden="true"
-          {...(onPick ? drag.handlers : {})}
-          className={`absolute left-0 top-0 z-10 ${onPick ? "cursor-grab touch-none active:cursor-grabbing" : "pointer-events-none"} ${drag.y !== null ? "" : "transition-transform duration-300 ease-linear motion-reduce:transition-none"}`}
-          style={{ transform: `translateY(${y - 20}px)` }}
-        >
-          {/* 손가락으로 잡기 쉽게 둘레를 넓힌다 */}
-          <span className="absolute -inset-2" />
-          <span
-            className={`block ${ride?.playing && drag.y === null ? "mango-ride" : ""} ${drag.y !== null ? "scale-110" : ""} transition-transform`}
-            style={{ "--ride-dur": `${(0.8 / (rate || 1)).toFixed(2)}s` } as React.CSSProperties}
-          >
-            {/* 노선 위 맹고 캐릭터가 있던 자리에 작은 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘). 노선 선도 주황이라 둘레를 배경색으로 둘러 구분한다. 움직임·끌기는 그대로 */}
-            <span className="flex size-10 items-center justify-center">
-              <MangoIcon className={`size-8 rounded-[22%] shadow-[0_2px_6px_rgb(31_35_64/0.25)] ring-2 ${pm ? "ring-[#1F2340]" : "ring-paper"}`} />
-            </span>
-          </span>
-        </span>
-      )}
-    </ol>
-  );
-}
-
-/**
- * 노선 망고 끌기(2026-11-11): 위아래로 끌면 손가락을 따라가고, 놓으면 가장 가까운 소식 정거장에서 그 소식부터 듣는다.
- * 6px 안쪽 움직임은 누름으로 보고 아무것도 하지 않는다(실수로 건드려 듣기가 바뀌지 않게). 소식 정거장 사이에서만 움직인다
- */
-function useMangoDrag(count: number, stop: (k: number) => number | undefined, onPick?: (index: number) => void) {
-  const [state, setState] = useState<{ y: number; target: number } | null>(null);
-  const ref = useRef<{ id: number; startY: number; base: number; moved: boolean; target: number } | null>(null);
-  const nearest = (y: number) => {
-    let best = 0;
-    for (let k = 1; k < count; k++) if (Math.abs((stop(k) ?? Infinity) - y) < Math.abs((stop(best) ?? Infinity) - y)) best = k;
-    return best;
-  };
-  const handlers = {
-    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
-      // 지금 보이는 망고 가운데(노선 위에서부터). 움직이는 중이어도 보이는 자리에서 잡는다
-      const ol = e.currentTarget.offsetParent;
-      if (!onPick || !ol || !count) return;
-      const base = e.currentTarget.getBoundingClientRect().top - ol.getBoundingClientRect().top + 20;
-      e.currentTarget.setPointerCapture(e.pointerId);
-      ref.current = { id: e.pointerId, startY: e.clientY, base, moved: false, target: nearest(base) };
-    },
-    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
-      const d = ref.current;
-      if (!d || d.id !== e.pointerId) return;
-      const dy = e.clientY - d.startY;
-      if (!d.moved && Math.abs(dy) < 6) return;
-      d.moved = true;
-      const lo = stop(0) ?? d.base;
-      const hi = stop(count - 1) ?? d.base;
-      const y = Math.min(hi, Math.max(lo, d.base + dy));
-      d.target = nearest(y);
-      setState({ y, target: d.target });
-    },
-    onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
-      const d = ref.current;
-      if (!d || d.id !== e.pointerId) return;
-      ref.current = null;
-      setState(null);
-      if (d.moved) onPick?.(d.target);
-    },
-    onPointerCancel: () => {
-      ref.current = null;
-      setState(null);
-    },
-  };
-  return { y: state?.y ?? null, target: state?.target ?? null, handlers };
-}
-
-/**
- * 노선 정거장의 가운데 높이(노선 위에서부터, px). data-stop을 단 줄(소식 정거장, 도착)마다 줄 위 + data-stop.
- * 사진·글꼴이 늦게 와 줄 높이가 바뀌면 다시 잰다
- */
-function useStops(ref: React.RefObject<HTMLOListElement | null>, count: number): number[] {
-  const [ys, setYs] = useState<number[]>([]);
-  useLayoutEffect(() => {
-    const ol = ref.current;
-    if (!ol) return;
-    const measure = () => {
-      const next = [...ol.querySelectorAll<HTMLElement>("[data-stop]")].map((li) => li.offsetTop + Number(li.dataset.stop));
-      setYs((prev) => (prev.length === next.length && prev.every((v, k) => v === next[k]) ? prev : next));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(ol);
-    return () => ro.disconnect();
-  }, [ref, count]);
-  return ys;
-}
-
-/** 사진 카드 보기: 2열, 사진이 없으면 분야 이름 칸 */
-function CardGrid({
-  items,
-  pm,
   consumed,
   ride,
   onToggle,
 }: {
   items: FeedItem[];
-  pm: boolean;
   consumed: (id: number) => boolean;
   ride: Ride | null;
+  /** 줄의 재생·일시정지 버튼. 없으면 버튼을 그리지 않는다 */
   onToggle?: (index: number) => void;
 }) {
+  const [filter, setFilter] = useState<string | null>(null);
+  // 받은 소식에 있는 분야(처음 나온 순서)
+  const sections = [...new Set(items.map((i) => i.section).filter((s): s is string => !!s && isSection(s)))];
+  const active = filter && sections.includes(filter) ? filter : null;
+  const shown = items.map((item, i) => ({ item, i })).filter(({ item }) => !active || item.section === active);
   return (
-    <ul aria-label="소식" className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5">
-      {items.map((item, i) => {
-        const listening = ride?.index === i;
-        const done = consumed(item.clusterId) && !listening;
-        const label = sectionLabel(item);
-        return (
-          <li
-            key={item.clusterId}
-            data-listen-index={i}
-            data-cluster={item.clusterId}
-            data-tour={i === 0 ? "card" : undefined}
-            className={`${FOLLOW_MARGIN} ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "col-span-2" : ""}`}
-          >
-            {/* 사진(글 화면으로) 오른쪽 아래에 재생·일시정지 */}
-            <div className="relative">
-              <Link href={`/article/${item.token}`} tabIndex={-1} aria-hidden="true" className="block no-underline">
-                <div
-                  className={`relative overflow-hidden rounded-2xl ${i === 0 && (item.sourceCount ?? 0) >= 2 ? "aspect-video" : "aspect-[4/3]"} ${pm ? "bg-white/10" : "bg-snow"} ${listening ? "ring-[3px] ring-mango" : ""}`}
-                >
-                  {/* 사진이 없을 때 자리 글자(분야). 가운데 재생 단추 아래로 */}
-                  <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-semibold ${onToggle ? "pt-[84px]" : ""} ${pm ? "text-white/50" : "text-faint"}`}>{label}</span>
-                  <Thumb item={item} size="card" className="absolute inset-0 size-full" />
-                </div>
-              </Link>
-              {onToggle && <CardPlay playing={listening && !!ride?.playing} title={item.title} onClick={() => onToggle(i)} overlay className="absolute left-1/2 top-1/2 size-11 -translate-x-1/2 -translate-y-1/2" />}
-            </div>
-            <Link href={`/article/${item.token}`} aria-current={listening ? "true" : undefined} className="block no-underline">
-              <Meta item={item} pm={pm} />
-              <p className={`mt-0.5 line-clamp-2 text-[15px] font-semibold leading-[1.42] tracking-[-0.02em] ${done ? (pm ? "text-white/45" : "text-faint") : pm ? "text-white" : "text-ink"}`}>{item.title}</p>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+    <section aria-labelledby="news-title" className="mt-1.5">
+      <div className="flex min-h-11 items-center justify-between gap-2 px-1.5">
+        <h2 id="news-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
+          맞춤 소식
+        </h2>
+        <div className="flex items-center gap-1">
+          <ReplayButton />
+          <Link href="/library" className="inline-flex min-h-11 items-center text-[14px] font-semibold text-sub underline underline-offset-[3px]">
+            전체 보기
+          </Link>
+        </div>
+      </div>
+      {sections.length > 0 && (
+        <div role="group" aria-label="분야 거르기" className="-mx-4 mt-1 flex gap-2 overflow-x-auto px-[22px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[null, ...sections].map((s) => {
+            const on = s === active;
+            return (
+              <button
+                key={s ?? "latest"}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setFilter(s)}
+                className={`h-9 shrink-0 rounded-full border px-4 text-[14px] tracking-[-0.02em] ${on ? "border-ink bg-ink font-extrabold text-paper" : "border-line-dark font-semibold text-ink"}`}
+              >
+                {s === null ? "최신" : SECTION_LABEL[s as keyof typeof SECTION_LABEL]}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <ul aria-label="소식" className="mt-1 px-1.5">
+        {shown.map(({ item, i }, k) => {
+          const listening = ride?.index === i;
+          return (
+            <NewsRow
+              key={item.clusterId}
+              item={item}
+              index={i}
+              first={k === 0}
+              listening={listening}
+              done={consumed(item.clusterId) && !listening}
+              playing={listening && !!ride?.playing}
+              onToggle={onToggle && (() => onToggle(i))}
+            />
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
 /**
- * 오늘 브리핑 다시 듣기 상태(듣기 막대와 노선 머리의 '처음부터 다시 듣기'가 같이 쓴다).
- * 들은 게 있으면 노선 머리에 '처음부터 다시 듣기', 다 들었고 쉬는 중이면 막대가 '처음부터 다시 듣기'(2026-11-11 사용자).
+ * 소식 줄: 보관함의 줄과 같은 모양(바탕 위의 줄, 줄 사이는 얇은 선). 왼쪽에 분야 이름(망고 진한 글자)·제목 두 줄·흐린 '언론 n곳, 시각'과
+ * 같은 줄 오른쪽 끝 작은 재생 버튼, 오른쪽에 둥근 정사각 사진. 읽은 소식은 '읽음' 글자를 적지 않고 제목·분야를 흐리게, 사진을 옅게 한다(화면 읽기에는 '읽음').
+ * 지금 듣는 줄은 회색 면(snow)으로 살짝 표시한다. 사진이 없으면 사진 자리를 비우지 않고 글이 넓어진다
+ */
+function NewsRow({
+  item,
+  index,
+  first,
+  listening,
+  done,
+  playing,
+  onToggle,
+}: {
+  item: FeedItem;
+  index: number;
+  /** 보이는 첫 줄(기능 안내가 짚는 곳) */
+  first: boolean;
+  listening: boolean;
+  done: boolean;
+  playing: boolean;
+  onToggle?: () => void;
+}) {
+  const photo = !!(item.photo?.url ?? item.thumbnail);
+  return (
+    <li
+      data-listen-index={index}
+      data-cluster={item.clusterId}
+      data-tour={first ? "card" : undefined}
+      className={`group relative flex items-start gap-3.5 border-b py-4 ${FOLLOW_MARGIN} ${listening ? "-mx-3 rounded-2xl border-transparent bg-snow px-3" : "border-line"}`}
+    >
+      <div className={`flex min-w-0 flex-1 flex-col ${photo ? "min-h-[92px]" : ""}`}>
+        <p className={`text-[12px] font-bold ${done ? "text-faint" : "text-mango-deep"}`}>
+          <span className="sr-only">분야 </span>
+          {sectionLabel(item)}
+        </p>
+        {/* 제목은 두 줄까지, 넘치면 …(2026-11-10 사용자) */}
+        <h3 className={`mt-1 line-clamp-2 text-[16px] font-bold leading-[1.45] tracking-[-0.03em] ${done ? "text-faint" : "text-ink"}`}>
+          <Link href={`/article/${item.token}`} aria-current={listening ? "true" : undefined} className="no-underline after:absolute after:inset-0">
+            {item.title}
+          </Link>
+          {done && <span className="sr-only">, 읽음</span>}
+        </h3>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[13px] font-medium text-sub">
+          <span className="min-w-0 truncate">{metaOf(item)}</span>
+          {onToggle && (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label={playing ? `${item.title} 일시정지` : `${item.title} 듣기`}
+              className={`relative z-10 -my-2 flex size-8 shrink-0 items-center justify-center rounded-full text-ink active:scale-95 motion-reduce:active:scale-100 ${listening ? "bg-paper" : "bg-snow"}`}
+            >
+              {playing ? <IconPause className="size-3.5" /> : <IconPlay className="ml-px size-3.5" />}
+            </button>
+          )}
+        </div>
+      </div>
+      {photo && (
+        <div className={`relative size-[92px] shrink-0 overflow-hidden rounded-[14px] bg-snow ${done ? "opacity-55" : ""}`}>
+          <Thumb item={item} className="absolute inset-0 size-full object-cover" />
+          <span aria-hidden="true" className="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-ink/[0.07]" />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/**
+ * 오늘 브리핑 다시 듣기 상태(머리의 재생 원과 맞춤 소식 머리의 '처음부터 다시 듣기'가 같이 쓴다).
+ * 들은 게 있으면 맞춤 소식 머리에 '처음부터 다시 듣기', 다 들었고 쉬는 중이면 재생 원이 '처음부터 다시 듣기'(2026-11-11 사용자).
  * 처음부터는 읽은 소식 건너뛰기 없이 첫 소식부터 다 들려준다(player.playFrom)
  */
 function useBriefingReplay() {
@@ -564,7 +296,7 @@ function useBriefingReplay() {
   const playingToday = !p.playlist && p.status === "playing";
   const heardAny = data.items.some((i) => listened.has(i.clusterId));
   const heardAll = data.items.length > 0 && data.items.every((i) => listened.has(i.clusterId));
-  // 다 들었고 쉬는 중이면 막대가 처음부터(다시 듣다 멈춘 중이면 이어 듣기: 누르자마자 처음으로 돌아가지 않게)
+  // 다 들었고 쉬는 중이면 재생 원이 처음부터(다시 듣다 멈춘 중이면 이어 듣기: 누르자마자 처음으로 돌아가지 않게)
   const resting = !!p.playlist || p.status === "idle" || p.status === "done";
   const replay = !playingToday && resting && (heardAll || (!p.playlist && p.status === "done"));
   const first = (!p.playlist && p.chapters[0]?.clusterId) || data.items[0]?.clusterId;
@@ -574,16 +306,12 @@ function useBriefingReplay() {
   return { canListen, playingToday, heardAny, replay, fromStart };
 }
 
-/** 노선 머리 오른쪽(보기 전환 왼쪽)의 '처음부터 다시 듣기'(2026-11-11 사용자). 들은 게 있고 막대가 처음부터가 아닐 때만 */
-function ReplayButton({ pm }: { pm: boolean }) {
+/** 맞춤 소식 머리 오른쪽('전체 보기' 왼쪽)의 '처음부터 다시 듣기'(2026-11-11 사용자). 들은 게 있고 재생 원이 처음부터가 아닐 때만 */
+function ReplayButton() {
   const r = useBriefingReplay();
   if (!r.canListen || !r.heardAny || r.replay) return null;
   return (
-    <button
-      type="button"
-      onClick={r.fromStart}
-      className={`inline-flex min-h-9 items-center gap-1 rounded-full px-2 text-[13px] font-semibold ${pm ? "text-white/75 hover:text-white" : "text-sub hover:text-ink"}`}
-    >
+    <button type="button" onClick={r.fromStart} className="inline-flex min-h-11 items-center gap-1 px-1.5 text-[13px] font-semibold text-sub hover:text-ink">
       <IconReplay className="size-[15px]" />
       처음부터 다시 듣기
     </button>
@@ -591,23 +319,22 @@ function ReplayButton({ pm }: { pm: boolean }) {
 }
 
 /**
- * 듣기 막대(오늘 브리핑 전체 듣기): 플레이어로 듣는다(창은 펴지 않는다, 2026-11-11). 듣는 중이면 일시정지.
- * 들은 게 있으면 '이어 듣기', 다 들었고 쉬는 중이면 '처음부터 다시 듣기'(useBriefingReplay).
+ * 머리 오른쪽의 큰 재생 원(오늘 브리핑 전체 듣기, 2026-11-26 시안): 플레이어로 듣는다(창은 펴지 않는다, 2026-11-11). 듣는 중이면 일시정지.
+ * 들은 게 있으면 '이어 듣기', 다 들었고 쉬는 중이면 '처음부터 다시 듣기'(useBriefingReplay). 시간은 적지 않는다.
  * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다. 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
  */
-function ListenBar({ pm, label, seconds }: { pm: boolean; label: string; /** 브리핑을 다 듣는 데 걸리는 시간(초). 막대 오른쪽에 작게 */ seconds: number }) {
+function ListenCircle({ label }: { label: string }) {
   const p = usePlayer();
   const { canListen, playingToday, heardAny, replay, fromStart } = useBriefingReplay();
-  const shell = `mt-4 flex h-[60px] w-full items-center gap-3 rounded-full pl-2 pr-5 text-left no-underline ${pm ? "bg-white text-[#1F2340]" : "bg-ink text-paper"}`;
-  const knob = "flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-ink";
+  // 망고 노랑 바탕에 남색 아이콘(다크에서도 그대로: 남색은 글자 토큰이 아니라 고정 색)
+  const shell = "relative flex size-14 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340] no-underline active:scale-95 motion-reduce:active:scale-100";
   if (!canListen) {
     return (
       <Link href="/premium" data-tour="listen-all" aria-label={`${label}, Premium에서 들을 수 있어요`} className={shell}>
-        <span className={knob}>
-          <IconPlay className="size-[18px]" />
+        <IconPlay className="ml-0.5 size-[22px]" />
+        <span className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full bg-paper shadow-[0_0_0_1px_var(--color-line)]">
+          <PremiumBadge className="[&_svg]:size-4" />
         </span>
-        <span className="flex-1 text-[16px] font-bold">{label}</span>
-        <PremiumBadge />
       </Link>
     );
   }
@@ -618,7 +345,7 @@ function ListenBar({ pm, label, seconds }: { pm: boolean; label: string; /** 브
       data-tour="listen-all"
       onClick={() => {
         if (playingToday) return p.pause();
-        // 재생은 누른 손짓 안에서 건다(iOS 자동 재생 정책). 플레이어 창은 펴지 않고 이 화면에서 듣는다(2026-11-11 사용자): 망고가 노선을 달리고 듣는 카드가 맨 위로
+        // 재생은 누른 손짓 안에서 건다(iOS 자동 재생 정책). 플레이어 창은 펴지 않고 이 화면에서 듣는다(2026-11-11 사용자): 듣는 소식 줄이 회색이 되고 맨 위로
         if (replay) return fromStart();
         p.playToday();
       }}
@@ -626,16 +353,7 @@ function ListenBar({ pm, label, seconds }: { pm: boolean; label: string; /** 브
       aria-label={playingToday ? `${label} 일시정지` : text}
       className={shell}
     >
-      <span className={knob}>
-        {p.starting ? <Spinner /> : playingToday ? <IconPause className="size-[18px]" /> : replay ? <IconReplay className="size-[18px]" /> : <IconPlay className="size-[18px]" />}
-      </span>
-      <span className="flex-1 text-[16px] font-bold">{text}</span>
-      {/* 듣는 동안 음성 파동(2026-11-10 사용자), 쉬는 동안은 걸리는 시간을 작게 */}
-      {playingToday ? (
-        <SoundWave className={pm ? "text-mango-deep" : "text-mango"} />
-      ) : (
-        seconds > 0 && <span className="text-[14px] font-semibold tabular-nums opacity-60">{shortDuration(seconds)}</span>
-      )}
+      {p.starting ? <Spinner className="size-5" /> : playingToday ? <IconPause className="size-6" /> : replay ? <IconReplay className="size-6" /> : <IconPlay className="ml-0.5 size-[22px]" />}
     </button>
   );
 }
