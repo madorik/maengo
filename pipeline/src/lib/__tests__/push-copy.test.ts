@@ -6,7 +6,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const insight = (over: Partial<PushInsight> = {}): PushInsight => ({ headline: '신경 쓰는 대출 이자, 내려갈 때가 늦어져요', about: '대출 이자', ...over });
 
 test('알림 제목: 알림 한 줄(hook)이 있으면 그것', () => {
-  assert.equal(pushTitle(insight({ hook: '기준금리 0.25%p 인상, 대출 이자는?' })), '기준금리 0.25%p 인상, 대출 이자는?');
+  assert.equal(pushTitle(insight({ hook: '기준금리 2년 만에 인상, 대출 이자가 올라요' })), '기준금리 2년 만에 인상, 대출 이자가 올라요');
 });
 
 test('알림 제목: 한 줄이 없으면(형식 16 이전·거르기에 걸림) 큰 제목. 사정에 안 닿는 큰 제목도 쓴다', () => {
@@ -22,7 +22,7 @@ test('알림 제목: 흐름이 없거나 비면 null(첫 소식 제목으로)', 
 });
 
 test('알림 제목: 공백을 정리하고 너무 길면 줄임표로 자른다', () => {
-  assert.equal(pushTitle(insight({ hook: '빗썸 해킹  유출,\n내 정보도 포함됐을까요?' })), '빗썸 해킹 유출, 내 정보도 포함됐을까요?');
+  assert.equal(pushTitle(insight({ hook: '코스피 장중  4.6% 급락,\n사이드카까지 발동' })), '코스피 장중 4.6% 급락, 사이드카까지 발동');
   const long = pushTitle(insight({ hook: '가'.repeat(100) }))!;
   assert.equal(long.length, TITLE_MAX);
   assert.ok(long.endsWith('…'));

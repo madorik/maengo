@@ -306,7 +306,7 @@ export const PUSH_MAX = 28;
 
 /**
  * 알림 한 줄 거르기(형식 16, 2026-11-26 사용자: 딱 봐도 궁금해할 한 줄로). 느낌표·따옴표를 빼고,
- * 길거나 소식 글(source)에 없는 숫자를 쓰거나 투자 권유·낚시 말이면 빈 문자열(→ 알림은 큰 제목으로)
+ * 길거나 물음이거나 소식 글(source)에 없는 숫자를 쓰거나 투자 권유·낚시 말이면 빈 문자열(→ 알림은 큰 제목으로)
  */
 export function cleanPushLine(raw: string, source: string): string {
   const text = plainWords(raw)
@@ -314,6 +314,7 @@ export function cleanPushLine(raw: string, source: string): string {
     .replace(/["'“”‘’`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  if (!text || text.length > PUSH_MAX || PUSH_ADVICE.test(text) || BAIT.test(text) || unknownNumber(text, source)) return "";
+  // 물음으로 쓰지 않는다(2026-11-26 사용자: 왜 이렇게 물음표로 끝내). 지시를 어기고 물음이면 버린다 → 알림은 큰 제목으로
+  if (!text || text.length > PUSH_MAX || /[?？]/.test(text) || PUSH_ADVICE.test(text) || BAIT.test(text) || unknownNumber(text, source)) return "";
   return text;
 }
