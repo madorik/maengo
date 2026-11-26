@@ -38,6 +38,10 @@ export const IconPodcast = (p: Props) => <Line {...p}><path d="M5 19.5h.01" /><p
 export const IconUser = (p: Props) => <Line {...p}><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" /><path d="M4 20a8 8 0 0 1 16 0" /></Line>;
 export const IconBell = (p: Props) => <Line {...p}><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></Line>;
 export const IconHome = (p: Props) => <Line {...p}><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" /></Line>;
+/** 보관함 메뉴(뚜껑 달린 보관 상자). 보관함은 받은 소식 전부가 모이는 곳이라 북마크 아이콘을 쓰지 않는다(2026-11-26 사용자) */
+export const IconArchive = (p: Props) => (
+  <Line {...p}><rect x="3.5" y="4.5" width="17" height="4.5" rx="1.5" /><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9" /><path d="M10 13h4" /></Line>
+);
 /** 보관함 탭, 북마크(글 화면·보관함 카드). filled면 채운 모양(북마크한 상태) */
 export const IconBookmark = ({ filled = false, ...p }: Props & { filled?: boolean }) => (
   <Line {...p}><path d="M6 4h12v16l-6-4-6 4z" fill={filled ? "currentColor" : "none"} /></Line>

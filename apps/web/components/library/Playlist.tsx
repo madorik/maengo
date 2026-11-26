@@ -120,6 +120,7 @@ export function PickSummary({ pickIds }: { pickIds: number[] }) {
 /**
  * 고르는 동안 화면 아래에 뜨는 고정 막대(2026-11-26 시안): 망고 주 버튼 'n개 듣기'(고른 게 없으면 회색 '소식을 골라 주세요') · 테두리 알약 '플레이리스트에 담기'.
  * 막대만큼 목록 아래에 빈 칸을 둔다. 고르는 동안은 떠 있는 플레이어를 숨긴다(html[data-picking])
+ * 모바일은 아래 메뉴(--tabbar-h) 바로 위에 뜬다(2026-11-26 메뉴를 아래로 내림)
  */
 export function PickBar() {
   const pick = usePick();
@@ -142,7 +143,7 @@ export function PickBar() {
   return (
     <>
       <div aria-hidden="true" className="h-24" />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gradient-to-b from-transparent to-paper to-40% px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-7">
+      <div className="fixed inset-x-0 bottom-[var(--tabbar-h)] z-50 bg-gradient-to-b from-transparent to-paper to-40% px-4 pb-[max(12px,calc(env(safe-area-inset-bottom)+16px-var(--tabbar-h)))] pt-7">
         <div className="mx-auto flex max-w-[680px] items-center gap-2">
           {/* 고른 것만 고른 차례대로 이어 듣기(2026-11-10 사용자) */}
           <button type="button" onClick={play} disabled={n === 0} aria-label={n ? `고른 ${n}개 듣기` : undefined} className="btn h-[54px] flex-1 px-4 font-extrabold">

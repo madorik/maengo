@@ -6,7 +6,9 @@ import { PlanSync } from "@/components/app/PlanSync";
 import { DarkModeSwitch } from "@/components/settings/DarkModeSwitch";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ListenPrefs } from "@/components/settings/ListenPrefs";
+import { LogoutRow } from "@/components/settings/LogoutRow";
 import { NotifyTimePicker } from "@/components/settings/NotifyTimePicker";
+import { ProfileHead } from "@/components/settings/ProfileHead";
 import { BillingBanner } from "@/components/premium/BillingBanner";
 import { ManageSubscription, TrialLine } from "@/components/premium/StoreParts";
 import { billingNoticeOf } from "@/lib/billing/notice";
@@ -22,6 +24,7 @@ import { dailyMaengoUsage, toProfileView } from "@/lib/server/feed";
 import { requireProfile } from "@/lib/server/session";
 import { demoToolsEnabled, isDemoAccount } from "@/lib/server/demo";
 import { webPushTokens } from "@/lib/server/profile";
+import { userTopics } from "@/lib/server/topics";
 import { appInfoOf } from "@/lib/app-client";
 import { storeReviewUrl } from "@/lib/site";
 import { WEB_VERSION } from "@/lib/server/web-version";
@@ -30,14 +33,19 @@ import { BusinessInfo } from "@/components/public/BusinessInfo";
 
 export const metadata: Metadata = { title: "설정" };
 
+/**
+ * 설정 = 아래 메뉴 '설정' 칸(2026-11-26 메뉴를 아래로 내림). 모바일 ☰ 서랍과 위쪽 프로필 사진(계정 메뉴)이 없어져서 그 일을 여기서 한다:
+ * 맨 위 계정 정보, 관심사 묶음의 내 관심 키워드(/keywords), 계정 묶음의 (관리자면) 관리자 화면·로그아웃
+ */
 export default async function SettingsPage() {
   const profile = await requireProfile();
   const demoTools = demoToolsEnabled();
   // 2026-11-12 맹고(재화)를 걷어 내서 지갑 칸·지갑 내역은 뺐다(지갑 표와 결제 기록은 남겨 둔다)
-  const [webTokens, usage, sub] = await Promise.all([
+  const [webTokens, usage, sub, topics] = await Promise.all([
     webPushTokens(profile.id),
     dailyMaengoUsage(profile),
     subscriptionView(profile.id),
+    userTopics(profile).catch(() => []),
   ]);
   const view = toProfileView(profile);
   const ctx = await getUserContext(profile.id).catch(() => ({}));
@@ -47,10 +55,21 @@ export default async function SettingsPage() {
   const app = appInfoOf(ua);
   const version = app ? `앱 ${app.version} · 웹 ${WEB_VERSION}` : `웹 ${WEB_VERSION}`;
   const rateUrl = storeReviewUrl(app?.platform ?? null);
+  // 내 관심 키워드 줄의 한 줄 설명: 고른 관심 분야, 내 키워드, 내 관심 링크 개수(없는 것은 뺀다)
+  const mine = topics.filter((t) => !t.link);
+  const keywordCount = mine.filter((t) => t.custom).length;
+  const linkCount = topics.length - mine.length;
+  const interestNote = [`관심 분야 ${mine.length - keywordCount}개`, keywordCount > 0 && `내 키워드 ${keywordCount}개`, linkCount > 0 && `관심 링크 ${linkCount}개`]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8 lg:py-12">
       <h1 className="text-[28px] font-black tracking-[-0.03em]">설정</h1>
+
+      <div className="mt-5">
+        <ProfileHead profile={view} />
+      </div>
 
       <div className="mt-6">
         <Section id="plan" title="플랜">
@@ -84,6 +103,17 @@ export default async function SettingsPage() {
               </p>
             </div>
           </div>
+        </Section>
+
+        {/* 예전 서랍 메뉴에 있던 내 관심 키워드(2026-11-26 메뉴를 아래로 내림) */}
+        <Section id="interest" title="관심사">
+          <Link href="/keywords" className="flex min-h-12 items-center justify-between gap-3 text-ink no-underline hover:underline">
+            <span className="min-w-0">
+              <span className="block font-bold">내 관심 키워드</span>
+              <span className="block truncate text-[13px] font-semibold text-sub">{interestNote}</span>
+            </span>
+            <IconChevronRight className="size-4 shrink-0 text-sub" />
+          </Link>
         </Section>
 
         <Section id="listen" title="목소리">
@@ -128,6 +158,16 @@ export default async function SettingsPage() {
               개인정보 처리방침
             </Link>
           </p>
+          <div className="mt-2 divide-y-2 divide-line border-t-2 border-line">
+            {/* 관리자(lib/server/admin.ts isAdmin, AccountMenu와 같은 조건): 보이면 들어갈 수 있다 */}
+            {view.admin && (
+              <Link href="/admin" className="flex min-h-12 items-center justify-between gap-3 font-bold text-ink no-underline hover:underline">
+                관리자
+                <IconChevronRight className="size-4 text-sub" />
+              </Link>
+            )}
+            <LogoutRow />
+          </div>
           <DeleteAccount demo={isDemoAccount(profile.id)} />
         </Section>
 

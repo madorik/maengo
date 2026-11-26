@@ -167,14 +167,14 @@ function ToastHost({ item, onDone, pathname }: { item: Item | null; onDone: () =
   }, [item, onDone]);
 
   if (!layer) return null;
-  // 아래 자리: 시트 안이면 시트 바닥, 글 화면은 '이 글 듣기' 막대 + 플레이어 버튼(66px) 위, 그 밖은 플레이어 버튼 위
+  // 아래 자리: 시트 안이면 시트 바닥, 글 화면은 '이 글 듣기' 막대 + 플레이어 버튼(66px) 위, 그 밖은 플레이어 버튼 위(모바일 메뉴 화면은 아래 메뉴 --tabbar-h 위)
   const place = inSheet
     ? "bottom-[max(16px,calc(env(safe-area-inset-bottom)+12px))]"
     : top
       ? "top-[calc(env(safe-area-inset-top)+12px)]"
       : pathname.startsWith("/article")
         ? "bottom-[calc(var(--listen-bar-h,104px)+88px)]"
-        : "bottom-[calc(env(safe-area-inset-bottom)+92px)] lg:bottom-[100px]";
+        : "bottom-[calc(max(var(--tabbar-h),env(safe-area-inset-bottom)+4px)+88px)] lg:bottom-[100px]";
   const undo = () => {
     const fn = shown?.onUndo;
     onDone();

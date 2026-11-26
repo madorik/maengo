@@ -4,16 +4,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { isAppUserAgent } from "@/lib/app-client";
 import { SwipePager } from "./SwipePager";
-import { NAV } from "./nav";
+import { SWIPE_TABS } from "./nav";
 
-// 앱에서 오늘·보관함·플레이리스트를 좌우로 밀어서 옮긴다(메뉴 순서와 같다. 왼쪽으로 밀면 다음 탭). 미는 동작은 SwipePager
+// 앱에서 브리핑·보관함·리포트를 좌우로 밀어서 옮긴다(아래 메뉴 순서와 같다. 왼쪽으로 밀면 다음 탭. 설정은 입력 칸이 있어 뺀다). 미는 동작은 SwipePager
 
 export function SwipeTabs({ className, children }: { className?: string; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const index = NAV.findIndex((n) => n.href === pathname);
-  const prev = index > 0 ? NAV[index - 1] : undefined;
-  const next = index >= 0 ? NAV[index + 1] : undefined;
+  const index = SWIPE_TABS.findIndex((n) => n.href === pathname);
+  const prev = index > 0 ? SWIPE_TABS[index - 1] : undefined;
+  const next = index >= 0 ? SWIPE_TABS[index + 1] : undefined;
 
   // 옆 탭은 미리 받아 둬서 넘기자마자 뜨게 한다
   useEffect(() => {

@@ -55,7 +55,7 @@ export function ReportToast({ start, title, headline }: { start: string; title: 
       role="region"
       aria-label="주간 리포트 알림"
       onPointerDown={() => setTouched(true)}
-      className="rise keep-light fixed inset-x-3 bottom-[calc(96px+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-[420px] items-center gap-1 rounded-[20px] bg-[#17181C] py-2 pl-2 pr-1 text-white shadow-[0_12px_32px_rgb(23_24_28/0.3)] lg:bottom-28"
+      className="rise keep-light fixed inset-x-3 bottom-[calc(max(var(--tabbar-h),env(safe-area-inset-bottom)+4px)+92px)] z-40 mx-auto flex max-w-[420px] items-center gap-1 rounded-[20px] bg-[#17181C] py-2 pl-2 pr-1 text-white shadow-[0_12px_32px_rgb(23_24_28/0.3)] lg:bottom-28"
     >
       <Link href={`/report?d=${start}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-[14px] py-1 pl-1 pr-1 text-white no-underline">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mango text-[#17181C]">

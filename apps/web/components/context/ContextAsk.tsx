@@ -170,7 +170,7 @@ export function ContextToastHost() {
       role="dialog"
       aria-label="맞춤 정보 질문"
       onPointerDown={() => setTouched(true)}
-      className="rise fixed inset-x-3 bottom-[calc(96px+env(safe-area-inset-bottom))] z-40 mx-auto max-w-[420px] rounded-[20px] bg-[#1F2340] px-4 pb-3 pt-3 text-white shadow-[0_12px_32px_rgb(31_35_64/0.3)] lg:bottom-28"
+      className="rise fixed inset-x-3 bottom-[calc(max(var(--tabbar-h),env(safe-area-inset-bottom)+4px)+92px)] z-40 mx-auto max-w-[420px] rounded-[20px] bg-[#1F2340] px-4 pb-3 pt-3 text-white shadow-[0_12px_32px_rgb(31_35_64/0.3)] lg:bottom-28"
     >
       <p className="mb-1.5 text-[12px] font-semibold text-mango">방금 본 {pending.q.about}, {name ? `${name}님께` : "더"} 맞춰 드릴게요</p>
       <QuestionRow key={pending.q.key} q={pending.q} day={pending.day} tone="toast" onDone={() => setLeaving(null)} />

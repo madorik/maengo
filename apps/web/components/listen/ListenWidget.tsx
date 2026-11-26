@@ -52,7 +52,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   const onArticle = pathname.startsWith("/article");
   const dock = onArticle
     ? "bottom-[calc(var(--listen-bar-h,104px)+12px)]"
-    : "bottom-[calc(16px+env(safe-area-inset-bottom))] lg:bottom-6";
+    : "bottom-[calc(max(var(--tabbar-h),env(safe-area-inset-bottom)+4px)+12px)] lg:bottom-6";
 
   useEffect(() => {
     if (!open) return;

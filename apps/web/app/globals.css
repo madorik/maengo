@@ -164,6 +164,20 @@
   }
 }
 
+/* 모바일 아래 메뉴(BottomNav, 2026-11-26) 높이. 떠 있는 플레이어·알림·고르기 막대가 이만큼 위로 올라간다.
+   아래 메뉴가 있는 화면에서만 잡히고(자바스크립트 없이 첫 그림부터 맞게 :has로 본다), 데스크톱(왼쪽 메뉴)은 0 */
+:root {
+  --tabbar-h: 0px;
+}
+:root:has(nav[data-tabbar]) {
+  --tabbar-h: calc(62px + max(10px, env(safe-area-inset-bottom)));
+}
+@media (min-width: 1024px) {
+  :root:has(nav[data-tabbar]) {
+    --tabbar-h: 0px;
+  }
+}
+
 @theme inline {
   --font-sans: "Pretendard Variable", Pretendard, system-ui, sans-serif;
   /* 숫자(진행 개수·시간)만 둥근 라틴 글꼴로 */
@@ -309,21 +323,8 @@
   .swap {
     animation: swap 350ms ease-out both;
   }
-  /* 모바일 왼쪽 서랍 메뉴(MobileNav). 열 때 밀려 나오고, 닫을 때(data-closing) 밀려 들어간 뒤에 닫힌다 */
-  .drawer[open] .drawer-panel {
-    animation: drawer-in 280ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .drawer[open]::backdrop {
-    animation: fade-in 280ms ease-out;
-  }
-  .drawer[data-closing] .drawer-panel {
-    animation: drawer-out 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
-  }
-  .drawer[data-closing]::backdrop {
-    animation: fade-out 200ms ease-in forwards;
-  }
-  /* 서랍·시트(components/ui/Sheet.tsx)가 열린 동안 뒤 화면이 같이 스크롤되지 않게. 스크롤 자리는 그대로 남는다 */
-  html:has(.drawer[open], .sheet[open]) {
+  /* 시트(components/ui/Sheet.tsx)가 열린 동안 뒤 화면이 같이 스크롤되지 않게. 스크롤 자리는 그대로 남는다 */
+  html:has(.sheet[open]) {
     overflow: hidden;
   }
   /* 진행 중인 막대 위로 흐르는 줄무늬 */
@@ -403,30 +404,6 @@
   100% {
     transform: translateY(0);
     opacity: 1;
-  }
-}
-
-@keyframes drawer-in {
-  from {
-    transform: translateX(-100%);
-  }
-}
-
-@keyframes drawer-out {
-  to {
-    transform: translateX(-100%);
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes fade-out {
-  to {
-    opacity: 0;
   }
 }
 

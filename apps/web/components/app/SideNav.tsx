@@ -11,7 +11,7 @@ import { AccountMenu } from "./AccountMenu";
 import { HomeLink } from "./HomeLink";
 import { NavLinks } from "./NavLinks";
 
-/** 데스크톱 왼쪽 메뉴(모바일은 위쪽 막대의 ☰로 여는 MobileNav) */
+/** 데스크톱 왼쪽 메뉴(모바일은 아래 메뉴 BottomNav) */
 export function SideNav() {
   return (
     <div className="sticky top-0 hidden h-dvh flex-col border-r-2 border-line px-4 py-7 lg:flex">
