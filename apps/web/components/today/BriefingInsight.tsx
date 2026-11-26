@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { IconChevronRight, IconPlay } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { ToneIcon } from "@/components/ui/ToneIcon";
@@ -138,14 +138,9 @@ export function InsightFlows({
   const insight = withName(made, name);
   /** 열어 본 흐름(상세 시트) */
   const [open, setOpen] = useState<number | null>(null);
-  /** 지금 보이는 카드 */
-  const [at, setAt] = useState(0);
-  const scroller = useRef<HTMLUListElement>(null);
   const count = insight.flows.length;
   if (!count) return null;
   const opened = open === null ? null : insight.flows[open];
-  /** 카드 한 장 넘기는 거리 */
-  const step = (el: HTMLElement) => ((el.children[1] as HTMLElement | undefined)?.offsetLeft ?? el.clientWidth) - ((el.children[0] as HTMLElement | undefined)?.offsetLeft ?? 0);
   return (
     <section aria-labelledby="flows-title" className="mt-4">
       <div className="flex min-h-11 items-center justify-between gap-2 px-1.5">
@@ -153,22 +148,10 @@ export function InsightFlows({
         <h2 id="flows-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
           오늘의 핵심 이슈
         </h2>
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          onClick={() => setOpen(at)}
-          className="inline-flex min-h-11 items-center text-[14px] font-semibold text-sub underline underline-offset-[3px]"
-        >
-          전체 보기
-        </button>
+        {/* '전체 보기'는 뺐다(2026-11-26 사용자). 카드를 누르면 상세가 열린다 */}
       </div>
       <ul
-        ref={scroller}
         aria-label="오늘의 핵심 이슈 카드"
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          setAt(Math.min(count - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, step(el))))));
-        }}
         style={{ paddingInline: EDGE, scrollPaddingInline: EDGE, columnGap: GAP }}
         className={`-mx-4 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mt-1`}
       >

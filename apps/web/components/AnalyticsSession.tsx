@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { markInternalDevice, platformOf, track } from "@/lib/analytics";
+import { requestPlayerExpand } from "@/lib/float-dock";
 
 /**
  * 로그인한 화면에서 한 번: GA4 사용자 ID(회원 id의 해시, 서버가 만든다)·플랜·플랫폼을 알리고,
@@ -10,6 +11,8 @@ import { markInternalDevice, platformOf, track } from "@/lib/analytics";
  */
 export function AnalyticsSession({ uid, plan, internal = false }: { uid: string; plan: string; internal?: boolean }) {
   useEffect(() => {
+    // 웹 알림으로 연 페이지도 접어 둔 플레이어를 막대로 펼친다(2026-11-26 사용자, lib/float-dock.ts). 내부 계정도 같게
+    if (new URLSearchParams(location.search).get("from") === "push") requestPlayerExpand();
     // 관리자·회사·데모 계정이면 이 기기를 내부 기기로 표시하고 보내지 않는다(다음부터는 GTM도 안 싣는다, components/Analytics.tsx)
     if (internal) return markInternalDevice();
     track("identify", { user_id: uid, plan, platform: platformOf(navigator.userAgent) });

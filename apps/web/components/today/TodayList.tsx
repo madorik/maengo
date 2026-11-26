@@ -179,12 +179,8 @@ function NewsSection({
         <h2 id="news-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
           맞춤 소식
         </h2>
-        <div className="flex items-center gap-1">
-          <ReplayButton />
-          <Link href="/library" className="inline-flex min-h-11 items-center text-[14px] font-semibold text-sub underline underline-offset-[3px]">
-            전체 보기
-          </Link>
-        </div>
+        {/* '전체 보기'(보관함으로) 자리에 '전체 듣기'(2026-11-27 사용자). 보관함은 아래 메뉴에 있다 */}
+        <ListenAllButton />
       </div>
       {sections.length > 0 && (
         <div role="group" aria-label="분야 거르기" className="-mx-4 mt-1 flex gap-2 overflow-x-auto px-[22px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -293,40 +289,24 @@ function NewsRow({
 }
 
 /**
- * 오늘 브리핑 다시 듣기 상태(맞춤 소식 머리의 '처음부터 다시 듣기'가 쓴다. 머리 재생 원은 2026-11-26에 뺐다).
- * 들은 게 있으면 맞춤 소식 머리에 '처음부터 다시 듣기'(2026-11-11 사용자).
- * 처음부터는 읽은 소식 건너뛰기 없이 첫 소식부터 다 들려준다(player.playFrom)
+ * 맞춤 소식 머리 오른쪽의 '전체 듣기'(2026-11-27 사용자: 전체 보기 있던 자리에 전체 듣기로, 처음부터 오늘 소식 재생).
+ * 읽거나 들은 소식도 건너뛰지 않고 첫 소식부터 다 들려준다(player.playFrom). 들은 게 있을 때만 보이던 '처음부터 다시 듣기'(2026-11-11)를 대신한다
  */
-function useBriefingReplay() {
+function ListenAllButton() {
   const p = usePlayer();
-  const { data, listenAccess, listened } = useToday();
+  const { data, listenAccess } = useToday();
   const canListen = p.enabled && data.items.some((i) => listenAccess(i.clusterId) !== null);
-  const heardAny = data.items.some((i) => listened.has(i.clusterId));
+  if (!canListen) return null;
   const first = (!p.playlist && p.chapters[0]?.clusterId) || data.items[0]?.clusterId;
-  const fromStart = () => {
-    if (first !== undefined) p.playFrom(first);
-  };
-  return { canListen, heardAny, fromStart };
-}
-
-/** 맞춤 소식 머리 오른쪽('전체 보기' 왼쪽)의 '처음부터 다시 듣기'(2026-11-11 사용자). 들은 게 있으면(머리 재생 원을 뺀 2026-11-26부터는 다 들었어도) */
-function ReplayButton() {
-  const r = useBriefingReplay();
-  if (!r.canListen || !r.heardAny) return null;
   return (
-    <button type="button" onClick={r.fromStart} className="inline-flex min-h-11 items-center gap-1 px-1.5 text-[13px] font-semibold text-sub hover:text-ink">
-      <IconReplay className="size-[15px]" />
-      처음부터 다시 듣기
+    <button
+      type="button"
+      onClick={() => {
+        if (first !== undefined) p.playFrom(first);
+      }}
+      className="inline-flex min-h-11 items-center text-[14px] font-semibold text-sub underline underline-offset-[3px]"
+    >
+      전체 듣기
     </button>
-  );
-}
-
-/** 처음부터 다시(되감기 화살표) */
-function IconReplay({ className = "size-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M4 12a8 8 0 1 0 2.4-5.7" />
-      <path d="M4 4v4.5h4.5" />
-    </svg>
   );
 }

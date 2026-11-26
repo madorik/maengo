@@ -12,7 +12,7 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { Sheet } from "@/components/ui/Sheet";
 import { PREPARING_SHORT, PREPARING_TEXT } from "@/lib/player/labels";
-import { claimDock, releaseDock, requestPlayerOpen, setPlayerDocked, takePlayerOpenWhenReady, useDock } from "@/lib/float-dock";
+import { claimDock, clearPlayerExpand, releaseDock, requestPlayerOpen, setPlayerDocked, takePlayerOpenWhenReady, useDock } from "@/lib/float-dock";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import { Queue, Switch } from "./controls";
@@ -92,6 +92,13 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   useEffect(() => {
     if (!hidden && takePlayerOpenWhenReady()) requestPlayerOpen();
   }, [hidden]);
+
+  // 출퇴근 알림을 눌러 들어오면 접어 둔 플레이어를 막대로 펼친다(2026-11-26 사용자: 플레이어 모양을 펼쳐 주고 사용자가 재생시키게, lib/float-dock.ts).
+  // 창은 열지 않고 재생도 하지 않는다. 접어 둔 설정(쿠키)은 그대로라 알림 없이 다시 열면 전처럼 접혀 있다
+  if (floating.expand && collapsed) setCollapsed(false);
+  useEffect(() => {
+    if (floating.expand) clearPlayerExpand();
+  }, [floating.expand]);
 
   // 숨었거나 접혀 있는 동안, 맹고 AI 창을 편 동안은 창을 닫아 둔다(다시 나타나거나 펴질 때 창이 갑자기 열리지 않게)
   if (open && (hidden || collapsed || floating.open === "ask")) setOpen(false);

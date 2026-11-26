@@ -5,6 +5,7 @@ import { SplashScreen } from "@capacitor/splash-screen";
 import { track } from "@/lib/analytics";
 import { appLinkPath } from "@/lib/app-client";
 import { stripBase } from "@/lib/base-path";
+import { requestPlayerExpand } from "@/lib/float-dock";
 import { startAppPush } from "./push";
 
 // 앱다운 마감(APP_PLAN.md 1단계). components/NativeShell.tsx가 앱 안에서만 불러온다.
@@ -69,7 +70,11 @@ export function startNativeShell(router: ShellRouter): () => void {
   const go = (path: string) => {
     const url = new URL(path, location.origin);
     const from = url.searchParams.get("from");
-    if (from === "push") track("push_open");
+    if (from === "push") {
+      track("push_open");
+      // 출퇴근 알림을 눌러 들어오면 접어 둔 플레이어를 막대로 펼친다(2026-11-26 사용자, lib/float-dock.ts). 재생은 사용자가
+      requestPlayerExpand();
+    }
     if (from === "widget") track("widget_open");
     url.searchParams.delete("from");
     const to = url.pathname + url.search;
