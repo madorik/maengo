@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { classifyFcmError } from '../fcm';
+import { classifyFcmError, errorNote, failureCodes, fcmErrorCode } from '../fcm';
 
 const body = (status: string, errorCode?: string, message = '') => ({ error: { status, message, details: errorCode ? [{ errorCode }] : [] } });
 
@@ -27,5 +27,27 @@ test('429·5xx·인증 실패는 잠깐의 실패(다시 보낸다)', () => {
 
 test('그 밖의 실패는 다시 해도 같다고 보고 토큰도 둔다', () => {
   assert.equal(classifyFcmError(403, body('PERMISSION_DENIED')), 'error');
-  assert.equal(classifyFcmError(401, body('UNAUTHENTICATED', 'THIRD_PARTY_AUTH_ERROR')), 'retry');
+});
+
+test('APNs·웹 푸시 키 문제(THIRD_PARTY_AUTH_ERROR, 401)는 다시 보내지 않는다(2026-11-26 iOS 알림 3주 0건)', () => {
+  assert.equal(classifyFcmError(401, body('UNAUTHENTICATED', 'THIRD_PARTY_AUTH_ERROR')), 'error');
+  // 우리 접근 토큰이 거절된 401은 그대로 잠깐의 실패
+  assert.equal(classifyFcmError(401, body('UNAUTHENTICATED')), 'retry');
+});
+
+test('오류 코드를 기록에 남긴다', () => {
+  assert.equal(fcmErrorCode(401, body('UNAUTHENTICATED', 'THIRD_PARTY_AUTH_ERROR')), 'THIRD_PARTY_AUTH_ERROR');
+  assert.equal(fcmErrorCode(503, body('UNAVAILABLE')), 'UNAVAILABLE');
+  assert.equal(fcmErrorCode(502, null), 'HTTP 502');
+  const results = [
+    { result: 'error' as const, code: 'THIRD_PARTY_AUTH_ERROR' },
+    { result: 'error' as const, code: 'THIRD_PARTY_AUTH_ERROR' },
+    { result: 'retry' as const, code: 'UNAVAILABLE' },
+    { result: 'retry' as const },
+  ];
+  assert.equal(failureCodes(results, 'error'), 'THIRD_PARTY_AUTH_ERROR');
+  assert.equal(failureCodes(results, 'retry'), 'UNAVAILABLE');
+  assert.match(errorNote('THIRD_PARTY_AUTH_ERROR'), /APNs 인증 키/);
+  assert.equal(errorNote('PERMISSION_DENIED'), 'FCM 발송 실패(PERMISSION_DENIED)');
+  assert.equal(errorNote(''), 'FCM 발송 실패(코드 없음)');
 });

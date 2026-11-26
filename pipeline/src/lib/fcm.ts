@@ -55,25 +55,50 @@ export interface PushMessage {
 /** 'ok' 보냄, 'dead' 더는 없는 토큰(지운다), 'retry' 잠깐의 실패(잠시 뒤 다시), 'error' 그 밖의 실패(다시 해도 같다, 토큰은 둔다) */
 export type PushResult = 'ok' | 'dead' | 'retry' | 'error';
 
+/** 기기 하나에 보낸 결과. 실패면 FCM 오류 코드(없으면 HTTP 상태)를 같이 줘서 배송 기록(last_error)에 남긴다 */
+export interface PushOutcome {
+  result: PushResult;
+  code?: string;
+}
+
 interface FcmErrorBody {
   error?: { status?: string; message?: string; details?: { errorCode?: string }[] };
+}
+
+/** FCM 오류 코드: details의 errorCode(예: THIRD_PARTY_AUTH_ERROR), 없으면 error.status, 그것도 없으면 HTTP 상태 */
+export function fcmErrorCode(status: number, body: FcmErrorBody | null): string {
+  return body?.error?.details?.find((d) => d.errorCode)?.errorCode ?? body?.error?.status ?? `HTTP ${status}`;
 }
 
 /**
  * FCM 실패 응답을 나눈다(https://firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode).
  * 토큰을 지우는 건 그 토큰 문제일 때만: UNREGISTERED(404), SENDER_ID_MISMATCH, 토큰이 틀렸다는 INVALID_ARGUMENT.
  * INVALID_ARGUMENT는 메시지 모양이 틀려도 오므로 오류 문구가 토큰을 가리킬 때만 지운다(전엔 다 지워서 멀쩡한 기기가 빠질 수 있었다).
- * 429·5xx·인증(401) 실패는 잠깐의 실패로 본다
+ * THIRD_PARTY_AUTH_ERROR(401)는 Firebase에 올린 APNs 인증 키·웹 푸시 키가 없거나 틀렸다는 뜻이라 다시 보내도 같다: 'error'(토큰은 둔다).
+ * 전엔 401이라 잠깐의 실패로 다시 보내다 '기기 없음'으로 접혀, 스토어 빌드 iOS 알림이 앱 공개 뒤 3주 동안 하나도 안 간 게 가려졌다(2026-11-26).
+ * 그 밖의 429·5xx·인증(401) 실패는 잠깐의 실패로 본다
  */
 export function classifyFcmError(status: number, body: FcmErrorBody | null): Exclude<PushResult, 'ok'> {
   const code = body?.error?.details?.find((d) => d.errorCode)?.errorCode ?? body?.error?.status;
   if (code === 'UNREGISTERED' || code === 'SENDER_ID_MISMATCH' || status === 404) return 'dead';
   if (code === 'INVALID_ARGUMENT' || status === 400) return /registration token/i.test(body?.error?.message ?? '') ? 'dead' : 'error';
+  if (code === 'THIRD_PARTY_AUTH_ERROR') return 'error';
   if (status === 429 || status === 401 || status >= 500 || code === 'QUOTA_EXCEEDED' || code === 'UNAVAILABLE' || code === 'INTERNAL') return 'retry';
   return 'error';
 }
 
-export async function sendPush(token: string, msg: PushMessage, siteUrl: string): Promise<PushResult> {
+/** 실패한 기기들의 FCM 오류 코드를 겹치지 않게 모은다(예: 'THIRD_PARTY_AUTH_ERROR, UNAVAILABLE') */
+export function failureCodes(results: PushOutcome[], kind: PushResult): string {
+  return [...new Set(results.filter((r) => r.result === kind && r.code).map((r) => r.code))].join(', ');
+}
+
+/** 다시 해도 같은 실패의 기록 문구. APNs 인증 오류면 고칠 곳을 같이 적는다 */
+export function errorNote(codes: string): string {
+  const hint = codes.includes('THIRD_PARTY_AUTH_ERROR') ? ' — Firebase 클라우드 메시징에 APNs 인증 키(.p8)가 있는지 보세요' : '';
+  return `FCM 발송 실패(${codes || '코드 없음'})${hint}`;
+}
+
+export async function sendPush(token: string, msg: PushMessage, siteUrl: string): Promise<PushOutcome> {
   const sa = serviceAccount();
   if (!sa) throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON(또는 _PATH)이 없어요');
   const res = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
@@ -91,8 +116,10 @@ export async function sendPush(token: string, msg: PushMessage, siteUrl: string)
     }),
     signal: AbortSignal.timeout(FCM_TIMEOUT_MS),
   });
-  if (res.ok) return 'ok';
-  // 받아 둔 접근 토큰이 거절됐으면 다음엔 새로 받는다
-  if (res.status === 401) cached = null;
-  return classifyFcmError(res.status, (await res.json().catch(() => null)) as FcmErrorBody | null);
+  if (res.ok) return { result: 'ok' };
+  const body = (await res.json().catch(() => null)) as FcmErrorBody | null;
+  const code = fcmErrorCode(res.status, body);
+  // 받아 둔 접근 토큰이 거절됐으면 다음엔 새로 받는다(APNs·웹 푸시 키 문제인 THIRD_PARTY_AUTH_ERROR는 우리 접근 토큰 탓이 아니다)
+  if (res.status === 401 && code !== 'THIRD_PARTY_AUTH_ERROR') cached = null;
+  return { result: classifyFcmError(res.status, body), code };
 }

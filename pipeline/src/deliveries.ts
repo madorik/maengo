@@ -501,8 +501,13 @@ export async function runDeliveries(now = new Date(), hooks: DeliveryHooks = {})
         await db.from('notifications_log').upsert({ user_id: job.user_id, date: job.date, channel: job.slot === 'pm' ? 'push_pm' : 'push' }, { onConflict: 'user_id,date,channel', ignoreDuplicates: true });
       } else if (r.status === 'retry') {
         await retryLater(job, r.note);
+      } else if (r.status === 'error') {
+        // 다시 해도 같은 실패(APNs 인증 키 없음 등): '기기 없음'에 섞지 않고 'failed'로 남겨 관리자 실패 경보(admin-alerts)에 잡히게 한다.
+        // 전엔 'no_device'로 접혀 늘 같은 수준이라 급증 경보에도 안 걸렸다(2026-11-26, iOS 알림 3주 0건)
+        out.failed++;
+        await setStatus(job, { status: 'failed', last_error: r.note.slice(0, 300) });
       } else {
-        // 보낼 수 있는 기기가 없었다(토큰 없음·모두 죽은 토큰·다시 해도 같은 실패)
+        // 보낼 수 있는 기기가 없었다(토큰 없음·모두 죽은 토큰)
         out.noDevice++;
         await setStatus(job, { status: 'no_device', last_error: r.note });
       }
