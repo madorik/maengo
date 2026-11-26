@@ -45,8 +45,8 @@ export async function insightFor(userId: string, slot: 'am' | 'pm'): Promise<Bri
 export async function pushInsightFor(userId: string, slot: 'am' | 'pm'): Promise<PushInsight | null> {
   const made = await insightFor(userId, slot);
   if (!made || made === 'skipped') return null;
-  // 형식 13 이전에 만든 것은 lead가 없다 → about이 비어 큰 제목은 쓰지 않는다
-  return { headline: made.headline, about: made.lead?.about ?? '', ...(made.checks[0]?.text ? { check: made.checks[0].text } : {}) };
+  // 알림 제목은 알림 한 줄(push, 형식 16)이 먼저, 없으면 큰 제목(2026-11-26 사용자: 딱 봐도 궁금해할 한 줄로)
+  return { headline: made.headline, about: made.lead?.about ?? '', ...(made.push ? { hook: made.push } : {}) };
 }
 
 export async function prewarmInsights(deadline: number): Promise<{ candidates: number; made: number; skipped: number; failed: number }> {

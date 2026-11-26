@@ -152,3 +152,27 @@ test('큰 제목: 하시는은 해요로 알려 준 사정에만, 사정 이름�
   assert.equal(unknownNumber('롯데건설 영업이익 2077억 원', src), false);
   assert.equal(unknownNumber('엔비디아 7% 급락', src), true);
 });
+
+test('알림 한 줄: 궁금하게 쓴 줄은 그대로, 느낌표·따옴표는 뺀다(형식 16)', async () => {
+  const { cleanPushLine } = await import('../insight-rules');
+  const source = '한국은행이 기준금리를 3.00%에서 3.25%로 0.25%p 올렸어요. 엔비디아와 AMD가 8% 넘게 내렸어요.';
+  assert.equal(cleanPushLine('기준금리 0.25%p 인상, 대출 이자는?', source), '기준금리 0.25%p 인상, 대출 이자는?');
+  assert.equal(cleanPushLine('"엔비디아 8% 급락"!! 코스피가 더 빠진 이유', source), '엔비디아 8% 급락 코스피가 더 빠진 이유');
+});
+
+test('알림 한 줄: 길거나, 소식에 없는 숫자, 투자 권유, 낚시 말이면 버린다', async () => {
+  const { cleanPushLine, PUSH_MAX } = await import('../insight-rules');
+  const source = '엔비디아와 AMD가 8% 넘게 내렸어요.';
+  assert.equal(cleanPushLine('가'.repeat(PUSH_MAX + 1), source), '');
+  assert.equal(cleanPushLine('엔비디아 12% 급락, 왜?', source), '');
+  assert.equal(cleanPushLine('엔비디아 급락, 지금 매수할 때?', source), '');
+  assert.equal(cleanPushLine('엔비디아 8% 급락, 지금 사야 할까', source), '');
+  assert.equal(cleanPushLine('충격 엔비디아 8% 급락', source), '');
+  assert.equal(cleanPushLine('   ', source), '');
+});
+
+test('알림 한 줄: 매도 사이드카 같은 사실은 권유가 아니다', async () => {
+  const { cleanPushLine } = await import('../insight-rules');
+  const source = '코스피가 장중 4.6% 급락해 매도 사이드카가 발동됐어요.';
+  assert.equal(cleanPushLine('코스피 4.6% 급락, 매도 사이드카까지 왜?', source), '코스피 4.6% 급락, 매도 사이드카까지 왜?');
+});

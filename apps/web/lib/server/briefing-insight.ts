@@ -13,6 +13,7 @@ import {
   plainWords,
   basisLabel,
   basisRank,
+  cleanPushLine,
   factBases,
   findLinks,
   fixClaims,
@@ -82,6 +83,11 @@ export interface BriefingInsight {
    * about이 비면 오늘 소식 가운데 회원 사정에 닿는 게 없다(화면에 '오늘은 OO님 맞춤 소식이 없어요')
    */
   lead?: { fact: string; tone: InsightTone; about: string };
+  /**
+   * 알림 한 줄(16: 2026-11-26 사용자 '딱 봐도 궁금해할 한줄로 보내야 해'). 출근길·퇴근길 알림의 제목(잠금 화면 굵은 첫 줄).
+   * 큰 제목과 같은 소식으로, 답은 앱 안에 남기고 궁금하게. 거르기에 걸리면 비운다 → 알림은 큰 제목으로(pipeline/src/lib/push-copy.ts)
+   */
+  push?: string;
 }
 
 // 4: 회원을 부르지 않는다(2026-11-11 사용자: 맞춤 체크에 이름 빼자, 이름이 너무 많다)
@@ -104,7 +110,8 @@ export interface BriefingInsight {
 //     흐름마다 핵심 요약 두 줄(points), effect는 화면이 따로 보여 주는 관심 이름·성격 낱말을 되풀이하지 않고 무엇이 달라지는지만
 // 15: 흐름 카드를 시안 E안으로(2026-11-26 사용자: 오늘의 흐름을 더 임팩트 있게) — 사진 위에 핵심 숫자(figure) 하나를 크게.
 //     figure에 쓴 숫자는 points에서 되풀이하지 않는다
-const VERSION = 15;
+// 16: 알림 한 줄(push)을 같은 호출에서 받는다(2026-11-26 사용자: 알림은 딱 봐도 궁금해할 한 줄로). 알림 제목으로 쓴다
+const VERSION = 16;
 /** 미리 만들기(lib/server/insight-prewarm.ts)가 이미 새 형식으로 만들어 뒀는지 볼 때 쓴다 */
 export const INSIGHT_VERSION = VERSION;
 
@@ -132,7 +139,7 @@ const SYSTEM = `너는 재테크하는 출퇴근길 직장인에게 오늘 받�
 입력: 오늘 브리핑 소식들(id, 분야, 종류, 다룬 언론 수, 제목, 요약)과 [회원 정보].
 [회원 정보]의 근거에는 번호가 있다. F: 회원이 직접 고른 사정·관심(맨 앞이 요즘 신경 쓰는 경제 부문). R: 최근 끝까지 듣거나 열어 보거나 북마크한 소식(때 표시가 있다). K: 회원이 직접 적은 내 키워드 가운데 오늘 소식과 이어지는 것(이어지는 오늘 소식 id가 붙어 있다). S: 고르거나 자주 보는 분야.
 '이어지는 이야기'는 서버가 내용으로 찾은, 오늘 소식과 이어지는 최근 소식이다. 퇴근길이면 '오늘 아침에 한 말'도 있다.
-출력: JSON {headline, headlineBasis, headlineFact, headlineTone, flows, checks, personal}
+출력: JSON {headline, headlineBasis, headlineFact, headlineTone, push, flows, checks, personal}
 - headline: 화면 맨 위 큰 제목이자 이 기능에서 가장 중요한 한 줄. 오늘 소식 하나가 이 회원의 사정에 어떤 영향·의미가 있는지를 말한다(30자 안팎).
   · 오늘 브리핑을 요약하거나 소식 여러 개를 늘어놓지 않는다(나쁜 예: "AI주 변동성 예고, 건설 실적 개선과 개인정보 유출").
   · 꼴: '[회원 사정], [그 사정에 무엇이 달라지는지·어떤 의미인지]'. 제목만 보고 나한테 하는 말인 줄 알 수 있게 근거의 사정 이름(국내 주식·미국 주식·IT·개발 일·제조 일·대출 이자·내 키워드 반도체 등)을 앞에 넣는다.
@@ -149,6 +156,19 @@ const SYSTEM = `너는 재테크하는 출퇴근길 직장인에게 오늘 받�
 - headlineBasis: 제목이 짚은 근거 번호 하나(F·K·R만, 입력에 있는 번호). 없으면 빈 문자열.
 - headlineFact: 제목 아래 한 줄. 제목의 근거가 되는 사실을 요약에 있는 숫자·날짜·주체로 단정형 해요체(60자 안팎). 예: "젠슨 황 사임 뒤 엔비디아는 4.34% 내렸고, AMD·브로드컴은 5% 넘게 올랐어요."
 - headlineTone: 제목의 의미가 이 회원에게 plus(긍정 요인) / minus(부담 요인) / watch(방향이 갈리는 변수) 중 하나.
+- push: 휴대폰 잠금 화면 알림의 굵은 첫 줄. 이 한 줄만 보고 '무슨 일이지, 그래서 어떻게 되는데?' 싶어 바로 열어 보게 쓴다(20자 안팎, 24자를 넘기지 않는다).
+  · headline과 같은 소식·같은 근거로 쓰되 headline을 그대로 옮기지 않는다. headline이 답이면 push는 그 답이 궁금해지게 하는 한 줄이다.
+  · 무엇이 일어났는지는 구체적으로(주체와 숫자 하나), 그래서 회원 사정이 어떻게 되는지는 열어야 알게 남긴다. 결론까지 다 말하지 않는다.
+  · 꼴은 오늘 소식에 맞게 고르고, 같은 꼴('~, ~은?')을 매일 되풀이하지 않는다. 고르는 차례:
+    ① 뜻밖의 대비·반전이 있으면 그것: "금리는 올렸는데 성장 전망은 왜 올렸을까"
+    ② 회원 사정이 걸린 분명한 물음: "기준금리 인상, 대출 이자 얼마나 늘까요?", "엔비디아 8% 급락, 국내 주식엔 악재일까요?"
+    ③ 숫자 하나와 까닭: "코스피 4.6% 급락, 사이드카까지 간 이유", "앤트로픽, 상장 4일 만에 공모가 아래로 왜?"
+    ④ 바로 확인할 일: "빗썸 해킹 유출, 내 정보도 포함됐을까요?"
+  · 물음은 끝까지 쓴다. '~엔?'·'~은?'처럼 대상만 던지고 끝내지 않고, 무엇이 궁금한지(악재일까요·얼마나 늘까요·번질까요·왜) 말한다. 24자에 다 안 들어가면 숫자를 먼저 빼고, 그래도 길면 사건을 줄인다. 물음을 끝까지 쓰는 게 숫자보다 먼저다(예: "금리 인상, 국내 주식엔 악재일까요?").
+  · headlineBasis가 있으면 그 사정 이름을 짧게 넣는다(대출 이자·국내 주식·IT·개발 일). '하시는·신경 쓰는' 같은 꾸밈은 빼고 이름만. '내 ~'는 F에 '~해요·~있어요'로 알려 준 사정에만 쓴다.
+  · checks에 보안 유출처럼 오늘 바로 확인할 일이 있고 그 소식이 회원 사정에 닿는 다른 소식보다 급하면 그것으로 써도 된다.
+  · 해요체 규칙 대신 '~은?'·'왜?'·'~이유'처럼 물음이나 명사로 끝내도 된다.
+  · 하지 않는 것: 사실과 다른 물음, 요약에 없는 숫자, 과장·낚시 말(충격·경악·헉·대박·폭탄·역대급), 느낌표·이모지·따옴표, '지금 사야 할까'처럼 사고팔기를 묻는 말, '맹고'·'브리핑'·'소식이 도착' 같은 앱 안내 말.
 - flows: 2~3개. 서로 이어지는 소식들을 묶어 '무슨 일이 벌어지고 있는지'를 짚는다. 서로 상관없는 소식을 한 흐름에 억지로 넣지 않는다.
   · title: 12자 안팎의 짧은 이름. 예: "AI 쏠림이 흔들려요"
   · text: 1~2문장(90자 안팎). 묶은 소식들을 이어 왜 함께 봐야 하는지, 앞으로 무엇을 지켜보면 되는지. 소식 제목을 그대로 되풀이하지 않는다.
@@ -209,6 +229,7 @@ const SCHEMA = {
     headlineBasis: { type: 'string' },
     headlineFact: { type: 'string' },
     headlineTone: { type: 'string', enum: ['plus', 'minus', 'watch'] },
+    push: { type: 'string' },
     flows: {
       type: 'array',
       items: {
@@ -249,7 +270,7 @@ const SCHEMA = {
       },
     },
   },
-  required: ['headline', 'headlineBasis', 'headlineFact', 'headlineTone', 'flows', 'checks', 'personal'],
+  required: ['headline', 'headlineBasis', 'headlineFact', 'headlineTone', 'push', 'flows', 'checks', 'personal'],
 };
 
 /** 같은 브리핑을 동시에 두 번 만들지 않게(같은 서버 인스턴스 안) */
@@ -424,6 +445,7 @@ type RawInsight = {
   headlineBasis?: unknown;
   headlineFact?: unknown;
   headlineTone?: unknown;
+  push?: unknown;
   flows?: unknown;
   checks?: unknown;
   personal?: unknown;
@@ -615,7 +637,14 @@ function clean(out: RawInsight, items: TodayData['items'], p: Personal): Briefin
   if (p.bases.length && !personalChecks.length) {
     console.warn('[insight] 맞춤 체크 없음', raw.length ? `걸러짐 ${raw.length}개: ${raw.map((x) => `${String(x?.basis ?? '')} ${String(x?.title ?? '')} / ${String(x?.text ?? '')}`.slice(0, 120)).join(' | ')}` : '모델이 빈 배열');
   }
-  return { ...leadOf(out, items, bases, fix, flows, strong), flows, checks, personal: personalChecks };
+  const push = pushOf(out, items, fix);
+  return { ...leadOf(out, items, bases, fix, flows, strong), ...(push ? { push } : {}), flows, checks, personal: personalChecks };
+}
+
+/** 알림 한 줄(16). 거르기 규칙은 lib/insight-rules.ts cleanPushLine */
+function pushOf(out: { push?: unknown }, items: TodayData['items'], fix: (t: string) => string): string {
+  const source = items.map((i) => `${i.title} ${i.short} ${i.body.join(' ')}`).join(' ');
+  return cleanPushLine(fix(str(out.push, 60)), source);
 }
 
 /**

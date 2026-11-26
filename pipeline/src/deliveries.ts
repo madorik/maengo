@@ -10,7 +10,7 @@ import { env } from './lib/env';
 import type { PushMessage } from './lib/fcm';
 import { mapLimit } from './lib/limit';
 import { pushToUser } from './lib/push';
-import { gatherInsights, insightBody, insightKey, type InsightFetcher, type Slot } from './lib/push-copy';
+import { fallbackTitle, gatherInsights, insightKey, pushBody, pushTitle, type InsightFetcher, type Slot } from './lib/push-copy';
 import { DELIVERY_BUILT_BY, existingFeedResult, isInactive, SEND_RETRY_MINUTES, sendRetryAt } from './lib/retry';
 import { flushUsage, recordUsage } from './lib/usage';
 
@@ -327,10 +327,10 @@ export async function buildFeedsFor(
 }
 
 /**
- * 알림 문구. 제목은 그대로('출근길 소식이 도착했어요'), 본문은 오늘의 흐름이 있으면 그 사람 사정에 닿는 큰 제목이나 확인할 것(insightBody),
- * 없으면 그 브리핑의 첫 소식 제목과 개수. 보여 줄 소식이 없으면 null(빈 알림을 보내지 않는다)
+ * 알림 문구(2026-11-26 사용자: 딱 봐도 궁금해할 한 줄로). 제목(잠금 화면 굵은 첫 줄)은 오늘의 흐름의 알림 한 줄이나 큰 제목(pushTitle),
+ * 흐름이 없으면 그 브리핑의 첫 소식 제목. 본문은 '출근길 브리핑 · 소식 10개'처럼 어느 브리핑인지만. 보여 줄 소식이 없으면 null(빈 알림을 보내지 않는다)
  */
-async function messageFor(userId: string, date: string, slot: Slot = 'am', body: string | null = null): Promise<PushMessage | null> {
+async function messageFor(userId: string, date: string, slot: Slot = 'am', hook: string | null = null): Promise<PushMessage | null> {
   const day = check(await db.from('feed_days').select('visible').eq('user_id', userId).eq('date', date).maybeSingle(), 'feed_days visible') as { visible: number } | null;
   if (!day?.visible) return null;
   const rows = check(await db.from('feeds').select('cluster_id,rank').eq('user_id', userId).eq('date', date).eq('slot', slot).lte('rank', day.visible).order('rank'), 'feeds slot') as { cluster_id: number }[];
@@ -341,8 +341,8 @@ async function messageFor(userId: string, date: string, slot: Slot = 'am', body:
     : null;
   const n = rows.length;
   return {
-    title: slot === 'pm' ? '퇴근길 소식이 도착했어요' : '출근길 소식이 도착했어요',
-    body: body ?? (title ? (n > 1 ? `${title} 외 ${n - 1}개` : title) : `관심사로 고른 소식 ${n}개가 준비됐어요`),
+    title: hook ?? fallbackTitle(title) ?? (slot === 'pm' ? '퇴근길 소식이 도착했어요' : '출근길 소식이 도착했어요'),
+    body: pushBody(slot, n),
     path: '/today?from=push',
   };
 }
@@ -486,8 +486,8 @@ export async function runDeliveries(now = new Date(), hooks: DeliveryHooks = {})
     }
     try {
       const slot = job.slot ?? 'am';
-      const body = insightBody(insights.get(insightKey(job.user_id, slot)));
-      const msg = await messageFor(job.user_id, job.date, slot, body);
+      const hook = pushTitle(insights.get(insightKey(job.user_id, slot)));
+      const msg = await messageFor(job.user_id, job.date, slot, hook);
       if (!msg) {
         out.failed++;
         await setStatus(job, { status: 'failed', last_error: '보낼 소식이 없음' });
@@ -496,7 +496,7 @@ export async function runDeliveries(now = new Date(), hooks: DeliveryHooks = {})
       const r = await pushToUser(job.user_id, msg);
       if (r.status === 'sent') {
         out.sent++;
-        if (body) out.insightPush++;
+        if (hook) out.insightPush++;
         await setStatus(job, { status: 'sent', sent_at: new Date().toISOString(), last_error: null });
         await db.from('notifications_log').upsert({ user_id: job.user_id, date: job.date, channel: job.slot === 'pm' ? 'push_pm' : 'push' }, { onConflict: 'user_id,date,channel', ignoreDuplicates: true });
       } else if (r.status === 'retry') {

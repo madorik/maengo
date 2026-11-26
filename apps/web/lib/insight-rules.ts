@@ -293,3 +293,27 @@ export function basisRank(b: Basis, linked: boolean): number {
 export function plainWords(text: string): string {
   return text.replace(/돈 쪽/g, "경제 쪽");
 }
+
+/** 낚시처럼 보이는 말(알림 한 줄에 쓰지 않는다) */
+const BAIT = /충격|경악|헉|대박|폭탄|역대급|소름|난리/;
+/**
+ * 사고팔기를 묻거나 권하는 말. 일반 투자 권유 거르기(INVESTING_ADVICE)는 '매도'만 봐도 지워
+ * '매도 사이드카까지 간 이유' 같은 사실 문장이 버려졌다(2026-11-26 시험) → 알림 한 줄은 권유 꼴만 본다
+ */
+const PUSH_ADVICE = /살까|팔까|사야|팔아야|사 볼|사 보세요|팔아|매수할|매도할|매수 타이밍|매도 타이밍|저가 매수|담아야|담을 때|들어갈 때|손절|익절|포트폴리오|비중|리밸런싱/;
+/** 알림 한 줄이 이보다 길면 잠금 화면에서 잘리니 버린다(그 알림은 큰 제목으로) */
+export const PUSH_MAX = 28;
+
+/**
+ * 알림 한 줄 거르기(형식 16, 2026-11-26 사용자: 딱 봐도 궁금해할 한 줄로). 느낌표·따옴표를 빼고,
+ * 길거나 소식 글(source)에 없는 숫자를 쓰거나 투자 권유·낚시 말이면 빈 문자열(→ 알림은 큰 제목으로)
+ */
+export function cleanPushLine(raw: string, source: string): string {
+  const text = plainWords(raw)
+    .replace(/[!！]+/g, "")
+    .replace(/["'“”‘’`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || text.length > PUSH_MAX || PUSH_ADVICE.test(text) || BAIT.test(text) || unknownNumber(text, source)) return "";
+  return text;
+}
