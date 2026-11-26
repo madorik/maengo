@@ -215,7 +215,7 @@ export function InsightFlows({
 /**
  * 흐름 카드 한 장(2026-11-26 시안 E안, 사용자: 오늘의 흐름을 더 임팩트 있게). 카드 전체가 흐름 상세 시트 버튼.
  * ① 위쪽 큰 사진(228px, 이미지가 잘 보여야 눈이 간다). 글자는 사진 위라 밝기 설정과 상관없이 흰 글자, 사진이 없으면 남색 바탕.
- *    - 왼쪽 위: 흰 알약 '⚠ 국내 주식에 부담 요인'(영향이 있을 때), 같은 흐름이 다른 관심에도 닿으면 그 아래 작은 알약 하나 더
+ *    - 오른쪽 위: 흰 알약 '⚠ 국내 주식에 부담 요인'(영향이 있을 때, 2026-11-26 사용자: 라벨은 오른쪽으로), 같은 흐름이 다른 관심에도 닿으면 그 아래 작은 알약 하나 더
  *    - 아래: 핵심 숫자가 있으면(형식 15) 흐름 제목(작게) + 큰 숫자 '−4.6%' + 이름 '코스피 장중', 없으면 '소식 n개' + 흐름 제목(크게)
  * ② 영향 한 문장(굵게) ③ 핵심 요약 두 줄(points, 예전 형식은 사실 + 설명 첫 문장) ④ '자세히 보기'.
  * 카드 높이는 줄에서 가장 긴 카드에 맞추고(늘어남), 남는 자리는 요약과 '자세히 보기' 사이로 가서 '자세히 보기' 줄이 카드마다 같은 높이에 온다
@@ -244,7 +244,7 @@ function FlowCard({ flow, personal, onOpen }: { flow: BriefingInsight["flows"][n
             className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,16,0.32)_0%,rgba(12,13,16,0)_26%,rgba(12,13,16,0.1)_44%,rgba(12,13,16,0.86)_100%)]"
           />
           {tone && (
-            <span className="absolute inset-x-3.5 top-3.5 flex flex-col items-start gap-1.5">
+            <span className="absolute inset-x-3.5 top-3.5 flex flex-col items-end gap-1.5">
               <TonePill tone={tone} who={who} />
               {also && <TonePill tone={also.tone} who={also.who} small />}
             </span>
