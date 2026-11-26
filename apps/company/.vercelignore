@@ -2,3 +2,4 @@ README.md
 .vercel
 .env*
 .gitignore
+_build

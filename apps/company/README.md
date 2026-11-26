@@ -24,3 +24,7 @@
   - 심볼 = 남색(#1F2340) 타일 위 맹고색(#FFC23D) 미소 w. 이름 글꼴 Jua, 본문 Pretendard(둘 다 OFL).
   - `favicon.svg`(둥근 타일), `apple-touch-icon.png`(180, 꽉 찬 사각형 — iOS가 모서리를 깎는다), `og.png`(남색 바탕 + 미소 + 이름).
   - `brand/`: `symbol.svg`(둥근 타일), `symbol-square.svg`·`symbol-1024.png`(꽉 찬 사각형, 스토어·계정 프로필용), `smile.svg`(타일 없는 미소, 어두운 바탕용), `logo-ko.png`·`logo-en.png`(심볼 + 이름, 투명 바탕 2배).
+- 가이드 · 노트 · 정책(2026-11-26, AdSense '가치가 별로 없는 콘텐츠' 불합격 뒤 보강): `/guides.html`(목록), `/guides/*.html`(마크다운 보고서 · 표 칸 합치기 · PDF 쪽 나눔 · 선물 기록 · 뉴스 습관), `/notes/lasee-performance.html`(기술 노트), `/privacy.html`(이 사이트의 개인정보처리방침 — AdSense 쿠키 고지 포함).
+  - 공통 머리 · 바닥글과 본문은 `_build/` 의 생성 스크립트에 있다: 글을 고치거나 더하면 `pages_*.py` 를 고치고 `python3 _build/build_pages.py` 로 HTML 을 다시 만든다(`_build` 는 `.vercelignore` 로 배포에서 뺀다). 모양은 `notes.css`.
+  - 앱 설명은 `llms.txt` 의 사실만 쓴다. 쪽을 더하면 `sitemap.xml` · `llms.txt` · 첫 화면의 '가이드 · 노트' 칸도 같이 고친다.
+

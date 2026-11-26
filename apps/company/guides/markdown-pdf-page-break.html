@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>마크다운을 PDF로 바꿀 때 쪽 나눔이 어긋나는 이유와 맞추는 법 — 와타랩스</title>
+  <meta name="description" content="화면에서는 멀쩡한 마크다운 문서가 PDF로 바꾸면 표가 쪽 중간에서 잘리고 제목만 쪽 끝에 남는 이유, 그리고 쪽 나눔을 맞추는 방법을 정리했어요." />
+  <link rel="canonical" href="https://watalabs.com/guides/markdown-pdf-page-break.html" />
+  <meta name="google-adsense-account" content="ca-pub-6951210541539723" />
+  <meta name="robots" content="max-image-preview:large" />
+  <meta property="og:type" content="article" />
+  <meta property="og:locale" content="ko_KR" />
+  <meta property="og:site_name" content="와타랩스" />
+  <meta property="og:title" content="마크다운을 PDF로 바꿀 때 쪽 나눔이 어긋나는 이유와 맞추는 법" />
+  <meta property="og:description" content="화면에서는 멀쩡한 마크다운 문서가 PDF로 바꾸면 표가 쪽 중간에서 잘리고 제목만 쪽 끝에 남는 이유, 그리고 쪽 나눔을 맞추는 방법을 정리했어요." />
+  <meta property="og:url" content="https://watalabs.com/guides/markdown-pdf-page-break.html" />
+  <meta property="og:image" content="https://watalabs.com/img/lasee-preview.webp" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="theme-color" content="#F6F7FA" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151722" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="/notes.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","@id":"https://watalabs.com/guides/markdown-pdf-page-break.html#article","headline":"마크다운을 PDF로 바꿀 때 쪽 나눔이 어긋나는 이유와 맞추는 법","description":"화면에서는 멀쩡한 마크다운 문서가 PDF로 바꾸면 표가 쪽 중간에서 잘리고 제목만 쪽 끝에 남는 이유, 그리고 쪽 나눔을 맞추는 방법을 정리했어요.","url":"https://watalabs.com/guides/markdown-pdf-page-break.html","inLanguage":"ko-KR","datePublished":"2026-11-26","dateModified":"2026-11-26","author":{"@id":"https://watalabs.com/#organization"},"publisher":{"@id":"https://watalabs.com/#organization"},"image":"https://watalabs.com/img/lasee-preview.webp","mainEntityOfPage":"https://watalabs.com/guides/markdown-pdf-page-break.html","isPartOf":{"@id":"https://watalabs.com/#website"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"와타랩스","item":"https://watalabs.com/"},{"@type":"ListItem","position":2,"name":"가이드 · 노트","item":"https://watalabs.com/guides.html"},{"@type":"ListItem","position":3,"name":"마크다운을 PDF로 바꿀 때 쪽 나눔이 어긋나는 이유와 맞추는 법","item":"https://watalabs.com/guides/markdown-pdf-page-break.html"}]}]}</script>
+</head>
+<body>
+<header class="top wrap">
+  <a class="brand" href="/"><svg class="mk" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="30"/><path d="M32 53 A14 14 0 0 0 60 53 A14 14 0 0 0 88 53" fill="none" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></svg><span>와타랩스</span></a>
+  <nav aria-label="바로가기"><a href="/guides.html" aria-current="page">가이드</a><a href="/#apps">만든 앱</a><a href="/#contact">문의</a></nav>
+</header>
+<main class="wrap page">
+  <nav class="crumbs" aria-label="현재 위치"><a href="/">와타랩스</a> › <a href="/guides.html">가이드 · 노트</a></nav>
+  <article>
+    <p class="kicker">가이드 · 문서 작성</p>
+    <h1>마크다운을 PDF로 바꿀 때 쪽 나눔이 어긋나는 이유와 맞추는 법</h1>
+    <p class="lede">마크다운 보고서를 PDF 로 바꿨더니 표가 두 쪽에 걸쳐 잘리고, 다음 쪽 표에는 머리글이 없고, 섹션 제목만 쪽 맨 아래에 남아 있던 적 있으신가요? <strong>화면과 종이가 글을 배치하는 방식이 다르기 때문</strong>이에요.</p>
+    <p class="meta">2026년 11월 26일 · 와타랩스</p>
+
+    <h2>왜 어긋나나요</h2>
+    <p>화면은 끝없이 이어지는 두루마리예요. 쪽이라는 개념이 없어요. PDF 는 A4 같은 정해진 크기의 종이에 여백을 두고 글을 다시 앉혀요. 이때 세 가지가 달라져요.</p>
+    <ul>
+      <li><strong>글자 크기와 줄 폭</strong> — 화면 폭과 종이 폭이 달라서 같은 문단도 줄 수가 바뀌어요. 줄 수가 바뀌면 쪽이 넘어가는 자리도 바뀌어요.</li>
+      <li><strong>변환기마다 다른 규칙</strong> — 브라우저 인쇄, 변환 프로그램, 편집기의 내보내기는 쪽을 넘기는 규칙이 저마다 달라요. 같은 문서도 도구에 따라 다른 자리에서 끊겨요.</li>
+      <li><strong>"어디서 끊으면 안 되는지"를 모름</strong> — 사람은 제목과 본문이 한 덩어리라는 걸 알지만, 변환기는 그냥 글자를 위에서부터 채워요. 그래서 제목만 쪽 끝에 남기도 해요.</li>
+    </ul>
+
+    <h2>보기 좋은 쪽 나눔의 규칙</h2>
+    <p>출판물에서 오래 써 온 규칙을 보고서에 옮기면 이렇게 정리돼요.</p>
+    <ol>
+      <li><strong>제목은 본문과 함께 넘긴다.</strong> 제목 아래 본문이 한 줄도 없이 쪽이 끝나면, 제목도 다음 쪽으로 보내요.</li>
+      <li><strong>작은 덩어리는 쪼개지 않는다.</strong> 블록 제목, 본문, 비고가 남은 자리에 다 안 들어가면 통째로 다음 쪽으로 보내요.</li>
+      <li><strong>긴 표는 행 단위로 나누고 머리글을 다시 단다.</strong> 다음 쪽 표만 봐도 어떤 열인지 알 수 있어야 해요.</li>
+      <li><strong>새 장은 새 쪽에서</strong> — 필요한 경우 섹션마다 새 쪽에서 시작해요.</li>
+    </ol>
+
+    <h2>도구별로 쪽 나눔을 맞추는 방법</h2>
+    <h3>브라우저 인쇄 · HTML 을 거치는 변환</h3>
+    <p>마크다운을 HTML 로 바꾼 뒤 인쇄하는 방식이라면, 인쇄용 CSS 로 위 규칙을 적을 수 있어요.</p>
+<pre><code>@media print {
+  h2, h3 { break-after: avoid; }        /* 제목 바로 뒤에서 끊지 않기 */
+  table, figure { break-inside: avoid; } /* 짧은 표 · 그림은 통째로 */
+  thead { display: table-header-group; } /* 긴 표의 머리글을 쪽마다 반복 */
+  h2 { break-before: page; }             /* 섹션마다 새 쪽(필요할 때만) */
+}</code></pre>
+    <p>다만 브라우저마다 지원 정도가 달라서, 같은 CSS 라도 결과가 조금씩 달라요. 내보낸 PDF 를 열어 직접 확인해야 해요.</p>
+    <h3>원하는 자리에서 직접 넘기기</h3>
+    <p>"여기서는 꼭 새 쪽"인 자리가 있다면 문서에 쪽 나눔 표시를 넣어요. 많은 도구가 HTML 주석 형태를 써요.</p>
+<pre><code>## 3. 부록
+
+&lt;!-- pagebreak --&gt;
+
+### 상세 집계표</code></pre>
+    <p>주석이라 일반 마크다운 뷰어에서는 보이지 않고, 이 표시를 아는 도구에서만 쪽이 넘어가요. 쓰는 도구가 어떤 표시를 쓰는지 먼저 확인하세요.</p>
+
+    <h2>미리보기와 PDF 를 똑같이 만드는 방법</h2>
+    <p>가장 확실한 방법은 <strong>미리보기가 PDF 를 실제로 그려 본 결과를 보여 주는 것</strong>이에요. 와타랩스가 만든 <a href="https://lasee.watalabs.com/">MDitor 라씨</a>가 이렇게 동작해요.</p>
+    <figure>
+      <img loading="lazy" decoding="async" src="/img/lasee-preview.webp" alt="MDitor 라씨 미리보기: 쪽이 넘어가는 자리에 점선 경계" width="1200" height="1040">
+      <figcaption>라씨 미리보기. 점선이 내려받을 PDF 에서 쪽이 넘어가는 자리예요.</figcaption>
+    </figure>
+    <ul>
+      <li>서버가 PDF 를 실제로 그려 보고, 각 블록·항목·표 행이 몇 쪽에 놓이는지 알려 줘요. 미리보기는 그 자리에 쪽 경계를 그려요. 그래서 화면에서 본 대로 PDF 가 나와요.</li>
+      <li>위의 규칙을 기본으로 따라요. 블록은 남은 자리에 안 들어가면 통째로 다음 쪽으로 가고, 한 쪽보다 큰 표는 행 단위로 나뉘며 머리글이 반복돼요. 한 쪽보다 긴 코드 블록은 줄 단위로 나뉘어요.</li>
+      <li><code>&lt;!-- pagebreak --&gt;</code> 한 줄로 그 자리에서 쪽을 넘길 수 있어요. 이미 쪽 맨 위라면 빈 쪽을 만들지 않아요.</li>
+      <li>쪽 설정에서 '섹션마다 새 쪽'을 켜면 <code>##</code> 마다 새 쪽에서 시작해요. 용지(A4·Letter), 가로·세로, 여백, 글자 크기, 쪽 번호도 고를 수 있어요.</li>
+    </ul>
+
+    <h2>내보내기 전 점검 목록</h2>
+    <ul>
+      <li>쪽 맨 아래에 제목만 남은 곳이 없나요?</li>
+      <li>두 쪽에 걸친 표의 다음 쪽에도 머리글이 있나요?</li>
+      <li>그림과 그 설명이 다른 쪽으로 떨어지지 않았나요?</li>
+      <li>쪽 나눔 표시를 넣었다면 그 앞 쪽이 너무 비지 않았나요?</li>
+      <li>마지막 쪽에 한두 줄만 남았다면, 여백이나 글자 크기를 조금 줄여 한 쪽을 아낄 수 있나요?</li>
+    </ul>
+
+    <aside class="related">
+      <h2>함께 읽기</h2>
+      <ul>
+        <li><a href="/guides/markdown-report.html">마크다운으로 보고서 쓰기: 제목·항목·표로 뼈대 잡는 법</a></li>
+        <li><a href="/guides/markdown-table-merge.html">마크다운 표에서 칸 합치는 방법</a></li>
+        <li><a href="/notes/lasee-performance.html">40만 자 문서 하나가 서버를 세우던 이유 — 라씨 성능 개선 기록</a></li>
+      </ul>
+    </aside>
+  </article>
+</main>
+<footer>
+  <div class="wrap">
+    <ul class="links">
+      <li><a href="/">와타랩스</a></li>
+      <li><a href="/guides.html">가이드 · 노트</a></li>
+      <li><a href="/privacy.html">개인정보처리방침</a></li>
+      <li><a href="mailto:watalabs.help@gmail.com">문의</a></li>
+    </ul>
+    <p class="copy">© 2026 와타랩스</p>
+    <ul class="biz">
+      <li><span>상호</span>와타랩스</li>
+      <li><span>대표</span>정민균</li>
+      <li><span>사업자등록번호</span>422-17-02792</li>
+      <li><span>통신판매업 신고</span>제2026-서울서초-3688호</li>
+      <li><span>주소</span>서울특별시 서초구 방배로 141, 4층 415-47호(방배동, 텔콤빌딩 내방)</li>
+      <li><span>이메일</span>watalabs.help@gmail.com</li>
+      <li><a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=4221702792" target="_blank" rel="noopener noreferrer">사업자정보 확인</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>

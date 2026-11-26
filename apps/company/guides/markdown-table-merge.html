@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>마크다운 표에서 칸 합치는 방법: 표준 문법의 한계와 세 가지 대안 — 와타랩스</title>
+  <meta name="description" content="표준 마크다운(CommonMark·GFM)에는 표 칸 합치기(colspan·rowspan)가 없어요. HTML 표, 머리글 풀어 쓰기, MDitor 라씨의 &lt; ^ 표기까지 세 가지 대안과 장단점을 예시로 정리했어요." />
+  <link rel="canonical" href="https://watalabs.com/guides/markdown-table-merge.html" />
+  <meta name="google-adsense-account" content="ca-pub-6951210541539723" />
+  <meta name="robots" content="max-image-preview:large" />
+  <meta property="og:type" content="article" />
+  <meta property="og:locale" content="ko_KR" />
+  <meta property="og:site_name" content="와타랩스" />
+  <meta property="og:title" content="마크다운 표에서 칸 합치는 방법: 표준 문법의 한계와 세 가지 대안" />
+  <meta property="og:description" content="표준 마크다운(CommonMark·GFM)에는 표 칸 합치기(colspan·rowspan)가 없어요. HTML 표, 머리글 풀어 쓰기, MDitor 라씨의 &lt; ^ 표기까지 세 가지 대안과 장단점을 예시로 정리했어요." />
+  <meta property="og:url" content="https://watalabs.com/guides/markdown-table-merge.html" />
+  <meta property="og:image" content="https://watalabs.com/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="theme-color" content="#F6F7FA" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#151722" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="/notes.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","@id":"https://watalabs.com/guides/markdown-table-merge.html#article","headline":"마크다운 표에서 칸 합치는 방법: 표준 문법의 한계와 세 가지 대안","description":"표준 마크다운(CommonMark·GFM)에는 표 칸 합치기(colspan·rowspan)가 없어요. HTML 표, 머리글 풀어 쓰기, MDitor 라씨의 \u003c ^ 표기까지 세 가지 대안과 장단점을 예시로 정리했어요.","url":"https://watalabs.com/guides/markdown-table-merge.html","inLanguage":"ko-KR","datePublished":"2026-11-26","dateModified":"2026-11-26","author":{"@id":"https://watalabs.com/#organization"},"publisher":{"@id":"https://watalabs.com/#organization"},"image":"https://watalabs.com/og.png","mainEntityOfPage":"https://watalabs.com/guides/markdown-table-merge.html","isPartOf":{"@id":"https://watalabs.com/#website"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"와타랩스","item":"https://watalabs.com/"},{"@type":"ListItem","position":2,"name":"가이드 · 노트","item":"https://watalabs.com/guides.html"},{"@type":"ListItem","position":3,"name":"마크다운 표에서 칸 합치는 방법: 표준 문법의 한계와 세 가지 대안","item":"https://watalabs.com/guides/markdown-table-merge.html"}]}]}</script>
+</head>
+<body>
+<header class="top wrap">
+  <a class="brand" href="/"><svg class="mk" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="30"/><path d="M32 53 A14 14 0 0 0 60 53 A14 14 0 0 0 88 53" fill="none" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></svg><span>와타랩스</span></a>
+  <nav aria-label="바로가기"><a href="/guides.html" aria-current="page">가이드</a><a href="/#apps">만든 앱</a><a href="/#contact">문의</a></nav>
+</header>
+<main class="wrap page">
+  <nav class="crumbs" aria-label="현재 위치"><a href="/">와타랩스</a> › <a href="/guides.html">가이드 · 노트</a></nav>
+  <article>
+    <p class="kicker">가이드 · 문서 작성</p>
+    <h1>마크다운 표에서 칸 합치는 방법: 표준 문법의 한계와 세 가지 대안</h1>
+    <p class="lede">결론부터 말하면, <strong>표준 마크다운에는 칸 합치기가 없어요.</strong> GitHub 가 쓰는 GFM 표도 모든 행의 칸 수가 같은 단순한 격자만 그려요. 그래도 두 줄 머리글이 필요한 보고서 표는 많죠. 상황별로 쓸 수 있는 방법이 세 가지 있어요.</p>
+    <p class="meta">2026년 11월 26일 · 와타랩스</p>
+
+    <h2>합친 칸이 필요한 표는 어떤 모양인가요</h2>
+    <p>보고서에서 흔한 모양은 "큰 분류 아래 작은 분류" 머리글이에요. 아래 표에서 "매출(백만 원)"은 두 열에 걸쳐 있고, "분야"와 "비중"은 두 줄에 걸쳐 있어요.</p>
+    <div class="table"><table>
+      <thead>
+        <tr><th rowspan="2">분야</th><th colspan="2">매출(백만 원)</th><th rowspan="2">비중</th></tr>
+        <tr><th>종이책</th><th>전자책</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>문학</td><td class="num">412</td><td class="num">96</td><td class="num">27.6%</td></tr>
+        <tr><td>인문·사회</td><td class="num">365</td><td class="num">71</td><td class="num">23.7%</td></tr>
+      </tbody>
+    </table></div>
+    <p>이 표를 마크다운으로 옮기는 방법을 차례로 볼게요.</p>
+
+    <h2>방법 1. HTML 표를 그대로 쓰기</h2>
+    <p>많은 마크다운 도구가 문서 안의 HTML 을 그대로 보여 줘요. 그래서 합친 칸이 필요한 표만 HTML 로 쓰는 방법이 있어요.</p>
+<pre><code>&lt;table&gt;
+  &lt;tr&gt;&lt;th rowspan="2"&gt;분야&lt;/th&gt;&lt;th colspan="2"&gt;매출(백만 원)&lt;/th&gt;&lt;th rowspan="2"&gt;비중&lt;/th&gt;&lt;/tr&gt;
+  &lt;tr&gt;&lt;th&gt;종이책&lt;/th&gt;&lt;th&gt;전자책&lt;/th&gt;&lt;/tr&gt;
+  &lt;tr&gt;&lt;td&gt;문학&lt;/td&gt;&lt;td&gt;412&lt;/td&gt;&lt;td&gt;96&lt;/td&gt;&lt;td&gt;27.6%&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;</code></pre>
+    <ul>
+      <li><strong>좋은 점:</strong> 원하는 모양을 정확히 그릴 수 있어요.</li>
+      <li><strong>아쉬운 점:</strong> 원본이 길고 읽기 어려워요. 칸 하나를 고치려 해도 태그 사이를 찾아야 해요. HTML 을 막아 두는 서비스에서는 표가 아예 안 보이기도 해요.</li>
+    </ul>
+
+    <h2>방법 2. 합치지 말고 머리글을 풀어 쓰기</h2>
+    <p>가장 호환성이 좋은 방법은 합친 칸을 없애는 거예요. 큰 분류를 작은 분류 이름 안에 넣어 머리글을 한 줄로 만들어요.</p>
+<pre><code>| 분야 | 종이책 매출(백만 원) | 전자책 매출(백만 원) | 비중 |
+|:---|---:|---:|---:|
+| 문학 | 412 | 96 | 27.6% |
+| 인문·사회 | 365 | 71 | 23.7% |</code></pre>
+    <ul>
+      <li><strong>좋은 점:</strong> 어떤 마크다운 뷰어에서도 똑같이 보여요. 표를 스프레드시트로 옮길 때도 깔끔해요.</li>
+      <li><strong>아쉬운 점:</strong> 머리글이 길어지고 같은 말("매출(백만 원)")이 반복돼요.</li>
+    </ul>
+
+    <h2>방법 3. 칸 합치기 표기를 지원하는 편집기 쓰기</h2>
+    <p>일부 편집기는 마크다운 표 안에 "이 칸은 옆 칸과 합친다"는 표시를 따로 정해 두었어요. 와타랩스의 <a href="https://lasee.watalabs.com/">MDitor 라씨</a>는 칸에 <code>&lt;</code> 하나만 적으면 왼쪽 칸과, <code>^</code> 하나만 적으면 위 칸과 합쳐요.</p>
+<pre><code>| 분야 | 매출(백만 원) | &lt; | 비중 |
+| ^ | 종이책 | 전자책 | ^ |
+|:---|---:|---:|:---:|
+| 문학 | 412 | 96 | 27.6% |
+| 인문·사회 | 365 | 71 | 23.7% |</code></pre>
+    <p>첫 줄의 <code>&lt;</code> 는 "매출(백만 원)"을 오른쪽으로 한 칸 늘리고, 둘째 줄의 <code>^</code> 두 개는 "분야"와 "비중"을 아래로 한 칸 늘려요. 구분선(<code>|---|</code>) 위의 두 줄이 모두 머리글이 돼요.</p>
+    <h3>지켜야 할 규칙</h3>
+    <ul>
+      <li><strong>행마다 칸 수는 그대로</strong> 둬요. 합쳐지는 칸도 <code>&lt;</code> 나 <code>^</code> 로 자리를 채워요.</li>
+      <li><strong>머리글과 본문은 따로</strong> 합쳐요. 머리글 칸을 본문 칸과 합칠 수는 없어요.</li>
+      <li><strong>합친 모양은 직사각형</strong>이어야 해요. ㄱ자처럼 어긋난 모양은 합쳐지지 않아요.</li>
+      <li><code>&lt;</code> 나 <code>^</code> 를 글자 그대로 쓰려면 <code>\&lt;</code>, <code>\^</code> 처럼 앞에 <code>\</code> 를 붙여요.</li>
+      <li>칸 배경을 회색으로 칠하려면 칸 내용 전체를 <code>{음영}…{/음영}</code> 으로 감싸요.</li>
+    </ul>
+    <ul>
+      <li><strong>좋은 점:</strong> 원본이 여전히 짧은 마크다운 표예요. PDF 로 내면 합친 칸 그대로 그려지고, 쪽이 넘어가면 두 줄 머리글이 다음 쪽에 다시 나와요.</li>
+      <li><strong>아쉬운 점:</strong> 이 표기를 모르는 일반 마크다운 뷰어에서는 <code>&lt;</code>, <code>^</code> 가 글자로 보여요. 표 자체는 깨지지 않아서 내용은 읽을 수 있어요.</li>
+    </ul>
+
+    <h2>어떤 방법을 고를까</h2>
+    <div class="table"><table>
+      <thead><tr><th></th><th>HTML 표</th><th>머리글 풀어 쓰기</th><th>&lt; ^ 표기(라씨)</th></tr></thead>
+      <tbody>
+        <tr><th>원본 읽기</th><td>어려움</td><td>쉬움</td><td>쉬움</td></tr>
+        <tr><th>일반 뷰어에서</th><td>HTML 을 허용하면 그대로</td><td>그대로</td><td>기호가 글자로 보임</td></tr>
+        <tr><th>합친 칸 모양</th><td>그대로</td><td>합치지 않음</td><td>그대로</td></tr>
+        <tr><th>잘 맞는 곳</th><td>웹 문서 한두 곳</td><td>여러 서비스에 붙여 넣는 표</td><td>PDF 로 내는 보고서</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>자주 하는 실수</h2>
+    <ul>
+      <li><strong>칸 수가 행마다 다름</strong> — 머리글이 4칸이면 모든 행이 4칸이어야 해요. 빈 칸도 <code>| |</code> 로 자리를 남겨요.</li>
+      <li><strong>칸 안에 <code>|</code> 를 씀</strong> — 칸 구분으로 읽혀요. <code>\|</code> 로 적어요.</li>
+      <li><strong>칸 안에서 줄을 바꿈</strong> — 표 한 행은 한 줄이에요. 칸 안 줄바꿈은 <code>&lt;br&gt;</code> 로 적어요.</li>
+    </ul>
+
+    <aside class="related">
+      <h2>함께 읽기</h2>
+      <ul>
+        <li><a href="/guides/markdown-report.html">마크다운으로 보고서 쓰기: 제목·항목·표로 뼈대 잡는 법</a></li>
+        <li><a href="/guides/markdown-pdf-page-break.html">마크다운을 PDF 로 바꿀 때 쪽 나눔이 어긋나는 이유와 맞추는 법</a></li>
+      </ul>
+    </aside>
+  </article>
+</main>
+<footer>
+  <div class="wrap">
+    <ul class="links">
+      <li><a href="/">와타랩스</a></li>
+      <li><a href="/guides.html">가이드 · 노트</a></li>
+      <li><a href="/privacy.html">개인정보처리방침</a></li>
+      <li><a href="mailto:watalabs.help@gmail.com">문의</a></li>
+    </ul>
+    <p class="copy">© 2026 와타랩스</p>
+    <ul class="biz">
+      <li><span>상호</span>와타랩스</li>
+      <li><span>대표</span>정민균</li>
+      <li><span>사업자등록번호</span>422-17-02792</li>
+      <li><span>통신판매업 신고</span>제2026-서울서초-3688호</li>
+      <li><span>주소</span>서울특별시 서초구 방배로 141, 4층 415-47호(방배동, 텔콤빌딩 내방)</li>
+      <li><span>이메일</span>watalabs.help@gmail.com</li>
+      <li><a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=4221702792" target="_blank" rel="noopener noreferrer">사업자정보 확인</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>

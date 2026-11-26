@@ -1,10 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 회사 사이트 페이지. 맹고 페이지는 https://watalabs.com/maengo/sitemap.xml(robots.txt에 둘 다 있다). lastmod는 index.html을 바꾼 날 -->
+<!-- 회사 사이트 페이지(소개 · 가이드 · 노트 · 정책). 맹고 페이지는 https://watalabs.com/maengo/sitemap.xml(robots.txt에 둘 다 있다). lastmod는 그 쪽을 바꾼 날 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://watalabs.com/</loc>
-    <lastmod>2026-11-21</lastmod>
-    <changefreq>monthly</changefreq>
+    <lastmod>2026-11-26</lastmod>
     <priority>1</priority>
+  </url>
+  <url>
+    <loc>https://watalabs.com/guides.html</loc>
+    <lastmod>2026-11-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://watalabs.com/guides/markdown-report.html</loc>
+    <lastmod>2026-11-26</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watalabs.com/guides/markdown-table-merge.html</loc>
+    <lastmod>2026-11-26</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watalabs.com/guides/markdown-pdf-page-break.html</loc>
+    <lastmod>2026-11-26</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watalabs.com/guides/gift-notes.html</loc>
+    <lastmod>2026-11-26</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watalabs.com/guides/news-briefing.html</loc>
+    <lastmod>2026-11-26</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watalabs.com/notes/lasee-performance.html</loc>
+    <lastmod>2026-11-26</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watalabs.com/privacy.html</loc>
+    <lastmod>2026-11-26</lastmod>
+    <priority>0.3</priority>
   </url>
 </urlset>

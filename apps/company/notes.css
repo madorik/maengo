@@ -1,0 +1,103 @@
+/* 가이드 · 노트 · 정책 쪽 공통 — 첫 화면(index.html)과 같은 색 · 글꼴, 글 읽기에 맞춘 너비 */
+:root {
+  --bg: #151722;
+  --panel: #1B1E2C;
+  --ink: #F1F2F8;
+  --sub: #A6ABC0;
+  --sub2: #7F85A0;
+  --line: #2A2E42;
+  --accent: #FFC23D;
+  --focus: #FFC23D;
+  --tile: #2A2E48;
+  --smile: #FFC23D;
+  --code: #1E2133;
+  --lasee: #4FB0E6;
+  --jua: "Jua", "Pretendard Variable", sans-serif;
+  --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --mono: ui-monospace, "SF Mono", "D2Coding", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #F6F7FA; --panel: #ECEEF4; --ink: #1F2340; --sub: #5E6380; --sub2: #7C819B; --line: #DDE0EA;
+    --accent: #D68A00; --focus: #1F2340; --tile: #1F2340; --code: #ECEEF4; --lasee: #0A6396;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #F6F7FA; --panel: #ECEEF4; --ink: #1F2340; --sub: #5E6380; --sub2: #7C819B; --line: #DDE0EA;
+  --accent: #D68A00; --focus: #1F2340; --tile: #1F2340; --code: #ECEEF4; --lasee: #0A6396;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.8; word-break: keep-all; overflow-wrap: anywhere; -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-underline-offset: 3px; }
+a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+.wrap { width: min(100%, 1120px); margin-inline: auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+
+/* 머리 */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; padding-block: calc(22px + env(safe-area-inset-top, 0px)) 22px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--jua); font-weight: 400; font-size: 26px; line-height: 1; letter-spacing: -0.01em; text-decoration: none; }
+.brand .mk { width: 34px; height: 34px; flex: none; }
+.brand .mk rect { fill: var(--tile); }
+.brand .mk path { stroke: var(--smile); stroke-dasharray: 88 200; }
+.top nav { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.top nav a { padding: 6px 12px; border-radius: 10px; color: var(--sub); font-size: 15px; font-weight: 600; text-decoration: none; }
+.top nav a:hover, .top nav a[aria-current="page"] { color: var(--ink); }
+
+/* 본문 */
+.page { max-width: 760px; padding-block: 28px 72px; }
+.crumbs { margin-bottom: 18px; color: var(--sub2); font-size: 14px; }
+.crumbs a { color: var(--sub); text-decoration: none; }
+.crumbs a:hover { color: var(--ink); text-decoration: underline; }
+.kicker { margin: 0 0 8px; color: var(--accent); font-size: 14px; font-weight: 700; letter-spacing: 0.02em; }
+h1 { margin: 0; font-size: clamp(30px, 5vw, 42px); line-height: 1.3; letter-spacing: -0.03em; text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--sub); font-size: 19px; line-height: 1.7; }
+.meta { margin: 18px 0 0; padding-bottom: 26px; border-bottom: 1px solid var(--line); color: var(--sub2); font-size: 14px; }
+article h2 { margin: 52px 0 14px; font-size: 25px; line-height: 1.4; letter-spacing: -0.02em; }
+article h3 { margin: 32px 0 10px; font-size: 19px; line-height: 1.5; }
+article p, article ul, article ol, article table, article figure, article pre, article blockquote { margin: 0 0 18px; }
+article ul, article ol { padding-left: 1.3em; }
+article li + li { margin-top: 6px; }
+article strong { font-weight: 700; }
+article blockquote { padding: 14px 18px; border-left: 3px solid var(--accent); background: var(--panel); border-radius: 0 10px 10px 0; color: var(--sub); }
+article blockquote p:last-child { margin-bottom: 0; }
+code { padding: 0.12em 0.38em; border-radius: 6px; background: var(--code); font-family: var(--mono); font-size: 0.86em; }
+pre { overflow-x: auto; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--code); font-size: 14px; line-height: 1.65; }
+pre code { padding: 0; background: none; font-size: inherit; white-space: pre; }
+.table { overflow-x: auto; margin: 0 0 18px; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.6; }
+th, td { padding: 9px 12px; border: 1px solid var(--line); vertical-align: top; text-align: left; }
+th { background: var(--panel); font-weight: 700; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+figure img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px; }
+figcaption { margin-top: 8px; color: var(--sub2); font-size: 14px; }
+.callout { margin: 0 0 18px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.callout p:last-child { margin-bottom: 0; }
+.related { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); }
+.related h2 { margin: 0 0 12px; font-size: 18px; }
+.related ul { margin: 0; padding-left: 1.2em; }
+
+/* 목록 쪽 */
+.cards { display: grid; gap: 14px; margin: 0 0 32px; padding: 0; list-style: none; }
+.cards li { margin: 0; }
+.cards a { display: block; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); text-decoration: none; }
+.cards a:hover { border-color: var(--sub2); }
+.cards .t { display: block; font-size: 18px; font-weight: 700; line-height: 1.5; }
+.cards .d { display: block; margin-top: 6px; color: var(--sub); font-size: 15px; line-height: 1.65; }
+.cards .tag { display: inline-block; margin-top: 10px; color: var(--sub2); font-size: 13px; }
+
+/* 바닥 */
+footer { border-top: 1px solid var(--line); padding-block: 36px calc(48px + env(safe-area-inset-bottom, 0px)); color: var(--sub); }
+footer .links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px; padding: 0; list-style: none; font-size: 14px; }
+footer .copy { margin: 0; font-size: 14px; }
+.biz { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 14px 0 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.8; }
+.biz span { margin-right: 6px; color: var(--sub2); }
+
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .lede { font-size: 17px; }
+  article h2 { font-size: 22px; }
+}
