@@ -92,9 +92,13 @@ export function failureCodes(results: PushOutcome[], kind: PushResult): string {
   return [...new Set(results.filter((r) => r.result === kind && r.code).map((r) => r.code))].join(', ');
 }
 
-/** 다시 해도 같은 실패의 기록 문구. APNs 인증 오류면 고칠 곳을 같이 적는다 */
+/**
+ * 다시 해도 같은 실패의 기록 문구. APNs 인증 오류면 고칠 곳을 같이 적는다.
+ * 키가 올라가 있어도 '샌드박스 전용' 키면 스토어 빌드(운영 APNs)에는 못 보낸다: 애플이 403 BadEnvironmentKeyInToken으로 거절하고 FCM은 이걸 THIRD_PARTY_AUTH_ERROR로만 알려 준다.
+ * 2026-11-26 같은 키(XKH9RW6Y9W, 샌드박스 전용)를 Firebase '프로덕션' 칸에 올렸지만 11-27 아침 iOS 6건이 그대로 실패했다. `pnpm apns:check`로 키가 어느 환경에 붙는지 본다
+ */
 export function errorNote(codes: string): string {
-  const hint = codes.includes('THIRD_PARTY_AUTH_ERROR') ? ' — Firebase 클라우드 메시징에 APNs 인증 키(.p8)가 있는지 보세요' : '';
+  const hint = codes.includes('THIRD_PARTY_AUTH_ERROR') ? ' — Firebase에 올린 APNs 키가 운영(Production) 환경을 지원하는지 보세요(샌드박스 전용 키면 스토어 빌드에 못 보냄, pnpm apns:check)' : '';
   return `FCM 발송 실패(${codes || '코드 없음'})${hint}`;
 }
 

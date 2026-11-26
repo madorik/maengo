@@ -211,6 +211,14 @@ export async function buildFeedsFor(
     if (slot === 'am') {
       const today = check(await db.from('feed_days').select('user_id,built_by').eq('date', ctx.date).in('user_id', userIds), 'feed_days today') as { user_id: string; built_by: string }[];
       for (const r of today) result.set(r.user_id, existingFeedResult(r.built_by, triesOf(r.user_id)));
+      // 퇴근길이 그날 피드를 먼저 만든 사람(출근길 알림 시각이 퇴근길보다 늦다, 예: 출근길 19:00·퇴근길 18:00)은 출근길로 알릴 소식이 없다: had.
+      // 전엔 배송이 만든 피드라 'built'로 보고 알리려다 출근길 소식이 없어 매일 '보낼 소식이 없음' 실패로 남았다(2026-11-20~26 한 사람).
+      // 알리려는 사람(built, 멈춘 배송 이어 하기·퇴근길 먼저)만 본다(드물다)
+      const toNotify = today.filter((r) => result.get(r.user_id) === 'built').map((r) => r.user_id);
+      await mapLimit(toNotify, 5, async (id) => {
+        const am = check(await db.from('feeds').select('rank').eq('user_id', id).eq('date', ctx.date).eq('slot', 'am').limit(1), 'feeds am today') as { rank: number }[];
+        if (!am.length) result.set(id, 'had');
+      });
     } else {
       const pm = check(await db.from('feeds').select('user_id').eq('date', ctx.date).eq('slot', 'pm').in('user_id', userIds), 'feeds pm today') as { user_id: string }[];
       for (const r of pm) result.set(r.user_id, 'had');

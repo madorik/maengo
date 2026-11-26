@@ -80,10 +80,11 @@ async function opsState(now: Date): Promise<AdminAlert[]> {
     return n ?? 0;
   };
   const jobs = () => db.from('delivery_jobs').select('user_id', { count: 'exact', head: true });
-  const [tasks, total, failed, noDevice, noDeviceWeek] = await Promise.all([
+  const [tasks, total, failedRows, noDevice, noDeviceWeek] = await Promise.all([
     db.from('scheduler_tasks').select('name,enabled,next_run_at,running_since,last_finished_at,last_status,last_error,last_stats').in('name', ['deliveries', 'ingest']),
     count(jobs().eq('date', today), 'delivery_jobs today'),
-    count(jobs().eq('date', today).eq('status', 'failed'), 'delivery_jobs failed'),
+    // 실패는 이유(last_error)까지 읽어 알림에 바로 적는다(하루 수십 건이라 줄을 읽어도 가볍다)
+    db.from('delivery_jobs').select('last_error').eq('date', today).eq('status', 'failed').limit(1000),
     count(jobs().eq('date', today).eq('status', 'no_device'), 'delivery_jobs no_device'),
     count(jobs().gte('date', addDays(today, -7)).lt('date', today).eq('status', 'no_device'), 'delivery_jobs no_device week'),
   ]);
@@ -95,5 +96,6 @@ async function opsState(now: Date): Promise<AdminAlert[]> {
       ? { enabled: r.enabled, nextRunAt: r.next_run_at, runningSince: r.running_since, lastFinishedAt: r.last_finished_at, lastStatus: r.last_status, lastError: r.last_error, lastStats: r.last_stats }
       : null;
   };
-  return opsAlerts({ now, deliveries: state('deliveries'), ingest: state('ingest'), today: { total, failed, noDevice }, noDeviceAvg: noDeviceWeek / 7 });
+  const failedErrors = (must(failedRows, 'delivery_jobs failed') as { last_error: string | null }[]).map((r) => r.last_error);
+  return opsAlerts({ now, deliveries: state('deliveries'), ingest: state('ingest'), today: { total, failed: failedErrors.length, noDevice, failedErrors }, noDeviceAvg: noDeviceWeek / 7 });
 }

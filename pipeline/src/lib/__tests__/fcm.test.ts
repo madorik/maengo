@@ -47,7 +47,9 @@ test('오류 코드를 기록에 남긴다', () => {
   ];
   assert.equal(failureCodes(results, 'error'), 'THIRD_PARTY_AUTH_ERROR');
   assert.equal(failureCodes(results, 'retry'), 'UNAVAILABLE');
-  assert.match(errorNote('THIRD_PARTY_AUTH_ERROR'), /APNs 인증 키/);
+  // 키가 있어도 샌드박스 전용이면 운영(스토어 빌드)에 못 보낸다(2026-11-27): 환경을 보라고 적는다
+  assert.match(errorNote('THIRD_PARTY_AUTH_ERROR'), /운영\(Production\) 환경/);
+  assert.ok(errorNote('THIRD_PARTY_AUTH_ERROR').length <= 300);
   assert.equal(errorNote('PERMISSION_DENIED'), 'FCM 발송 실패(PERMISSION_DENIED)');
   assert.equal(errorNote(''), 'FCM 발송 실패(코드 없음)');
 });

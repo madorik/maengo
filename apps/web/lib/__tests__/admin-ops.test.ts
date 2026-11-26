@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { deliverySpike, opsAlerts, type OpsInput, type TaskState } from '../admin-ops';
+import { deliverySpike, failureReasons, opsAlerts, type OpsInput, type TaskState } from '../admin-ops';
 
 const kst = (s: string) => new Date(`${s}+09:00`);
 const iso = (s: string) => kst(s).toISOString();
@@ -72,4 +72,18 @@ test('실패·기기 없음이 몰리면 알린다', () => {
   assert.equal(deliverySpike({ total: 100, failed: 0, noDevice: 15 }, 10).noDevice, false);
   assert.equal(deliverySpike({ total: 100, failed: 0, noDevice: 20 }, 10).noDevice, true);
   assert.deepEqual(titles(base({ today: { total: 20, failed: 3, noDevice: 5 } })), ['오늘 소식 지급 실패가 3건이에요', "오늘 '기기 없음'이 평소보다 많아요(5건)"]);
+});
+
+test('실패 알림에 이유를 많은 것부터 적는다(2026-11-27 iOS 6건을 DB를 열어야 알았다)', () => {
+  const apns = 'FCM 발송 실패(THIRD_PARTY_AUTH_ERROR) — Firebase에 올린 APNs 키가 운영(Production) 환경을 지원하는지 보세요';
+  const errors = [apns, apns, apns, '보낼 소식이 없음', apns, apns, apns];
+  assert.equal(failureReasons(errors), 'FCM 발송 실패(THIRD_PARTY_AUTH_ERROR) 6건 · 보낼 소식이 없음 1건');
+  assert.equal(failureReasons([null, 'a', 'b', 'c', 'd']), '이유 없음 1건 · a 1건 · b 1건 · 그 밖 2건');
+  const [a] = opsAlerts(base({ today: { total: 54, failed: 7, noDevice: 0, failedErrors: errors } }));
+  assert.equal(a?.title, '오늘 소식 지급 실패가 7건이에요');
+  assert.match(a!.detail, /이유: FCM 발송 실패\(THIRD_PARTY_AUTH_ERROR\) 6건/);
+  assert.match(a!.detail, /pnpm apns:check/);
+  // 이유를 못 읽었으면 예전처럼 볼 곳만
+  const [b] = opsAlerts(base({ today: { total: 20, failed: 3, noDevice: 0 } }));
+  assert.match(b!.detail, /delivery_jobs\(status='failed'\)/);
 });

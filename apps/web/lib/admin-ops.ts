@@ -26,8 +26,8 @@ export interface OpsInput {
   now: Date;
   deliveries: TaskState | null;
   ingest: TaskState | null;
-  /** 오늘(KST) delivery_jobs 결과 */
-  today: { total: number; failed: number; noDevice: number };
+  /** 오늘(KST) delivery_jobs 결과. failedErrors는 실패한 줄의 last_error(알림에 이유를 바로 적는다) */
+  today: { total: number; failed: number; noDevice: number; failedErrors?: (string | null)[] };
   /** 지난 7일(오늘 빼고) 하루 평균 '기기 없음' */
   noDeviceAvg: number;
 }
@@ -47,6 +47,30 @@ export function deliverySpike(today: OpsInput['today'], noDeviceAvg: number): { 
     failed: today.failed >= Math.max(2, Math.ceil(today.total * 0.1)),
     noDevice: today.noDevice >= Math.max(3, noDeviceAvg * 2),
   };
+}
+
+/**
+ * 실패 이유를 많은 것부터 '이유 n건'으로 모은다(최대 세 가지). 기록 뒤에 붙은 고칠 곳 안내(' — …')는 떼서 이유끼리 묶는다.
+ * 전엔 건수만 보여 줘서 DB를 직접 열어야 이유를 알았다(2026-11-27 iOS 6건)
+ */
+export function failureReasons(errors: readonly (string | null)[], max = 3): string {
+  const counts = new Map<string, number>();
+  for (const e of errors) {
+    const reason = (e ?? '이유 없음').split(' — ')[0]!.trim() || '이유 없음';
+    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+  }
+  const sorted = [...counts].sort((a, b) => b[1] - a[1]);
+  const shown = sorted.slice(0, max).map(([r, n]) => `${r} ${n}건`);
+  if (sorted.length > max) shown.push(`그 밖 ${sorted.slice(max).reduce((n, [, c]) => n + c, 0)}건`);
+  return shown.join(' · ');
+}
+
+/** 실패 이유 중 고칠 곳이 정해진 것: 이유에 맞춰 볼 곳을 적는다 */
+function failureHint(errors: readonly (string | null)[]): string {
+  if (errors.some((e) => e?.includes('THIRD_PARTY_AUTH_ERROR'))) {
+    return 'THIRD_PARTY_AUTH_ERROR는 iOS(또는 웹 푸시) 키 문제예요. Firebase에 올린 APNs 키가 운영(Production) 환경을 지원하는지 pnpm apns:check로 보세요.';
+  }
+  return "자세한 건 delivery_jobs(status='failed')의 last_error를 보세요.";
 }
 
 export function opsAlerts({ now, deliveries, ingest, today, noDeviceAvg }: OpsInput): AdminAlert[] {
@@ -86,9 +110,11 @@ export function opsAlerts({ now, deliveries, ingest, today, noDeviceAvg }: OpsIn
 
   const spike = deliverySpike(today, noDeviceAvg);
   if (spike.failed) {
+    const errors = today.failedErrors ?? [];
+    const reasons = errors.length ? ` 이유: ${failureReasons(errors)}.` : '';
     out.push({
       title: `오늘 소식 지급 실패가 ${today.failed}건이에요`,
-      detail: `오늘 처리한 ${today.total}건 중. delivery_jobs(status='failed')의 last_error를 보세요. 날짜가 지나 접힌 줄은 어제 날짜로 남아 여기 세지 않아요.`,
+      detail: `오늘 처리한 ${today.total}건 중.${reasons} ${failureHint(errors)} 날짜가 지나 접힌 줄은 어제 날짜로 남아 여기 세지 않아요.`,
     });
   }
   if (spike.noDevice) {

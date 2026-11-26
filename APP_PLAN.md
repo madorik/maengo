@@ -154,7 +154,7 @@ apps/mobile/                  @maengo/mobile (pnpm 워크스페이스 apps/*에 
 | 맥 방화벽에서 node의 들어오는 연결 허용 | 1(실기기) | 시스템 설정 > 네트워크 > 방화벽 > 옵션. 실기기가 `http://<LAN IP>:3100`에 닿으려면 필요 |
 | 애플 App ID `kr.maengo.app`에 Sign in with Apple·Push 켜기, 키 `XKH9RW6Y9W`에 APNs가 켜졌는지 확인(안 켜졌으면 새 키) | 2·3 | |
 | Firebase 프로젝트(Google Cloud `maengo` 프로젝트 선택) + iOS·Android 앱 등록 → 설정 파일 두 개 | 2·3 | API_KEYS.md 4번 |
-| ~~APNs 인증 키를 Firebase에 업로드~~ | 3 | 2026-10-11 '개발' 칸, 2026-11-26 '프로덕션' 칸(이게 없어서 스토어 빌드 iOS 알림이 3주 동안 0건) |
+| APNs 인증 키를 Firebase에 업로드 | 3 | 2026-10-11 '개발' 칸, 2026-11-26 '프로덕션' 칸에 같은 키를 올렸지만 샌드박스 전용 키라 운영 APNs가 거절(11-27 iOS 6건 실패). 'Sandbox & Production' 키를 새로 만들어 프로덕션 칸에 올려야 끝(`pnpm apns:check`) |
 | Firebase 서비스 계정 JSON → Vercel 환경 변수 `FIREBASE_SERVICE_ACCOUNT_JSON` | 3 | 값은 대화에 붙이지 말고 직접 넣는다 |
 | Google Cloud에 iOS·Android OAuth 클라이언트 ID(안드로이드는 SHA-1 필요) | 2 | Supabase 구글 제공자에 추가 |
 | Google Play 개발자 계정($25, 개인) | 5 | 신원 확인에 며칠 걸릴 수 있다 |
