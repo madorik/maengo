@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "오늘 소식" };
 
 // 오늘 목록은 (app) 레이아웃이 읽은 오늘 피드(TodayProvider)로 그린다. 결제 안내 띠와 리포트 알림(Premium, 2026-11-10. 11-11부터 아래쪽 알림이라 자리를 먹지 않는다),
 // 오늘의 인사이트(2026-11-11, 처음 열 때 만드는 데 몇 초)는 따로 읽어 기다리지 않고(Suspense) 끼워 넣는다.
-// 인사이트는 머리 제목(head)과 오늘의 흐름(flows) 두 자리에 나뉘어 들어가서(2026-11-26 시안 6안: 제목 오른쪽에 재생 원이 있고 그 아래 흐름 카드)
+// 인사이트는 머리 제목(head: 제목 + 근거 사실)과 오늘의 흐름(flows: 사진·핵심 요약·영향 카드) 두 자리에 나뉘어 들어가서
 // 자리마다 Suspense를 두고, 한 번만 만들도록 loadInsight를 같이 쓴다.
 // 오늘 소식이 아직 없으면 empty 자리(남색 카드와 어제 못 본 소식·다시 듣기·이번 주 일정)가 대신 그려진다
 export default function TodayPage() {
@@ -68,10 +68,10 @@ const loadInsight = cache(async () => {
   return { insight, failed: !insight && data.items.length >= 2, personalOff: !personalOn(ctx) };
 });
 
-/** 오늘 화면 머리: 인사이트 한 줄이 제목. 못 만들면(키 없음·실패·소식이 하나뿐) '출근길 브리핑' 제목만 */
+/** 오늘 화면 머리: 인사이트 한 줄이 제목, 그 아래 근거 사실 한 줄. 못 만들면(키 없음·실패·소식이 하나뿐) '출근길 브리핑' 제목만 */
 async function TodayHead() {
   const { insight, failed } = await loadInsight();
-  return <InsightHead headline={insight?.headline ?? null} failed={failed} />;
+  return <InsightHead headline={insight?.headline ?? null} lead={insight?.lead ?? null} failed={failed} />;
 }
 
 /** 오늘의 흐름 카드. 인사이트가 없으면 이 자리는 비운다. 내 맞춤 정보 질문은 여기서 대놓고 묻지 않는다(2026-11-11 사용자, components/context/ContextAsk.tsx) */

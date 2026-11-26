@@ -17,23 +17,28 @@ import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight, InsightTone } from "@/lib/server/briefing-insight";
 import { SEEN_MIN } from "@/lib/insight-rules";
+import { alsoOf, pointsOf, whoOf } from "@/lib/insight-card";
 import { track } from "@/lib/analytics";
 
 /**
- * 오늘 화면의 인사이트 두 조각(2026-11-26 시안 6안 홈). 서버가 흐름을 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts).
- * - InsightHead: 머리. 작은 줄 '출근길 브리핑, 11월 26일 수요일' 아래 인사이트 한 줄(insight.headline)이 굵은 제목. 오른쪽의 재생 원은 TodayList가 그린다.
- *   인사이트가 없거나 만드는 중이면 '출근길 브리핑'과 '날짜, 소식 n개' 한 줄. 시간('8분')은 적지 않는다.
- * - InsightFlows: '오늘의 흐름'. 흐름마다 큰 사진 카드를 옆으로 넘긴다(판정 알약·소식 수·제목·그 흐름부터 듣는 재생 원). 누르면 흐름 상세 시트.
- *   만드는 동안은 같은 자리에 진행 카드(InsightFallback).
- * 예전의 'OO님에게 맞춤 인사이트' 꼬리표·제목 밑줄·제목 아래 줄(Lead)·맞춤 체크 칸(MatchCheck)은 시안에 없어서 뺐다.
- * 맞춤 체크는 흐름 상세 시트 아래쪽의 '챙겨 볼 것'으로 옮겼다. 언론 N곳·기사 N건은 보여 주지 않는다(2026-11-12 사용자: 날짜만)
+ * 오늘 화면의 인사이트 두 조각. 서버가 흐름을 만들어 끼운다(today/page.tsx, lib/server/briefing-insight.ts).
+ * - InsightHead: 머리. 작은 줄 '출근길 브리핑, 11월 26일 수요일' 아래 인사이트 한 줄(insight.headline)이 굵은 제목(주황 형광펜),
+ *   그 아래 제목의 근거 사실 한 줄(성격 알약 + 숫자 든 사실, lead). 인사이트가 없거나 만드는 중이면 '출근길 브리핑'과 '날짜, 소식 n개' 한 줄. 시간('8분')은 적지 않는다.
+ * - InsightFlows: '오늘의 흐름'. 흐름 카드를 옆으로 넘긴다(2026-11-26 시안 C안, 사용자: 사진·제목만 있는 카드는 다른 뉴스 앱과 다를 게 없다,
+ *   핵심 요약 카드는 좌우로 넘기고 이미지는 잘 보이게, 재생 버튼은 뺀다): 위쪽 큰 사진에 소식 수·흐름 제목 → 핵심 요약 두 줄 →
+ *   '국내 주식에 부담 요인' + 영향 한 문장(같은 흐름이 다른 관심에도 닿으면 한 줄 더). 카드를 누르면 흐름 상세 시트. 만드는 동안은 같은 자리에 진행 카드(InsightFallback).
+ * 'OO님에게 맞춤 인사이트' 꼬리표·맞춤 체크 칸(MatchCheck)은 없다. 맞춤 체크는 흐름 상세 시트 아래쪽의 '챙겨 볼 것'에.
+ * 언론 N곳·기사 N건은 보여 주지 않는다(2026-11-12 사용자: 날짜만)
  */
 export function InsightHead({
   headline,
+  lead = null,
   failed = false,
 }: {
   /** 인사이트 한 줄. 없으면(못 만들었거나 만드는 중) 제목만 */
   headline: string | null;
+  /** 제목 아래 줄: 제목의 근거 사실과 성격(형식 13부터) */
+  lead?: BriefingInsight["lead"] | null;
   /** 소식은 있는데 만들지 못했다(모델 오류·키 없음). 다시 열면 다시 만든다 */
   failed?: boolean;
 }) {
@@ -53,6 +58,13 @@ export function InsightHead({
         <h1 id="briefing-title" className="mt-1 break-keep text-[22px] font-extrabold leading-[1.4] tracking-[-0.04em] text-balance">
           <span className="insight-mark">{callName(headline, name)}</span>
         </h1>
+        {/* 제목이 무엇에 근거했는지(2026-11-26 사용자: 핵심 요약과 나한테 어떤 영향인지가 보여야 다른 뉴스 앱과 다르다) */}
+        {lead?.fact && (
+          <p className="mt-2.5 break-keep text-[15px] font-medium leading-[1.65] text-ink/85">
+            <ToneChip tone={lead.tone} className="mr-1.5 align-[1px]" />
+            {lead.fact}
+          </p>
+        )}
       </>
     );
   }
@@ -104,13 +116,13 @@ function photosOf(ids: number[], items: FeedItem[]): string[] {
     .filter(Boolean);
 }
 
-/** 카드를 옆으로 넘길 때 한 장의 너비 + 사이 간격(= 보이는 너비). 가장자리 22px(머리 글자와 같은 줄)·사이 44px라 한 장씩 넘어간다 */
+/** 카드 줄의 가장자리(머리 글자와 같은 줄)와 카드 사이 간격. 카드 너비는 줄 너비에서 30px을 빼서 다음 카드가 40px쯤 보이게(넘길 수 있다는 표시) */
 const EDGE = 22;
+const GAP = 12;
 
 /**
- * 오늘의 흐름(2026-11-26 시안): '오늘의 흐름' + 오른쪽 '전체 보기'(지금 보는 카드의 흐름 상세 시트) → 큰 사진 카드를 옆으로 넘긴다(scroll-snap) → 아래 점(지금 카드는 망고 노랑 막대).
- * 카드는 그 흐름 첫 소식 사진(없으면 남색 바탕) 위에 어두운 그라데이션, 판정 알약·'소식 n개'·흐름 제목, 오른쪽 아래 재생 원(그 흐름의 소식부터 듣기).
- * 카드를 누르면 흐름 상세 시트(2026-11-11 사용자: 누르면 상세를 볼 수 있어야 한다)
+ * 오늘의 흐름(2026-11-26 시안 C안): '오늘의 흐름' + 오른쪽 '전체 보기'(지금 보는 카드의 흐름 상세 시트) → 흐름 카드를 옆으로 넘긴다(scroll-snap) → 아래 점(지금 카드는 망고 노랑 막대).
+ * 카드를 누르면 흐름 상세 시트(2026-11-11 사용자: 누르면 상세를 볼 수 있어야 한다). 카드에 재생 버튼은 없다(2026-11-26 사용자) — 듣기는 떠 있는 플레이어와 흐름 상세에서
  */
 export function InsightFlows({
   insight: made,
@@ -158,11 +170,11 @@ export function InsightFlows({
           const el = e.currentTarget;
           setAt(Math.min(count - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, step(el))))));
         }}
-        style={{ paddingInline: EDGE, scrollPaddingInline: EDGE, columnGap: EDGE * 2 }}
-        className="-mx-4 mt-1 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ paddingInline: EDGE, scrollPaddingInline: EDGE, columnGap: GAP }}
+        className="-mx-4 mt-1 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {insight.flows.map((f, k) => (
-          <FlowCard key={f.title} flow={f} onOpen={() => setOpen(k)} />
+          <FlowCard key={f.title} flow={f} personal={insight.personal} onOpen={() => setOpen(k)} />
         ))}
       </ul>
       {count > 1 && (
@@ -182,48 +194,75 @@ export function InsightFlows({
 }
 
 /**
- * 흐름 카드 한 장. 카드 전체가 흐름 상세 시트 버튼이고, 그 위에 따로 떠 있는 재생 원은 그 흐름의 첫 소식부터 듣는다(흐름 상세의 '이 흐름부터 듣기'와 같은 동작).
- * 글자는 사진 위라 어두운 그라데이션 위의 흰색(밝기 설정과 상관없이), 판정 알약은 흰 바탕이라 다크에서도 밝은 판정 색을 쓴다(keep-light)
+ * 흐름 카드 한 장(2026-11-26 시안 C안). 카드 전체가 흐름 상세 시트 버튼.
+ * ① 위쪽 사진(164px, 이미지가 잘 보여야 눈이 간다 — 어두운 그라데이션은 글자가 놓이는 아래쪽에만): '소식 n개' + 흐름 제목(사진 위라 밝기 설정과 상관없이 흰 글자).
+ *    사진이 없으면 남색 바탕. ② 핵심 요약 두 줄(points, 예전 형식은 사실 + 설명 첫 문장). ③ 얇은 선 아래 '국내 주식에 부담 요인' + 영향 한 문장,
+ *    같은 흐름의 맞춤 체크가 다른 관심에 닿으면 '대출 이자에는 지켜볼 변수예요' 한 줄. 영향이 없는 흐름은 ③ 없이. ④ '자세히 보기'.
+ * 카드 높이는 줄에서 가장 긴 카드에 맞추고(늘어남), 남는 자리는 영향과 '자세히 보기' 사이로 가서 '자세히 보기' 줄이 카드마다 같은 높이에 온다
  */
-function FlowCard({ flow, onOpen }: { flow: BriefingInsight["flows"][number]; onOpen: () => void }) {
-  const { data, listenAccess } = useToday();
-  const p = usePlayer();
-  const related = flow.ids.map((id) => data.items.find((i) => i.clusterId === id)).filter((i): i is FeedItem => !!i);
+function FlowCard({ flow, personal, onOpen }: { flow: BriefingInsight["flows"][number]; personal: BriefingInsight["personal"]; onOpen: () => void }) {
+  const { data } = useToday();
   const photo = photosOf(flow.ids, data.items)[0];
-  const first = related[0];
-  const canListen = p.enabled && !!first && related.some((i) => listenAccess(i.clusterId) !== null);
   const tone: InsightTone | null = flow.effect && flow.tone ? flow.tone : null;
+  const points = pointsOf(flow);
+  const who = whoOf(flow.links);
+  const also = tone ? alsoOf(flow, who, personal) : null;
   return (
-    <li className={`relative h-[200px] w-full shrink-0 snap-start overflow-hidden rounded-[18px] bg-[#1F2340] ${photo ? "" : "ring-1 ring-inset ring-white/10"}`}>
-      {photo && <PhotoImg src={photo} size="card" className="absolute inset-0 size-full" />}
-      <button type="button" aria-haspopup="dialog" onClick={onOpen} className="absolute inset-0 text-left text-white active:opacity-95">
-        <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,16,0.12)_10%,rgba(12,13,16,0.84)_100%)]" />
-        <span className={`absolute bottom-4 left-4 block ${canListen ? "right-[74px]" : "right-4"}`}>
-          <span className="flex items-center gap-2">
-            {tone && (
-              <span className="keep-light inline-flex h-6 items-center rounded-full bg-white px-2.5">
-                <span className={`inline-flex items-center gap-1 text-[12px] font-bold ${VERDICT[tone].text}`}>
-                  <ToneIcon tone={tone} className="size-3.5" />
-                  {TONE_LABEL[tone]}
+    <li className="flex w-[calc(100%-30px)] max-w-[360px] shrink-0 snap-start">
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        onClick={onOpen}
+        className="flex w-full flex-col overflow-hidden rounded-[22px] border border-line bg-paper text-left active:scale-[0.99] motion-reduce:active:scale-100"
+      >
+        <span className="relative block h-[164px] w-full shrink-0 bg-[#1F2340]">
+          {photo && <PhotoImg src={photo} size="card" className="absolute inset-0 size-full" />}
+          <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,16,0)_42%,rgba(12,13,16,0.8)_100%)]" />
+          <span className="absolute inset-x-4 bottom-3.5 block text-white">
+            <span className="block text-[12px] font-bold text-white/85">소식 {flow.ids.length}개</span>
+            <span className="mt-0.5 line-clamp-2 block text-[19px] font-extrabold leading-[1.35] tracking-[-0.04em]">{flow.title}</span>
+          </span>
+        </span>
+        <span className="flex flex-1 flex-col px-4 pt-3.5">
+          {points.length > 0 && (
+            <span className="flex flex-col gap-1">
+              {points.map((t) => (
+                <span key={t} className="flex gap-2 text-[14.5px] font-semibold leading-[1.5] tracking-[-0.02em] text-ink/90">
+                  <span aria-hidden="true" className="mt-[10px] size-1 shrink-0 rounded-full bg-ink" />
+                  <span className="line-clamp-2 break-keep">{t}</span>
+                </span>
+              ))}
+            </span>
+          )}
+          {tone && flow.effect && (
+            <>
+              <span aria-hidden="true" className={`block h-px bg-line ${points.length ? "my-3" : "mb-3"}`} />
+              <span className="flex items-center gap-1.5 text-[13.5px] font-extrabold text-ink">
+                <ToneIcon tone={tone} className={`size-3.5 shrink-0 ${VERDICT[tone].text}`} />
+                <span>
+                  {who && `${who}에 `}
+                  <span className={VERDICT[tone].text}>{TONE_LABEL[tone]}</span>
                 </span>
               </span>
-            )}
-            <span className="text-[12px] font-bold text-white/85">소식 {flow.ids.length}개</span>
+              <span className="mt-1 block break-keep text-[16px] font-bold leading-[1.45] tracking-[-0.03em] text-balance">{flow.effect}</span>
+              {also && (
+                <span className="mt-2 flex items-center gap-1.5 text-[13.5px] font-semibold text-sub">
+                  <ToneIcon tone={also.tone} className={`size-3.5 shrink-0 ${VERDICT[also.tone].text}`} />
+                  <span>
+                    <b className="font-extrabold text-ink">{also.who}</b>에는 {TONE_LABEL[also.tone]}
+                    {also.tone === "watch" ? "예요" : "이에요"}
+                  </span>
+                </span>
+              )}
+            </>
+          )}
+          <span aria-hidden="true" className="min-h-1.5 flex-1" />
+          <span className="flex h-11 items-center gap-0.5 text-[14px] font-bold text-sub">
+            자세히 보기
+            <IconChevronRight className="size-4" />
           </span>
-          <span className="mt-2 line-clamp-3 block text-[18px] font-extrabold leading-[1.4] tracking-[-0.035em]">{flow.title}</span>
         </span>
       </button>
-      {canListen && first && (
-        <button
-          type="button"
-          // 듣기는 누른 손짓 안에서 건다(iOS)
-          onClick={() => p.playFrom(first.clusterId)}
-          aria-label={`${flow.title}, 이 흐름부터 듣기`}
-          className="absolute bottom-3.5 right-3.5 flex size-11 items-center justify-center rounded-full bg-mango text-[#1F2340] active:scale-95 motion-reduce:active:scale-100"
-        >
-          <IconPlay className="ml-0.5 size-[18px]" />
-        </button>
-      )}
     </li>
   );
 }
@@ -264,10 +303,10 @@ function careOf(insight: BriefingInsight, k: number, personalOff: boolean, name:
 const TONE_LABEL: Record<InsightTone, string> = { plus: "긍정 요인", minus: "부담 요인", watch: "지켜볼 변수" };
 
 /** 성격 배지(긍정 요인 파랑, 부담 요인 주황, 지켜볼 변수 빨강) */
-function ToneChip({ tone }: { tone: InsightTone }) {
+function ToneChip({ tone, className = "" }: { tone: InsightTone; className?: string }) {
   const cls = tone === "plus" ? "bg-plus-tint text-plus" : tone === "minus" ? "bg-minus-tint text-minus" : "bg-watch-tint text-watch";
   return (
-    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${cls}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${cls} ${className}`}>
       <ToneIcon tone={tone} />
       {TONE_LABEL[tone]}
     </span>
@@ -568,7 +607,9 @@ export function InsightFallback() {
           오늘의 흐름
         </h2>
       </div>
-      <div className="mx-1.5 mt-1 flex h-[200px] flex-col justify-center rounded-[18px] bg-[#1F2340] px-5 ring-1 ring-inset ring-white/10">
+      {/* 흐름 카드와 같은 틀(위 남색 칸 = 사진 자리, 아래 회색 줄 = 핵심 요약·영향 자리)이라 다 되면 같은 자리에 카드가 들어온다 */}
+      <div className="mx-1.5 mt-1 overflow-hidden rounded-[22px] border border-line">
+      <div className="flex h-[164px] flex-col justify-center bg-[#1F2340] px-5">
         <p role="status" className="sr-only">
           맞춤 인사이트를 만들고 있어요. 보통 5~10초 걸려요
         </p>
@@ -594,6 +635,14 @@ export function InsightFallback() {
           </div>
           <span className="making-pct w-11 shrink-0 text-right font-round text-[15px] font-extrabold tabular-nums text-mango" />
         </div>
+      </div>
+      <div aria-hidden="true" className="flex h-[210px] flex-col px-4 pt-4">
+        <div className="sk h-4 w-11/12 rounded-md" />
+        <div className="sk mt-2.5 h-4 w-3/4 rounded-md" />
+        <div className="my-4 h-px bg-line" />
+        <div className="sk h-3.5 w-32 rounded-md" />
+        <div className="sk mt-2.5 h-[18px] w-4/5 rounded-md" />
+      </div>
       </div>
     </section>
   );

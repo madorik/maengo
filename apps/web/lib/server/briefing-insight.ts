@@ -63,6 +63,8 @@ export interface BriefingInsight {
     tone?: InsightTone;
     /** 핵심 사실 한 줄(11: 숫자·날짜·주체를 넣은 단정형, 2026-11-13 사용자: 신뢰도 있는 말투로 핵심을 전달하게) */
     fact?: string;
+    /** 핵심 요약 두 줄(14: 오늘 화면 흐름 카드의 점 두 줄, 2026-11-26 사용자: 핵심 요약과 나한테 어떤 영향인지) */
+    points?: string[];
     /** 이 흐름이 닿는 내 관심(12: 회원이 고른 관심·키워드·분야의 꼬리표, 서버가 근거 번호로 붙인다) */
     links?: string[];
     /** 그 관심과 이 흐름이 어떻게 이어지는지 한 문장(12) */
@@ -96,7 +98,9 @@ export interface BriefingInsight {
 //     '나에게' 같은 꼬리표 말고 글만 보고 나한테 주는 인사이트인지 알게). 예전 제목은 소식 두세 개를 늘어놓은 요약이었다(11-14~15 18건 중 15건).
 //     제목 아래 줄은 사실(숫자)·성격(lead), 닿는 사정이 없으면 억지로 잇지 않고 화면이 '오늘은 맞춤 소식이 없어요'.
 //     '안 해요'로 답한 사정(주식은 안 해요)에 닿는 영향은 쓰지 않는다(11-15: 주식 안 하는 회원에게 'AI 관련 자산엔 부담 요인'), 흐름은 회원 사정에 닿는 것부터
-const VERSION = 13;
+// 14: 오늘 화면 흐름 카드를 '사진 위 제목 → 핵심 요약 두 줄 → [관심]에 [성격] + 영향 한 문장'으로(2026-11-26 사용자: 사진·제목만 있는 카드는 다른 뉴스 앱과 다를 게 없다).
+//     흐름마다 핵심 요약 두 줄(points), effect는 화면이 따로 보여 주는 관심 이름·성격 낱말을 되풀이하지 않고 무엇이 달라지는지만
+const VERSION = 14;
 /** 미리 만들기(lib/server/insight-prewarm.ts)가 이미 새 형식으로 만들어 뒀는지 볼 때 쓴다 */
 export const INSIGHT_VERSION = VERSION;
 
@@ -154,7 +158,8 @@ const SYSTEM = `너는 재테크하는 출퇴근길 직장인에게 오늘 받�
   · links: 이 흐름이 실제로 닿는 회원의 관심 근거 번호 1~3개(입력에 있는 F·K·S·R 번호만). 회원이 고른 관심·직접 적은 키워드·분야 가운데 이 소식과 이어지는 것을 고른다.
   · relation: 그 관심과 이 흐름이 어떻게 이어지는지 한 문장(40자 안팎, 단정형). 예: "대출 이자를 신경 쓰고 있어 미국 물가 지표가 금리 기대를 거쳐 닿아요", "내 키워드 반도체의 대표 종목이 오늘 가장 크게 내렸어요". 관심 이름을 그대로 넣는다.
   · fact: 이 흐름의 핵심 사실 한 줄(30자 안팎). 요약에 있는 숫자·날짜·주체를 넣어 단정형으로 쓴다. 예: "미국 3분기 노동생산성 3.6% 증가", "코스피 한 달 새 23.4% 하락, 세계 낙폭 1위", "미래에셋증권 고객 3,800명 계좌번호 유출". 숫자가 없으면 주체와 사건만. 해석은 넣지 않는다.
-  · effect: 이 흐름이 회원에게 갖는 의미 한 문장(35자 안팎). basis가 가리키는 사정·관심(없으면 회원이 고른 분야)에 무엇이 달라지는지를 결과로, 단정적이고 차분하게 쓴다. 예: "대출 금리 인하 기대를 키우는 요인이에요", "국내 반도체주에는 부담 요인이에요", "미래에셋증권 고객이라면 유출 대상인지 확인이 필요해요". '~수 있어요'로 흐리지 않는다(꼭 필요할 때만). '~경로가 중요해요'·'~에 영향을 줄 수 있어요'·'지켜봐야 해요'처럼 결과를 말하지 않는 문장은 쓰지 않는다. 사라·팔라·수익 장담은 하지 않는다.
+  · points: 핵심 요약 2줄. 이 흐름에서 무슨 일이 있었는지 서로 다른 사실 두 개를 한 줄씩(각 25자 안팎) 명사형 단정으로 쓴다. 요약에 있는 숫자·날짜·주체를 넣고 해석은 넣지 않는다. 첫 줄은 fact와 같아도 된다. 소식이 하나뿐인 흐름도 두 줄. 예: ["코스피 급락, 장 초반 매도 사이드카 발동", "미국, 한국 등 16개국 관세안 예고"], ["엔비디아·AMD 하루 만에 8% 넘게 하락", "12월 금리 인상 확률 97%에 육박"].
+  · effect: 이 흐름이 회원에게 갖는 의미 한 문장(35자 안팎). 화면은 effect 바로 위에 '[links의 첫 관심]에 [tone의 이름: 긍정 요인·부담 요인·지켜볼 변수]'를 따로 보여 준다(예: "국내 주식에 부담 요인"). 그래서 effect에는 그 관심 이름과 '요인·변수' 같은 성격 낱말을 되풀이하지 않고, 그 관심에 무엇이 달라지는지만 결과로, 단정적이고 차분하게 쓴다. 예: "관세 수위가 정해질 때까지 흔들림이 커요", "대출 금리가 내려갈 때가 늦어져요", "국내 반도체주 실적 기대가 낮아져요", "미래에셋증권 고객이라면 유출 대상인지 확인이 필요해요". '~수 있어요'로 흐리지 않는다(꼭 필요할 때만). '~경로가 중요해요'·'~에 영향을 줄 수 있어요'·'지켜봐야 해요'처럼 결과를 말하지 않는 문장은 쓰지 않는다. 사라·팔라·수익 장담은 하지 않는다.
   · tone: 그 의미가 이 회원에게 plus(긍정 요인) / minus(부담 요인) / watch(방향이 갈리는 변수) 중 하나.
 - checks: 0~2개. 이 소식들 때문에 사람이 실제로 해 볼 만한 생활 속 일이 있을 때만. "증권사 앱을 쓴다면 해킹 공지를 확인하고 비밀번호를 바꿔 보세요"처럼 '~라면 ~해 보세요' 꼴로 50자 안팎. id는 근거 소식 하나. 할 일이 없으면 빈 배열.
   · 되는 것: 보안 공지 확인·비밀번호 변경, 신청·접수 기한, 바뀌는 제도·요금·일정 확인, 리콜·서비스 중단 확인 같은 일.
@@ -212,12 +217,13 @@ const SCHEMA = {
           why: { type: 'string' },
           watch: { type: 'array', items: { type: 'string' } },
           fact: { type: 'string' },
+          points: { type: 'array', items: { type: 'string' } },
           links: { type: 'array', items: { type: 'string' } },
           relation: { type: 'string' },
           effect: { type: 'string' },
           tone: { type: 'string', enum: ['plus', 'minus', 'watch'] },
         },
-        required: ['title', 'text', 'ids', 'basis', 'topic', 'why', 'watch', 'fact', 'links', 'relation', 'effect', 'tone'],
+        required: ['title', 'text', 'ids', 'basis', 'topic', 'why', 'watch', 'fact', 'points', 'links', 'relation', 'effect', 'tone'],
       },
     },
     checks: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, id: { type: 'integer' } }, required: ['text', 'id'] } },
@@ -499,12 +505,17 @@ function linksOf(
 /**
  * 흐름의 핵심 사실·나에게 갖는 의미·성격(11). 의미 문장이 결과를 말하지 않거나(막연한 끝맺음) 투자 권유면 버린다
  */
-function impactOf(f: { fact?: unknown; effect?: unknown; tone?: unknown }, b: Basis | undefined, fix: (t: string) => string): { fact?: string; effect?: string; tone?: InsightTone } {
+function impactOf(
+  f: { fact?: unknown; points?: unknown; effect?: unknown; tone?: unknown },
+  b: Basis | undefined,
+  fix: (t: string) => string,
+): { fact?: string; points?: string[]; effect?: string; tone?: InsightTone } {
   const raw = b ? dropOwnership(alignReadClaim(fix(str(f?.effect, 80)), b), b) : fix(str(f?.effect, 80));
   const effect = raw && !INVESTING.test(raw) && trimVague(raw) === raw && !/경로가 중요|영향을 줄 수 있어요$/.test(raw) ? raw : '';
-  // 핵심 사실 줄은 투자 권유 거르기를 하지 않는다('외국인 순매도'·'매도 사이드카' 같은 사실이 '매도' 낱말로 지워졌다, 2026-11-13)
+  // 핵심 사실 줄·요약 두 줄은 투자 권유 거르기를 하지 않는다('외국인 순매도'·'매도 사이드카' 같은 사실이 '매도' 낱말로 지워졌다, 2026-11-13)
   const fact = plainWords(fix(str(f?.fact, 50)));
-  return { ...(fact ? { fact } : {}), ...(effect ? { effect, tone: toneOf(f?.tone) } : {}) };
+  const points = [...new Set((Array.isArray(f?.points) ? f.points : []).map((x: unknown) => plainWords(fix(str(x, 50)))).filter(Boolean))].slice(0, 2);
+  return { ...(fact ? { fact } : {}), ...(points.length ? { points } : {}), ...(effect ? { effect, tone: toneOf(f?.tone) } : {}) };
 }
 
 /**
@@ -523,7 +534,7 @@ function clean(out: RawInsight, items: TodayData['items'], p: Personal): Briefin
   };
 
   const flows = (Array.isArray(out.flows) ? out.flows : [])
-    .map((f: { title?: unknown; text?: unknown; ids?: unknown; basis?: unknown; topic?: unknown; why?: unknown; watch?: unknown; fact?: unknown; links?: unknown; relation?: unknown; effect?: unknown; tone?: unknown }) => {
+    .map((f: { title?: unknown; text?: unknown; ids?: unknown; basis?: unknown; topic?: unknown; why?: unknown; watch?: unknown; fact?: unknown; points?: unknown; links?: unknown; relation?: unknown; effect?: unknown; tone?: unknown }) => {
       const ids = (Array.isArray(f?.ids) ? f.ids : []).map(Number).filter((n: number) => known.has(n));
       const b = bases.get(str(f?.basis, 6).toUpperCase());
       let why = alignReadClaim(fix(str(f?.why, 120)), b);
