@@ -56,13 +56,15 @@ const SECTION_NAMES = SECTIONS.map((s) => s.label);
 
 /**
  * 요금 카드의 기능 목록(/premium 비교표와 같은 내용). 숫자는 plans 표.
- * 2026-11-10 개편: 하루 소식 → 브리핑마다 소식, 메뉴에서 뺀 내 관심 링크는 빼고 Premium에 주간 리포트
+ * 2026-11-10 개편: 하루 소식 → 브리핑마다 소식, 메뉴에서 뺀 내 관심 링크는 빼고 Premium에 주간 리포트.
+ * 2026-11-26: Free도 오늘 브리핑은 끝까지 듣고 지난 소식만 하루 몇 개, 맹고 AI 질문 줄은 뺐다(파는 혜택이 아니라서, 기능은 그대로)
  */
-function planItems(l: PlanLimits, askDaily: number): string[] {
+function planItems(l: PlanLimits): string[] {
   return [
     `출근길·퇴근길 브리핑마다 소식 ${l.dailyItems}개`,
-    ...(l.audio ? ["자연스러운 AI 목소리로 음성 듣기(TTS) 무제한"] : l.dailyListens > 0 ? [`음성 듣기(TTS) 하루 ${l.dailyListens}개`] : []),
-    `맹고 AI 질문 하루 ${askDaily}번`,
+    ...(l.audio
+      ? ["자연스러운 AI 목소리로 음성 듣기(TTS) 무제한"]
+      : ["오늘 브리핑은 귀로 끝까지 듣기", ...(l.dailyListens > 0 ? [`지난 소식 음성 듣기 하루 ${l.dailyListens}개`] : [])]),
     ...(l.id === "plus" ? ["주간 리포트"] : []),
     l.archiveDays == null ? "받은 소식 무제한 보관" : `받은 소식 ${archiveLabel(l.archiveDays)} 보관, 북마크는 계속`,
   ];
@@ -99,18 +101,17 @@ const faq = (free: PlanLimits, plus: PlanLimits): [string, string][] => [
     // 2026-11-10: 첫 화면이 '귀로 들어요'인데 답이 'Premium에서'로 시작해 Free는 못 듣는 것처럼 읽혔다 → Free가 듣는 몫부터
     free.audio
       ? "네. 브리핑 듣기를 누르면 소식을 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요."
-      : free.dailyListens > 0
-        ? `네. Free도 하루 ${free.dailyListens}개는 기본 목소리로 들을 수 있고, 브리핑 듣기도 그 안에서 돼요. Premium은 개수 제한 없이, 문장이 자연스럽게 이어지는 AI 목소리(여성·남성 중 선택)로 들어요. 앱에서는 화면을 꺼도 계속 들려요.`
-        : "네, Premium에서 요약을 음성으로 들어요. 브리핑 듣기를 누르면 끝까지 이어서 읽어 주고, 목소리는 여성·남성 중에 골라요. 앱에서는 화면을 꺼도 계속 들려요.",
+      : // 2026-11-26: 오늘 브리핑은 Free도 끝까지(lib/server/listen-access.ts), 지난 소식만 하루 몫
+        `네. 출근길·퇴근길 브리핑은 Free도 기본 목소리로 끝까지 들을 수 있어요.${free.dailyListens > 0 ? ` 지난 소식은 하루 ${free.dailyListens}개까지 무료예요.` : ""} Premium은 지난 소식까지 제한 없이, 문장이 자연스럽게 이어지는 AI 목소리(여성·남성 중 선택)로 들어요. 앱에서는 화면을 꺼도 계속 들려요.`,
   ],
-  ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", `네. 브리핑 듣기를 누르면 소식을 끝까지 이어서 읽어 주고${free.dailyListens > 0 && !free.audio ? `(Free는 하루 ${free.dailyListens}개까지)` : ""}, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요.`],
+  ["운전 중이나 손을 쓰기 어려울 때도 들을 수 있나요?", "네. 브리핑 듣기를 누르면 소식을 끝까지 이어서 읽어 주고, 앱에서는 화면을 꺼도 계속 들려요. 운전할 때는 출발 전에 재생을 눌러 두면 화면을 보지 않고 들을 수 있어요."],
   ["주간 리포트는 뭐예요?", "매주 월요일 아침, 지난주 소식이 내 관심사와 경제에 준 영향을 한 장으로 정리해요. Free는 한 줄 총평과 나의 한 주 숫자를, Premium은 관심사별 영향과 이유, 이번 주 챙겨 볼 일정, 지난주 시장, 놓친 주요 소식까지 전부 봐요."],
   ["원문은 어디서 읽어요?", "모든 소식에 원문 링크가 있어요. 맹고는 요약과 다시 쓴 전체 글을 보여 주고, 원문은 출처에서 읽을 수 있어요."],
   [
     "소식에 대해 더 물어볼 수 있나요?",
     `네. 소식 화면 오른쪽 아래 물어보기 버튼을 누르면 궁금한 걸 글이나 말로 AI에게 물어볼 수 있어요. 읽던 소식을 바탕으로 물은 것부터 바로 답하고, 소식과 관계없는 질문에도 답해요. Free는 하루 ${ASK_DAILY.free}번, Premium은 하루 ${ASK_DAILY.plus}번까지 물어볼 수 있어요.`,
   ],
-  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받아요.${free.dailyListens > 0 && !free.audio ? ` 음성 듣기도 하루 ${free.dailyListens}개는 무료예요.` : ""} 음성 듣기 무제한${plus.dailyItems > free.dailyItems ? `, 브리핑마다 소식 ${plus.dailyItems}개` : ""}, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
+  ["무료로 얼마나 쓸 수 있나요?", `가입하면 Free 플랜으로 브리핑마다 소식 ${free.dailyItems}개를 받아요.${free.audio ? "" : " 출근길·퇴근길 브리핑은 귀로 끝까지 들을 수 있어요."} 지난 소식까지 음성 듣기 무제한${plus.dailyItems > free.dailyItems ? `, 브리핑마다 소식 ${plus.dailyItems}개` : ""}, 주간 리포트는 Premium(${monthlyPrice(plus)}${discountPct(plus) > 0 ? `, 정가 ${plus.listPriceKrw!.toLocaleString("ko-KR")}원에서 ${discountPct(plus)}% 할인` : ""})에서 쓸 수 있고, 맹고 앱에서 결제해요.`],
   ["Premium은 언제든 해지할 수 있나요?", "네. 결제한 스토어(App Store·Google Play)의 구독 관리에서 언제든 해지할 수 있어요. 해지해도 이미 결제한 기간이 끝날 때까지는 Premium으로 써요."],
 ];
 
@@ -208,7 +209,7 @@ export async function Landing() {
                 "관심 분야 소식만, 핵심만 요약",
                 "오늘의 흐름과 맞춤 인사이트까지",
                 "출근길·퇴근길 하루 두 번, 다 들으면 끝",
-                free.audio ? "누구나 귀로 듣기" : free.dailyListens > 0 ? `Free도 하루 ${free.dailyListens}개는 귀로 듣기` : null,
+                free.audio ? "누구나 귀로 듣기" : "Free도 브리핑은 귀로 끝까지",
               ]
                 .filter((t): t is string => !!t)
                 .map((t) => (
@@ -394,14 +395,14 @@ export async function Landing() {
               요금
             </h2>
             <div className="mt-10 grid gap-5 md:grid-cols-2">
-              <Plan name="Free" price="0원" items={planItems(free, ASK_DAILY.free)} cta={{ signedOut: START, signedIn: OPEN, ghost: true }} />
+              <Plan name="Free" price="0원" items={planItems(free)} cta={{ signedOut: START, signedIn: OPEN, ghost: true }} />
               <Plan
                 featured
                 name="Premium"
                 price={monthlyPrice(plus)}
                 listPrice={discountPct(plus) > 0 ? `${plus.listPriceKrw!.toLocaleString("ko-KR")}원` : undefined}
                 discount={discountPct(plus)}
-                items={planItems(plus, ASK_DAILY.plus)}
+                items={planItems(plus)}
                 // 로그인 전 버튼: 할인 중이면 '할인가로 시작하기'(2026-10-22 사용자 결정), 아니면 다른 시작 버튼과 같게
                 cta={{ signedOut: discountPct(plus) > 0 ? { ...START, label: "할인가로 시작하기" } : START, signedIn: { href: "/premium", label: "Premium 알아보기" } }}
               />

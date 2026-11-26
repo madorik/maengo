@@ -60,7 +60,7 @@ export function ArticleView({
   // 에피소드 정보를 받기 전에 누른 글 하나 듣기는 정보가 와도 끊지 않는다(lib/player/route.ts)
   const inPlayer = index >= 0 && p.chapters.some((c) => c.clusterId === item.clusterId);
   const today = useTodayAudio(index >= 0 ? item.clusterId : -1, next);
-  // Premium이거나 Free의 오늘 듣기 몫(plans.daily_listens, 11-06부터 하루 3개)이면 이 글 하나를 듣는다
+  // Premium이거나, 오늘 브리핑 소식이거나(2026-11-26 Free도 끝까지), Free의 지난 소식 하루 몫(plans.daily_listens, 11-06부터 하루 3개)이면 이 글 하나를 듣는다
   const access = listenAccess(item.clusterId);
   const single = useItemAudio(item.clusterId, access !== null);
   const singleBusy = singleStarted(single.ctl);

@@ -72,7 +72,9 @@ export interface TodayData {
   items: FeedItem[];
   read: number[];
   listened: number[];
-  /** 오늘(KST) 처음 들은 소식. Free의 하루 듣기 수를 센다 */
+  /** 오늘(KST) 받은 브리핑 소식(출근길·퇴근길 둘 다). Free도 이 소식은 제한 없이 듣는다(2026-11-26) */
+  briefingIds: number[];
+  /** 오늘(KST) 처음 들은 소식 중 브리핑 밖의 것(보관함). Free의 하루 듣기 수를 센다 */
   listenedToday: number[];
   feedback: Record<number, FeedbackKind>;
   /** 북마크한 소식(reads.starred). 보관함 거르기는 DB가 하고, 이건 글 화면 버튼과 보관함 카드 표시에 쓴다 */

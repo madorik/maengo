@@ -53,18 +53,19 @@ const factsOf = (r: PurchaseRow): PurchaseFacts => ({
 /**
  * since 뒤에 Premium에서만 되는 것을 쓴 기록:
  * - 하루 소식 중 Free 몫(plans free.daily_items)보다 뒤 순위인 소식을 읽음. 그날 맹고로 더 받은 소식(feed_days.extra)은 빼고 본다
- * - 하루(한국 시간)에 Free 몫(plans free.daily_listens)보다 많이 들음(전체 듣기·플레이리스트로 들은 것 포함)
+ * - 하루(한국 시간)에 Free 몫(plans free.daily_listens)보다 많이 들음(전체 듣기·플레이리스트로 들은 것 포함).
+ *   받은 날 들은 브리핑 소식은 Free도 제한 없이 들어서(2026-11-26) 세지 않는다
  * - 플레이리스트에 담음
  */
 export async function premiumUsesSince(userId: string, since: string): Promise<PremiumUse[]> {
   const free = (await getPlans()).get('free')!;
   const [readRes, listenRes, playlistRes] = await Promise.all([
     db.from('reads').select('cluster_id,read_at').eq('user_id', userId).gte('read_at', since).order('read_at'),
-    db.from('reads').select('listened_at').eq('user_id', userId).gte('listened_at', since).order('listened_at'),
+    db.from('reads').select('cluster_id,listened_at').eq('user_id', userId).gte('listened_at', since).order('listened_at'),
     db.from('playlist_items').select('added_at').eq('user_id', userId).gte('added_at', since).order('added_at'),
   ]);
   const reads = must(readRes, 'reads since') as { cluster_id: number; read_at: string }[];
-  const listens = must(listenRes, 'listens since') as { listened_at: string }[];
+  const listens = must(listenRes, 'listens since') as { cluster_id: number; listened_at: string }[];
   const playlist = must(playlistRes, 'playlist since') as { added_at: string }[];
   const uses: PremiumUse[] = [];
 
@@ -85,9 +86,16 @@ export async function premiumUsesSince(userId: string, since: string): Promise<P
   }
 
   if (listens.length) {
+    // 그 소식을 받은 날(feeds.date)에 들었으면 브리핑 듣기라 Free에서도 된다
+    const fed = must(
+      await db.from('feeds').select('cluster_id,date').eq('user_id', userId).in('cluster_id', [...new Set(listens.map((l) => l.cluster_id))]),
+      'feeds listened',
+    ) as { cluster_id: number; date: string }[];
+    const briefing = new Set(fed.map((f) => `${f.cluster_id}:${f.date}`));
     const byDay = new Map<string, string[]>();
     for (const l of listens) {
       const day = kstDate(new Date(l.listened_at));
+      if (briefing.has(`${l.cluster_id}:${day}`)) continue;
       byDay.set(day, [...(byDay.get(day) ?? []), l.listened_at]);
     }
     const over = [...byDay.values()].filter((list) => list.length > free.dailyListens);

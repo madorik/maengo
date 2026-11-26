@@ -9,7 +9,6 @@ import { getPlans } from "@/lib/server/plans";
 import { PlanSync } from "@/components/app/PlanSync";
 import { hadSubscription, subscriptionView } from "@/lib/server/billing";
 import { requireProfile } from "@/lib/server/session";
-import { ASK_DAILY } from "@/lib/ask";
 
 export const metadata: Metadata = { title: "맹고 Premium" };
 
@@ -19,19 +18,21 @@ export const metadata: Metadata = { title: "맹고 Premium" };
 /**
  * Free·Premium 비교(2026-10-22 사용자 지정, 10-26 가입 선물 줄 빼고 Premium 음성은 '무제한',
  * 10-27 '하루 무료 소식' → '하루 소식'·내 관심 링크 줄 추가, 관심사 개수는 넣지 않음, 10-29 목소리 줄 추가: Premium은 Gemini라 더 자연스럽다,
- * 11-03 맹고 AI 질문 줄 추가, 11-10 주간 리포트 줄 추가, 월간은 뺐다).
- * 숫자는 plans 표(하루 소식·음성·링크·추가 구매·보관 기간), 맹고 AI 질문만 코드 상수(lib/ask.ts ASK_DAILY)
+ * 11-03 맹고 AI 질문 줄 추가, 11-10 주간 리포트 줄 추가, 월간은 뺐다,
+ * 11-26 오늘 브리핑 듣기는 Free도 끝까지라 듣기 줄을 '오늘 브리핑'·'지난 소식'으로 나누고, 맹고 AI 질문 줄은 뺐다(30일 질문 0번, 파는 혜택이 아니라서. 기능과 하루 횟수는 그대로)).
+ * 숫자는 plans 표(하루 소식·음성·링크·추가 구매·보관 기간)
  */
 function rows(free: PlanLimits, plus: PlanLimits): { label: string; free: string; plus: string }[] {
   const both = (f: (l: PlanLimits) => string) => ({ free: f(free), plus: f(plus) });
   return [
     // 2026-11-10 하루 두 번 브리핑: 출근길·퇴근길 브리핑마다 이만큼
     { label: "브리핑마다 소식(출근길·퇴근길)", ...both((l) => `${l.dailyItems}개`) },
-    // 음성이 없는 플랜도 하루 몇 개는 '이 글 듣기'로 들어 본다(2026-10-23, plans.daily_listens)
-    { label: "소식 플레이어 + 음성 듣기(TTS)", ...both((l) => (l.audio ? "무제한" : l.dailyListens > 0 ? `하루 ${l.dailyListens}개` : "불가")) },
+    // 2026-11-26 오늘 브리핑은 Free도 제한 없이 끝까지 듣는다(lib/server/listen-access.ts)
+    { label: "오늘 브리핑 듣기", free: "끝까지", plus: "끝까지" },
+    // 지난 소식(보관함)은 Free가 하루 몇 개만(plans.daily_listens)
+    { label: "지난 소식 듣기(보관함)", ...both((l) => (l.audio ? "무제한" : l.dailyListens > 0 ? `하루 ${l.dailyListens}개` : "불가")) },
     // 음성 엔진: 음성 듣기 플랜은 Gemini, 그 밖은 기본 음성(Chirp, lib/server/ai.ts ttsEngineFor)
-    { label: "목소리", ...both((l) => (l.audio ? "더 자연스러운 AI 목소리" : l.dailyListens > 0 ? "기본" : "불가")) },
-    { label: "맹고 AI 질문", free: `하루 ${ASK_DAILY.free}번`, plus: `하루 ${ASK_DAILY.plus}번` },
+    { label: "목소리", ...both((l) => (l.audio ? "더 자연스러운 AI 목소리" : "기본")) },
     { label: "주간 리포트", free: "요약만", plus: "전체" },
     { label: "받은 소식 보관(북마크는 계속)", ...both((l) => archiveLabel(l.archiveDays)) },
   ];

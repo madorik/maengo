@@ -4,7 +4,6 @@ import { MangoIcon } from "@/components/MangoIcon";
 import { GuestTour, type TourPerk } from "@/components/try/GuestTour";
 import { signIn } from "@/app/actions";
 import { LoginButtons } from "@/app/login/LoginButtons";
-import { ASK_DAILY } from "@/lib/ask";
 import { guestTour } from "@/lib/server/guest-tour";
 import { getPlans } from "@/lib/server/plans";
 import type { GuestItem } from "@/lib/types";
@@ -41,9 +40,9 @@ export default async function TryPage() {
   const perks: TourPerk[] = [
     // 2026-11-12 Free도 10개라 같으면 뺀다
     ...(plus.dailyItems > free.dailyItems ? [{ label: `브리핑마다 소식 ${plus.dailyItems}개`, note: `Free ${free.dailyItems}개` }] : []),
-    { label: "소식 플레이어로 이어 듣기 무제한", note: free.dailyListens > 0 ? `Free 하루 ${free.dailyListens}개` : undefined },
+    // 2026-11-26 오늘 브리핑은 Free도 끝까지 들어서 Premium 혜택은 지난 소식 듣기, 맹고 AI 질문 줄은 뺐다(파는 혜택이 아니라서)
+    { label: "지난 소식까지 음성 듣기 무제한", note: free.dailyListens > 0 ? `Free는 지난 소식 하루 ${free.dailyListens}개` : undefined },
     { label: "더 자연스러운 AI 목소리" },
-    { label: `맹고 AI 질문 하루 ${ASK_DAILY.plus}번`, note: `Free ${ASK_DAILY.free}번` },
     { label: "주간 리포트" },
   ];
   return (

@@ -8,13 +8,11 @@ import { flushSync } from "react-dom";
 import { IconChevronDown, IconClose, IconNext, IconPause, IconPlay, IconPrev } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { usePlayer } from "@/components/providers/PlayerProvider";
-import { useProfile } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
-import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { Sheet } from "@/components/ui/Sheet";
 import { PREPARING_SHORT, PREPARING_TEXT } from "@/lib/player/labels";
-import { claimDock, releaseDock, setPlayerDocked, useDock } from "@/lib/float-dock";
+import { claimDock, releaseDock, requestPlayerOpen, setPlayerDocked, takePlayerOpenWhenReady, useDock } from "@/lib/float-dock";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import { Queue, Switch } from "./controls";
@@ -31,11 +29,11 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
  * (2026-11-03 사용자 결정). 띄웠는지는 lib/float-dock.ts로 알려 맹고 AI 버튼이 그 위로 올라가게 하고, 두 창은 한 번에 하나만 편다.
  * 앱(inApp)에서는 창 대신 화면을 꽉 채우는 시트(components/ui/Sheet.tsx full)로 연다(2026-10-19 사용자 결정): 끌어 내리기·안드로이드 뒤로 가기로 닫힌다.
  * 오늘 카드의 '전체 듣기'를 누르면 접혀 있어도 펴서 재생 목록 탭으로 연다(2026-11-09 사용자 결정, lib/float-dock.ts requestPlayerOpen).
- * Free도 오늘 듣기 몫(plans.daily_listens)만큼 전체 듣기를 쓴다(2026-11-09). 몫을 다 쓴 소식 앞에서 멈추면 결제 안내(ListenLimit)
+ * Free도 오늘 브리핑은 제한 없이 전체 듣기로 끝까지 듣는다(2026-11-26, 전엔 11-09부터 하루 몫 안에서). 플레이리스트는 Premium만.
+ * 들을 수 없는 소식 앞에서 멈추면 결제 안내(ListenLimit)
  */
 export function ListenWidget({ initialCollapsed, inApp = false }: { initialCollapsed: boolean; /** 앱(Capacitor)인지. 서버가 User-Agent로 정한다 */ inApp?: boolean }) {
   const p = usePlayer();
-  const profile = useProfile();
   const { game, data } = useToday();
   const [open, setOpen] = useState(false);
   /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
@@ -90,12 +88,15 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
     setOpen(true);
   }, [floating.playerRequest]);
 
+  // 가입하고 첫 브리핑이 막 만들어졌으면(소식이 들어와 플레이어가 뜨는 때) 재생 목록으로 편다(lib/float-dock.ts)
+  useEffect(() => {
+    if (!hidden && takePlayerOpenWhenReady()) requestPlayerOpen();
+  }, [hidden]);
+
   // 숨었거나 접혀 있는 동안, 맹고 AI 창을 편 동안은 창을 닫아 둔다(다시 나타나거나 펴질 때 창이 갑자기 열리지 않게)
   if (open && (hidden || collapsed || floating.open === "ask")) setOpen(false);
   if (hidden) return null;
 
-  // 들을 수 없는 플랜(Premium도 아니고 Free 듣기 몫도 없음)이면 결제 페이지로 가는 자리만
-  const locked = !profile.audio && profile.dailyListens <= 0;
   // 이름은 늘 "플레이어". 무엇을 듣는지(플레이리스트·오늘 소식)는 소제목에 쓴다
   const heading = "플레이어";
   // 오늘 소식은 지금 브리핑 이름으로(2026-11-10 하루 두 번: 출근길·퇴근길)
@@ -126,7 +127,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           className={`pop tile pointer-events-auto flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${playing ? "border-mango" : ""}`}
         >
           {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
-          <MangoIcon round className={`size-12 ${locked ? "opacity-60" : ""} ${playing ? "bob" : ""}`} />
+          <MangoIcon round className={`size-12 ${playing ? "bob" : ""}`} />
         </button>
       </div>
     );
@@ -144,22 +145,6 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
     </button>
   );
 
-  // Free: 전체 듣기 자리는 두고, 누르면 결제 페이지로(창은 열지 않는다)
-  if (locked) {
-    return (
-      <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
-        <div data-tour="player" className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
-          <Link href="/premium" aria-label={`${source} 듣기, Premium에서 들을 수 있어요`} className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
-            <MangoIcon round className="size-12 shrink-0 opacity-60" />
-            <span className="min-w-0 truncate text-[15px] font-bold text-sub">{source} 듣기</span>
-            <PremiumBadge />
-          </Link>
-          {foldButton}
-        </div>
-      </div>
-    );
-  }
-
   const ch = p.chapters[p.cur];
   // 재생을 누르면 먼저 나올 소식(듣던 자리 이어 듣기·읽은 소식 건너뛰기 반영)
   const first = p.chapters[p.firstIndex];
@@ -171,7 +156,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   const sub = p.error
       ? p.error
       : p.limitReached
-        ? "오늘 무료 듣기를 다 들었어요"
+        ? "오늘 무료로 들을 지난 소식을 다 들었어요"
       : p.preparing
         ? PREPARING_SHORT
         : ch

@@ -42,3 +42,16 @@ export const setPlayerDocked = (shown: boolean) => set({ player: shown });
 
 /** 플레이어 창을 재생 목록으로 펴 달라고 한다(오늘 카드의 '전체 듣기'를 누른 손짓에서) */
 export const requestPlayerOpen = () => set({ playerRequest: state.playerRequest + 1 });
+
+// 가입하고 첫 브리핑을 다 만들면(components/today/MakeToday.tsx) 소식이 화면에 들어와 플레이어가 뜨는 대로 창을 편다(2026-11-26 사용자:
+// 온보딩을 한 화면으로 줄이고 끝나면 바로 첫 브리핑을 듣게). 소리는 브라우저가 손짓 없이 못 틀게 막아서 재생 버튼까지만 앞에 둔다
+let openWhenReady = false;
+export const requestPlayerOpenWhenReady = () => {
+  openWhenReady = true;
+};
+/** 펴 달라는 부탁이 있었으면 true를 주고 지운다(components/listen/ListenWidget.tsx) */
+export const takePlayerOpenWhenReady = () => {
+  const v = openWhenReady;
+  openWhenReady = false;
+  return v;
+};

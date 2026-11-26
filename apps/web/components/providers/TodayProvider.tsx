@@ -33,8 +33,9 @@ interface TodayApi {
   /** 북마크 켜고 끄기. 버튼은 바로 바뀌고, 저장하지 못하면 되돌리고 false */
   setBookmark: (clusterId: number, on: boolean) => Promise<boolean>;
   /**
-   * '이 글 듣기'를 쓸 수 있는지: 'plan'(Premium), 'free'(Free의 오늘 듣기 몫, 2026-10-23), null(잠금).
-   * 서버(lib/server/listen-access.ts)와 같은 규칙: 전에 들은 소식은 늘 되고, 처음 듣는 소식은 오늘 들은 수가 하루 몫보다 적을 때
+   * '이 글 듣기'를 쓸 수 있는지: 'plan'(Premium), 'free'(오늘 브리핑이거나 Free의 오늘 듣기 몫), null(잠금).
+   * 서버(lib/server/listen-access.ts)와 같은 규칙: 오늘 브리핑 소식은 늘 되고(2026-11-26), 전에 들은 소식도 늘 되고,
+   * 그 밖에 처음 듣는 소식은 오늘 들은 지난 소식 수가 하루 몫보다 적을 때
    */
   listenAccess: (clusterId: number) => "plan" | "free" | null;
 }
@@ -52,6 +53,11 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
   const profile = useProfile();
   const [listened, setListened] = useState(() => new Set(initial.listened));
   const [listenedToday, setListenedToday] = useState(() => new Set(initial.listenedToday));
+  const briefing = useMemo(() => new Set(initial.briefingIds), [initial.briefingIds]);
+  const briefingRef = useRef(briefing);
+  useEffect(() => {
+    briefingRef.current = briefing;
+  }, [briefing]);
   // markListened가 '처음 듣는 소식'인지 볼 때 쓴다(다시 듣는 건 오늘 몫에 세지 않는다)
   const listenedRef = useRef(listened);
   useEffect(() => {
@@ -91,7 +97,8 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
   }, []);
 
   const markListened = useCallback((id: number) => {
-    if (!listenedRef.current.has(id)) setListenedToday((prev) => new Set(prev).add(id));
+    // 하루 몫에는 브리핑 밖의 소식(보관함)만 센다
+    if (!listenedRef.current.has(id) && !briefingRef.current.has(id)) setListenedToday((prev) => new Set(prev).add(id));
     setListened((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
     post("/api/reads", { clusterId: id, listened: true });
   }, []);
@@ -136,7 +143,11 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
     const done = ids.filter(consumed).length;
     const allDone = ids.length > 0 && done === ids.length;
     const listenAccess = (id: number) =>
-      profile.audio ? "plan" : profile.dailyListens > 0 && (listened.has(id) || listenedToday.size < profile.dailyListens) ? "free" : null;
+      profile.audio
+        ? "plan"
+        : briefing.has(id) || (profile.dailyListens > 0 && (listened.has(id) || listenedToday.size < profile.dailyListens))
+          ? "free"
+          : null;
     const isBookmarked = (id: number) => bookmarkEdits.get(id) ?? savedBookmarks.has(id);
     return {
       // 서버가 다시 렌더링하면(플랜 전환 등) 새 피드 내용을 그대로 쓴다
@@ -153,7 +164,7 @@ export function TodayProvider({ initial, children }: { initial: TodayData; child
       setBookmark,
       listenAccess,
     };
-  }, [initial, read, listened, listenedToday, feedback, bookmarkEdits, savedBookmarks, markRead, markListened, setFeedback, setBookmark, profile.audio, profile.dailyListens]);
+  }, [initial, read, listened, listenedToday, briefing, feedback, bookmarkEdits, savedBookmarks, markRead, markListened, setFeedback, setBookmark, profile.audio, profile.dailyListens]);
 
   return <TodayContext.Provider value={value}>{children}</TodayContext.Provider>;
 }

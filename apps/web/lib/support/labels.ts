@@ -33,7 +33,7 @@ export function moneyLabel(amount: number | null, currency: string | null): stri
 
 export function useLabel(u: PremiumUse, free: { dailyItems: number; dailyListens: number }): string {
   if (u.kind === 'premium_read') return `하루 ${free.dailyItems + 1}번째부터의 소식 ${u.count}개 읽음(${dayLabel(u.at)}부터)`;
-  if (u.kind === 'extra_listen') return `하루 ${free.dailyListens + 1}개째부터 음성 ${u.count}개 들음(${dayLabel(u.at)}부터)`;
+  if (u.kind === 'extra_listen') return `지난 소식 음성을 하루 ${free.dailyListens + 1}개째부터 ${u.count}개 들음(${dayLabel(u.at)}부터)`;
   return `플레이리스트에 소식 ${u.count}개 담음(${dayLabel(u.at)}부터)`;
 }
 

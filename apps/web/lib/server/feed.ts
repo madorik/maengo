@@ -551,6 +551,8 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
   // 지금 브리핑(출근길·퇴근길)의 소식만 보여 준다. 다른 브리핑 소식은 보관함에 있다
   const slot = displaySlot(day.rows);
   const items = headlineFirst(allItems.filter((i) => (i.slot ?? 'am') === slot));
+  // 오늘 받은 브리핑(출근길·퇴근길 둘 다). 지금 브리핑이 아닌 쪽은 보관함에 보이지만 오늘 것이라 같이 무료로 듣는다
+  const briefing = new Set(visibleRows(day).map((r) => r.clusterId));
   const dailyLimit = entitlements(profile).dailyItems;
   // 비었는데 '오늘 소식 받기'가 돌고 있으면(다른 탭·기기, 만드는 중에 화면을 옮겼다 돌아옴) 받기 버튼 대신 만드는 중으로
   const emptyReason = items.length
@@ -582,7 +584,9 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
     items,
     read: reads.filter((r) => r.read_at).map((r) => r.cluster_id),
     listened: reads.filter((r) => r.listened_at).map((r) => r.cluster_id),
-    listenedToday: reads.filter((r) => r.listened_at && kstDate(new Date(r.listened_at)) === kstDate()).map((r) => r.cluster_id),
+    briefingIds: [...briefing],
+    // 오늘 브리핑 소식은 Free도 제한 없이 들어서(2026-11-26) 하루 몫에는 그 밖의 소식(보관함)만 센다
+    listenedToday: reads.filter((r) => r.listened_at && kstDate(new Date(r.listened_at)) === kstDate() && !briefing.has(r.cluster_id)).map((r) => r.cluster_id),
     feedback: Object.fromEntries(feedback.map((f) => [f.cluster_id, f.kind])),
     bookmarks: reads.filter((r) => r.starred).map((r) => r.cluster_id),
     slot,
@@ -595,6 +599,14 @@ export async function getTodayData(profile: Profile): Promise<TodayData> {
  */
 export async function todayHasRows(profile: Profile): Promise<boolean> {
   return visibleRows(await todayFeed(profile)).length > 0;
+}
+
+/**
+ * 오늘(KST) 받은 브리핑 소식(출근길·퇴근길, 보여 준 것만). Free도 이 소식은 제한 없이 끝까지 듣는다(2026-11-26 사용자 결정,
+ * 출퇴근에 듣는 습관을 무료에서 만든다). 지난 소식(보관함)은 하루 듣기 몫(plans.daily_listens) 안에서만. lib/server/listen-access.ts
+ */
+export async function todayBriefingIds(profile: Profile): Promise<Set<number>> {
+  return new Set(visibleRows(await todayFeed(profile)).map((r) => r.clusterId));
 }
 
 /** 오늘 바로 앞에 받은 브리핑(출근길·퇴근길 한 번). 다시 듣기 줄이 쓴다 */

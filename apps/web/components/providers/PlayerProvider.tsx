@@ -244,9 +244,9 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const readSet = playlist ? NO_READ : (!idle && readSnap) || read;
   const skip = playlist ? false : skipRead;
 
-  // Free도 오늘 듣기 몫(plans.daily_listens)만큼 전체 듣기를 쓴다(2026-11-09 사용자 결정: 하루 3개 안에서). 플레이리스트는 Premium만
-  const enabled = (profile.audio || profile.dailyListens > 0) && (playlist !== null || data.items.length > 0);
-  /** Free가 오늘 몫을 다 쓴, 처음 듣는 소식. 플레이어는 이 소식 앞에서 멈춘다(stopAtLimit) */
+  // Free도 오늘 브리핑은 제한 없이 전체 듣기로 끝까지 듣는다(2026-11-26 사용자 결정, 전엔 11-09부터 하루 3개 안에서). 플레이리스트는 Premium만
+  const enabled = playlist !== null || data.items.length > 0;
+  /** Free가 들을 수 없는 소식(오늘 브리핑이 아니고 하루 몫도 다 씀). 플레이어는 이 소식 앞에서 멈춘다(stopAtLimit) */
   const locked = (id: number) => !profile.audio && listenAccess(id) === null;
   const baseChapters = episode?.chapters ?? [];
   // 첫 소식을 먼저 듣는 중이면 그 챕터의 줄 시각을 실제 값으로(대본 하이라이트·진행 막대가 맞게)

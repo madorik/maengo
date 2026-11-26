@@ -7,6 +7,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import { notifyTimeLabel } from "@maengo/core/kst";
 import { withBase } from "@/lib/base-path";
 import { floorToMinute, remainingText, upcomingBriefings } from "@/lib/briefing-clock";
+import { requestPlayerOpenWhenReady } from "@/lib/float-dock";
 import type { EmptyPlan } from "@/lib/today-empty";
 import type { TodayData } from "@/lib/types";
 import { useCreep, useTick } from "./making";
@@ -170,6 +171,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * 만드는 중에 다른 화면에 갔다 돌아와 이 화면이 새로 붙으면 이것을 보고 받기 버튼 대신 기다린다(다른 탭·기기는 409, 새로 열면 서버의 'building')
  */
 let buildingHere = false;
+/** 가입 직후 첫 브리핑을 저절로 만들기 시작했는지(이 페이지를 띄운 동안 한 번만) */
+let firstAutoStarted = false;
 
 /** 분이 바뀌는 때를 알린다(10초마다 보고, 탭이 다시 보일 때도 본다. 값이 같으면 화면은 다시 그려지지 않는다) */
 function subscribeMinute(cb: () => void) {
@@ -295,6 +298,8 @@ export function MakeToday({ reason, notifyLabel, plan }: { reason: TodayData["em
       }
       if (last?.stage === "done") {
         await sleep(DONE_HOLD_MS);
+        // 가입하고 처음 받은 브리핑이면 소식이 들어오는 대로 플레이어를 펴서 바로 듣게 한다(2026-11-26)
+        if (reason === "first") requestPlayerOpenWhenReady();
         router.refresh();
       } else if (!last || (last.stage !== "empty" && last.stage !== "blocked" && last.stage !== "error")) {
         // 끝을 못 받고 끊겼다
@@ -308,6 +313,18 @@ export function MakeToday({ reason, notifyLabel, plan }: { reason: TodayData["em
       buildingHere = false;
     }
   };
+
+  // 가입하고 처음 오면 '오늘 소식 받기'를 누르지 않아도 바로 만든다(2026-11-26 사용자: 온보딩을 한 화면으로 줄이고 끝나면 바로 첫 브리핑).
+  // 한 번 띄운 화면에서 한 번만(실패하면 버튼으로 다시 받는다). 효과 안에서 바로 상태를 바꾸지 않게 다음 차례로 미룬다
+  const autoFirst = reason === "first" && state.kind === "idle" && !othersBuilding && !firstAutoStarted;
+  useEffect(() => {
+    if (!autoFirst) return;
+    firstAutoStarted = true;
+    const t = setTimeout(() => void start(), 0);
+    return () => clearTimeout(t);
+    // start는 렌더마다 새로 만들어지지만 한 번만 부르면 된다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFirst]);
 
   if (state.kind === "running" || state.kind === "done") {
     return <Making p={state.kind === "done" ? { stage: "done", items: state.items } : state.p} />;

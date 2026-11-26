@@ -19,18 +19,16 @@ const STATE_KEY = "maengo_feature_tour_state";
 type Page = "today" | "article" | "settings";
 type Step = { page: Page; target: string; title: string; body: string };
 
-function steps(audio: boolean, dailyListens: number): Step[] {
+function steps(audio: boolean): Step[] {
   return [
     {
       page: "today",
       target: '[data-tour="player"]',
       title: "브리핑을 귀로 들어요",
-      // Free도 하루 몫 안에서 전체 듣기를 쓴다(2026-11-09). 2026-11-26 사용자: 오늘 소식 머리의 재생 원을 뺐다 → 전체 듣기와 플레이어를 한 단계로
+      // 2026-11-26: 오늘 브리핑은 Free도 끝까지 듣는다(전엔 11-09부터 하루 몫 안에서). 같은 날 사용자: 오늘 소식 머리의 재생 원을 뺐다 → 전체 듣기와 플레이어를 한 단계로
       body: audio
         ? "플레이어의 재생 버튼을 누르면 소식을 처음부터 차례로 읽어 드려요. 다른 화면으로 옮겨도 계속 들리고, 듣는 속도도 바꿀 수 있어요."
-        : dailyListens > 0
-          ? `플레이어의 재생 버튼을 누르면 소식을 차례로 읽어 드려요. Free는 하루 ${dailyListens}개까지 들을 수 있어요.`
-          : "브리핑 듣기는 Premium에서 돼요. 플레이어를 누르면 알아볼 수 있어요.",
+        : "플레이어의 재생 버튼을 누르면 오늘 브리핑을 처음부터 끝까지 차례로 읽어 드려요. 다른 화면으로 옮겨도 계속 들려요.",
     },
     {
       page: "today",
@@ -128,7 +126,7 @@ const EDGE = 6;
 
 /** (app) 레이아웃에 하나. 진행 중인 기능 안내를 어느 화면에서든 그린다 */
 export function TourHost() {
-  const { audio, dailyListens } = useProfile();
+  const { audio } = useProfile();
   const tour = useSyncExternalStore(
     subscribe,
     () => state,
@@ -136,7 +134,7 @@ export function TourHost() {
   );
   const router = useRouter();
   const pathname = usePathname();
-  const list = useMemo(() => steps(audio, dailyListens), [audio, dailyListens]);
+  const list = useMemo(() => steps(audio), [audio]);
   const [rect, setRect] = useState<Rect | null>(null);
   // 짚을 곳을 찾고 자리를 잡은 단계(그 전에는 카드를 숨기고 화면만 어둡게)
   const [readyFor, setReadyFor] = useState<string | null>(null);

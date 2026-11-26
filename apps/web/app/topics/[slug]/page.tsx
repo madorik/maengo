@@ -51,7 +51,8 @@ function topicFaq(t: PublicTopic, sources: string[], free: { dailyItems: number;
     ],
     [
       `${t.name} 소식을 음성으로 들을 수 있나요?`,
-      `네. Premium이면 ${t.name} 소식을 플레이리스트에 담아 끝까지 이어서 들을 수 있어요.${free.dailyListens > 0 ? ` Free도 하루 ${free.dailyListens}개는 들을 수 있어요.` : ""}`,
+      // 2026-11-26 오늘 브리핑은 Free도 끝까지(lib/server/listen-access.ts)
+      `네. 출근길·퇴근길 브리핑에 온 ${t.name} 소식은 Free도 끝까지 이어서 들을 수 있어요.${free.dailyListens > 0 ? ` 지난 소식은 Free 하루 ${free.dailyListens}개,` : ""} Premium이면 지난 소식까지 플레이리스트에 담아 제한 없이 들어요.`,
     ],
   ];
 }
