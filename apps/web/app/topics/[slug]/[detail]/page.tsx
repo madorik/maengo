@@ -3,9 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { itemListLd, listMetadata, NewsList } from "@/components/public/NewsList";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
+import { RecentGlance, TopicIntro } from "@/components/public/TopicGlance";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { kstToday, parseArchiveQuery, type ArchiveQuery } from "@/lib/public-archive";
 import { detailPath, publicDetailBySlug, topicsPath, type PublicDetail } from "@/lib/public-topics";
+import { topicBlurb, topicMetaDescription } from "@/lib/public-topic-blurbs";
 import { DETAIL_MIN_ITEMS, publicArchive, publicDetailDigest, type PublicArchive } from "@/lib/server/public-topics";
 import { SITE_NAME, appUrl, organizationId } from "@/lib/site";
 
@@ -16,8 +18,8 @@ import { SITE_NAME, appUrl, organizationId } from "@/lib/site";
 type Props = { params: Promise<{ slug: string; detail: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const title = (d: PublicDetail) => `${d.name} 뉴스 요약 모음, 최신 소식`;
-const description = (d: PublicDetail) =>
-  `${d.name}${d.aliases.length ? `(${d.aliases.slice(0, 3).join(", ")})` : ""} 소식을 AI가 핵심만 짧게 요약해요. 맹고가 요약한 ${d.name} 뉴스를 원문 링크와 함께 최신순으로 모두 모았어요.`;
+// 설명: 주제마다 손으로 쓴 설명의 첫 문장(lib/public-topic-blurbs.ts, 2026-11-26 사용자: 서치 콘솔 '색인 안 됨' → 주제마다 고유한 내용). 쪽을 넘긴 주소는 쪽 번호가 붙는다
+const description = (d: PublicDetail, page = 1) => topicMetaDescription(d.id, d.name, page);
 
 async function load({ params, searchParams }: Props) {
   const { slug, detail } = await params;
@@ -33,7 +35,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const { d, query, archive } = await load(props);
   return listMetadata(
     d,
-    { title: title(d), description: description(d), keywords: [`${d.name} 뉴스`, `${d.name} 뉴스 요약`, `${d.name} 소식`, ...d.aliases.slice(0, 6)] },
+    { title: title(d), description: description(d, query.page), keywords: [`${d.name} 뉴스`, `${d.name} 뉴스 요약`, `${d.name} 소식`, ...d.aliases.slice(0, 6)] },
     query,
     archive.total < DETAIL_MIN_ITEMS,
   );
@@ -41,7 +43,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function DetailPage(props: Props) {
   const { d, query, archive } = await load(props);
-  const { sources } = await publicDetailDigest(d);
+  const { sources, month } = await publicDetailDigest(d);
 
   return (
     <PublicPage>
@@ -76,10 +78,7 @@ export default async function DetailPage(props: Props) {
         <header className="mt-8">
           <TopicGroupIcon id={d.group.id} className="size-14 rounded-2xl" iconClassName="size-8" />
           <h1 className="mt-4 text-[34px] font-black leading-[1.2] tracking-[-0.04em] md:text-[44px]">{d.name} 소식</h1>
-          <p className="mt-4 text-[17px] font-medium leading-relaxed text-sub">
-            맹고는 {d.group.name} 분야 안의 {d.name} 소식도 다뤄요. 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI가 핵심만
-            요약해요. 영어로 나온 소식도 한국어로 요약하고, 모든 소식에 원문 링크가 붙어요.
-          </p>
+          <TopicIntro blurb={topicBlurb(d.id, d.name)} />
           {d.aliases.length > 0 && (
             <div className="mt-5">
               <p className="text-[13px] font-extrabold text-faint">이런 소식도 함께 다뤄요</p>
@@ -93,6 +92,9 @@ export default async function DetailPage(props: Props) {
             </div>
           )}
         </header>
+
+        {/* 최근 30일 한눈에: 소식이 적으면(30일 3개 미만) 숨긴다 */}
+        {month && <RecentGlance name={d.name} month={month} />}
 
         {/* 소식 목록. 위 칩으로 같은 분야의 다른 주제·분야 전체로 옮긴다 */}
         <div className="mt-10">
@@ -132,7 +134,7 @@ function DetailJsonLd({ detail: d, archive, query }: { detail: PublicDetail; arc
           "@type": "CollectionPage",
           name: `${d.name} 소식`,
           url,
-          description: description(d),
+          description: description(d, query.page),
           inLanguage: "ko-KR",
           isPartOf: { "@id": `${appUrl("/")}#website` },
           publisher: { "@id": organizationId() },

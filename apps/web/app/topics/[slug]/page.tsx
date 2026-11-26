@@ -3,9 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { itemListLd, listMetadata, NewsList } from "@/components/public/NewsList";
 import { JsonLd, PublicPage, StartBand } from "@/components/public/PublicPage";
+import { RecentGlance, TopicIntro } from "@/components/public/TopicGlance";
 import { TopicGroupIcon } from "@/components/TopicGroupIcon";
 import { kstToday, parseArchiveQuery, type ArchiveQuery } from "@/lib/public-archive";
 import { detailsLine, PUBLIC_TOPICS, publicTopicBySlug, topicsPath, type PublicTopic } from "@/lib/public-topics";
+import { topicBlurb, topicMetaDescription } from "@/lib/public-topic-blurbs";
 import { getPlans } from "@/lib/server/plans";
 import { publicArchive, publicTopicDigest, type PublicArchive } from "@/lib/server/public-topics";
 import { SITE_NAME, appUrl, organizationId } from "@/lib/site";
@@ -17,13 +19,14 @@ import { SITE_NAME, appUrl, organizationId } from "@/lib/site";
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const title = (t: PublicTopic) => `${t.name} 소식 요약, 출퇴근길에 듣기`;
-const description = (t: PublicTopic) =>
-  `${t.name} 분야(${detailsLine(t, 4)}) 소식을 AI로 요약해서 출근길·퇴근길에 음성으로 들려줘요. 맹고가 요약한 ${t.name} 소식을 최신순으로 모두 모았어요.`;
+// 설명: 주제마다 손으로 쓴 설명의 첫 문장(lib/public-topic-blurbs.ts, 2026-11-26 사용자: 서치 콘솔 '색인 안 됨' → 주제마다 고유한 내용). 쪽을 넘긴 주소는 쪽 번호가 붙는다
+const description = (t: PublicTopic, page = 1) => topicMetaDescription(t.id, t.name, page);
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const topic = publicTopicBySlug((await params).slug);
   if (!topic) return {};
-  return listMetadata(topic, { title: title(topic), description: description(topic) }, parseArchiveQuery(await searchParams));
+  const query = parseArchiveQuery(await searchParams);
+  return listMetadata(topic, { title: title(topic), description: description(topic, query.page) }, query);
 }
 
 /**
@@ -57,7 +60,7 @@ export default async function TopicPage({ params, searchParams }: Props) {
   const topic = publicTopicBySlug((await params).slug);
   if (!topic) notFound();
   const query = parseArchiveQuery(await searchParams);
-  const [{ sources }, plans, archive] = await Promise.all([publicTopicDigest(topic), getPlans(), publicArchive(topic, query)]);
+  const [{ sources, month }, plans, archive] = await Promise.all([publicTopicDigest(topic), getPlans(), publicArchive(topic, query)]);
   if (query.page > 1 && archive.items.length === 0) notFound();
   const others = PUBLIC_TOPICS.filter((t) => t.slug !== topic.slug);
   const faq = topicFaq(topic, sources, plans.get("free")!, plans.get("plus")!.dailyItems);
@@ -89,11 +92,11 @@ export default async function TopicPage({ params, searchParams }: Props) {
         <header className="mt-8">
           <TopicGroupIcon id={topic.id} className="size-14 rounded-2xl" iconClassName="size-8" />
           <h1 className="mt-4 text-[34px] font-black leading-[1.2] tracking-[-0.04em] md:text-[44px]">{topic.name} 소식</h1>
-          <p className="mt-4 text-[17px] font-medium leading-relaxed text-sub">
-            맹고의 {topic.name} 분야는 {detailsLine(topic)} 소식을 다뤄요. 아침과 오후에 국내외 매체와 공식 블로그에서 새 글을 모아 같은 소식은 하나로 묶고, AI로 요약해서
-            출근길·퇴근길에 음성으로 들려줘요.
-          </p>
+          <TopicIntro blurb={topicBlurb(topic.id, topic.name)} />
         </header>
+
+        {/* 최근 30일 한눈에: 소식이 적으면(30일 3개 미만) 숨긴다 */}
+        {month && <RecentGlance name={topic.name} month={month} />}
 
         {/* 소식 목록. 위 칩으로 세부 주제 페이지(/topics/<분야>/<주제>)로 좁힌다 */}
         <div className="mt-10">
@@ -168,7 +171,7 @@ function TopicJsonLd({ topic, archive, query, faq }: { topic: PublicTopic; archi
           "@type": "CollectionPage",
           name: `${topic.name} 소식`,
           url,
-          description: description(topic),
+          description: description(topic, query.page),
           inLanguage: "ko-KR",
           isPartOf: { "@id": `${appUrl("/")}#website` },
           publisher: { "@id": organizationId() },

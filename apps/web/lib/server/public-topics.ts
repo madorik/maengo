@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 import { MIN_RELEVANCE, popularityBoost, rankFeed, type Impact, type RankCandidate } from '@maengo/core/feed';
 import { childrenOf } from '@maengo/core/topics';
+import { summarizeMonth, type GlanceTop, type PublicMonth } from '../public-glance';
 import { PUBLIC_DETAILS, PUBLIC_TOPICS, type PublicDetail, type PublicTopic } from '../public-topics';
 import { db, must } from './db';
 import { sharePath } from './share-token';
@@ -40,12 +41,17 @@ export interface PublicTopicItem {
   field?: string;
 }
 
+/** '최근 30일 한눈에'에 쓰는 한 줄 소식(여러 매체가 함께 다룬 소식). href는 카드와 같은 1분 요약 글 주소 */
+export type PublicMonthTop = GlanceTop & { href: string };
+
 export interface PublicTopicDigest {
   items: PublicTopicItem[];
   /** 지난 30일 이 분야 소식을 낸 출처(많이 낸 순) */
   sources: string[];
   /** 이 분야에 마지막으로 요약된 소식의 시각. 없으면 null */
   updatedAt: string | null;
+  /** 최근 30일 한눈에(소식 수·주별 수·여러 매체가 다룬 소식). 소식이 GLANCE_MIN_ITEMS개보다 적으면 null */
+  month: (Omit<PublicMonth, 'top'> & { top: PublicMonthTop[] }) | null;
 }
 
 interface SummaryRow {
@@ -128,7 +134,8 @@ export function publicTopicDigest(topic: PublicTopic): Promise<PublicTopicDigest
   return cachedDigest([topic.id, ...childrenOf(topic.id).map((c) => c.id)], LIST_DAYS, LIST_LIMIT, 3);
 }
 
-const cachedDigest = unstable_cache((ids: string[], listDays: number, limit: number, maxPerTopic: number) => digest(new Set(ids), listDays, limit, maxPerTopic), ['public-digest-v1'], {
+// v2: 결과에 month(최근 30일 한눈에)가 더해졌다. 예전 캐시에는 없어서 키를 올린다
+const cachedDigest = unstable_cache((ids: string[], listDays: number, limit: number, maxPerTopic: number) => digest(new Set(ids), listDays, limit, maxPerTopic), ['public-digest-v2'], {
   revalidate: 3600,
 });
 
@@ -157,7 +164,7 @@ export async function publicDetailStats(): Promise<Map<string, { count: number; 
 async function digest(ids: ReadonlySet<string>, listDays: number, limit: number, maxPerTopic: number): Promise<PublicTopicDigest> {
   const { summaries, topicsOf } = await recent();
   const mine = summaries.filter((s) => topicsOf.get(s.cluster_id)?.some((t) => ids.has(t.topicId)));
-  if (!mine.length) return { items: [], sources: [], updatedAt: null };
+  if (!mine.length) return { items: [], sources: [], updatedAt: null, month: null };
 
   const items = await inChunks(
     mine.map((s) => s.cluster_id),
@@ -184,6 +191,21 @@ async function digest(ids: ReadonlySet<string>, listDays: number, limit: number,
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko'))
     .slice(0, SOURCE_LIMIT)
     .map(([name]) => name);
+
+  // 최근 30일 한눈에: 소식 목록(publicArchive)이 세는 것과 같은 조건(관련도 MIN_RELEVANCE 이상, 공개 출처 글이 있는 소식)의 수·주별 수·여러 매체가 다룬 소식.
+  // 이미 읽은 지난 30일 소식과 출처 글로만 세어서 DB를 더 읽지 않는다. 한 시간 캐시(위 cachedDigest)에 같이 들어간다
+  const counted = mine.filter((s) => publicMembers.has(s.cluster_id) && topicsOf.get(s.cluster_id)!.some((t) => ids.has(t.topicId) && t.relevance >= MIN_RELEVANCE));
+  const glance = summarizeMonth(
+    counted.map((s) => ({
+      clusterId: s.cluster_id,
+      title: s.title,
+      firstSeenAt: s.clusters.first_seen_at,
+      date: dateOf(s),
+      outlets: new Set(publicMembers.get(s.cluster_id)!.map((m) => m.sources!.name)).size,
+    })),
+    Date.now(),
+  );
+  const month = glance && { ...glance, top: glance.top.map((t) => ({ ...t, href: sharePath(t.clusterId) })) };
 
   // 목록: 기간 안의 소식을 이 분야(주제) 전체를 고른 사람의 순서로
   const now = new Date();
@@ -228,6 +250,7 @@ async function digest(ids: ReadonlySet<string>, listDays: number, limit: number,
     }),
     sources,
     updatedAt: mine.reduce((a, s) => (s.created_at > a ? s.created_at : a), mine[0]!.created_at),
+    month,
   };
 }
 
