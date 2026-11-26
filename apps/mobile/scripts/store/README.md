@@ -30,3 +30,11 @@
 - 퇴근길(`pm`)은 그날 로컬 퇴근길 피드가 있어야 한다. 없으면 전날 퇴근길 피드를 오늘로 잠깐 복사하고 `feed_days.visible`을 20으로 둔 뒤 찍고 되돌린다
 - iOS는 출시된 버전의 스크린샷·설명을 못 바꾸므로 새 버전 + 새 빌드: pbxproj의 `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION`을 올리고 archive → exportArchive(업로드) → `asc-build-state.mjs 11` → `asc-version.mjs` → `upload.mjs … asc` → `asc-submit.mjs 1.3.4 11`. Play는 빌드 없이 `upload.mjs … play`
 
+
+### 2026-11-26 (1.3.6) 새 아이콘·새 화면, 설명 '제작 계기 + 주요 기능'판
+- 원본은 `raw5.mjs <원본폴더> <w> <h> <3> <ios|android> <main|pm|onboarding>`(개발 서버 :3200, `PORT`로 바꾼다). iOS `393 852`, 안드로이드 `360 800`. 찍는 화면: 소식 상세(article, 핵심 요약), 오늘(today, 인사이트 제목+흐름 카드), 흐름 상세(flow, 맹고 분석), 주간 리포트(report, Premium), 플레이어(listen, 시간 표시 없음), 물어보기(ask, 예상 질문 칩), 보관함(library), 온보딩(pick), 퇴근길 오늘(today-pm). 앞의 6개가 스토어 6장, 나머지는 소개 페이지 사진.
+- 개발 DB(로컬 Supabase)에서만 데모 상태를 바꾼다(찍은 뒤 되돌린다): `profiles.plan='plus'`·`premium_until`(리포트·듣기 Premium 화면), `display_name='지민'`, 오늘 날짜 `feeds`·`feed_days`·`briefing_insights`를 지난 날(11-24 am) 것으로 복사(오늘 소식 오기 전 화면이 아니라 채워진 홈), 오늘 소식의 `reads` 비우기(읽음 흐림 없이), 온보딩은 `onboarded_at` 비우기, 퇴근길은 11-25 am 피드·인사이트를 오늘 `slot='pm'`(rank 11~20, `visible` 20)으로 복사하고 `.env.development.local`의 `DEV_BRIEFING_SLOT=pm`(파일만 고치면 개발 서버가 다시 읽는다. 끝나면 `am`으로). 플랜을 바꾸면 `plan_changes`에 줄이 생기고 듣기·읽기는 `user_topics` 비중·`usage_log`를 바꾸니 지운다(찍기 전 CSV로 받아 두고 되돌렸다)
+- 듣기 화면: 개발 서버도 처음 듣는 소식은 TTS로 만들어 `audio_segments`에 남긴다(R2). 맹고 AI 예상 질문은 로컬 DB에 질문이 이미 있는 소식(우리투자증권 공모채)으로 열어 Gemini를 안 부른다
+- 스토어 이미지: `node compose.mjs <원본폴더> <결과폴더> apps/web/app/icon.svg`. 순서는 설명 차례(핵심 요약 → 흐름 → 영향 → 주간 리포트 → 듣기 → 맹고 AI). 안드로이드는 폰 아래가 잘려서 폭을 조금 좁혔고, 원본도 그에 맞춰 article은 80px 내려 찍고 ask는 높이 680으로 찍는다
+- Play 아이콘: `apps/mobile/assets/icon-only.png`를 512×512로 줄여 `icon-512.png`
+- 소개 페이지 사진 8장(`apps/web/components/landing/app-*.webp`, 600×1301)은 같은 iOS 원본을 `sharp`로 줄인 것(today·today-pm·listen·article·ask·found(온보딩 pick)·library·report). 회사 소개 `apps/company/img/maengo-today·maengo-pm·maengo-listen.webp`는 today·today-pm·listen의 복사본이다

@@ -11,14 +11,14 @@ const icon = `data:image/svg+xml;base64,${readFileSync(iconPath).toString("base6
 // 2026-11-10 개편판: 하루 두 번 브리핑(출근길·퇴근길)부터, 듣기·맹고 AI·관심사 찾기·요약·보관함 골라 듣기·주간 리포트(Premium).
 // Play 휴대전화 스크린샷은 8장까지. 원본은 로컬 개발 서버에서 데모 계정으로 찍었다(raw2.mjs, 맹고-문서/스토어-스크린샷.md)
 const SLIDES_KO = [
-  // 2026-11-12(1.3.5) 재테크하는 직장인(맹고-문서/타겟.md): 맞춤 인사이트·맞춤 체크가 보이는 오늘 화면부터. 원본은 raw4.mjs, 온보딩(pick)은 11-11 원본.
-  // 퇴근길·보관함은 뺐다(6장)
-  { raw: "today", lines: ["내 관심 분야 소식", "오늘 뉴스 핵심 요약"] },
-  { raw: "playing", lines: ["출근길엔", "누르면 바로 읽어 줘요"] },
-  { raw: "article", lines: ["핵심만 짧게 요약하고", "원문은 바로 확인해요"] },
-  { raw: "ask", lines: ["궁금한 건 예상 질문을", "골라 바로 물어봐요"] },
-  { raw: "report", lines: ["한 주 소식은", "주간 리포트로 정리해요"] },
-  { raw: "pick", lines: ["끌리는 소식만 고르면", "관심사는 맹고가 찾아요"] },
+  // 2026-11-26(1.3.6) 새 앱 아이콘·새 화면, 설명 '제작 계기 + 주요 기능'판(STORE.md 전체 설명)의 차례대로: 핵심 요약 → 사건의 흐름 → 시장에 미칠 영향 → 주간 리포트 → 음성 듣기 → 맹고 AI.
+  // 원본은 raw5.mjs(소식 상세 article, 오늘 today, 흐름 상세 flow, 주간 리포트 report, 플레이어 listen, 물어보기 ask). 6장
+  { raw: "article", lines: ["관심 키워드 뉴스,", "핵심만 요약해요"] },
+  { raw: "today", lines: ["어제와 오늘,", "흐름으로 이어 봐요"] },
+  { raw: "flow", lines: ["시장에 미칠 영향을", "세 가지로 짚어요"] },
+  { raw: "report", lines: ["지난주를 한 장으로,", "주간 리포트"] },
+  { raw: "listen", lines: ["출퇴근길엔", "귀로 들어요"] },
+  { raw: "ask", lines: ["궁금하면", "맹고 AI에게"] },
 ];
 
 const SLIDES_EN = [
@@ -39,7 +39,8 @@ function slideHtml({ src, lines, dark }, W, H) {
   // W·H는 CSS px(3배로 찍는다). 글씨·폰 크기는 폭 기준
   const pad = Math.round(W * 0.075);
   const cap = Math.round(W * 0.083);
-  const phoneW = Math.round(W * 0.8);
+  // 안드로이드(360×640)는 폰 아래가 많이 잘려서(79%만 보인다) 조금 좁혀 화면이 더 보이게(아래 떠 있는 버튼 윗줄이 비치지 않을 만큼만)
+  const phoneW = Math.round(W * (W < 400 ? 0.785 : 0.8));
   const bezel = Math.round(W * 0.022);
   const radius = Math.round(W * 0.095);
   return `<!doctype html><html><head><meta charset="utf-8">${FONT}<style>
