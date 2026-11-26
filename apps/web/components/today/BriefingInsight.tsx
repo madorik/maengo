@@ -149,8 +149,9 @@ export function InsightFlows({
   return (
     <section aria-labelledby="flows-title" className="mt-4">
       <div className="flex min-h-11 items-center justify-between gap-2 px-1.5">
+        {/* 2026-11-26 사용자: '오늘의 흐름'은 밖에서 보면 뜻이 애매하다 → '오늘의 핵심 이슈' */}
         <h2 id="flows-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
-          오늘의 흐름
+          오늘의 핵심 이슈
         </h2>
         <button
           type="button"
@@ -163,7 +164,7 @@ export function InsightFlows({
       </div>
       <ul
         ref={scroller}
-        aria-label="오늘의 흐름 카드"
+        aria-label="오늘의 핵심 이슈 카드"
         onScroll={(e) => {
           const el = e.currentTarget;
           setAt(Math.min(count - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, step(el))))));
@@ -511,7 +512,7 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
           }}
           className="btn btn-ink mt-4 w-full gap-2"
         >
-          <IconPlay className="size-[18px]" />이 흐름부터 듣기
+          <IconPlay className="size-[18px]" />이 이슈부터 듣기
         </button>
       )}
     </div>
@@ -613,8 +614,9 @@ export function InsightFallback() {
   return (
     <section aria-labelledby="flows-title" className="mt-4">
       <div className="flex min-h-11 items-center px-1.5">
+        {/* 2026-11-26 사용자: '오늘의 흐름'은 밖에서 보면 뜻이 애매하다 → '오늘의 핵심 이슈' */}
         <h2 id="flows-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
-          오늘의 흐름
+          오늘의 핵심 이슈
         </h2>
       </div>
       {/* 흐름 카드와 같은 틀(위 남색 칸 = 사진 자리, 아래 회색 줄 = 영향·핵심 요약 자리)이라 다 되면 같은 자리에 카드가 들어온다 */}

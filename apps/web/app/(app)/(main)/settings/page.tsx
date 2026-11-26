@@ -131,7 +131,7 @@ export default async function SettingsPage() {
         {/* 맞춤 인사이트(2026-11-11): 끄면 내 맞춤 정보·최근 본 소식을 오늘의 흐름에 쓰지 않는다(개인정보 처리방침 5조 국외 이전 거부 방법) */}
         <Section id="personal" title="맞춤 인사이트" action={<PersonalInsightToggle on={personalOn(ctx)} />}>
           <p className="mt-1 text-[14px] leading-relaxed text-sub">
-            내 맞춤 정보와 최근 본 소식으로 오늘의 흐름과 맞춤 체크를 짚어 드려요. 끄면 소식 요약만으로 만들어요.
+            내 맞춤 정보와 최근 본 소식으로 오늘의 핵심 이슈와 맞춤 체크를 짚어 드려요. 끄면 소식 요약만으로 만들어요.
           </p>
           {/* 내 맞춤 정보: 소식을 보다 알려 준 답을 보고 바꾸거나 지운다(개인정보 처리방침 3조). 2026-11-11 사용자: 내 관심 키워드엔 보이지 말 것 → 여기 접어 둔다 */}
           <details id="my-context" className="group mt-3 border-t border-line">
