@@ -12,7 +12,7 @@ function Status() {
 }
 
 /**
- * 오늘 화면(2026-11-26 시안 C안): 작은 줄 + 큰 제목 두 줄 + 근거 사실 줄 → '오늘의 흐름' 머리 + 흐름 카드(위 사진 칸, 아래 요약·영향 줄, 오른쪽에 다음 카드 끝) + 점
+ * 오늘 화면(2026-11-26 시안 E안): 작은 줄 + 큰 제목 두 줄 + 근거 사실 줄 → '오늘의 흐름' 머리 + 관심 탭 + 흐름 카드(위 사진 칸, 아래 영향·요약 줄, 오른쪽에 다음 카드 끝)
  * → '맞춤 소식' 머리 + 분야 칩 → 소식 줄. 머리 오른쪽 재생 원은 없다(2026-11-26 사용자, 전체 듣기는 떠 있는 플레이어).
  * 퇴근길이어도 밝기는 사용자가 고른 대로(남색으로 바꾸지 않는다, 2026-11-26)
  */
@@ -32,24 +32,23 @@ export function TodaySkeleton() {
           <div className="sk h-5 w-24 rounded-md" />
           <div className="sk-ink h-3.5 w-14 rounded-full" />
         </div>
-        <div className="-mx-4 mt-1 flex gap-3 overflow-hidden px-[22px] pb-1">
+        <div className="-mx-4 mt-1 flex gap-2 overflow-hidden px-[22px]">
+          {[96, 96, 104].map((w, k) => (
+            <span key={k} className={`h-9 shrink-0 rounded-full ${k === 0 ? "sk-card-ink" : "sk"}`} style={{ width: w }} />
+          ))}
+        </div>
+        <div className="-mx-4 mt-3 flex gap-3 overflow-hidden px-[22px] pb-1">
           {[0, 1].map((k) => (
             <div key={k} className="w-[calc(100%-30px)] max-w-[360px] shrink-0 overflow-hidden rounded-[22px] border border-line">
-              <div className="sk-card-ink h-[164px]" />
-              <div className="h-[210px] px-4 pt-4">
-                <div className="sk h-4 w-11/12 rounded-md" />
-                <div className="sk mt-2.5 h-4 w-3/4 rounded-md" />
-                <div className="my-4 h-px bg-line" />
-                <div className="sk h-3.5 w-32 rounded-md" />
-                <div className="sk mt-2.5 h-[18px] w-4/5 rounded-md" />
+              <div className="sk-card-ink h-[228px]" />
+              <div className="h-[170px] px-4 pt-4">
+                <div className="sk h-[18px] w-11/12 rounded-md" />
+                <div className="sk mt-2 h-[18px] w-3/5 rounded-md" />
+                <div className="sk mt-4 h-3.5 w-4/5 rounded-md" />
+                <div className="sk mt-2.5 h-3.5 w-2/3 rounded-md" />
               </div>
             </div>
           ))}
-        </div>
-        <div className="mt-2.5 flex justify-center gap-1.5">
-          <span className="h-[7px] w-5 rounded-full bg-mango/80" />
-          <span className="size-[7px] rounded-full bg-line-dark" />
-          <span className="size-[7px] rounded-full bg-line-dark" />
         </div>
 
         <div className="mt-6 flex min-h-11 items-center justify-between px-1.5">

@@ -1,5 +1,5 @@
 /**
- * 오늘 화면 '오늘의 흐름' 카드에 쓰는 글 고르기(2026-11-26 시안 C안: 사진 위 흐름 제목 → 핵심 요약 두 줄 → '국내 주식에 부담 요인' + 영향 한 문장).
+ * 오늘 화면 '오늘의 흐름' 카드·탭에 쓰는 글 고르기(2026-11-26 시안 E안: 관심 탭 → 사진 위 '국내 주식에 부담 요인' 알약과 핵심 숫자 → 영향 한 문장 → 핵심 요약 두 줄).
  * 화면(components/today/BriefingInsight.tsx)과 떼어 두어 시험한다(lib/__tests__/insight-card.test.ts)
  */
 
@@ -37,6 +37,19 @@ export function pointsOf(flow: { points?: string[]; fact?: string; text: string 
   if (flow.points?.length) return flow.points.slice(0, 2);
   const sentences = flow.text.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean);
   return [flow.fact, ...sentences].filter((s): s is string => !!s).slice(0, 2);
+}
+
+/** 핵심 숫자를 크게 쓸 때: 앞의 '-'는 길이가 맞는 빼기 기호(−)로 */
+export function figureText(value: string): string {
+  return value.trim().replace(/^-/, "−");
+}
+
+/**
+ * 흐름 탭 이름: 그 흐름이 짚는 관심(whoOf). 관심이 없거나 다른 흐름과 겹치면 흐름 제목으로(같은 이름 탭이 둘이면 어느 카드인지 모른다)
+ */
+export function tabLabels(flows: { title: string; links?: string[] }[]): string[] {
+  const who = flows.map((f) => whoOf(f.links));
+  return flows.map((f, k) => (who[k] && who.filter((w) => w === who[k]).length === 1 ? who[k]! : f.title));
 }
 
 /**

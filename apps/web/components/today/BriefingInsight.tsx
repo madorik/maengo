@@ -17,7 +17,7 @@ import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight, InsightTone } from "@/lib/server/briefing-insight";
 import { SEEN_MIN } from "@/lib/insight-rules";
-import { alsoOf, pointsOf, whoOf } from "@/lib/insight-card";
+import { alsoOf, figureText, pointsOf, tabLabels, whoOf } from "@/lib/insight-card";
 import { track } from "@/lib/analytics";
 
 /**
@@ -121,7 +121,9 @@ const EDGE = 22;
 const GAP = 12;
 
 /**
- * 오늘의 흐름(2026-11-26 시안 C안): '오늘의 흐름' + 오른쪽 '전체 보기'(지금 보는 카드의 흐름 상세 시트) → 흐름 카드를 옆으로 넘긴다(scroll-snap) → 아래 점(지금 카드는 망고 노랑 막대).
+ * 오늘의 흐름(2026-11-26 시안 E안, 사용자: 더 임팩트 있게): '오늘의 흐름' + 오른쪽 '전체 보기'(지금 보는 카드의 흐름 상세 시트)
+ * → 관심 탭('⚠ 국내 주식'·'👁 내 집 마련': 흐름마다 짚는 관심과 성격. 넘기기 전에 내 관심사 어디에 어떤 영향인지 한눈에, 누르면 그 카드로. 예전 점 자리)
+ * → 흐름 카드를 옆으로 넘긴다(scroll-snap, 넘기면 탭도 따라 바뀐다).
  * 카드를 누르면 흐름 상세 시트(2026-11-11 사용자: 누르면 상세를 볼 수 있어야 한다). 카드에 재생 버튼은 없다(2026-11-26 사용자) — 듣기는 떠 있는 플레이어와 흐름 상세에서
  */
 export function InsightFlows({
@@ -142,6 +144,7 @@ export function InsightFlows({
   const count = insight.flows.length;
   if (!count) return null;
   const opened = open === null ? null : insight.flows[open];
+  const tabs = tabLabels(insight.flows);
   /** 카드 한 장 넘기는 거리 */
   const step = (el: HTMLElement) => ((el.children[1] as HTMLElement | undefined)?.offsetLeft ?? el.clientWidth) - ((el.children[0] as HTMLElement | undefined)?.offsetLeft ?? 0);
   const go = (k: number) => {
@@ -163,6 +166,31 @@ export function InsightFlows({
           전체 보기
         </button>
       </div>
+      {count > 1 && (
+        <div
+          role="group"
+          aria-label="오늘의 흐름 고르기"
+          style={{ paddingInline: EDGE }}
+          className="-mx-4 mt-1 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {insight.flows.map((f, k) => {
+            const on = k === at;
+            const tone = f.effect && f.tone ? f.tone : null;
+            return (
+              <button
+                key={f.title}
+                type="button"
+                aria-pressed={on}
+                onClick={() => go(k)}
+                className={`inline-flex h-9 max-w-[200px] shrink-0 items-center gap-1.5 rounded-full border text-[14px] tracking-[-0.02em] ${on ? "border-ink bg-ink font-extrabold text-paper" : "border-line-dark font-semibold text-ink"} ${tone ? "pl-3 pr-3.5" : "px-3.5"}`}
+              >
+                {tone && <ToneIcon tone={tone} className={`size-[15px] shrink-0 ${on ? "" : VERDICT[tone].text}`} />}
+                <span className="truncate">{tabs[k]}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <ul
         ref={scroller}
         aria-label="오늘의 흐름 카드"
@@ -171,21 +199,12 @@ export function InsightFlows({
           setAt(Math.min(count - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, step(el))))));
         }}
         style={{ paddingInline: EDGE, scrollPaddingInline: EDGE, columnGap: GAP }}
-        className="-mx-4 mt-1 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className={`-mx-4 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${count > 1 ? "mt-3" : "mt-1"}`}
       >
         {insight.flows.map((f, k) => (
           <FlowCard key={f.title} flow={f} personal={insight.personal} onOpen={() => setOpen(k)} />
         ))}
       </ul>
-      {count > 1 && (
-        <div role="group" aria-label="오늘의 흐름 고르기" className="mt-1 flex justify-center">
-          {insight.flows.map((f, k) => (
-            <button key={f.title} type="button" aria-label={`${k + 1}번째 흐름`} aria-pressed={k === at} onClick={() => go(k)} className="flex h-6 w-[26px] items-center justify-center">
-              <span className={`block h-[7px] rounded-full transition-[width,background-color] duration-200 ${k === at ? "w-5 bg-mango" : "w-[7px] bg-faint/50"}`} />
-            </button>
-          ))}
-        </div>
-      )}
       <Sheet title={opened?.title ?? ""} open={!!opened} onClose={() => setOpen(null)}>
         {opened && open !== null && <FlowDetail key={open} flow={opened} index={open} care={careOf(insight, open, personalOff, name)} onClose={() => setOpen(null)} />}
       </Sheet>
@@ -194,11 +213,12 @@ export function InsightFlows({
 }
 
 /**
- * 흐름 카드 한 장(2026-11-26 시안 C안). 카드 전체가 흐름 상세 시트 버튼.
- * ① 위쪽 사진(164px, 이미지가 잘 보여야 눈이 간다 — 어두운 그라데이션은 글자가 놓이는 아래쪽에만): '소식 n개' + 흐름 제목(사진 위라 밝기 설정과 상관없이 흰 글자).
- *    사진이 없으면 남색 바탕. ② 핵심 요약 두 줄(points, 예전 형식은 사실 + 설명 첫 문장). ③ 얇은 선 아래 '국내 주식에 부담 요인' + 영향 한 문장,
- *    같은 흐름의 맞춤 체크가 다른 관심에 닿으면 '대출 이자에는 지켜볼 변수예요' 한 줄. 영향이 없는 흐름은 ③ 없이. ④ '자세히 보기'.
- * 카드 높이는 줄에서 가장 긴 카드에 맞추고(늘어남), 남는 자리는 영향과 '자세히 보기' 사이로 가서 '자세히 보기' 줄이 카드마다 같은 높이에 온다
+ * 흐름 카드 한 장(2026-11-26 시안 E안, 사용자: 오늘의 흐름을 더 임팩트 있게). 카드 전체가 흐름 상세 시트 버튼.
+ * ① 위쪽 큰 사진(228px, 이미지가 잘 보여야 눈이 간다). 글자는 사진 위라 밝기 설정과 상관없이 흰 글자, 사진이 없으면 남색 바탕.
+ *    - 왼쪽 위: 흰 알약 '⚠ 국내 주식에 부담 요인'(영향이 있을 때), 같은 흐름이 다른 관심에도 닿으면 그 아래 작은 알약 하나 더
+ *    - 아래: 핵심 숫자가 있으면(형식 15) 흐름 제목(작게) + 큰 숫자 '−4.6%' + 이름 '코스피 장중', 없으면 '소식 n개' + 흐름 제목(크게)
+ * ② 영향 한 문장(굵게) ③ 핵심 요약 두 줄(points, 예전 형식은 사실 + 설명 첫 문장) ④ '자세히 보기'.
+ * 카드 높이는 줄에서 가장 긴 카드에 맞추고(늘어남), 남는 자리는 요약과 '자세히 보기' 사이로 가서 '자세히 보기' 줄이 카드마다 같은 높이에 온다
  */
 function FlowCard({ flow, personal, onOpen }: { flow: BriefingInsight["flows"][number]; personal: BriefingInsight["personal"]; onOpen: () => void }) {
   const { data } = useToday();
@@ -207,6 +227,7 @@ function FlowCard({ flow, personal, onOpen }: { flow: BriefingInsight["flows"][n
   const points = pointsOf(flow);
   const who = whoOf(flow.links);
   const also = tone ? alsoOf(flow, who, personal) : null;
+  const figure = flow.figure ? { value: figureText(flow.figure.value), label: flow.figure.label } : null;
   return (
     <li className="flex w-[calc(100%-30px)] max-w-[360px] shrink-0 snap-start">
       <button
@@ -215,48 +236,49 @@ function FlowCard({ flow, personal, onOpen }: { flow: BriefingInsight["flows"][n
         onClick={onOpen}
         className="flex w-full flex-col overflow-hidden rounded-[22px] border border-line bg-paper text-left active:scale-[0.99] motion-reduce:active:scale-100"
       >
-        <span className="relative block h-[164px] w-full shrink-0 bg-[#1F2340]">
+        <span className="relative block h-[228px] w-full shrink-0 bg-[#1F2340]">
           {photo && <PhotoImg src={photo} size="card" className="absolute inset-0 size-full" />}
-          <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,16,0)_42%,rgba(12,13,16,0.8)_100%)]" />
+          {/* 위(알약)와 아래(숫자·제목)만 어둡게, 가운데는 사진이 그대로 보이게 */}
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,16,0.32)_0%,rgba(12,13,16,0)_26%,rgba(12,13,16,0.1)_44%,rgba(12,13,16,0.86)_100%)]"
+          />
+          {tone && (
+            <span className="absolute inset-x-3.5 top-3.5 flex flex-col items-start gap-1.5">
+              <TonePill tone={tone} who={who} />
+              {also && <TonePill tone={also.tone} who={also.who} small />}
+            </span>
+          )}
           <span className="absolute inset-x-4 bottom-3.5 block text-white">
-            <span className="block text-[12px] font-bold text-white/85">소식 {flow.ids.length}개</span>
-            <span className="mt-0.5 line-clamp-2 block text-[19px] font-extrabold leading-[1.35] tracking-[-0.04em]">{flow.title}</span>
+            {figure ? (
+              <>
+                <span className="block truncate text-[13px] font-bold text-white/85">{flow.title}</span>
+                <span className="mt-0.5 flex items-baseline gap-2">
+                  <span className={`shrink-0 font-extrabold leading-[1.1] tracking-[-0.04em] tabular-nums ${figure.value.length > 6 ? "text-[36px]" : "text-[46px]"}`}>{figure.value}</span>
+                  <span className="min-w-0 truncate text-[14px] font-bold text-white/85">{figure.label}</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="block text-[13px] font-bold text-white/85">소식 {flow.ids.length}개</span>
+                <span className="mt-0.5 line-clamp-2 block break-keep text-[22px] font-extrabold leading-[1.32] tracking-[-0.045em]">{flow.title}</span>
+              </>
+            )}
           </span>
         </span>
         <span className="flex flex-1 flex-col px-4 pt-3.5">
+          {flow.effect && <span className="block break-keep text-[17px] font-extrabold leading-[1.42] tracking-[-0.035em] text-balance">{flow.effect}</span>}
           {points.length > 0 && (
-            <span className="flex flex-col gap-1">
+            <span className={`flex flex-col gap-[3px] ${flow.effect ? "mt-2" : ""}`}>
               {points.map((t) => (
-                <span key={t} className="flex gap-2 text-[14.5px] font-semibold leading-[1.5] tracking-[-0.02em] text-ink/90">
-                  <span aria-hidden="true" className="mt-[10px] size-1 shrink-0 rounded-full bg-ink" />
+                <span key={t} className="flex gap-2 text-[14px] font-medium leading-[1.5] tracking-[-0.02em] text-ink/75">
+                  <span aria-hidden="true" className="mt-[9px] size-1 shrink-0 rounded-full bg-sub" />
                   <span className="line-clamp-2 break-keep">{t}</span>
                 </span>
               ))}
             </span>
           )}
-          {tone && flow.effect && (
-            <>
-              <span aria-hidden="true" className={`block h-px bg-line ${points.length ? "my-3" : "mb-3"}`} />
-              <span className="flex items-center gap-1.5 text-[13.5px] font-extrabold text-ink">
-                <ToneIcon tone={tone} className={`size-3.5 shrink-0 ${VERDICT[tone].text}`} />
-                <span>
-                  {who && `${who}에 `}
-                  <span className={VERDICT[tone].text}>{TONE_LABEL[tone]}</span>
-                </span>
-              </span>
-              <span className="mt-1 block break-keep text-[16px] font-bold leading-[1.45] tracking-[-0.03em] text-balance">{flow.effect}</span>
-              {also && (
-                <span className="mt-2 flex items-center gap-1.5 text-[13.5px] font-semibold text-sub">
-                  <ToneIcon tone={also.tone} className={`size-3.5 shrink-0 ${VERDICT[also.tone].text}`} />
-                  <span>
-                    <b className="font-extrabold text-ink">{also.who}</b>에는 {TONE_LABEL[also.tone]}
-                    {also.tone === "watch" ? "예요" : "이에요"}
-                  </span>
-                </span>
-              )}
-            </>
-          )}
-          <span aria-hidden="true" className="min-h-1.5 flex-1" />
+          <span aria-hidden="true" className="min-h-2 flex-1" />
           <span className="flex h-11 items-center gap-0.5 text-[14px] font-bold text-sub">
             자세히 보기
             <IconChevronRight className="size-4" />
@@ -264,6 +286,21 @@ function FlowCard({ flow, personal, onOpen }: { flow: BriefingInsight["flows"][n
         </span>
       </button>
     </li>
+  );
+}
+
+/** 사진 위 흰 알약 '⚠ 국내 주식에 부담 요인'. 흰 바탕이라 어두운 화면에서도 밝은 화면의 판정 색(keep-light). small은 둘째 관심 */
+function TonePill({ tone, who, small = false }: { tone: InsightTone; who: string; small?: boolean }) {
+  return (
+    <span
+      className={`keep-light inline-flex max-w-full items-center gap-[5px] rounded-full font-extrabold text-[#1F2340] shadow-[0_2px_10px_rgba(12,13,16,0.18)] ${small ? "h-[26px] bg-white/92 pl-[9px] pr-[11px] text-[12.5px]" : "h-[30px] bg-white pl-2.5 pr-3 text-[13px]"}`}
+    >
+      <ToneIcon tone={tone} className={`shrink-0 ${small ? "size-[13px]" : "size-3.5"} ${VERDICT[tone].text}`} />
+      <span className="truncate">
+        {who && `${who}에 `}
+        <span className={VERDICT[tone].text}>{TONE_LABEL[tone]}</span>
+      </span>
+    </span>
   );
 }
 
@@ -607,9 +644,9 @@ export function InsightFallback() {
           오늘의 흐름
         </h2>
       </div>
-      {/* 흐름 카드와 같은 틀(위 남색 칸 = 사진 자리, 아래 회색 줄 = 핵심 요약·영향 자리)이라 다 되면 같은 자리에 카드가 들어온다 */}
+      {/* 흐름 카드와 같은 틀(위 남색 칸 = 사진 자리, 아래 회색 줄 = 영향·핵심 요약 자리)이라 다 되면 같은 자리에 카드가 들어온다 */}
       <div className="mx-1.5 mt-1 overflow-hidden rounded-[22px] border border-line">
-      <div className="flex h-[164px] flex-col justify-center bg-[#1F2340] px-5">
+      <div className="flex h-[228px] flex-col justify-center bg-[#1F2340] px-5">
         <p role="status" className="sr-only">
           맞춤 인사이트를 만들고 있어요. 보통 5~10초 걸려요
         </p>
@@ -636,12 +673,11 @@ export function InsightFallback() {
           <span className="making-pct w-11 shrink-0 text-right font-round text-[15px] font-extrabold tabular-nums text-mango" />
         </div>
       </div>
-      <div aria-hidden="true" className="flex h-[210px] flex-col px-4 pt-4">
-        <div className="sk h-4 w-11/12 rounded-md" />
-        <div className="sk mt-2.5 h-4 w-3/4 rounded-md" />
-        <div className="my-4 h-px bg-line" />
-        <div className="sk h-3.5 w-32 rounded-md" />
-        <div className="sk mt-2.5 h-[18px] w-4/5 rounded-md" />
+      <div aria-hidden="true" className="flex h-[170px] flex-col px-4 pt-4">
+        <div className="sk h-[18px] w-11/12 rounded-md" />
+        <div className="sk mt-2 h-[18px] w-3/5 rounded-md" />
+        <div className="sk mt-4 h-3.5 w-4/5 rounded-md" />
+        <div className="sk mt-2.5 h-3.5 w-2/3 rounded-md" />
       </div>
       </div>
     </section>

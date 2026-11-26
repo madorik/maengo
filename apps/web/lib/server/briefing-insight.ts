@@ -65,6 +65,8 @@ export interface BriefingInsight {
     fact?: string;
     /** 핵심 요약 두 줄(14: 오늘 화면 흐름 카드의 점 두 줄, 2026-11-26 사용자: 핵심 요약과 나한테 어떤 영향인지) */
     points?: string[];
+    /** 핵심 숫자 하나(15: 흐름 카드 사진 위에 크게, 예: '-4.6%' + '코스피 장중'). 그 흐름 소식 글에 있는 숫자만. 없으면 카드는 제목을 크게 */
+    figure?: { value: string; label: string };
     /** 이 흐름이 닿는 내 관심(12: 회원이 고른 관심·키워드·분야의 꼬리표, 서버가 근거 번호로 붙인다) */
     links?: string[];
     /** 그 관심과 이 흐름이 어떻게 이어지는지 한 문장(12) */
@@ -100,7 +102,9 @@ export interface BriefingInsight {
 //     '안 해요'로 답한 사정(주식은 안 해요)에 닿는 영향은 쓰지 않는다(11-15: 주식 안 하는 회원에게 'AI 관련 자산엔 부담 요인'), 흐름은 회원 사정에 닿는 것부터
 // 14: 오늘 화면 흐름 카드를 '사진 위 제목 → 핵심 요약 두 줄 → [관심]에 [성격] + 영향 한 문장'으로(2026-11-26 사용자: 사진·제목만 있는 카드는 다른 뉴스 앱과 다를 게 없다).
 //     흐름마다 핵심 요약 두 줄(points), effect는 화면이 따로 보여 주는 관심 이름·성격 낱말을 되풀이하지 않고 무엇이 달라지는지만
-const VERSION = 14;
+// 15: 흐름 카드를 시안 E안으로(2026-11-26 사용자: 오늘의 흐름을 더 임팩트 있게) — 사진 위에 핵심 숫자(figure) 하나를 크게.
+//     figure에 쓴 숫자는 points에서 되풀이하지 않는다
+const VERSION = 15;
 /** 미리 만들기(lib/server/insight-prewarm.ts)가 이미 새 형식으로 만들어 뒀는지 볼 때 쓴다 */
 export const INSIGHT_VERSION = VERSION;
 
@@ -158,7 +162,8 @@ const SYSTEM = `너는 재테크하는 출퇴근길 직장인에게 오늘 받�
   · links: 이 흐름이 실제로 닿는 회원의 관심 근거 번호 1~3개(입력에 있는 F·K·S·R 번호만). 회원이 고른 관심·직접 적은 키워드·분야 가운데 이 소식과 이어지는 것을 고른다.
   · relation: 그 관심과 이 흐름이 어떻게 이어지는지 한 문장(40자 안팎, 단정형). 예: "대출 이자를 신경 쓰고 있어 미국 물가 지표가 금리 기대를 거쳐 닿아요", "내 키워드 반도체의 대표 종목이 오늘 가장 크게 내렸어요". 관심 이름을 그대로 넣는다.
   · fact: 이 흐름의 핵심 사실 한 줄(30자 안팎). 요약에 있는 숫자·날짜·주체를 넣어 단정형으로 쓴다. 예: "미국 3분기 노동생산성 3.6% 증가", "코스피 한 달 새 23.4% 하락, 세계 낙폭 1위", "미래에셋증권 고객 3,800명 계좌번호 유출". 숫자가 없으면 주체와 사건만. 해석은 넣지 않는다.
-  · points: 핵심 요약 2줄. 이 흐름에서 무슨 일이 있었는지 서로 다른 사실 두 개를 한 줄씩(각 25자 안팎) 명사형 단정으로 쓴다. 요약에 있는 숫자·날짜·주체를 넣고 해석은 넣지 않는다. 첫 줄은 fact와 같아도 된다. 소식이 하나뿐인 흐름도 두 줄. 예: ["코스피 급락, 장 초반 매도 사이드카 발동", "미국, 한국 등 16개국 관세안 예고"], ["엔비디아·AMD 하루 만에 8% 넘게 하락", "12월 금리 인상 확률 97%에 육박"].
+  · figure: 화면 카드 사진 위에 크게 보여 줄 이 흐름의 핵심 숫자 하나. value는 부호·단위를 붙인 숫자만(8자 안팎, 예: "-4.6%", "97%", "552명", "16개국", "81.91달러"), label은 무엇의 숫자인지(12자 안팎, 예: "코스피 장중", "12월 금리 인상 확률", "유출된 고객 정보"). 이 흐름 소식의 요약에 있는 숫자만 쓰고 계산·반올림하지 않는다. 내린 것은 value 앞에 '-'를 붙인다. 숫자가 없거나 의미가 약하면 둘 다 빈 문자열.
+  · points: 핵심 요약 2줄. 이 흐름에서 무슨 일이 있었는지 서로 다른 사실 두 개를 한 줄씩(각 25자 안팎) 명사형 단정으로 쓴다. 요약에 있는 숫자·날짜·주체를 넣고 해석은 넣지 않는다. figure에 쓴 숫자는 되풀이하지 말고 그 밖의 사실을 쓴다. 소식이 하나뿐인 흐름도 두 줄. 예(figure가 "-4.6% 코스피 장중"일 때): ["장 초반 매도 사이드카 발동", "한국 포함 16개국 추가 관세안 발표 예고"], (figure가 "-8% 엔비디아·AMD 하루"일 때): ["AI 인프라 수익성 의구심에 반도체주 급락", "12월 금리 인상 확률 97%에 육박"].
   · effect: 이 흐름이 회원에게 갖는 의미 한 문장(35자 안팎). 화면은 effect 바로 위에 '[links의 첫 관심]에 [tone의 이름: 긍정 요인·부담 요인·지켜볼 변수]'를 따로 보여 준다(예: "국내 주식에 부담 요인"). 그래서 effect에는 그 관심 이름과 '요인·변수' 같은 성격 낱말을 되풀이하지 않고, 그 관심에 무엇이 달라지는지만 결과로, 단정적이고 차분하게 쓴다. 예: "관세 수위가 정해질 때까지 흔들림이 커요", "대출 금리가 내려갈 때가 늦어져요", "국내 반도체주 실적 기대가 낮아져요", "미래에셋증권 고객이라면 유출 대상인지 확인이 필요해요". '~수 있어요'로 흐리지 않는다(꼭 필요할 때만). '~경로가 중요해요'·'~에 영향을 줄 수 있어요'·'지켜봐야 해요'처럼 결과를 말하지 않는 문장은 쓰지 않는다. 사라·팔라·수익 장담은 하지 않는다.
   · tone: 그 의미가 이 회원에게 plus(긍정 요인) / minus(부담 요인) / watch(방향이 갈리는 변수) 중 하나.
 - checks: 0~2개. 이 소식들 때문에 사람이 실제로 해 볼 만한 생활 속 일이 있을 때만. "증권사 앱을 쓴다면 해킹 공지를 확인하고 비밀번호를 바꿔 보세요"처럼 '~라면 ~해 보세요' 꼴로 50자 안팎. id는 근거 소식 하나. 할 일이 없으면 빈 배열.
@@ -218,12 +223,13 @@ const SCHEMA = {
           watch: { type: 'array', items: { type: 'string' } },
           fact: { type: 'string' },
           points: { type: 'array', items: { type: 'string' } },
+          figure: { type: 'object', properties: { value: { type: 'string' }, label: { type: 'string' } }, required: ['value', 'label'] },
           links: { type: 'array', items: { type: 'string' } },
           relation: { type: 'string' },
           effect: { type: 'string' },
           tone: { type: 'string', enum: ['plus', 'minus', 'watch'] },
         },
-        required: ['title', 'text', 'ids', 'basis', 'topic', 'why', 'watch', 'fact', 'points', 'links', 'relation', 'effect', 'tone'],
+        required: ['title', 'text', 'ids', 'basis', 'topic', 'why', 'watch', 'fact', 'points', 'figure', 'links', 'relation', 'effect', 'tone'],
       },
     },
     checks: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, id: { type: 'integer' } }, required: ['text', 'id'] } },
@@ -519,6 +525,17 @@ function impactOf(
 }
 
 /**
+ * 핵심 숫자(15): 값에 숫자가 있고 짧으며 이름이 있을 때만. 값의 숫자가 그 흐름 소식 글에 없으면(지어냈거나 계산한 숫자) 버린다 → 카드는 제목을 크게
+ */
+function figureOf(f: { figure?: unknown }, source: string): { figure?: { value: string; label: string } } {
+  const raw = (f?.figure && typeof f.figure === 'object' ? f.figure : {}) as { value?: unknown; label?: unknown };
+  const value = str(raw.value, 16).replace(/\s+/g, '');
+  const label = plainWords(str(raw.label, 24));
+  if (!value || !label || !/\d/.test(value) || value.length > 12 || unknownNumber(value, source)) return {};
+  return { figure: { value, label } };
+}
+
+/**
  * 모양을 맞추고 입력에 없는 소식 번호·근거 번호는 버린다. 꼬리표는 근거 번호로 서버가 붙인다(lib/insight-rules.ts).
  * 흐름이 하나도 안 남으면 null
  */
@@ -534,7 +551,7 @@ function clean(out: RawInsight, items: TodayData['items'], p: Personal): Briefin
   };
 
   const flows = (Array.isArray(out.flows) ? out.flows : [])
-    .map((f: { title?: unknown; text?: unknown; ids?: unknown; basis?: unknown; topic?: unknown; why?: unknown; watch?: unknown; fact?: unknown; points?: unknown; links?: unknown; relation?: unknown; effect?: unknown; tone?: unknown }) => {
+    .map((f: { title?: unknown; text?: unknown; ids?: unknown; basis?: unknown; topic?: unknown; why?: unknown; watch?: unknown; fact?: unknown; points?: unknown; figure?: unknown; links?: unknown; relation?: unknown; effect?: unknown; tone?: unknown }) => {
       const ids = (Array.isArray(f?.ids) ? f.ids : []).map(Number).filter((n: number) => known.has(n));
       const b = bases.get(str(f?.basis, 6).toUpperCase());
       let why = alignReadClaim(fix(str(f?.why, 120)), b);
@@ -548,6 +565,7 @@ function clean(out: RawInsight, items: TodayData['items'], p: Personal): Briefin
         why,
         watch: (Array.isArray(f?.watch) ? f.watch : []).map((w: unknown) => plainWords(str(w, 70))).filter((w: string) => w && !INVESTING.test(w)).slice(0, 3),
         ...impactOf(f, b, fix),
+        ...figureOf(f, ids.map(itemText).join(' ')),
         ...linksOf(f, b, bases, fix),
       };
     })

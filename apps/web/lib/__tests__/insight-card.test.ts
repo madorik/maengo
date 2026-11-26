@@ -1,6 +1,31 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { alsoOf, pointsOf, shortLabel, whoOf } from '../insight-card';
+import { alsoOf, figureText, pointsOf, shortLabel, tabLabels, whoOf } from '../insight-card';
+
+test('핵심 숫자: 앞의 -는 빼기 기호로', () => {
+  assert.equal(figureText('-4.6%'), '−4.6%');
+  assert.equal(figureText('97%'), '97%');
+  assert.equal(figureText(' 552명 '), '552명');
+});
+
+test('흐름 탭 이름: 관심 이름, 없거나 겹치면 흐름 제목', () => {
+  assert.deepEqual(
+    tabLabels([
+      { title: '관세 우려', links: ['신경 쓰는 국내 주식'] },
+      { title: 'AI 급락', links: ['신경 쓰는 미국 주식'] },
+      { title: '정비사업', links: ['고른 부동산 분야', '신경 쓰는 내 집 마련'] },
+    ]),
+    ['국내 주식', '미국 주식', '내 집 마련'],
+  );
+  assert.deepEqual(
+    tabLabels([
+      { title: '관세 우려', links: ['신경 쓰는 국내 주식'] },
+      { title: '반도체 급락', links: ['신경 쓰는 국내 주식'] },
+      { title: '보안 사고' },
+    ]),
+    ['관세 우려', '반도체 급락', '보안 사고'],
+  );
+});
 
 test('관심 이름 줄이기: 앞말을 떼고 분야는 "○○ 분야"로', () => {
   assert.equal(shortLabel('신경 쓰는 국내 주식'), '국내 주식');
