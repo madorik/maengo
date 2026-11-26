@@ -48,8 +48,10 @@ export function InsightHead({
         <p className="text-[14px] font-medium text-sub">
           {slotLabel} 브리핑, {day}
         </p>
-        <h1 id="briefing-title" className="mt-1 text-[22px] font-extrabold leading-[1.35] tracking-[-0.04em] text-balance">
-          {callName(headline, name)}
+        {/* 주황 형광펜을 글자 아래쪽에 줄마다 긋는다(globals.css insight-mark, 2026-11-26 사용자: 지난번처럼 형광펜 밑줄).
+            줄은 띄어쓰기에서만 바꾸고(break-keep) 두 줄 길이를 고르게(text-balance) — 사용자: 줄바꿈이 자연스러워야 */}
+        <h1 id="briefing-title" className="mt-1 break-keep text-[22px] font-extrabold leading-[1.4] tracking-[-0.04em] text-balance">
+          <span className="insight-mark">{callName(headline, name)}</span>
         </h1>
       </>
     );

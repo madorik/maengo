@@ -681,3 +681,35 @@
     animation: none;
   }
 }
+
+/* 오늘 소식 머리 인사이트 제목의 주황 형광펜(2026-11-15 처음, 11-26 6안에서 뺐다가 사용자: '지난번처럼 주황색 형광펜으로 밑줄친 느낌').
+   연노랑으로 보이지 않게 옅게 하지 않고 망고 그대로, 글자 아래쪽 0.36em만 줄마다 긋는다(남색 글자가 그대로 읽힌다).
+   어두운 바탕은 흰 글자 밑이 망고로 덮이면 읽기 어려워 얇은 밑줄(0.12em)로. 화면을 열 때 왼쪽에서 한 번 그어지고 끝(움직임 줄이기면 전역 규칙으로 다 그어진 채) */
+.insight-mark {
+  --insight-hl: var(--color-mango);
+  --insight-hl-h: 0.36em;
+  background-image: linear-gradient(var(--insight-hl), var(--insight-hl));
+  background-repeat: no-repeat;
+  background-position: 0 88%;
+  background-size: 100% var(--insight-hl-h);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 0.08em;
+  margin: 0 -0.08em;
+  animation: insight-mark 700ms cubic-bezier(0.23, 1, 0.32, 1) 250ms both;
+}
+:root[data-theme="dark"] .insight-mark {
+  --insight-hl-h: 0.12em;
+  background-position: 0 96%;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .insight-mark {
+    --insight-hl-h: 0.12em;
+    background-position: 0 96%;
+  }
+}
+@keyframes insight-mark {
+  from {
+    background-size: 0% var(--insight-hl-h);
+  }
+}

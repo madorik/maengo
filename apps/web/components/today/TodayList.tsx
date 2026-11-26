@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { IconHeadphones, IconPause, IconPlay } from "@/components/icons";
+import { IconPause, IconPlay } from "@/components/icons";
 import { usePlayer, type PlayerApi } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
-import { PremiumBadge } from "@/components/ui/PremiumBadge";
-import { Spinner } from "@/components/ui/Spinner";
 import { CATEGORY_LABEL } from "@maengo/core/categories";
-import { SECTION_LABEL, SLOT_LABEL, isSection } from "@maengo/core/sections";
+import { SECTION_LABEL, isSection } from "@maengo/core/sections";
 import { useMoreArrival } from "./arrival";
 import { InsightHead } from "./BriefingInsight";
 import { EmptyToday } from "./EmptyToday";
@@ -52,7 +50,6 @@ export function TodayList({
   useEffect(() => {
     if (newMember && game.total > 0 && !tourSeen) startTour();
   }, [newMember, game.total, tourSeen]);
-  const slotLabel = SLOT_LABEL[data.slot];
   const items = data.items;
   // 브리핑을 듣는 동안(멈춤 포함) 듣는 소식 줄을 회색으로 표시하고 화면 위로 올린다(2026-11-11 사용자)
   const ride = rideOf(player, items);
@@ -73,10 +70,9 @@ export function TodayList({
       {notice}
       {data.signupGift && tourSeen && <SignupGift gift={data.signupGift} />}
 
-      {/* 머리: 인사이트 한 줄이 제목(서버가 만들어 끼운다). 재생 원은 눌러야 해서 인사이트를 기다리지 않고 여기(브라우저에서 살아 있는 쪽)서 그린다 */}
-      <section aria-labelledby="briefing-title" className="flex items-center gap-3 px-1.5">
-        <div className="min-w-0 flex-1">{game.total > 0 ? head : <InsightHead headline={null} />}</div>
-        {game.total > 0 && <ListenCircle label={`${slotLabel} 브리핑 듣기`} />}
+      {/* 머리: 인사이트 한 줄이 제목(서버가 만들어 끼운다). 2026-11-26 사용자: 오른쪽 재생 원을 뺐다 — 전체 듣기는 오른쪽 아래 플레이어로 */}
+      <section aria-labelledby="briefing-title" className="px-1.5">
+        {game.total > 0 ? head : <InsightHead headline={null} />}
       </section>
 
       {game.total > 0 && remaining > 0 && <FillToday remaining={remaining} onExpect={expect} onSettle={settle} />}
@@ -297,76 +293,30 @@ function NewsRow({
 }
 
 /**
- * 오늘 브리핑 다시 듣기 상태(머리의 재생 원과 맞춤 소식 머리의 '처음부터 다시 듣기'가 같이 쓴다).
- * 들은 게 있으면 맞춤 소식 머리에 '처음부터 다시 듣기', 다 들었고 쉬는 중이면 재생 원이 '처음부터 다시 듣기'(2026-11-11 사용자).
+ * 오늘 브리핑 다시 듣기 상태(맞춤 소식 머리의 '처음부터 다시 듣기'가 쓴다. 머리 재생 원은 2026-11-26에 뺐다).
+ * 들은 게 있으면 맞춤 소식 머리에 '처음부터 다시 듣기'(2026-11-11 사용자).
  * 처음부터는 읽은 소식 건너뛰기 없이 첫 소식부터 다 들려준다(player.playFrom)
  */
 function useBriefingReplay() {
   const p = usePlayer();
   const { data, listenAccess, listened } = useToday();
   const canListen = p.enabled && data.items.some((i) => listenAccess(i.clusterId) !== null);
-  const playingToday = !p.playlist && p.status === "playing";
   const heardAny = data.items.some((i) => listened.has(i.clusterId));
-  const heardAll = data.items.length > 0 && data.items.every((i) => listened.has(i.clusterId));
-  // 다 들었고 쉬는 중이면 재생 원이 처음부터(다시 듣다 멈춘 중이면 이어 듣기: 누르자마자 처음으로 돌아가지 않게)
-  const resting = !!p.playlist || p.status === "idle" || p.status === "done";
-  const replay = !playingToday && resting && (heardAll || (!p.playlist && p.status === "done"));
   const first = (!p.playlist && p.chapters[0]?.clusterId) || data.items[0]?.clusterId;
   const fromStart = () => {
     if (first !== undefined) p.playFrom(first);
   };
-  return { canListen, playingToday, heardAny, replay, fromStart };
+  return { canListen, heardAny, fromStart };
 }
 
-/** 맞춤 소식 머리 오른쪽('전체 보기' 왼쪽)의 '처음부터 다시 듣기'(2026-11-11 사용자). 들은 게 있고 재생 원이 처음부터가 아닐 때만 */
+/** 맞춤 소식 머리 오른쪽('전체 보기' 왼쪽)의 '처음부터 다시 듣기'(2026-11-11 사용자). 들은 게 있으면(머리 재생 원을 뺀 2026-11-26부터는 다 들었어도) */
 function ReplayButton() {
   const r = useBriefingReplay();
-  if (!r.canListen || !r.heardAny || r.replay) return null;
+  if (!r.canListen || !r.heardAny) return null;
   return (
     <button type="button" onClick={r.fromStart} className="inline-flex min-h-11 items-center gap-1 px-1.5 text-[13px] font-semibold text-sub hover:text-ink">
       <IconReplay className="size-[15px]" />
       처음부터 다시 듣기
-    </button>
-  );
-}
-
-/**
- * 머리 오른쪽의 큰 재생 원(오늘 브리핑 전체 듣기, 2026-11-26 시안): 플레이어로 듣는다(창은 펴지 않는다, 2026-11-11). 듣는 중이면 일시정지.
- * 들은 게 있으면 '이어 듣기', 다 들었고 쉬는 중이면 '처음부터 다시 듣기'(useBriefingReplay). 시간은 적지 않는다.
- * 쉬는 중 아이콘은 재생 세모 대신 헤드폰(2026-11-26 사용자: 재생 아이콘을 듣기 아이콘으로. 보관함 '골라 듣기'와 같은 그림). 듣는 중은 일시정지
- * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다. 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
- */
-function ListenCircle({ label }: { label: string }) {
-  const p = usePlayer();
-  const { canListen, playingToday, heardAny, replay, fromStart } = useBriefingReplay();
-  // 망고 노랑 바탕에 남색 아이콘(다크에서도 그대로: 남색은 글자 토큰이 아니라 고정 색)
-  const shell = "relative flex size-14 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340] no-underline active:scale-95 motion-reduce:active:scale-100";
-  if (!canListen) {
-    return (
-      <Link href="/premium" data-tour="listen-all" aria-label={`${label}, Premium에서 들을 수 있어요`} className={shell}>
-        <IconHeadphones className="size-6 [stroke-width:2.2]" />
-        <span className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full bg-paper shadow-[0_0_0_1px_var(--color-line)]">
-          <PremiumBadge className="[&_svg]:size-4" />
-        </span>
-      </Link>
-    );
-  }
-  const text = playingToday ? "듣는 중" : replay ? "처음부터 다시 듣기" : heardAny ? `${label.replace(/ 듣기$/, "")} 이어 듣기` : label;
-  return (
-    <button
-      type="button"
-      data-tour="listen-all"
-      onClick={() => {
-        if (playingToday) return p.pause();
-        // 재생은 누른 손짓 안에서 건다(iOS 자동 재생 정책). 플레이어 창은 펴지 않고 이 화면에서 듣는다(2026-11-11 사용자): 듣는 소식 줄이 회색이 되고 맨 위로
-        if (replay) return fromStart();
-        p.playToday();
-      }}
-      aria-busy={p.starting || undefined}
-      aria-label={playingToday ? `${label} 일시정지` : text}
-      className={shell}
-    >
-      {p.starting ? <Spinner className="size-5" /> : playingToday ? <IconPause className="size-6" /> : replay ? <IconReplay className="size-6" /> : <IconHeadphones className="size-6 [stroke-width:2.2]" />}
     </button>
   );
 }

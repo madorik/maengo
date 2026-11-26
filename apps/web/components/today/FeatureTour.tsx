@@ -23,21 +23,14 @@ function steps(audio: boolean, dailyListens: number): Step[] {
   return [
     {
       page: "today",
-      target: '[data-tour="listen-all"]',
-      title: "브리핑을 귀로 들어요",
-      // Free도 하루 몫 안에서 전체 듣기를 쓴다(2026-11-09). 2026-11-10 하루 두 번(출근길·퇴근길) 브리핑으로.
-      // 2026-11-26 시안 6안 홈: 전체 듣기는 머리 제목 오른쪽의 큰 재생 원(data-tour="listen-all")
-      body: audio
-        ? "노란 재생 버튼을 누르면 소식을 처음부터 차례로 읽어 드려요. 출퇴근길이나 손이 바쁠 때 좋아요."
-        : dailyListens > 0
-          ? `노란 재생 버튼을 누르면 소식을 차례로 읽어 드려요. Free는 하루 ${dailyListens}개까지 들을 수 있어요.`
-          : "브리핑 듣기는 Premium에서 돼요.",
-    },
-    {
-      page: "today",
       target: '[data-tour="player"]',
-      title: "플레이어는 여기 있어요",
-      body: "누르면 플레이어가 펼쳐져요. 다른 화면으로 옮겨도 계속 들리고, 듣는 속도도 바꿀 수 있어요.",
+      title: "브리핑을 귀로 들어요",
+      // Free도 하루 몫 안에서 전체 듣기를 쓴다(2026-11-09). 2026-11-26 사용자: 오늘 소식 머리의 재생 원을 뺐다 → 전체 듣기와 플레이어를 한 단계로
+      body: audio
+        ? "플레이어의 재생 버튼을 누르면 소식을 처음부터 차례로 읽어 드려요. 다른 화면으로 옮겨도 계속 들리고, 듣는 속도도 바꿀 수 있어요."
+        : dailyListens > 0
+          ? `플레이어의 재생 버튼을 누르면 소식을 차례로 읽어 드려요. Free는 하루 ${dailyListens}개까지 들을 수 있어요.`
+          : "브리핑 듣기는 Premium에서 돼요. 플레이어를 누르면 알아볼 수 있어요.",
     },
     {
       page: "today",
