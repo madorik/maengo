@@ -126,7 +126,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           className={`pop tile pointer-events-auto flex rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.16)] hover:bg-snow ${playing ? "border-mango" : ""}`}
         >
           {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
-          <MangoIcon className={`size-12 ${locked ? "opacity-60" : ""} ${playing ? "bob" : ""}`} />
+          <MangoIcon round className={`size-12 ${locked ? "opacity-60" : ""} ${playing ? "bob" : ""}`} />
         </button>
       </div>
     );
@@ -150,7 +150,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       <div className={`pointer-events-none fixed right-3 z-40 lg:right-6 ${dock}`}>
         <div data-tour="player" className="rise tile pointer-events-auto flex max-w-[calc(100vw-24px)] items-center gap-1 rounded-full p-1.5 shadow-[0_8px_24px_rgb(31_35_64/0.12)]">
           <Link href="/premium" aria-label={`${source} 듣기, Premium에서 들을 수 있어요`} className="flex min-w-0 items-center gap-2.5 pr-1 no-underline">
-            <MangoIcon className="size-12 shrink-0 opacity-60" />
+            <MangoIcon round className="size-12 shrink-0 opacity-60" />
             <span className="min-w-0 truncate text-[15px] font-bold text-sub">{source} 듣기</span>
             <PremiumBadge />
           </Link>
@@ -331,7 +331,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         }}
         className="flex min-w-0 items-center gap-2.5 rounded-full py-0.5 pl-0.5 pr-2 text-left hover:bg-snow"
       >
-        <MangoIcon className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
+        <MangoIcon round className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
         <span className="min-w-0 max-w-[170px]">
           <span className="block truncate text-[15px] font-bold tracking-[-0.02em]">{ch ? ch.title : source}</span>
           <span className={`block truncate text-[12px] font-medium ${p.error ? "text-cherry" : "text-sub"}`}>{sub}</span>
@@ -356,7 +356,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       <>
         <Sheet title={heading} full open={open} onClose={close}>
           <div className="flex items-center gap-3 px-5 pb-1">
-            <MangoIcon className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
+            <MangoIcon round className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
             <p className="min-w-0 flex-1 truncate text-[13px] font-bold text-sub">{summary}</p>
             {rateButton}
           </div>
@@ -382,7 +382,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           className="rise tile pointer-events-auto flex max-h-[min(660px,calc(100dvh-160px-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-[min(380px,calc(100vw-24px))] flex-col overflow-hidden shadow-[0_16px_48px_rgb(31_35_64/0.2)] outline-none"
         >
           <header className="flex items-center gap-3 border-b border-line px-4 py-3">
-            <MangoIcon className={`size-10 shrink-0 ${playing ? "bob" : ""}`} />
+            <MangoIcon round className={`size-10 shrink-0 ${playing ? "bob" : ""}`} />
             <div className="min-w-0 flex-1">
               <h2 id="listen-widget-title" className="text-[16px] font-bold">
                 {heading}

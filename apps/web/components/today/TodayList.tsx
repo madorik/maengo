@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { IconPause, IconPlay } from "@/components/icons";
+import { IconHeadphones, IconPause, IconPlay } from "@/components/icons";
 import { usePlayer, type PlayerApi } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
@@ -333,6 +333,7 @@ function ReplayButton() {
 /**
  * 머리 오른쪽의 큰 재생 원(오늘 브리핑 전체 듣기, 2026-11-26 시안): 플레이어로 듣는다(창은 펴지 않는다, 2026-11-11). 듣는 중이면 일시정지.
  * 들은 게 있으면 '이어 듣기', 다 들었고 쉬는 중이면 '처음부터 다시 듣기'(useBriefingReplay). 시간은 적지 않는다.
+ * 쉬는 중 아이콘은 재생 세모 대신 헤드폰(2026-11-26 사용자: 재생 아이콘을 듣기 아이콘으로. 보관함 '골라 듣기'와 같은 그림). 듣는 중은 일시정지
  * Free도 오늘 듣기 몫(plans.daily_listens) 안에서 쓴다. 몫을 다 써서 들을 소식이 하나도 없으면 결제 페이지로
  */
 function ListenCircle({ label }: { label: string }) {
@@ -343,7 +344,7 @@ function ListenCircle({ label }: { label: string }) {
   if (!canListen) {
     return (
       <Link href="/premium" data-tour="listen-all" aria-label={`${label}, Premium에서 들을 수 있어요`} className={shell}>
-        <IconPlay className="ml-0.5 size-[22px]" />
+        <IconHeadphones className="size-6 [stroke-width:2.2]" />
         <span className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full bg-paper shadow-[0_0_0_1px_var(--color-line)]">
           <PremiumBadge className="[&_svg]:size-4" />
         </span>
@@ -365,7 +366,7 @@ function ListenCircle({ label }: { label: string }) {
       aria-label={playingToday ? `${label} 일시정지` : text}
       className={shell}
     >
-      {p.starting ? <Spinner className="size-5" /> : playingToday ? <IconPause className="size-6" /> : replay ? <IconReplay className="size-6" /> : <IconPlay className="ml-0.5 size-[22px]" />}
+      {p.starting ? <Spinner className="size-5" /> : playingToday ? <IconPause className="size-6" /> : replay ? <IconReplay className="size-6" /> : <IconHeadphones className="size-6 [stroke-width:2.2]" />}
     </button>
   );
 }
