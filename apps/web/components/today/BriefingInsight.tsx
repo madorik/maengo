@@ -17,7 +17,7 @@ import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight, InsightTone } from "@/lib/server/briefing-insight";
 import { SEEN_MIN } from "@/lib/insight-rules";
-import { alsoOf, figureText, pointsOf, tabLabels, whoOf } from "@/lib/insight-card";
+import { alsoOf, figureText, pointsOf, whoOf } from "@/lib/insight-card";
 import { track } from "@/lib/analytics";
 
 /**
@@ -122,8 +122,8 @@ const GAP = 12;
 
 /**
  * 오늘의 흐름(2026-11-26 시안 E안, 사용자: 더 임팩트 있게): '오늘의 흐름' + 오른쪽 '전체 보기'(지금 보는 카드의 흐름 상세 시트)
- * → 관심 탭('⚠ 국내 주식'·'👁 내 집 마련': 흐름마다 짚는 관심과 성격. 넘기기 전에 내 관심사 어디에 어떤 영향인지 한눈에, 누르면 그 카드로. 예전 점 자리)
- * → 흐름 카드를 옆으로 넘긴다(scroll-snap, 넘기면 탭도 따라 바뀐다).
+ * → 흐름 카드를 옆으로 넘긴다(scroll-snap). 카드 위 관심 탭 줄('⚠ 국내 주식'·'👁 내 집 마련')은 같은 날 사용자가 빼라고 했다
+ *   (카드 위에 제목 라벨이 생긴다). 다음 카드가 옆에 조금 보여서 넘길 수 있는 걸 안다.
  * 카드를 누르면 흐름 상세 시트(2026-11-11 사용자: 누르면 상세를 볼 수 있어야 한다). 카드에 재생 버튼은 없다(2026-11-26 사용자) — 듣기는 떠 있는 플레이어와 흐름 상세에서
  */
 export function InsightFlows({
@@ -144,13 +144,8 @@ export function InsightFlows({
   const count = insight.flows.length;
   if (!count) return null;
   const opened = open === null ? null : insight.flows[open];
-  const tabs = tabLabels(insight.flows);
   /** 카드 한 장 넘기는 거리 */
   const step = (el: HTMLElement) => ((el.children[1] as HTMLElement | undefined)?.offsetLeft ?? el.clientWidth) - ((el.children[0] as HTMLElement | undefined)?.offsetLeft ?? 0);
-  const go = (k: number) => {
-    const el = scroller.current;
-    if (el) el.scrollTo({ left: k * step(el), behavior: "smooth" });
-  };
   return (
     <section aria-labelledby="flows-title" className="mt-4">
       <div className="flex min-h-11 items-center justify-between gap-2 px-1.5">
@@ -166,31 +161,6 @@ export function InsightFlows({
           전체 보기
         </button>
       </div>
-      {count > 1 && (
-        <div
-          role="group"
-          aria-label="오늘의 흐름 고르기"
-          style={{ paddingInline: EDGE }}
-          className="-mx-4 mt-1 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {insight.flows.map((f, k) => {
-            const on = k === at;
-            const tone = f.effect && f.tone ? f.tone : null;
-            return (
-              <button
-                key={f.title}
-                type="button"
-                aria-pressed={on}
-                onClick={() => go(k)}
-                className={`inline-flex h-9 max-w-[200px] shrink-0 items-center gap-1.5 rounded-full border text-[14px] tracking-[-0.02em] ${on ? "border-ink bg-ink font-extrabold text-paper" : "border-line-dark font-semibold text-ink"} ${tone ? "pl-3 pr-3.5" : "px-3.5"}`}
-              >
-                {tone && <ToneIcon tone={tone} className={`size-[15px] shrink-0 ${on ? "" : VERDICT[tone].text}`} />}
-                <span className="truncate">{tabs[k]}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
       <ul
         ref={scroller}
         aria-label="오늘의 흐름 카드"
@@ -199,7 +169,7 @@ export function InsightFlows({
           setAt(Math.min(count - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, step(el))))));
         }}
         style={{ paddingInline: EDGE, scrollPaddingInline: EDGE, columnGap: GAP }}
-        className={`-mx-4 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${count > 1 ? "mt-3" : "mt-1"}`}
+        className={`-mx-4 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mt-1`}
       >
         {insight.flows.map((f, k) => (
           <FlowCard key={f.title} flow={f} personal={insight.personal} onOpen={() => setOpen(k)} />
