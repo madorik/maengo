@@ -215,8 +215,9 @@ export function InsightFlows({
 /**
  * 흐름 카드 한 장(2026-11-26 시안 E안, 사용자: 오늘의 흐름을 더 임팩트 있게). 카드 전체가 흐름 상세 시트 버튼.
  * ① 위쪽 큰 사진(228px, 이미지가 잘 보여야 눈이 간다). 글자는 사진 위라 밝기 설정과 상관없이 흰 글자, 사진이 없으면 남색 바탕.
- *    - 오른쪽 위: 흰 알약 '⚠ 국내 주식에 부담 요인'(영향이 있을 때, 2026-11-26 사용자: 라벨은 오른쪽으로), 같은 흐름이 다른 관심에도 닿으면 그 아래 작은 알약 하나 더
- *    - 아래: 핵심 숫자가 있으면(형식 15) 흐름 제목(작게) + 큰 숫자 '−4.6%' + 이름 '코스피 장중', 없으면 '소식 n개' + 흐름 제목(크게)
+ *    - 왼쪽 위: 흐름 제목. 핵심 숫자가 있으면(형식 15) 그 아래 큰 숫자 '−4.6%' + 이름 '코스피 장중', 없으면 제목을 크게 + '소식 n개'
+ *    - 오른쪽 아래: 흰 알약 '⚠ 국내 주식에 부담 요인'(영향이 있을 때), 같은 흐름이 다른 관심에도 닿으면 작은 알약 하나 더
+ *      (2026-11-26 사용자: 제목은 왼쪽 위로, 부담 요인 같은 라벨은 오른쪽 아래로)
  * ② 영향 한 문장(굵게) ③ 핵심 요약 두 줄(points, 예전 형식은 사실 + 설명 첫 문장) ④ '자세히 보기'.
  * 카드 높이는 줄에서 가장 긴 카드에 맞추고(늘어남), 남는 자리는 요약과 '자세히 보기' 사이로 가서 '자세히 보기' 줄이 카드마다 같은 높이에 온다
  */
@@ -238,33 +239,35 @@ function FlowCard({ flow, personal, onOpen }: { flow: BriefingInsight["flows"][n
       >
         <span className="relative block h-[228px] w-full shrink-0 bg-[#1F2340]">
           {photo && <PhotoImg src={photo} size="card" className="absolute inset-0 size-full" />}
-          {/* 위(알약)와 아래(숫자·제목)만 어둡게, 가운데는 사진이 그대로 보이게 */}
+          {/* 제목이 놓이는 위쪽은 진하게, 알약이 놓이는 아래쪽은 옅게(흰 알약이라 많이 어둡지 않아도 된다), 가운데는 사진이 그대로 보이게 */}
           <span
             aria-hidden="true"
-            className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,16,0.32)_0%,rgba(12,13,16,0)_26%,rgba(12,13,16,0.1)_44%,rgba(12,13,16,0.86)_100%)]"
+            className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,16,0.84)_0%,rgba(12,13,16,0.55)_40%,rgba(12,13,16,0)_68%,rgba(12,13,16,0.24)_100%)]"
           />
-          {tone && (
-            <span className="absolute inset-x-3.5 top-3.5 flex flex-col items-end gap-1.5">
-              <TonePill tone={tone} who={who} />
-              {also && <TonePill tone={also.tone} who={also.who} small />}
-            </span>
-          )}
-          <span className="absolute inset-x-4 bottom-3.5 block text-white">
+          {/* 왼쪽 위: 흐름 제목(핵심 숫자가 있으면 제목 바로 아래에 크게) */}
+          <span className="absolute inset-x-4 top-3.5 block text-white [text-shadow:0_1px_8px_rgba(12,13,16,0.35)]">
             {figure ? (
               <>
-                <span className="block truncate text-[13px] font-bold text-white/85">{flow.title}</span>
+                <span className="line-clamp-2 block break-keep text-[17px] font-extrabold leading-[1.35] tracking-[-0.04em]">{flow.title}</span>
                 <span className="mt-0.5 flex items-baseline gap-2">
-                  <span className={`shrink-0 font-extrabold leading-[1.1] tracking-[-0.04em] tabular-nums ${figure.value.length > 6 ? "text-[36px]" : "text-[46px]"}`}>{figure.value}</span>
+                  <span className={`shrink-0 font-extrabold leading-[1.15] tracking-[-0.04em] tabular-nums ${figure.value.length > 6 ? "text-[34px]" : "text-[42px]"}`}>{figure.value}</span>
                   <span className="min-w-0 truncate text-[14px] font-bold text-white/85">{figure.label}</span>
                 </span>
               </>
             ) : (
               <>
-                <span className="block text-[13px] font-bold text-white/85">소식 {flow.ids.length}개</span>
-                <span className="mt-0.5 line-clamp-2 block break-keep text-[22px] font-extrabold leading-[1.32] tracking-[-0.045em]">{flow.title}</span>
+                <span className="line-clamp-2 block break-keep text-[22px] font-extrabold leading-[1.32] tracking-[-0.045em]">{flow.title}</span>
+                <span className="mt-1 block text-[13px] font-bold text-white/85">소식 {flow.ids.length}개</span>
               </>
             )}
           </span>
+          {/* 오른쪽 아래: 판정 알약(2026-11-26 사용자: 제목은 왼쪽 위, 라벨은 오른쪽 아래) */}
+          {tone && (
+            <span className="absolute inset-x-3.5 bottom-3.5 flex flex-col items-end gap-1.5">
+              <TonePill tone={tone} who={who} />
+              {also && <TonePill tone={also.tone} who={also.who} small />}
+            </span>
+          )}
         </span>
         <span className="flex flex-1 flex-col px-4 pt-3.5">
           {flow.effect && <span className="block break-keep text-[17px] font-extrabold leading-[1.42] tracking-[-0.035em] text-balance">{flow.effect}</span>}
