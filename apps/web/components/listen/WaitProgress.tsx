@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useProfile } from "@/components/providers/ProfileProvider";
-import { waitFill, waitShort, waitStageAt } from "@/lib/player/labels";
+import { waitFill, waitStageAt } from "@/lib/player/labels";
 
 // 음성을 만드는 동안 보여 주는 진행(2026-11-27 사용자: 만드는 10초 동안 지루하지 않게, 기다릴 수 있는 시간을 알려 주자).
 // 서버는 진행을 알려 주지 않아서 기다린 시간으로 막대를 채운다: 어림 시간(Free 약 12초, Premium 약 6초)까지 곧게 차고 끝을 모르니 다 채우지는 않는다.
@@ -83,9 +83,9 @@ export function WaitRing({ since }: { since: number | null }) {
   );
 }
 
-/** 떠 있는 막대의 둘째 줄(좁은 자리): '목소리 만드는 중, 10초쯤' → '곧 들려 드릴게요' → '조금 더 걸리고 있어요' */
+/** 떠 있는 막대의 둘째 줄(좁은 자리): '다듬는 중이에요, 10초쯤' → '거의 다 됐어요!' → '듣는 분이 많아 조금 더 걸려요' */
 export function WaitShort({ since }: { since: number | null }) {
   const { audio: premium } = useProfile();
   const elapsed = useElapsed(since);
-  return <>{waitShort(waitStageAt(elapsed, premium), premium)}</>;
+  return <>{waitStageAt(elapsed, premium).short}</>;
 }

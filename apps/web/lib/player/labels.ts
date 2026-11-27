@@ -5,8 +5,10 @@
  * scripts/voice-samples.ts --wait)이 같은 때 같은 말을 한다. 안내 음성은 기다리기 시작하고 WAIT_DELAY_MS 뒤에 처음부터 나온다
  */
 export const WAIT = {
-  title: "자연스러운 목소리로 만들고 있어요",
-  lateTitle: "조금 더 걸리고 있어요",
+  title: "조금 더 자연스러운 문장으로 다듬고 있어요",
+  soonTitle: "거의 다 됐어요",
+  lateTitle: "오늘따라 듣는 분이 많네요",
+  thanksTitle: "기다려 주셔서 고마워요",
 } as const;
 
 /** 기다리기 시작하고 안내 음성이 처음부터 나오기까지(이미 만든 음성은 보통 이 안에 열려 안내가 들리지 않는다, PlayerProvider) */
@@ -17,20 +19,39 @@ export interface WaitStage {
   atMs: number;
   title: string;
   note: string;
-  /** 안내 음성이 이때 하는 말 */
+  /** 떠 있는 막대의 둘째 줄(글 자리 170px, 12px 글자로 14자 안팎) */
+  short: string;
+  /** 안내 음성이 이때 하는 말('~'처럼 읽기 어색한 기호는 뺀다) */
   say: string;
 }
 
-/** 기다림 단계(처음 → 곧 → 늦어짐 → 더 늦어짐). 늦어짐은 어림 시간 3초 뒤 */
+/**
+ * 기다림 단계(처음 → 곧 → 늦어짐 → 고마움). 늦어짐은 어림 시간 3초 뒤.
+ * 말투는 다정하게(2026-11-27 사용자: 안내 글을 좀 더 감성적으로, '조금 더 자연스러운 문장으로 다듬고 있어요. 10초 정도 걸릴 것 같아요. 조금만 기다려주세요~!' 이런 식으로)
+ */
 export function waitStages(premium: boolean): WaitStage[] {
   const late = waitSeconds(premium) * 1000 + 3000;
-  const time = premium ? "5초쯤" : "10초쯤";
+  const time = premium ? "5초" : "10초";
   return [
-    { atMs: 0, title: WAIT.title, note: `${time} 걸려요`, say: `${WAIT.title}. ${time} 걸려요.` },
-    // Premium은 처음 말이 끝날 무렵 다 되므로 '곧'은 Free만
-    ...(premium ? [] : [{ atMs: 8000, title: WAIT.title, note: "곧 들려 드릴게요", say: "곧 들려 드릴게요." }]),
-    { atMs: late, title: WAIT.lateTitle, note: "사람이 몰리면 그래요", say: "사람이 몰려서 조금 더 걸리고 있어요." },
-    { atMs: late + 15000, title: WAIT.lateTitle, note: "조금만 더 기다려 주세요", say: "조금만 더 기다려 주세요." },
+    {
+      atMs: 0,
+      title: WAIT.title,
+      note: `${time} 정도 걸릴 것 같아요. 조금만 기다려주세요~!`,
+      short: `다듬는 중이에요, ${time}쯤`,
+      say: `${WAIT.title}. ${time} 정도 걸릴 것 같아요. 조금만 기다려 주세요!`,
+    },
+    // Premium은 처음 말이 끝날 무렵 다 되므로 '곧'은 Free만. 처음 말(약 6.7초)과 1초쯤 띄우고, 보통 다 되는 11~12초 전에 끝나게 8.5초
+    ...(premium
+      ? []
+      : [{ atMs: 8500, title: WAIT.soonTitle, note: "곧 들려 드릴게요!", short: "거의 다 됐어요!", say: "거의 다 됐어요. 곧 들려 드릴게요!" }]),
+    {
+      atMs: late,
+      title: WAIT.lateTitle,
+      note: "조금만 더 기다려 주시면 금방 들려 드릴게요",
+      short: "듣는 분이 많네요, 금방요",
+      say: "오늘따라 듣는 분이 많아서 조금 더 걸리고 있어요. 금방 들려 드릴게요!",
+    },
+    { atMs: late + 15000, title: WAIT.thanksTitle, note: "정말 조금만 더요!", short: "조금만 더 기다려 주세요", say: "기다려 주셔서 고마워요. 정말 조금만 더요!" },
   ];
 }
 
@@ -43,12 +64,6 @@ export function waitStageAt(elapsedMs: number, premium: boolean): WaitStage {
 /** 기다릴 어림 시간(초). 진행 막대가 이 시간 동안 차오른다 */
 export function waitSeconds(premium: boolean): number {
   return premium ? 6 : 12;
-}
-
-/** 좁은 자리(떠 있는 플레이어 막대)용 한 줄. 단계를 따른다 */
-export function waitShort(stage: WaitStage, premium: boolean): string {
-  if (stage.atMs === 0) return premium ? "목소리 만드는 중, 5초쯤" : "목소리 만드는 중, 10초쯤";
-  return stage.title === WAIT.title ? stage.note : stage.title;
 }
 
 /**
