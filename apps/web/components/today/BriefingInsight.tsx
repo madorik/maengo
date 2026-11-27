@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { IconChevronRight, IconPlay } from "@/components/icons";
+import { IconChevronRight, IconHeadphones, IconPause, IconPlay } from "@/components/icons";
+import { Spinner } from "@/components/ui/Spinner";
+import { BRIEFING_ID } from "@/lib/player/item";
 import { MangoIcon } from "@/components/MangoIcon";
 import { ToneIcon } from "@/components/ui/ToneIcon";
 import { AskChat, type AskTarget } from "@/components/article/AskChat";
@@ -92,6 +94,36 @@ export function InsightHead({
   );
 }
 
+/**
+ * '오늘의 이슈 분석' 제목 오른쪽의 브리핑 듣기 원(2026-11-27 사용자: 옆에 브리핑 듣기 아이콘). 오늘 듣기 맨 앞의 브리핑(핵심 요약 음성)부터 틀고,
+ * 끝나면 플레이어가 첫 소식으로 이어 간다. 브리핑을 듣는 중이면 일시정지, 멈춰 있으면 그 자리에서 이어 듣는다.
+ * 모양은 예전 머리의 듣기 원(망고 원에 남색 헤드폰, 2026-11-26)을 제목 크기에 맞춘 것. 시간은 적지 않는다(2026-11-25 사용자)
+ */
+function BriefingListenButton() {
+  const p = usePlayer();
+  // 목록을 받기 전이면 눌러도 받는 대로 브리핑부터 시작한다. 받은 목록에 브리핑이 없으면(인사이트를 늦게 만들어 다시 받는 중) 숨긴다
+  if (!p.enabled || (p.ready && !p.hasBriefing)) return null;
+  const onBriefing = !p.playlist && p.hasBriefing && p.cur === 0 && p.status !== "done";
+  const playing = onBriefing && p.status === "playing";
+  const waiting = p.starting || (onBriefing && p.preparing);
+  const onClick = () => {
+    if (playing && !p.preparing) return p.pause();
+    if (onBriefing && p.status === "paused") return p.play();
+    p.playFrom(BRIEFING_ID);
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={playing ? "브리핑 일시정지" : "브리핑 듣기"}
+      aria-busy={waiting || undefined}
+      className="flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340] active:scale-95 motion-reduce:active:scale-100"
+    >
+      {waiting ? <Spinner className="size-5" /> : playing ? <IconPause className="size-5" /> : <IconHeadphones className="size-[22px] [stroke-width:2.2]" />}
+    </button>
+  );
+}
+
 /** AI가 쓴 글에 남은 'OO님'·'회원님'을 프로필 이름으로(이름 없는 계정(운영엔 없다)만 '회원님') */
 export function callName(s: string, name: string | null): string {
   return s.replace(/(?:OO|○○|회원)님/g, name ? `${name}님` : "회원님");
@@ -149,14 +181,15 @@ export function InsightFlows({
   return (
     <section aria-labelledby="flows-title" className="mt-4">
       <div className="flex min-h-11 items-center justify-between gap-2 px-1.5">
-        {/* 2026-11-26 사용자: '오늘의 흐름'은 밖에서 보면 뜻이 애매하다 → '오늘의 핵심 이슈' */}
+        {/* 2026-11-26 사용자: '오늘의 흐름'은 밖에서 보면 뜻이 애매하다 → '오늘의 핵심 이슈', 2026-11-27 → '오늘의 이슈 분석' */}
         <h2 id="flows-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
-          오늘의 핵심 이슈
+          오늘의 이슈 분석
         </h2>
-        {/* '전체 보기'는 뺐다(2026-11-26 사용자). 카드를 누르면 상세가 열린다 */}
+        {/* '전체 보기'는 뺐다(2026-11-26 사용자). 카드를 누르면 상세가 열린다. 그 자리에 브리핑 듣기 원(2026-11-27 사용자) */}
+        <BriefingListenButton />
       </div>
       <ul
-        aria-label="오늘의 핵심 이슈 카드"
+        aria-label="오늘의 이슈 분석 카드"
         style={{ paddingInline: EDGE, scrollPaddingInline: EDGE, columnGap: GAP }}
         className={`-mx-4 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mt-1`}
       >
@@ -602,9 +635,9 @@ export function InsightFallback() {
   return (
     <section aria-labelledby="flows-title" className="mt-4">
       <div className="flex min-h-11 items-center px-1.5">
-        {/* 2026-11-26 사용자: '오늘의 흐름'은 밖에서 보면 뜻이 애매하다 → '오늘의 핵심 이슈' */}
+        {/* 2026-11-26 사용자: '오늘의 흐름'은 밖에서 보면 뜻이 애매하다 → '오늘의 핵심 이슈', 2026-11-27 → '오늘의 이슈 분석' */}
         <h2 id="flows-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
-          오늘의 핵심 이슈
+          오늘의 이슈 분석
         </h2>
       </div>
       {/* 흐름 카드와 같은 틀(위 남색 칸 = 사진 자리, 아래 회색 줄 = 영향·핵심 요약 자리)이라 다 되면 같은 자리에 카드가 들어온다 */}
