@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { IconChevronRight, IconHeadphones, IconPause, IconPlay } from "@/components/icons";
-import { Spinner } from "@/components/ui/Spinner";
+import { IconChevronRight, IconPlay } from "@/components/icons";
+import { requestPlayerExpand } from "@/lib/float-dock";
 import { BRIEFING_ID } from "@/lib/player/item";
 import { MangoIcon } from "@/components/MangoIcon";
 import { ToneIcon } from "@/components/ui/ToneIcon";
@@ -95,31 +95,26 @@ export function InsightHead({
 }
 
 /**
- * '오늘의 이슈 분석' 제목 오른쪽의 브리핑 듣기 원(2026-11-27 사용자: 옆에 브리핑 듣기 아이콘). 오늘 듣기 맨 앞의 브리핑(핵심 요약 음성)부터 틀고,
- * 끝나면 플레이어가 첫 소식으로 이어 간다. 브리핑을 듣는 중이면 일시정지, 멈춰 있으면 그 자리에서 이어 듣는다.
- * 모양은 예전 머리의 듣기 원(망고 원에 남색 헤드폰, 2026-11-26)을 제목 크기에 맞춘 것. 시간은 적지 않는다(2026-11-25 사용자)
+ * '오늘의 이슈 분석' 제목 오른쪽의 '브리핑 듣기'(2026-11-27 사용자). 맞춤 소식 머리의 '전체 듣기'와 같은 글자 링크.
+ * 누르면 플레이어에 브리핑(핵심 요약 음성)을 올려 틀고, 접어 둔 플레이어는 막대로 편다. 끝나면 플레이어가 첫 소식으로 이어 간다.
+ * 재생·멈춤은 플레이어에서만 한다(사용자: 이 자리에 재생/정지 버튼이 있으면 쓰기 불편하다, 처음엔 망고 원 아이콘이었다). 시간은 적지 않는다
  */
 function BriefingListenButton() {
   const p = usePlayer();
   // 목록을 받기 전이면 눌러도 받는 대로 브리핑부터 시작한다. 받은 목록에 브리핑이 없으면(인사이트를 늦게 만들어 다시 받는 중) 숨긴다
   if (!p.enabled || (p.ready && !p.hasBriefing)) return null;
-  const onBriefing = !p.playlist && p.hasBriefing && p.cur === 0 && p.status !== "done";
-  const playing = onBriefing && p.status === "playing";
-  const waiting = p.starting || (onBriefing && p.preparing);
-  const onClick = () => {
-    if (playing && !p.preparing) return p.pause();
-    if (onBriefing && p.status === "paused") return p.play();
-    p.playFrom(BRIEFING_ID);
-  };
+  // 이미 브리핑을 듣고 있으면 처음으로 되돌리지 않고 플레이어만 편다
+  const onBriefing = !p.playlist && p.hasBriefing && p.cur === 0 && (p.status === "playing" || p.preparing);
   return (
     <button
       type="button"
-      onClick={onClick}
-      aria-label={playing ? "브리핑 일시정지" : "브리핑 듣기"}
-      aria-busy={waiting || undefined}
-      className="flex size-11 shrink-0 items-center justify-center rounded-full bg-mango text-[#1F2340] active:scale-95 motion-reduce:active:scale-100"
+      onClick={() => {
+        requestPlayerExpand();
+        if (!onBriefing) p.playFrom(BRIEFING_ID);
+      }}
+      className="inline-flex min-h-11 items-center text-[14px] font-semibold text-sub underline underline-offset-[3px]"
     >
-      {waiting ? <Spinner className="size-5" /> : playing ? <IconPause className="size-5" /> : <IconHeadphones className="size-[22px] [stroke-width:2.2]" />}
+      브리핑 듣기
     </button>
   );
 }
@@ -185,7 +180,7 @@ export function InsightFlows({
         <h2 id="flows-title" className="text-[20px] font-extrabold tracking-[-0.04em]">
           오늘의 이슈 분석
         </h2>
-        {/* '전체 보기'는 뺐다(2026-11-26 사용자). 카드를 누르면 상세가 열린다. 그 자리에 브리핑 듣기 원(2026-11-27 사용자) */}
+        {/* '전체 보기'는 뺐다(2026-11-26 사용자). 카드를 누르면 상세가 열린다. 그 자리에 '브리핑 듣기'(2026-11-27 사용자) */}
         <BriefingListenButton />
       </div>
       <ul
