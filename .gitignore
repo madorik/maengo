@@ -23,3 +23,13 @@ google-services.json
 # 쇼츠 만들기(소식 재활용)는 저장소에 넣지 않는다(2026-11-03 사용자 결정). 파일은 로컬에만 두고 스킬 maengo-shorts로 쓴다
 apps/mobile/scripts/shorts/
 apps/web/scripts/shorts-*.ts
+
+# 편집기 설정
+.vscode/
+
+# 홍보 영상 작업 중 파일은 저장소에 넣지 않는다(2026-11-27 사용자)
+apps/mobile/scripts/promo/assets/voice.mp3
+apps/mobile/scripts/promo/measure.mjs
+apps/mobile/scripts/promo/screens.mjs
+apps/mobile/scripts/promo/slides.html
+apps/mobile/scripts/promo/slides.mjs
