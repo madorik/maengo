@@ -44,11 +44,14 @@ export interface TtsEngine {
   model: string;
   /** 실제 목소리 이름(Chirp만). Gemini는 undefined라 캐시 키에서 빠진다 */
   voiceId: (voice: Voice) => string | undefined;
+  /** 이 엔진만의 합성 방식 차례(올리면 이 엔진 음성만 새로 만든다). 없으면 캐시 키에서 빠진다(Gemini) */
+  version?: number;
   client: TtsClient;
 }
 
 const chirpTts: TtsEngine | null = googleTtsKey
-  ? { id: 'chirp', model: 'chirp3-hd', voiceId: chirpVoiceId, client: createGoogleTts({ apiKey: googleTtsKey, onChars: logTtsChars }) }
+  ? // version 2: 문단마다가 아니라 소식 하나를 한 번에 합성(2026-11-27, google-tts.ts). Premium(Gemini) 음성은 그대로 둔다
+    { id: 'chirp', model: 'chirp3-hd', voiceId: chirpVoiceId, version: 2, client: createGoogleTts({ apiKey: googleTtsKey, onChars: logTtsChars }) }
   : null;
 /**
  * Gemini 음성의 캐시 키용 목소리: 말투가 붙은 목소리(여성 ko-kr-podcaster-6, 남성 ko-kr-podcaster-8)는 이름·말투를 넣어 바꾸면 새로 만들게 한다.

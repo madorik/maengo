@@ -101,7 +101,8 @@ function scriptOf(item: FeedItem): ScriptLine[] {
 function segmentKey(lines: ScriptLine[], persona: Persona, voice: Voice, engine: TtsEngine): string {
   // 모델과 목소리 이름(Chirp 3 HD)도 넣어 엔진·목소리를 바꾸면 새로 만든다(Free는 Chirp, Premium은 Gemini라 같은 소식도 따로). Gemini는 voiceId가 undefined라 키에서 빠진다.
   // persona와 vk(예전 대담의 'pair' 자리)는 이미 만든 음성의 키와 같게 이름·순서를 그대로 둔다(바꾸면 해시가 달라져 모든 음성을 다시 만든다)
-  return `${persona}-${voice}-${sha(JSON.stringify({ v: SCRIPT_VERSION, model: engine.model, voiceId: engine.voiceId(voice), persona, vk: voice, lines }))}`;
+  // ev: 엔진만의 합성 방식 차례(Chirp 2 = 소식 하나를 한 번에, 2026-11-27). 없는 엔진(Gemini)은 JSON에서 빠져 예전 키 그대로
+  return `${persona}-${voice}-${sha(JSON.stringify({ v: SCRIPT_VERSION, model: engine.model, voiceId: engine.voiceId(voice), persona, vk: voice, lines, ev: engine.version }))}`;
 }
 
 async function findSegments(keys: string[]): Promise<Map<string, SegmentRow>> {
