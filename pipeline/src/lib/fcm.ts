@@ -47,6 +47,7 @@ async function accessToken(sa: ServiceAccount): Promise<string> {
 
 export interface PushMessage {
   title: string;
+  /** 둘째 줄. 비면 보내지 않는다(제목만 보이는 알림) */
   body: string;
   /** 알림을 누르면 열 앱 안 경로(예: /today?from=push) */
   path: string;
@@ -111,7 +112,7 @@ export async function sendPush(token: string, msg: PushMessage, siteUrl: string)
     body: JSON.stringify({
       message: {
         token,
-        notification: { title: msg.title, body: msg.body },
+        notification: msg.body ? { title: msg.title, body: msg.body } : { title: msg.title },
         data: { path: msg.path },
         webpush: { fcm_options: { link: `${siteUrl}${msg.path}` } },
         android: { priority: 'high' },

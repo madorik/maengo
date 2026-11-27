@@ -10,7 +10,7 @@ import { env } from './lib/env';
 import type { PushMessage } from './lib/fcm';
 import { mapLimit } from './lib/limit';
 import { pushToUser } from './lib/push';
-import { fallbackTitle, gatherInsights, insightKey, pushBody, pushTitle, type InsightFetcher, type Slot } from './lib/push-copy';
+import { gatherInsights, insightKey, pushCopy, pushTitle, type InsightFetcher, type PushInsight, type Slot } from './lib/push-copy';
 import { DELIVERY_BUILT_BY, existingFeedResult, isInactive, SEND_RETRY_MINUTES, sendRetryAt } from './lib/retry';
 import { flushUsage, recordUsage } from './lib/usage';
 
@@ -335,24 +335,20 @@ export async function buildFeedsFor(
 }
 
 /**
- * 알림 문구(2026-11-26 사용자: 딱 봐도 궁금해할 한 줄로). 제목(잠금 화면 굵은 첫 줄)은 오늘의 흐름의 알림 한 줄이나 큰 제목(pushTitle),
- * 흐름이 없으면 그 브리핑의 첫 소식 제목. 본문은 '출근길 브리핑 · 소식 10개'처럼 어느 브리핑인지만. 보여 줄 소식이 없으면 null(빈 알림을 보내지 않는다)
+ * 알림 문구(2026-11-27 사용자: 소식 몇 개·출근길 브리핑 같은 말 말고 핵심 이슈만). 제목(잠금 화면 굵은 첫 줄)은 오늘의 핵심 이슈를 사건 그대로,
+ * 본문은 같은 사건의 사실 한 줄(lib/push-copy.ts pushCopy). 흐름이 없으면 그 브리핑 첫 소식 제목과 한 줄 요약. 보여 줄 소식이 없으면 null(빈 알림을 보내지 않는다)
  */
-async function messageFor(userId: string, date: string, slot: Slot = 'am', hook: string | null = null): Promise<PushMessage | null> {
+async function messageFor(userId: string, date: string, slot: Slot = 'am', insight: PushInsight | null = null): Promise<PushMessage | null> {
   const day = check(await db.from('feed_days').select('visible').eq('user_id', userId).eq('date', date).maybeSingle(), 'feed_days visible') as { visible: number } | null;
   if (!day?.visible) return null;
   const rows = check(await db.from('feeds').select('cluster_id,rank').eq('user_id', userId).eq('date', date).eq('slot', slot).lte('rank', day.visible).order('rank'), 'feeds slot') as { cluster_id: number }[];
   if (!rows.length) return null;
-  const first = rows[0]!;
-  const title = first
-    ? ((await db.from('summaries').select('title').eq('cluster_id', first.cluster_id).eq('tier', 'basic').maybeSingle()).data as { title: string } | null)?.title
-    : null;
-  const n = rows.length;
-  return {
-    title: hook ?? fallbackTitle(title) ?? (slot === 'pm' ? '퇴근길 소식이 도착했어요' : '출근길 소식이 도착했어요'),
-    body: pushBody(slot, n),
-    path: '/today?from=push',
-  };
+  // 흐름이 있으면 첫 소식은 필요 없다
+  const first = pushTitle(insight)
+    ? null
+    : ((await db.from('summaries').select('title,short').eq('cluster_id', rows[0]!.cluster_id).eq('tier', 'basic').maybeSingle()).data as { title: string; short: string | null } | null);
+  const copy = pushCopy(insight, first) ?? { title: slot === 'pm' ? '퇴근길 소식이 도착했어요' : '출근길 소식이 도착했어요', body: '' };
+  return { ...copy, path: '/today?from=push' };
 }
 
 const setStatus = (job: JobRow, patch: Record<string, unknown>) =>
@@ -494,8 +490,9 @@ export async function runDeliveries(now = new Date(), hooks: DeliveryHooks = {})
     }
     try {
       const slot = job.slot ?? 'am';
-      const hook = pushTitle(insights.get(insightKey(job.user_id, slot)));
-      const msg = await messageFor(job.user_id, job.date, slot, hook);
+      const insight = insights.get(insightKey(job.user_id, slot)) ?? null;
+      const hook = pushTitle(insight);
+      const msg = await messageFor(job.user_id, job.date, slot, insight);
       if (!msg) {
         out.failed++;
         await setStatus(job, { status: 'failed', last_error: '보낼 소식이 없음' });

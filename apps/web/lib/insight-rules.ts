@@ -300,21 +300,51 @@ const BAIT = /충격|경악|헉|대박|폭탄|역대급|소름|난리/;
  * 사고팔기를 묻거나 권하는 말. 일반 투자 권유 거르기(INVESTING_ADVICE)는 '매도'만 봐도 지워
  * '매도 사이드카까지 간 이유' 같은 사실 문장이 버려졌다(2026-11-26 시험) → 알림 한 줄은 권유 꼴만 본다
  */
-const PUSH_ADVICE = /살까|팔까|사야|팔아야|사 볼|사 보세요|팔아|매수할|매도할|매수 타이밍|매도 타이밍|저가 매수|담아야|담을 때|들어갈 때|손절|익절|포트폴리오|비중|리밸런싱/;
-/** 알림 한 줄이 이보다 길면 잠금 화면에서 잘리니 버린다(그 알림은 큰 제목으로) */
+// '저가 매수세가 들어와 낙폭을 줄였어요'는 사실이라 '저가 매수세'는 거르지 않는다(2026-11-27 시험)
+const PUSH_ADVICE = /살까|팔까|사야|팔아야|사 볼|사 보세요|팔아|매수할|매도할|매수 타이밍|매도 타이밍|저가 매수(?!세)|담아야|담을 때|들어갈 때|손절|익절|포트폴리오|비중|리밸런싱/;
+/** 알림 한 줄이 이보다 길면 잠금 화면에서 잘리니 버린다(그 알림은 첫 흐름의 핵심 사실로) */
 export const PUSH_MAX = 28;
+/** 알림 둘째 줄(본문) 상한. 잠금 화면에서 두 줄 안쪽 */
+export const PUSH_NOTE_MAX = 40;
+/** 앱 안내 말: 알림에는 핵심 이슈만(2026-11-27 사용자: 소식 몇 개, 출근길 브리핑 이런 내용 쓰지 마) */
+const PUSH_META = /브리핑|소식\s*\d+\s*개|도착했|맹고/;
 
-/**
- * 알림 한 줄 거르기(형식 16, 2026-11-26 사용자: 딱 봐도 궁금해할 한 줄로). 느낌표·따옴표를 빼고,
- * 길거나 물음이거나 소식 글(source)에 없는 숫자를 쓰거나 투자 권유·낚시 말이면 빈 문자열(→ 알림은 큰 제목으로)
- */
-export function cleanPushLine(raw: string, source: string): string {
-  const text = plainWords(raw)
+function pushText(raw: string): string {
+  return plainWords(raw)
     .replace(/[!！]+/g, "")
     .replace(/["'“”‘’`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  // 물음으로 쓰지 않는다(2026-11-26 사용자: 왜 이렇게 물음표로 끝내). 지시를 어기고 물음이면 버린다 → 알림은 큰 제목으로
-  if (!text || text.length > PUSH_MAX || /[?？]/.test(text) || PUSH_ADVICE.test(text) || BAIT.test(text) || unknownNumber(text, source)) return "";
+}
+
+/** 물음·투자 권유·낚시 말·앱 안내 말·소식에 없는 숫자면 알림에 못 쓴다 */
+function badPush(text: string, source: string): boolean {
+  // 물음으로 쓰지 않는다(2026-11-26 사용자: 왜 이렇게 물음표로 끝내)
+  return /[?？]/.test(text) || PUSH_ADVICE.test(text) || BAIT.test(text) || PUSH_META.test(text) || unknownNumber(text, source);
+}
+
+/**
+ * 알림 제목 거르기(형식 16·17). 느낌표·따옴표를 빼고, 길거나 badPush면 빈 문자열(→ 첫 흐름의 핵심 사실로).
+ * 형식 17(2026-11-27 사용자: 그냥 핵심 이슈를 보내야 해, 코스피 5000선 붕괴처럼)부터 제목은 사건 그대로라
+ * 앞에 회원 사정 이름(labels: '국내 주식' 등)을 붙였으면 떼고, '국내 주식에 ~'처럼 사정에 주는 해석으로 쓰면 버린다
+ */
+export function cleanPushLine(raw: string, source: string, labels: readonly string[] = []): string {
+  let text = pushText(raw);
+  for (const label of labels) {
+    if (!label || !text.startsWith(label)) continue;
+    const rest = text.slice(label.length);
+    if (/^\s*[,，]\s*/.test(rest)) text = rest.replace(/^\s*[,，]\s*/, "");
+    else if (/^(에|에서|엔)\s/.test(rest)) return "";
+  }
+  if (!text || text.length > PUSH_MAX || badPush(text, source)) return "";
+  return text;
+}
+
+/**
+ * 알림 본문 거르기(형식 17): 같은 핵심 이슈의 사실 한 줄. 길거나 badPush거나 제목과 같으면 빈 문자열(→ 본문 없이 제목만)
+ */
+export function cleanPushNote(raw: string, source: string, title: string): string {
+  const text = pushText(raw);
+  if (!text || text.length > PUSH_NOTE_MAX || text === title || badPush(text, source)) return "";
   return text;
 }

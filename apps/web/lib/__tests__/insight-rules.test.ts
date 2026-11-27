@@ -183,3 +183,32 @@ test('알림 한 줄: 매도 사이드카 같은 사실은 권유가 아니다',
   const source = '코스피가 장중 4.6% 급락해 매도 사이드카가 발동됐어요.';
   assert.equal(cleanPushLine('코스피 4.6% 급락, 매도 사이드카 발동', source), '코스피 4.6% 급락, 매도 사이드카 발동');
 });
+
+test('알림 한 줄: 핵심 이슈만(형식 17) — 사정 이름 머리말은 떼고, 사정에 주는 해석·앱 안내 말이면 버린다', async () => {
+  const { cleanPushLine } = await import('../insight-rules');
+  const source = '코스피가 장중 4.6% 급락했어요. SK하이닉스는 하루 만에 11% 넘게 내렸어요.';
+  const labels = ['국내 주식', '대출 이자'];
+  assert.equal(cleanPushLine('국내 주식, 코스피 4.6% 급락', source, labels), '코스피 4.6% 급락');
+  assert.equal(cleanPushLine('국내 주식에 AI주 변동성 커졌어요', source, labels), '');
+  assert.equal(cleanPushLine('SK하이닉스 하루 11% 급락', source, labels), 'SK하이닉스 하루 11% 급락');
+  assert.equal(cleanPushLine('출근길 브리핑 · 소식 10개', source, labels), '');
+  assert.equal(cleanPushLine('코스피 급락 소식이 도착했어요', source, labels), '');
+});
+
+test('알림 본문: 같은 이슈의 사실 한 줄, 길거나 제목과 같거나 안내 말이면 비운다(형식 17)', async () => {
+  const { cleanPushNote, PUSH_NOTE_MAX } = await import('../insight-rules');
+  const source = '코스피가 장중 4.6% 급락해 매도 사이드카가 발동됐어요. 외국인은 2조 원 넘게 순매도했어요.';
+  assert.equal(cleanPushNote('장 초반 매도 사이드카까지 발동했어요!', source, '코스피 4.6% 급락'), '장 초반 매도 사이드카까지 발동했어요');
+  assert.equal(cleanPushNote('코스피 4.6% 급락', source, '코스피 4.6% 급락'), '');
+  assert.equal(cleanPushNote('가'.repeat(PUSH_NOTE_MAX + 1), source, '제목'), '');
+  assert.equal(cleanPushNote('출근길 브리핑 · 소식 10개', source, '제목'), '');
+  assert.equal(cleanPushNote('외국인 7조 원 순매도', source, '제목'), '');
+  assert.equal(cleanPushNote('왜 이렇게 빠졌을까요?', source, '제목'), '');
+});
+
+test('알림 본문: 저가 매수세는 사실이라 남기고, 저가 매수 권유는 버린다', async () => {
+  const { cleanPushNote } = await import('../insight-rules');
+  const source = '나스닥은 장중 4.6% 급락했다가 저가 매수세가 들어와 0.62% 하락으로 마감했어요.';
+  assert.equal(cleanPushNote('저가 매수세가 들어와 0.62% 하락 마감했어요', source, '나스닥 장중 4.6% 급락'), '저가 매수세가 들어와 0.62% 하락 마감했어요');
+  assert.equal(cleanPushNote('지금이 저가 매수 기회예요', source, '나스닥 장중 4.6% 급락'), '');
+});
