@@ -12,6 +12,7 @@ import { InsightHead } from "./BriefingInsight";
 import { EmptyToday } from "./EmptyToday";
 import { FillToday } from "./FillToday";
 import { MORE_MAX } from "@/lib/more";
+import { BRIEFING_ID } from "@/lib/player/item";
 import { SignupGift } from "./SignupGift";
 import { Thumb } from "./Thumb";
 import { startTour, useTourSeen } from "./FeatureTour";
@@ -297,7 +298,8 @@ function ListenAllButton() {
   const { data, listenAccess } = useToday();
   const canListen = p.enabled && data.items.some((i) => listenAccess(i.clusterId) !== null);
   if (!canListen) return null;
-  const first = (!p.playlist && p.chapters[0]?.clusterId) || data.items[0]?.clusterId;
+  // 맞춤 소식의 첫 소식부터(맨 앞 브리핑은 건너뛴다: 브리핑은 플레이어 재생 버튼으로 처음부터 들을 때 나온다)
+  const first = (!p.playlist && p.chapters.find((c) => c.clusterId !== BRIEFING_ID)?.clusterId) || data.items[0]?.clusterId;
   return (
     <button
       type="button"

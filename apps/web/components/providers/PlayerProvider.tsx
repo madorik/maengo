@@ -6,7 +6,7 @@ import { savePlayerPrefs } from "@/app/actions";
 import {
   chapterAt, heldOffset, lineAt, nextPlayable, positionAt, prevPlayable, progress as progressOf, startIndex, tick, withRealChapter, type Progress,
 } from "@/lib/player/machine";
-import { ITEM_PLAY_EVENT, itemAudioUrl, itemInfoUrl, itemQuery, itemWarmUrl } from "@/lib/player/item";
+import { BRIEFING_ID, ITEM_PLAY_EVENT, itemAudioUrl, itemInfoUrl, itemQuery, itemWarmUrl } from "@/lib/player/item";
 import { initialRate, nextRate } from "@/lib/player/rate";
 import { keptIds, parseRemoved, planTodaySwap, sameIds, saveRemoved, useRemovedRaw } from "@/lib/player/removed";
 import { clearResume, parseResume, resumeTarget, saveResume, useResumeRaw } from "@/lib/player/resume";
@@ -30,6 +30,8 @@ import { useToday } from "./TodayProvider";
 // 전체 음성(오늘·플레이리스트 묶음)이 아직 없으면 소식 하나짜리 파일로 차례로 튼다(Lead, 2026-11-06 사용자: 전체 듣기에서 한꺼번에 만들지 않게).
 // 지금 소식 파일이 열리면 바로 다음 소식 하나만 미리 만들어 두고, 지금 소식이 끝나면 같은 <audio>에 다음 소식 파일을 건다.
 // 듣지 않은 소식의 음성은 만들지 않는다. 전체 음성이 이미 있으면(모두 들어 본 소식) 예전처럼 전체 파일 하나로 튼다.
+// 오늘 듣기 맨 앞에는 브리핑 챕터(번호 BRIEFING_ID, 오늘의 인사이트 핵심 요약)가 있다(2026-11-27 사용자: 브리핑부터 듣고 자연스럽게 다음 뉴스로).
+// 소식이 아니라서 '들음'으로 남기지 않고, Free 잠금·목록에서 빼기도 없다. 오늘의 인사이트가 늦게 만들어지면 화면이 알려 주어(noteBriefing) 한 번 다시 받는다.
 
 type Status = "idle" | "playing" | "paused" | "done";
 
@@ -134,6 +136,13 @@ export interface PlayerApi {
   removedToday: ReadonlySet<number>;
   /** 오늘 목록에서 뺀 소식을 모두 다시 넣는다 */
   restoreToday: () => void;
+  /** 오늘 목록 맨 앞에 브리핑 챕터(BRIEFING_ID)가 있는지. 소식 개수를 셀 때 뺀다 */
+  hasBriefing: boolean;
+  /**
+   * 오늘 화면이 오늘의 인사이트를 받았다고 알린다(signature: 그 오늘 소식의 data.signature). 받아 둔 목록에 브리핑이 없으면
+   * (인사이트가 목록을 받은 뒤에 만들어졌으면) 한 번 다시 받아 맨 앞에 브리핑을 붙인다
+   */
+  noteBriefing: (signature: string) => void;
   /** 지금 목록에서 빼거나 되돌릴 수 있는지(듣는 중이면 음성 조각이 다 있을 때만) */
   canRemove: boolean;
   /** 플레이어 목록 끝에 붙인다(음성을 미리 만든 뒤). 플레이리스트를 듣는 중이 아니면 이 소식으로 채우고 바로 들려준다 */
@@ -247,13 +256,20 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   // Free도 오늘 브리핑은 제한 없이 전체 듣기로 끝까지 듣는다(2026-11-26 사용자 결정, 전엔 11-09부터 하루 3개 안에서). 플레이리스트는 Premium만
   const enabled = playlist !== null || data.items.length > 0;
   /** Free가 들을 수 없는 소식(오늘 브리핑이 아니고 하루 몫도 다 씀). 플레이어는 이 소식 앞에서 멈춘다(stopAtLimit) */
-  const locked = (id: number) => !profile.audio && listenAccess(id) === null;
+  // 브리핑 챕터는 오늘 브리핑이라 늘 들을 수 있다
+  const locked = (id: number) => id !== BRIEFING_ID && !profile.audio && listenAccess(id) === null;
   const baseChapters = episode?.chapters ?? [];
   // 첫 소식을 먼저 듣는 중이면 그 챕터의 줄 시각을 실제 값으로(대본 하이라이트·진행 막대가 맞게)
   const chapters = lead?.chapter && !episode?.ready ? withRealChapter(baseChapters, lead.index, lead.chapter) : baseChapters;
+  const hasBriefing = !playlist && chapters[0]?.clusterId === BRIEFING_ID;
   const contentKey = data.items.map((i) => `${i.clusterId}:${i.why}`).join("|");
-  // 오늘 에피소드를 만드는 목록(화면의 오늘 소식에서 뺀 소식을 뺀 것)이 바뀌었는지 보는 값
-  const listKey = `${contentKey}#${[...removed].join(",")}`;
+  /** 오늘의 인사이트를 받았다고 화면이 알린 오늘 소식(data.signature) */
+  const [insightSig, setInsightSig] = useState<string | null>(null);
+  /** 브리핑을 붙이려고 다시 받은 오늘 소식(data.signature). 같은 소식에선 한 번만 다시 받는다 */
+  const [briefRetry, setBriefRetry] = useState<string | null>(null);
+  // 오늘 에피소드를 만드는 목록(화면의 오늘 소식에서 뺀 소식을 뺀 것)이 바뀌었는지 보는 값. 브리핑을 붙이려고 다시 받을 때도 바뀐다
+  const keyOf = (r: ReadonlySet<number>) => `${contentKey}#${[...r].join(",")}${briefRetry === data.signature ? "#b" : ""}`;
+  const listKey = keyOf(removed);
   const listKeyRef = useRef(listKey);
   /** 지금 에피소드를 받은 목록(listKey). 같으면 다시 받지 않는다(듣는 중에 빼서 이미 갈아 끼운 경우) */
   const loadedKeyRef = useRef<string | null>(null);
@@ -400,7 +416,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         setError(null);
         setPreparing(false);
         setEpisode(ep);
-        if (!playlistRef.current) baseIdsRef.current = ep.chapters.map((c) => c.clusterId);
+        if (!playlistRef.current) baseIdsRef.current = ep.chapters.map((c) => c.clusterId).filter((id) => id !== BRIEFING_ID);
         // 받기 전에 재생을 눌렀으면 받는 대로 시작한다: 이어 듣던 자리, 아니면 처음 들을 소식부터(play와 같은 자리)
         let offsetMs = 0;
         if (startingRef.current) {
@@ -492,6 +508,19 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     void load(prefsRef.current.persona, prefsRef.current.voice, { index: -1, resume: false });
   }, [enabled, listKey, load]);
 
+  // 오늘의 인사이트가 목록을 받은 뒤에 만들어졌으면(받은 목록에 브리핑이 없으면) 한 번 다시 받는다(listKey가 바뀌어 위 효과가 받는다).
+  // 그리는 중에 바로 바꾼다(효과 안에서 바꾸면 한 번 더 그린다)
+  if (
+    insightSig === data.signature &&
+    briefRetry !== data.signature &&
+    episode &&
+    !playlist &&
+    data.items.length > 0 &&
+    !episode.chapters.some((c) => c.clusterId === BRIEFING_ID)
+  )
+    setBriefRetry(data.signature);
+  const noteBriefing = useCallback((signature: string) => setInsightSig(signature), []);
+
   // 음성이 다 되면(파일이 열리면) 안내를 끈다
   useEffect(() => {
     if (!preparing) endWait();
@@ -522,10 +551,11 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     if (index === chapters.length - 1) warmNextBatch();
   };
 
-  /** 실제로 소리가 난 소식을 '들음'으로 기록한다(음성을 못 만들었으면 기록하지 않게, 재생이 시작된 뒤에만) */
+  /** 실제로 소리가 난 소식을 '들음'으로 기록한다(음성을 못 만들었으면 기록하지 않게, 재생이 시작된 뒤에만). 브리핑은 소식이 아니라 남기지 않는다 */
   const heard = (id: number) => {
     if (heardRef.current.has(id)) return;
     heardRef.current.add(id);
+    if (id === BRIEFING_ID) return;
     if (!listened.has(id)) markListened(id);
   };
 
@@ -1011,7 +1041,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         const at = pending ? pending.index : fileMs !== null && chapters.length ? Math.min(chapterAt(chapters, fileMs), chapters.length - 1) : cur;
         const curId = chapters[at]?.clusterId;
         const offsetMs = heldOffset(chapters, at, { pending, fileMs, posMs });
-        const fallback = curId !== undefined && !ids.includes(curId) ? Math.min(at, ids.length - 1) : -1;
+        // 뺀 소식 자리에 온 소식(새 목록에서 같은 번호). 맨 앞 브리핑은 그대로라 새 목록 길이로 자른다
+        const fallback = curId !== undefined && !ids.includes(curId) && curId !== BRIEFING_ID ? Math.min(at, ep.chapters.length - 1) : -1;
         const resume = !audio.paused;
         setEpisode(ep);
         const kept = curId === undefined ? -1 : ep.chapters.findIndex((c) => c.clusterId === curId);
@@ -1048,11 +1079,12 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   const setRemovedToday = (next: ReadonlySet<number>) => {
     if (!canRemove) return;
     if (!idle) {
-      const now = chapters.map((c) => c.clusterId);
+      // 맨 앞 브리핑은 빼고 소식만 견준다(갈아 끼울 때 서버가 다시 붙인다)
+      const now = chapters.map((c) => c.clusterId).filter((id) => id !== BRIEFING_ID);
       const base = baseIdsRef.current.length ? baseIdsRef.current : now;
       const plan = planTodaySwap(base, now, data.items.map((i) => i.clusterId), next);
       // 화면 목록과 같아졌으면 다시 받지 않는다. 아니면 받은 목록 표시를 그대로 두어, 목록이 바뀐 걸로 보고 듣기가 끝난 뒤 받는다(staleRef)
-      if (plan.synced) loadedKeyRef.current = `${contentKey}#${[...next].join(",")}`;
+      if (plan.synced) loadedKeyRef.current = keyOf(next);
       if (plan.ids) swap(plan.ids);
     }
     saveRemoved(data.date, next);
@@ -1070,6 +1102,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
   };
 
   const removeFromPlayer = (id: number) => {
+    // 브리핑은 빼지 않는다(재생 목록에 빼기 버튼도 없다)
+    if (id === BRIEFING_ID) return null;
     // 음성을 만드는 중인(추가 대기) 소식이면 대기에서만 뺀다(다 만들어져도 붙이지 않는다)
     if (addingRef.current.some((x) => x.clusterId === id)) {
       addingRef.current = addingRef.current.filter((x) => x.clusterId !== id);
@@ -1387,6 +1421,8 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     removeFromPlayer,
     removedToday: removed,
     restoreToday,
+    hasBriefing,
+    noteBriefing,
     canRemove,
     addToPlayer,
     pending,

@@ -3,7 +3,8 @@ import { getItemEpisode } from "@/lib/server/episode";
 import { currentProfile } from "@/lib/server/session";
 import { itemListenAccess } from "@/lib/server/listen-access";
 import { ttsFailure } from "@/lib/server/file-response";
-import { parseEpisodeParams } from "../params";
+import { BRIEFING_ID } from "@/lib/player/item";
+import { parseEpisodeParams, parseItemId } from "../params";
 
 
 /**
@@ -15,10 +16,10 @@ export async function GET(request: NextRequest) {
   const profile = await currentProfile();
   if (!profile) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const params = parseEpisodeParams(request.nextUrl.searchParams);
-  const id = Number(request.nextUrl.searchParams.get("id"));
-  if (!params || !Number.isInteger(id)) return NextResponse.json({ error: "bad_request" }, { status: 400 });
-  // Premium이거나 Free의 오늘 듣기 몫(lib/server/listen-access.ts)
-  if (!(await itemListenAccess(profile, id))) return NextResponse.json({ error: "plus_required" }, { status: 403 });
+  const id = parseItemId(request.nextUrl.searchParams.get("id"));
+  if (!params || id === null) return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  // Premium이거나 Free의 오늘 듣기 몫(lib/server/listen-access.ts). 브리핑(id 0)은 누구나
+  if (id !== BRIEFING_ID && !(await itemListenAccess(profile, id))) return NextResponse.json({ error: "plus_required" }, { status: 403 });
   let episode;
   try {
     episode = await getItemEpisode(profile, id, params.persona, params.voice, { generate: false });

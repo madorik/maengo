@@ -156,7 +156,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
   // 재생을 누르면 먼저 나올 소식(듣던 자리 이어 듣기·읽은 소식 건너뛰기 반영)
   const first = p.chapters[p.firstIndex];
   // 개수·시간은 재생 목록(챕터)에 든 소식으로 센다. 시간은 만든 음성이면 실제 길이, 아니면 대본 길이 어림값. 건너뛸 소식은 뺀다
-  const count = p.ready ? p.progress.count : total;
+  // 맨 앞 브리핑은 소식이 아니라 세지 않는다
+  const count = p.ready ? p.progress.count - (p.hasBriefing ? 1 : 0) : total;
   // 듣기 시간 표시는 빼고 개수만(사용자 2026-11-25 'n분 듣기처럼 시간 보여 주지 말고 재생 버튼만')
   const minutes = "";
   const voiceName = p.voice === "f" ? "여성" : "남성";
@@ -324,7 +325,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         className="flex min-w-0 items-center gap-2.5 rounded-full py-0.5 pl-0.5 pr-2 text-left hover:bg-snow"
       >
         <MangoIcon round className={`size-12 shrink-0 ${playing ? "bob" : ""}`} />
-        <span className="min-w-0 max-w-[170px]">
+        {/* 글 자리는 늘 같은 폭(2026-11-27 사용자: 출퇴근 브리핑 막대가 짧다, 길게 펼쳐져야 한다). 쉬는 중의 '출근길 브리핑'처럼 짧은 글에도 막대가 줄지 않게 */}
+        <span className="w-[170px] min-w-0">
           <span className="block truncate text-[15px] font-bold tracking-[-0.02em]">{ch ? ch.title : source}</span>
           <span className={`block truncate text-[12px] font-medium ${p.error ? "text-cherry" : "text-sub"}`}>{sub}</span>
         </span>

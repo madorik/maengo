@@ -11,6 +11,7 @@ import { useToday } from "@/components/providers/TodayProvider";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 import { SORT_INSTRUCTIONS, sortAnnouncements } from "@/components/ui/sortable-a11y";
 import { useToast } from "@/components/ui/Toast";
+import { BRIEFING_ID } from "@/lib/player/item";
 
 export { Switch } from "@/components/ui/Switch";
 
@@ -28,10 +29,14 @@ export function Queue({ onPick }: { onPick?: () => void }) {
   const p = usePlayer();
   const { data } = useToday();
   const toast = useToast();
-  // 플레이리스트면 고른 소식(챕터 표), 아니면 오늘 피드에서 뺀 소식을 뺀 것
+  // 플레이리스트면 고른 소식(챕터 표), 아니면 오늘 피드에서 뺀 소식을 뺀 것. 오늘 목록 맨 앞에는 브리핑(빼기 버튼 없음)
+  const briefing = p.hasBriefing ? p.chapters[0] : undefined;
   const rows: Row[] = p.playlist
     ? p.chapters.map((ch) => ({ clusterId: ch.clusterId, title: ch.title, rank: ch.rank }))
-    : data.items.filter((i) => !p.removedToday.has(i.clusterId));
+    : [
+        ...(briefing ? [{ clusterId: briefing.clusterId, title: briefing.title, rank: 0 }] : []),
+        ...data.items.filter((i) => !p.removedToday.has(i.clusterId)),
+      ];
   const removedCount = p.playlist ? 0 : data.items.filter((i) => p.removedToday.has(i.clusterId)).length;
   const sortable = !!p.playlist && p.canEdit;
 
@@ -66,7 +71,7 @@ export function Queue({ onPick }: { onPick?: () => void }) {
       {ids.map((id) => {
         const row = byId.get(id);
         if (!row) return null;
-        const props = { row, onPick, onRemove: () => remove(id) };
+        const props = { row, onPick, onRemove: id === BRIEFING_ID && !p.playlist ? undefined : () => remove(id) };
         return sortable ? <SortableItem key={id} {...props} /> : <Item key={id} {...props} />;
       })}
       {p.playlist &&

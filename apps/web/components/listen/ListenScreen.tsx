@@ -51,6 +51,8 @@ function TodayListenScreen() {
   // 시작 전에는 재생을 누르면 먼저 나올 소식(듣던 자리 이어 듣기·읽은 소식 건너뛰기 반영)
   const shown = active ? p.cur : p.firstIndex;
   const ch = p.chapters[shown];
+  // 소식 개수(맨 앞 브리핑은 소식이 아니라 세지 않는다)
+  const news = p.progress.count - (p.hasBriefing ? 1 : 0);
 
   const header = (
     <header className="mx-auto flex w-full max-w-[760px] items-center gap-4 px-4 pb-2 pt-[max(16px,env(safe-area-inset-top))]">
@@ -122,7 +124,7 @@ function TodayListenScreen() {
           <>
             <div className="pt-3">
               <p className="text-[14px] font-black text-sky">
-                {`${briefing} ${p.progress.count}개`}
+                {`${briefing} ${news}개`}
               </p>
               <h1 className="mt-1 line-clamp-2 text-[22px] font-black leading-snug tracking-[-0.02em]">{ch?.title ?? briefing}</h1>
             </div>
@@ -130,7 +132,7 @@ function TodayListenScreen() {
               lines={active ? (ch?.lines ?? []) : []}
               current={active ? p.lineIndex : -1}
               playing={playing}
-              intro={`소식 ${p.ready ? p.progress.count : data.items.length}개`}
+              intro={`소식 ${p.ready ? news : data.items.length}개`}
             />
           </>
         )}

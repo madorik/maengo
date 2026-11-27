@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { IconChevronRight, IconPlay } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { ToneIcon } from "@/components/ui/ToneIcon";
@@ -44,7 +44,12 @@ export function InsightHead({
 }) {
   const { data } = useToday();
   const name = useCallName();
+  const { noteBriefing } = usePlayer();
   const slotLabel = SLOT_LABEL[data.slot ?? "am"];
+  // 인사이트가 있으면 플레이어에 알린다: 받아 둔 듣기 목록에 브리핑 음성이 없으면(인사이트가 늦게 만들어졌으면) 다시 받아 맨 앞에 붙인다
+  useEffect(() => {
+    if (headline) noteBriefing(data.signature);
+  }, [headline, data.signature, noteBriefing]);
   // 인사 날짜 끝의 때(아침·저녁 등)는 떼고 출근길·퇴근길을 붙인다(저녁에 출근길 브리핑을 보면 "저녁 출근길"이 되지 않게)
   const day = data.greetingDate.replace(/\s*(오전|오후|새벽|아침|점심|낮|저녁|밤)$/, "");
   if (headline) {

@@ -4,6 +4,7 @@ import { getEpisode } from "@/lib/server/episode";
 import { currentProfile } from "@/lib/server/session";
 import { entitlements } from "@/lib/server/profile";
 import { withBase } from "@/lib/base-path";
+import { BRIEFING_ID } from "@/lib/player/item";
 import type { EpisodeData } from "@/lib/types";
 import { parseEpisodeParams, parseTodayIds } from "../params";
 
@@ -23,13 +24,15 @@ export async function GET(request: NextRequest) {
   const date = kstDate();
   const ids = parseTodayIds(request.nextUrl.searchParams.get("ids"));
   const episode = await getEpisode(profile, date, params.persona, params.voice, { generate: false, ids });
-  // 파일 주소에 챕터 구성을 넣는다: 파일도 이 소식들로 만들고, 피드가 바뀌면 브라우저 캐시도 새로 받는다. 음성을 만들기 전후로 주소가 같아야 한다
-  const chapterIds = episode.chapters.map((c) => c.clusterId).join(",");
+  // 파일 주소에 챕터 구성을 넣는다: 파일도 이 소식들로 만들고, 피드가 바뀌면 브라우저 캐시도 새로 받는다. 음성을 만들기 전후로 주소가 같아야 한다.
+  // 맨 앞 브리핑(번호 0)은 ids에서 빠지고(서버가 늘 붙인다) 그 대본 키를 따로 넣는다(브리핑이 생기거나 바뀌면 새 주소)
+  const chapterIds = episode.chapters.map((c) => c.clusterId).filter((id) => id !== BRIEFING_ID).join(",");
+  const brief = episode.briefKey ? `&brief=${episode.briefKey}` : "";
   const body: EpisodeData = {
     date,
     persona: params.persona,
     voice: params.voice,
-    audioUrl: withBase(`/api/episode/audio?date=${date}&persona=${params.persona}&voice=${params.voice}&ids=${chapterIds}`),
+    audioUrl: withBase(`/api/episode/audio?date=${date}&persona=${params.persona}&voice=${params.voice}&ids=${chapterIds}${brief}`),
     ready: audio && episode.objectKey !== null,
     durationMs: episode.durationMs,
     chapters: episode.chapters,

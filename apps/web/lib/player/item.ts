@@ -7,6 +7,12 @@ import { withBase } from "@/lib/base-path";
  */
 export const ITEM_PLAY_EVENT = "maengo:item-play";
 
+/**
+ * 오늘 듣기 맨 앞 챕터인 브리핑(오늘의 인사이트 핵심 요약을 읽는 음성, 2026-11-27 사용자: 브리핑부터 듣고 자연스럽게 다음 뉴스로)의 번호.
+ * 소식 번호는 1부터라 겹치지 않는다. 소식 하나짜리 주소(itemQuery)에 이 번호를 넣으면 서버가 지금 브리핑의 음성을 준다(lib/server/episode.ts)
+ */
+export const BRIEFING_ID = 0;
+
 export function itemQuery(clusterId: number, persona: Persona, voice: Voice): string {
   return `id=${clusterId}&persona=${persona}&voice=${voice}`;
 }

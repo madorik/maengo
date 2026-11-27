@@ -5,14 +5,19 @@ import path from 'node:path';
 import { templateScript } from '@maengo/core/ai';
 import { GeminiQuotaError } from '@maengo/core/gemini';
 import { estimateTimeline, layoutChapters, SEGMENT_TAIL_MS, withTrailingSilence } from '@maengo/core/audio';
+import { kstDate } from '@maengo/core/kst';
+import type { BriefingSlot } from '@maengo/core/sections';
 import { isLinkTopicId } from '@maengo/core/topics';
 import type { Chapter, Persona, ScriptLine, Voice } from '@maengo/core/types';
+import { BRIEFING_ID } from '../player/item';
 import type { FeedItem } from '../types';
 import { basicTts, ttsEngineFor, type TtsEngine } from './ai';
 import { TtsQuotaError } from './google-tts';
 import { audioStore } from './audio-store';
+import { briefingScript, briefingTitle } from '../briefing-script';
+import { storedInsight } from './briefing-audio';
 import { db, must } from './db';
-import { feedItems, findFeedItem, playlistItems } from './feed';
+import { feedItems, findFeedItem, playlistItems, todayFillStatus } from './feed';
 import { concatBytes, encodeMp3, mp3DurationMs } from './mp3';
 import { blockTts, recordUse, TtsBusyError, ttsBlockedUntil } from './limits';
 import { entitlements, type Profile } from './profile';
@@ -21,6 +26,8 @@ import { entitlements, type Profile } from './profile';
 // 세그먼트 = 소식 하나 × 말투 × 목소리. 대본 내용 해시로 키를 만들어 같은 대본이면 누가 듣든 다시 만들지 않는다.
 // 파일은 MP3로 R2(audio/seg/<key>.mp3)에, 줄별 시각은 audio_segments에 둔다.
 // 오늘 전체 듣기는 세그먼트 MP3를 이어 붙인 파일(audio/ep/<hash>.mp3)을 처음 열 때 만든다.
+// 오늘 듣기 맨 앞에는 브리핑(오늘의 인사이트 핵심 요약, lib/briefing-script.ts) 세그먼트가 챕터 번호 BRIEFING_ID(0)로 붙는다(2026-11-27).
+// 브리핑은 소식이 아니라서 줄별 시각을 audio_segments(소식 번호가 꼭 있어야 하고 쇼츠가 소식 번호로 읽는다)가 아니라 저장소의 audio/seg/<key>.json에 둔다.
 
 interface SegmentLine {
   text: string;
@@ -43,7 +50,17 @@ export interface Episode {
   parts: string[];
   durationMs: number;
   chapters: Chapter[];
+  /** 맨 앞에 브리핑을 붙였으면 그 세그먼트 키(파일 주소에 넣어 브리핑이 바뀌면 새 주소가 되게), 아니면 null */
+  briefKey: string | null;
 }
+
+/**
+ * 세그먼트의 주인. 소식이면 줄별 시각을 audio_segments에, 브리핑이면 저장소의 JSON(audio/seg/<key>.json)에 둔다
+ */
+type Owner = { kind: 'item'; item: FeedItem } | { kind: 'brief' };
+
+/** 브리핑 세그먼트의 줄별 시각 파일(MP3를 올린 뒤에 올린다: 이 파일이 있으면 MP3도 있다) */
+const briefMetaKey = (key: string) => `audio/seg/${key}.json`;
 
 /**
  * 대본·TTS 입력 형식을 바꾸면 올린다(예전 음성을 다시 쓰지 않게). 2: 말투 지시문을 빼고 대본만 읽게 함(2026-10-10)
@@ -91,6 +108,22 @@ async function findSegments(keys: string[]): Promise<Map<string, SegmentRow>> {
   if (!keys.length) return new Map();
   const rows = must(await db.from('audio_segments').select('key,r2_key,duration_ms,lines').in('key', keys), 'audio_segments') as SegmentRow[];
   return new Map(rows.map((r) => [r.key, r]));
+}
+
+/** 이미 만든 브리핑 세그먼트(저장소의 줄별 시각 파일). 없으면 null */
+async function findBrief(key: string): Promise<SegmentRow | null> {
+  const bytes = await audioStore.get(briefMetaKey(key));
+  if (!bytes) return null;
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes)) as SegmentRow;
+  } catch {
+    return null;
+  }
+}
+
+/** 이 주인의 세그먼트 하나를 찾는다(소식은 audio_segments, 브리핑은 저장소) */
+async function findOne(owner: Owner, key: string): Promise<SegmentRow | null> {
+  return owner.kind === 'brief' ? findBrief(key) : ((await findSegments([key])).get(key) ?? null);
 }
 
 async function withTtsSlot<T>(fn: () => Promise<T>): Promise<T> {
@@ -141,10 +174,10 @@ async function releaseLock(key: string) {
 }
 
 /** 다른 서버가 만드는 중인 음성을 기다린다(최대 약 3분). 잠금이 풀렸는데 음성이 없으면 null */
-async function waitForSegment(key: string): Promise<SegmentRow | null> {
+async function waitForSegment(owner: Owner, key: string): Promise<SegmentRow | null> {
   for (let waited = 0; waited < LOCK_STALE_MS; waited += 2000) {
     await sleep(2000);
-    const row = (await findSegments([key])).get(key);
+    const row = await findOne(owner, key);
     if (row) return row;
     const { data } = await db.from('audio_jobs').select('key').eq('key', key).maybeSingle();
     if (!data) return null;
@@ -152,9 +185,10 @@ async function waitForSegment(key: string): Promise<SegmentRow | null> {
   return null;
 }
 
-function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: string, lines: ScriptLine[], who: Requester, engine: TtsEngine): Promise<SegmentRow> {
+function generateSegment(owner: Owner, persona: Persona, voice: Voice, key: string, lines: ScriptLine[], who: Requester, engine: TtsEngine): Promise<SegmentRow> {
   const running = inflight.get(key);
   if (running) return running;
+  const label = owner.kind === 'item' ? `#${owner.item.clusterId}` : '브리핑';
   // 음성을 만든다. 기본 음성이 한도에 걸리면 알려 준 시각까지(모르면 Google은 5분, Gemini는 하루 한도라 한 시간) TTS를 부르지 않는다
   const speak = async (e: TtsEngine) => {
     try {
@@ -191,13 +225,13 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
         if (busy) throw new TtsBusyError(busy);
         // 다른 서버가 같은 음성을 만들고 있으면 기다렸다가 그것을 쓴다(같은 음성을 두 번 만들지 않게)
         if (!(await acquireLock(key))) {
-          const done = await waitForSegment(key);
+          const done = await waitForSegment(owner, key);
           if (done) return done;
           throw new Error('다른 요청이 이 음성을 만들다 실패했어요');
         }
         locked = true;
         // 잠금을 얻기 직전에 다른 서버가 다 만들었을 수 있다
-        const again = (await findSegments([key])).get(key);
+        const again = await findOne(owner, key);
         if (again) return again;
         let speech;
         try {
@@ -206,10 +240,10 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
           if (engine === basicTts) throw e;
           // Premium(Gemini)이 실패하면 그 소식은 기본 음성으로 들려준다. 기본 음성이 이미 있으면 그것을 쓰고, 없으면 만들어 기본 음성 키로 둔다.
           // Gemini 키 자리는 비워 두어 다음에 들을 때 다시 해 본다
-          console.warn(`[tts] #${item.clusterId} Gemini 실패, 기본 음성으로: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
+          console.warn(`[tts] ${label} Gemini 실패, 기본 음성으로: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
           used = basicTts;
           rowKey = segmentKey(lines, persona, voice, basicTts);
-          const basic = (await findSegments([rowKey])).get(rowKey);
+          const basic = await findOne(owner, rowKey);
           if (basic) return basic;
           speech = await speak(basicTts);
         }
@@ -222,21 +256,23 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
         source = 'TTS';
         await recordUse(who.userId, 'voice');
         // 내 관심 링크 소식 음성은 따로도 센다(비용 보기용. 2026-11-08부터 하루 몫 제한은 없다)
-        if (isLinkTopicId(item.topicId)) await recordUse(who.userId, 'voice_link');
+        if (owner.kind === 'item' && isLinkTopicId(owner.item.topicId)) await recordUse(who.userId, 'voice_link');
       }
       // 끝에 무음을 붙여 저장한다. 줄 시각은 그대로라 마지막 줄 뒤가 쉼이 된다
       const mp3 = encodeMp3(withTrailingSilence(pcm, sampleRate, 16, SEGMENT_TAIL_MS), sampleRate);
       const r2Key = `audio/seg/${rowKey}.mp3`;
       await audioStore.put(r2Key, mp3, 'audio/mpeg');
       const row: SegmentRow = { key: rowKey, r2_key: r2Key, duration_ms: mp3DurationMs(mp3.length), lines: timed };
-      must(
-        await db.from('audio_segments').upsert(
-          { ...row, cluster_id: item.clusterId, persona, voice, model: used.model, bytes: mp3.length },
-          { onConflict: 'key' },
-        ),
-        'audio_segments upsert',
-      );
-      console.log(`[tts] #${item.clusterId} ${persona}/${voice} ${used.id} ${(row.duration_ms / 1000).toFixed(1)}초 · ${Math.round(mp3.length / 1024)}KB · ${source} · ${((Date.now() - t0) / 1000).toFixed(1)}초 걸림`);
+      if (owner.kind === 'brief') await audioStore.put(briefMetaKey(rowKey), new TextEncoder().encode(JSON.stringify(row)), 'application/json');
+      else
+        must(
+          await db.from('audio_segments').upsert(
+            { ...row, cluster_id: owner.item.clusterId, persona, voice, model: used.model, bytes: mp3.length },
+            { onConflict: 'key' },
+          ),
+          'audio_segments upsert',
+        );
+      console.log(`[tts] ${label} ${persona}/${voice} ${used.id} ${(row.duration_ms / 1000).toFixed(1)}초 · ${Math.round(mp3.length / 1024)}KB · ${source} · ${((Date.now() - t0) / 1000).toFixed(1)}초 걸림`);
       return row;
     } finally {
       if (locked) await releaseLock(key).catch((e) => console.error('[tts] 잠금 풀기 실패', String((e as Error)?.message ?? e).slice(0, 200)));
@@ -246,14 +282,44 @@ function generateSegment(item: FeedItem, persona: Persona, voice: Voice, key: st
   return job;
 }
 
-async function assemble(items: FeedItem[], persona: Persona, voice: Voice, engine: TtsEngine, generate: Requester | null): Promise<Episode> {
-  const scripts = items.map((item) => {
-    const lines = scriptOf(item);
-    return { item, lines, key: segmentKey(lines, persona, voice, engine) };
+/** 에피소드의 한 챕터가 될 재료: 소식 하나, 또는 맨 앞의 브리핑 */
+interface Part {
+  owner: Owner;
+  rank: number;
+  clusterId: number;
+  title: string;
+  lines: ScriptLine[];
+}
+
+const itemPart = (item: FeedItem): Part => ({ owner: { kind: 'item', item }, rank: item.rank, clusterId: item.clusterId, title: item.title, lines: scriptOf(item) });
+
+/**
+ * 그날 그 브리핑의 오늘의 인사이트로 만든 브리핑 챕터 재료. 인사이트가 아직 없거나(만드는 중·실패) 읽을 흐름이 없으면 null.
+ * 인사이트를 못 읽어도 소식 듣기는 그대로 되게 오류는 삼킨다
+ */
+async function briefingPart(profile: Profile, date: string, slot: BriefingSlot): Promise<Part | null> {
+  const insight = await storedInsight(profile.id, date, slot).catch((e: unknown) => {
+    console.error('[tts] 브리핑 인사이트 읽기 실패', String((e as Error)?.message ?? e).slice(0, 200));
+    return null;
   });
-  const found = await findSegments(scripts.map((s) => s.key));
+  const lines = insight ? briefingScript(insight, slot) : [];
+  if (!lines.length) return null;
+  return { owner: { kind: 'brief' }, rank: 0, clusterId: BRIEFING_ID, title: briefingTitle(slot), lines };
+}
+
+async function assemble(list: Part[], persona: Persona, voice: Voice, engine: TtsEngine, generate: Requester | null): Promise<Episode> {
+  const scripts = list.map((p) => ({ ...p, key: segmentKey(p.lines, persona, voice, engine) }));
+  const brief = scripts.find((s) => s.owner.kind === 'brief');
+  const [found, briefSeg] = await Promise.all([
+    findSegments(scripts.filter((s) => s.owner.kind === 'item').map((s) => s.key)),
+    brief ? findBrief(brief.key) : Promise.resolve(null),
+  ]);
   const segs = await Promise.all(
-    scripts.map(async (s) => found.get(s.key) ?? (generate ? generateSegment(s.item, persona, voice, s.key, s.lines, generate, engine) : null)),
+    scripts.map(
+      async (s) =>
+        (s.owner.kind === 'brief' ? briefSeg : found.get(s.key)) ??
+        (generate ? generateSegment(s.owner, persona, voice, s.key, s.lines, generate, engine) : null),
+    ),
   );
   const parts = scripts.map((s, i) => {
     const seg = segs[i];
@@ -262,14 +328,15 @@ async function assemble(items: FeedItem[], persona: Persona, voice: Voice, engin
     return { durationMs, lines: s.lines.map((l, j) => ({ ...l, ...lineTimesMs[j]! })) };
   });
   const chapters = layoutChapters(
-    items.map((item, i) => ({ rank: item.rank, clusterId: item.clusterId, title: item.title, durationMs: parts[i]!.durationMs, lines: parts[i]!.lines })),
+    scripts.map((s, i) => ({ rank: s.rank, clusterId: s.clusterId, title: s.title, durationMs: parts[i]!.durationMs, lines: parts[i]!.lines })),
   );
   const durationMs = chapters.at(-1)?.endMs ?? 0;
+  const briefKey = brief?.key ?? null;
   const ready = segs.length > 0 && segs.every((s) => s !== null);
-  if (!ready) return { objectKey: null, parts: [], durationMs, chapters };
+  if (!ready) return { objectKey: null, parts: [], durationMs, chapters, briefKey };
   const keys = (segs as SegmentRow[]).map((s) => s.r2_key);
   const objectKey = keys.length === 1 ? keys[0]! : `audio/ep/${sha(keys.join('|'))}.mp3`;
-  return { objectKey, parts: keys, durationMs, chapters };
+  return { objectKey, parts: keys, durationMs, chapters, briefKey };
 }
 
 /** 이어 붙인 파일이 없으면 만든다(세그먼트 MP3를 바이트 그대로 이어 붙임, 재인코딩 없음) */
@@ -310,7 +377,10 @@ export async function getEpisode(
     items = items.filter((i) => order.has(i.clusterId)).sort((a, b) => order.get(a.clusterId)! - order.get(b.clusterId)!);
   }
   const engine = await ttsEngineFor(entitlements(profile).audio);
-  return assemble(items, persona, voice, engine, generate ? requester(profile) : null);
+  // 소식이 있으면 맨 앞에 그 브리핑(소식들의 출근길·퇴근길)의 브리핑을 붙인다. 다 뺐으면(빈 목록) 브리핑도 없다
+  const brief = items.length ? await briefingPart(profile, date, items[0]!.slot ?? 'am') : null;
+  const parts = items.map(itemPart);
+  return assemble(brief ? [brief, ...parts] : parts, persona, voice, engine, generate ? requester(profile) : null);
 }
 
 /** 음성 파일 주소(없는 소식은 만든 뒤). R2면 서명 URL */
@@ -319,12 +389,20 @@ export async function episodeFileUrl(ep: Episode): Promise<string | null> {
   return audioStore.url(await ensureObject(ep));
 }
 
-/** 소식 하나짜리 에피소드. 목록 카드·상세의 "듣기"가 쓴다 */
+/**
+ * 소식 하나짜리 에피소드. 목록 카드·상세의 "듣기"와 전체 듣기를 소식 하나씩 들을 때 쓴다.
+ * BRIEFING_ID면 지금 브리핑(출근길·퇴근길)의 브리핑 하나짜리(인사이트가 없으면 null)
+ */
 export async function getItemEpisode(profile: Profile, clusterId: number, persona: Persona, voice: Voice, { generate }: { generate: boolean }): Promise<Episode | null> {
+  const engine = await ttsEngineFor(entitlements(profile).audio);
+  if (clusterId === BRIEFING_ID) {
+    const { slot } = await todayFillStatus(profile);
+    const brief = await briefingPart(profile, kstDate(), slot);
+    return brief && assemble([brief], persona, voice, engine, generate ? requester(profile) : null);
+  }
   const found = await findFeedItem(profile, clusterId);
   if (!found) return null;
-  const engine = await ttsEngineFor(entitlements(profile).audio);
-  return assemble([found.item], persona, voice, engine, generate ? requester(profile) : null);
+  return assemble([itemPart(found.item)], persona, voice, engine, generate ? requester(profile) : null);
 }
 
 /**
@@ -340,5 +418,5 @@ export async function getPlaylistEpisode(
 ): Promise<{ items: FeedItem[]; episode: Episode }> {
   const engine = await ttsEngineFor(entitlements(profile).audio);
   const items = (await playlistItems(profile, ids)).map((item, i) => ({ ...item, rank: i + 1 }));
-  return { items, episode: await assemble(items, persona, voice, engine, generate ? requester(profile) : null) };
+  return { items, episode: await assemble(items.map(itemPart), persona, voice, engine, generate ? requester(profile) : null) };
 }

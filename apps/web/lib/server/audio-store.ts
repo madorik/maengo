@@ -21,6 +21,11 @@ export function isAudioKey(key: string): boolean {
   return /^audio\/(seg|ep)\/[\w-]+\.mp3$/.test(key);
 }
 
+/** 저장소에 둘 수 있는 키: 음성 파일과 브리핑 세그먼트의 줄별 시각(audio/seg/<key>.json, lib/server/episode.ts) */
+function isStoreKey(key: string): boolean {
+  return isAudioKey(key) || /^audio\/seg\/[\w-]+\.json$/.test(key);
+}
+
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 /** 서명 URL 유효 시간. 시각을 1시간 단위로 내려 같은 시간대에는 같은 주소가 나오게 한다(브라우저 캐시가 먹게) */
 const SIGNED_TTL_S = 6 * 3600;
@@ -70,7 +75,7 @@ function r2Store(env: { account: string; bucket: string; id: string; secret: str
 function localStore(): AudioStore {
   const dir = path.join(process.cwd(), '.cache', 'audio-store');
   const file = (key: string) => {
-    if (!isAudioKey(key)) throw new Error(`잘못된 음성 키: ${key}`);
+    if (!isStoreKey(key)) throw new Error(`잘못된 음성 키: ${key}`);
     return path.join(dir, key);
   };
   return {
