@@ -11,15 +11,13 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { Sheet } from "@/components/ui/Sheet";
-import { useProfile } from "@/components/providers/ProfileProvider";
-import { waitShort } from "@/lib/player/labels";
 import { claimDock, clearPlayerExpand, releaseDock, requestPlayerOpen, setPlayerDocked, takePlayerOpenWhenReady, useDock } from "@/lib/float-dock";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import { Queue, Switch } from "./controls";
 import { ListenLimit } from "./ListenLimit";
 import { Script } from "./Script";
-import { WaitProgress, WaitRing } from "./WaitProgress";
+import { WaitProgress, WaitRing, WaitShort } from "./WaitProgress";
 import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 
 /**
@@ -36,7 +34,6 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
  */
 export function ListenWidget({ initialCollapsed, inApp = false }: { initialCollapsed: boolean; /** 앱(Capacitor)인지. 서버가 User-Agent로 정한다 */ inApp?: boolean }) {
   const p = usePlayer();
-  const premium = useProfile().audio;
   const { game, data } = useToday();
   const [open, setOpen] = useState(false);
   /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
@@ -169,7 +166,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       : p.limitReached
         ? "오늘 무료로 들을 지난 소식을 다 들었어요"
       : p.preparing
-        ? waitShort(premium)
+        ? <WaitShort since={p.waitSince} />
         : ch
       ? (playing ? "듣는 중" : "멈춤")
       : p.status === "done"

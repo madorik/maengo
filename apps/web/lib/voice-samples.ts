@@ -1,5 +1,6 @@
 import type { Persona, ScriptLine, Voice } from "@maengo/core/types";
 import { withBase } from "./base-path";
+import { WAIT_DELAY_MS, waitStages } from "./player/labels";
 
 // 설정 > 듣기의 미리 듣기. 음성 엔진·목소리마다 짧은 인사를 한 번만 만들어 public/voice-samples에 두고(scripts/voice-samples.ts),
 // 들을 때는 정적 파일만 튼다(TTS를 다시 부르지 않는다). 문구를 바꾸면 스크립트를 --force로 다시 돌린다.
@@ -26,12 +27,12 @@ export function sampleUrl(persona: Persona, voice: Voice, engine: VoiceEngine): 
 }
 
 /**
- * 음성을 만드는 동안 틀어 주는 안내(PlayerProvider). 화면의 기다림 칸(lib/player/labels.ts WAIT·waitNote, components/listen/WaitProgress.tsx)과 같은 말을 아나운서 목소리로.
- * 무엇을 하는지와 얼마나 걸리는지를 말한다(2026-11-27 사용자: 만드는 10초 동안 지루하지 않게, 기다릴 수 있는 시간을 알려 주자. 전엔 'AI가 요약을 음성으로 변환하고 있어요. 조금만 기다려주세요.').
- * 엔진·목소리마다 한 번 만들어 public/voice-samples에 둔다(scripts/voice-samples.ts --wait, 2026-10-25 사용자 결정). 말 뒤에 띵 소리를 붙인다(scripts/wait-chime.ts)
+ * 음성을 만드는 동안 틀어 주는 안내(PlayerProvider). 화면의 기다림 칸과 같은 단계(lib/player/labels.ts waitStages)의 말을 같은 때 아나운서 목소리로 한다
+ * (2026-11-27 사용자: 음성으로도 알려 줘야지. 전엔 첫 말 하나 뒤로 띵 소리만). 말 사이는 띵 소리로 채운다(scripts/wait-chime.ts).
+ * 안내는 기다리기 시작하고 WAIT_DELAY_MS 뒤에 처음부터 나오므로 그만큼 앞당겨 둔다. 엔진·목소리마다 한 번 만들어 public/voice-samples에 둔다(scripts/voice-samples.ts --wait)
  */
-export function waitLines(engine: VoiceEngine): ScriptLine[] {
-  return [{ text: "자연스러운 목소리로 만들고 있어요." }, { text: engine === "gemini" ? "5초쯤 걸려요." : "10초쯤 걸려요." }];
+export function waitCues(engine: VoiceEngine): { atMs: number; text: string }[] {
+  return waitStages(engine === "gemini").map((s) => ({ atMs: Math.max(0, s.atMs - WAIT_DELAY_MS), text: s.say }));
 }
 
 export function waitPath(voice: Voice, engine: VoiceEngine): string {

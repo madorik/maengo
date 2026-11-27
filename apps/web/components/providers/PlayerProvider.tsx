@@ -11,6 +11,8 @@ import { initialRate, nextRate } from "@/lib/player/rate";
 import { keptIds, parseRemoved, planTodaySwap, sameIds, saveRemoved, useRemovedRaw } from "@/lib/player/removed";
 import { clearResume, parseResume, resumeTarget, saveResume, useResumeRaw } from "@/lib/player/resume";
 import { ttsErrorMessage } from "@/lib/player/tts-error";
+// 안내 소리를 켜기까지 기다리는 시간(이미 만든 음성은 보통 이 안에 열린다). 안내 음성의 말 시각도 이 값을 뺀 자리에 둔다
+import { WAIT_DELAY_MS } from "@/lib/player/labels";
 import { track } from "@/lib/analytics";
 import { withBase } from "@/lib/base-path";
 import { hideMedia, showMedia, type MediaAction } from "@/lib/native/media";
@@ -160,8 +162,6 @@ export interface PlayerApi {
 // 오류는 짧게 한 줄로(옆에 '다시 시도' 버튼이 있다)
 /** 에피소드 정보(목록·챕터 표)를 못 받았을 때 */
 const LOAD_ERROR = "소식을 불러오지 못했어요";
-/** 음성을 기다릴 때 안내 소리를 켜기까지 기다리는 시간. 이미 만든 음성은 보통 이 안에 열린다 */
-const WAIT_DELAY_MS = 800;
 /** 다 만든 음성 파일을 못 열었을 때 */
 const FILE_ERROR = "음성을 불러오지 못했어요";
 const PLAY_ERROR = "재생하지 못했어요";
