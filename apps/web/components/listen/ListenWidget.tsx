@@ -11,13 +11,15 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { Sheet } from "@/components/ui/Sheet";
-import { PREPARING_SHORT, PREPARING_TEXT } from "@/lib/player/labels";
+import { useProfile } from "@/components/providers/ProfileProvider";
+import { waitShort } from "@/lib/player/labels";
 import { claimDock, clearPlayerExpand, releaseDock, requestPlayerOpen, setPlayerDocked, takePlayerOpenWhenReady, useDock } from "@/lib/float-dock";
 import { LISTEN_COLLAPSED_COOKIE } from "@/lib/ui-prefs";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import { Queue, Switch } from "./controls";
 import { ListenLimit } from "./ListenLimit";
 import { Script } from "./Script";
+import { WaitProgress, WaitRing } from "./WaitProgress";
 import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
 
 /**
@@ -34,6 +36,7 @@ import { SeekBar, SKIP_MS, SkipButton } from "./SeekBar";
  */
 export function ListenWidget({ initialCollapsed, inApp = false }: { initialCollapsed: boolean; /** 앱(Capacitor)인지. 서버가 User-Agent로 정한다 */ inApp?: boolean }) {
   const p = usePlayer();
+  const premium = useProfile().audio;
   const { game, data } = useToday();
   const [open, setOpen] = useState(false);
   /** 창 아래쪽: 재생 목록 또는 대본(유튜브 뮤직 가사 보기처럼) */
@@ -166,7 +169,7 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
       : p.limitReached
         ? "오늘 무료로 들을 지난 소식을 다 들었어요"
       : p.preparing
-        ? PREPARING_SHORT
+        ? waitShort(premium)
         : ch
       ? (playing ? "듣는 중" : "멈춤")
       : p.status === "done"
@@ -208,16 +211,8 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
         label="재생 위치"
         className={big ? "mt-2 h-4" : "mt-0.5 h-3"}
       />
-      {p.preparing && (
-        <div className="mt-2 flex items-center gap-2 rounded-2xl bg-snow py-2 pl-3 pr-2">
-          <p role="status" className="min-w-0 flex-1 text-[13px] font-semibold leading-relaxed text-ink">
-            {PREPARING_TEXT}
-          </p>
-          <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
-            취소
-          </button>
-        </div>
-      )}
+      {/* 기다리는 동안 무엇을·얼마나·어디까지(2026-11-27 사용자). 플레이어가 기다리기 시작한 때부터 센다 */}
+      {p.preparing && <WaitProgress since={p.waitSince} onCancel={p.cancel} className="mt-2" />}
       {p.limitReached && <ListenLimit className="mt-2" />}
       {p.error && (
         <div className="mt-2 flex items-center gap-2">
@@ -331,15 +326,19 @@ export function ListenWidget({ initialCollapsed, inApp = false }: { initialColla
           <span className={`block truncate text-[12px] font-medium ${p.error ? "text-cherry" : "text-sub"}`}>{sub}</span>
         </span>
       </button>
-      <button
-        type="button"
-        onClick={p.toggle}
-        aria-busy={p.starting || undefined}
-        aria-label={playLabel === "재생" ? `${heading} 재생` : playLabel}
-        className="btn btn-sky size-12 min-h-0 shrink-0 rounded-full p-0"
-      >
-        {playIcon(playing ? "size-5" : "size-6")}
-      </button>
+      {/* 음성을 만드는 동안 재생 버튼을 진행 고리로 두른다(막대만 보여도 어디까지 왔는지) */}
+      <span className="relative shrink-0">
+        <button
+          type="button"
+          onClick={p.toggle}
+          aria-busy={p.starting || p.preparing || undefined}
+          aria-label={playLabel === "재생" ? `${heading} 재생` : playLabel}
+          className="btn btn-sky size-12 min-h-0 shrink-0 rounded-full p-0"
+        >
+          {playIcon(playing ? "size-5" : "size-6")}
+        </button>
+        {p.preparing && <WaitRing since={p.waitSince} />}
+      </span>
       {foldButton}
     </div>
   );

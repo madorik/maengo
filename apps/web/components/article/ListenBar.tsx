@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { IconPause, IconPlay, IconSpeaker } from "@/components/icons";
 import { MangoIcon } from "@/components/MangoIcon";
 import { SeekBar, SKIP_MS, SkipButton } from "@/components/listen/SeekBar";
+import { WaitProgress } from "@/components/listen/WaitProgress";
 import { PremiumBadge } from "@/components/ui/PremiumBadge";
 
 /** 막대 높이(px)를 담는 CSS 변수. 플레이어 위젯(ListenWidget)이 막대 바로 위에 뜨고, 글 화면 아래 여백(ArticleView)도 이 높이를 따른다 */
@@ -71,20 +72,8 @@ export function ListenBar({ ctl, free = false }: { ctl: ListenBarCtl; free?: boo
       </Link>
     );
   } else if (ctl.preparing) {
-    body = (
-      <div className="flex items-center gap-3">
-        {/* 맹고 캐릭터가 있던 자리에 새 앱 아이콘 (2026-11-26 사용자: 캐릭터 자리에 새 앱 아이콘) */}
-        <MangoIcon className="bob size-12 shrink-0" />
-        <p role="status" className="min-w-0 flex-1 text-[15px] font-extrabold text-sky-dark">
-          음성 만드는 중
-        </p>
-        {ctl.cancel && (
-          <button type="button" onClick={ctl.cancel} className="btn btn-ghost min-h-12 shrink-0 px-4 text-[15px]">
-            취소
-          </button>
-        )}
-      </div>
-    );
+    // 기다리는 동안 무엇을·얼마나·어디까지(2026-11-27 사용자: 만드는 10초 동안 지루하지 않게)
+    body = <WaitProgress onCancel={ctl.cancel} />;
   } else if (ctl.state === "playing" || ctl.state === "paused") {
     const canMove = ctl.totalMs > 0;
     body = (

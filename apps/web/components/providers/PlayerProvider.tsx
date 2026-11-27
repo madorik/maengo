@@ -61,6 +61,8 @@ export interface PlayerApi {
   starting: boolean;
   /** 음성을 만드는 중(처음 듣는 말투·소식) */
   preparing: boolean;
+  /** 음성을 기다리기 시작한 시각(ms). 기다리는 중이 아니면 null */
+  waitSince: number | null;
   /** 오늘 소식 전부의 음성이 이미 있는지(지금 말투·목소리) */
   audioReady: boolean;
   error: string | null;
@@ -196,7 +198,14 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
 
   const [episode, setEpisode] = useState<EpisodeData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [preparing, setPreparing] = useState(false);
+  const [preparing, setPreparingState] = useState(false);
+  /** 지금 음성을 기다리기 시작한 시각(기다리는 중이 아니면 null). 떠 있는 막대·플레이어 창·듣기 화면의 진행이 같은 시각에서 센다(components/listen/WaitProgress.tsx) */
+  const [waitSince, setWaitSince] = useState<number | null>(null);
+  /** 음성을 기다리는지 바꾼다. 새 파일을 기다리기 시작하면(다시 true여도) 그때부터 센다 */
+  const setPreparing = useCallback((on: boolean) => {
+    setPreparingState(on);
+    setWaitSince(on ? Date.now() : null);
+  }, []);
   /** 에피소드 정보를 받기 전에 재생을 눌렀다(받는 대로 시작한다). 화면을 연 직후 몇 초 동안 재생 버튼이 막혀 있지 않게(2026-10-22) */
   const [starting, setStarting] = useState(false);
   const startingRef = useRef(false);
@@ -355,7 +364,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       if (play) audio.play().catch(() => {});
       if (play && !ep.ready) startWait();
     },
-    [setLead, startWait],
+    [setLead, setPreparing, startWait],
   );
 
   /**
@@ -400,7 +409,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
       // 미리 만들어 둔 소식이면 바로 열리니 기다림 안내를 틀지 않는다(화면을 끈 채 넘어갈 때 다른 소리를 걸지 않게)
       if (warmedItemsRef.current.get(query) !== "done") startWait();
     },
-    [persona, voice, setLead, startWait],
+    [persona, voice, setLead, setPreparing, startWait],
   );
 
   const load = useCallback(
@@ -473,7 +482,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
         setStarting(false);
       }
     },
-    [fetchEpisode, openFile, setLead, startLead],
+    [fetchEpisode, openFile, setLead, setPreparing, startLead],
   );
 
   // 말투·목소리의 최신 값. 피드 내용이 바뀌어 다시 불러올 때만 읽는다.
@@ -1375,6 +1384,7 @@ export function PlayerProvider({ profile, children }: { profile: ProfileView; ch
     ready: !!episode,
     starting,
     preparing,
+    waitSince,
     audioReady: !!episode?.ready,
     error,
     status,

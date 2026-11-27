@@ -7,7 +7,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { basicTts, premiumTts } from "../lib/server/ai";
 import { encodeMp3 } from "../lib/server/mp3";
-import { SAMPLE_LINES, SAMPLES, samplePath, WAIT_LINES, waitPath } from "../lib/voice-samples";
+import { SAMPLE_LINES, SAMPLES, samplePath, waitLines, waitPath } from "../lib/voice-samples";
 import { withChimes } from "./wait-chime";
 
 const force = process.argv.includes("--force");
@@ -17,7 +17,7 @@ const pub = path.join(import.meta.dirname, "..", "public");
 const jobs = [basicTts, premiumTts].flatMap((engine) =>
   SAMPLES.flatMap(({ persona, voice }) => [
     { engine, persona, voice, file: samplePath(persona, voice, engine.id), lines: SAMPLE_LINES, wait: false },
-    { engine, persona, voice, file: waitPath(voice, engine.id), lines: WAIT_LINES, wait: true },
+    { engine, persona, voice, file: waitPath(voice, engine.id), lines: waitLines(engine.id), wait: true },
   ]),
 ).filter((job) => !waitOnly || job.wait);
 

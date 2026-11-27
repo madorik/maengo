@@ -10,7 +10,7 @@ import { usePlayer } from "@/components/providers/PlayerProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { PREPARING_TEXT } from "@/lib/player/labels";
+import { WaitProgress } from "./WaitProgress";
 import { Queue, Switch } from "./controls";
 import { ListenLimit } from "./ListenLimit";
 import { PlusLock } from "./PlusLock";
@@ -151,16 +151,8 @@ function TodayListenScreen() {
               </button>
             </div>
           )}
-          {p.preparing && (
-            <div className="flex items-center justify-center gap-3 pb-3">
-              <p role="status" className="min-w-0 text-[14px] font-bold leading-relaxed text-sky-dark">
-                {PREPARING_TEXT}
-              </p>
-              <button type="button" onClick={p.cancel} className="btn btn-ghost min-h-11 shrink-0 px-3 text-[14px]">
-                취소
-              </button>
-            </div>
-          )}
+          {/* 기다리는 동안 무엇을·얼마나·어디까지(2026-11-27 사용자). 플레이어가 기다리기 시작한 때부터 센다 */}
+          {p.preparing && <WaitProgress since={p.waitSince} onCancel={p.cancel} className="mb-3" />}
           {/* 좁은 폰에서도 한 줄에 동그랗게 들어가게 화면이 좁으면 버튼과 간격을 줄인다(320px에서도 넘치지 않게) */}
           <div className="flex items-center justify-center gap-1 min-[360px]:gap-2 sm:gap-5">
             <button
