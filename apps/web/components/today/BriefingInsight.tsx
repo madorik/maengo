@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { IconCheck, IconChevronRight, IconFlag, IconPlay } from "@/components/icons";
+import { IconBell, IconCheck, IconChevronRight, IconFlag, IconPlay } from "@/components/icons";
 import { requestPlayerExpand } from "@/lib/float-dock";
 import { BRIEFING_ID } from "@/lib/player/item";
 import { MangoIcon } from "@/components/MangoIcon";
@@ -20,7 +20,7 @@ import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight, InsightTone } from "@/lib/server/briefing-insight";
 import { SEEN_MIN } from "@/lib/insight-rules";
-import { alsoOf, figureText, keepNumbers, pointsOf, whoOf } from "@/lib/insight-card";
+import { alsoOf, figureText, keepNumbers, pointsOf, shortLabel, whoOf } from "@/lib/insight-card";
 import { track } from "@/lib/analytics";
 
 /**
@@ -301,6 +301,8 @@ interface Care {
   checks: BriefingInsight["checks"];
   /** 비었거나 읽은 소식이 적을 때 왜인지와 어떻게 하면 좋아지는지(첫 흐름 시트에만) */
   hint: { title: string | null; text: string } | null;
+  /** 맹고 분석 상자와 같은 관심을 짚는 맞춤 체크의 설명. 챙겨 볼 것에서는 빼고, 상자에 연결 문장(relation)이 없을 때만 아래 줄로 */
+  merged: string | null;
 }
 
 /**
@@ -314,8 +316,14 @@ function careOf(insight: BriefingInsight, k: number, personalOff: boolean, name:
   const recent = insight.basis?.recent ?? 0;
   const noted = !!insight.lead && !insight.lead.about;
   const hint = !personalOff && !noted && (!all.length || recent < SEEN_MIN);
+  // 같은 말 두 번 하지 않기(2026-11-28 검토): 맹고 분석 상자가 짚는 관심(예: 대출 이자)과 같은 관심을 이 흐름 소식으로 짚은 맞춤 체크는
+  // '챙겨 볼 것'에 또 쓰지 않는다(상자 제목 '시장금리 하락세가 …'과 체크 제목 '시장금리 하락세가 …'이 겹쳤다). 그 설명은 상자에 연결 문장이 없을 때만 아래 줄로
+  const flow = insight.flows[k];
+  const who = flow?.effect ? whoOf(flow.links?.length ? flow.links : flow.tag ? [flow.tag] : []) : "";
+  const same = who ? all.find((x) => flow!.ids.includes(x.id) && shortLabel(x.about) === who) : undefined;
   return {
-    personal: all.filter((x) => mine(x.id)),
+    personal: all.filter((x) => mine(x.id) && x !== same),
+    merged: same?.text ?? null,
     checks: insight.checks.slice(0, 1).filter((c) => mine(c.id)),
     hint:
       hint && k === 0
@@ -387,7 +395,7 @@ function Part({ label, children }: { label: string; children: ReactNode }) {
 
 /**
  * 목록 줄 앞 표시: 회색 둥근 네모 안의 선 아이콘(2026-11-28 사용자: 주황 동그라미 말고 다른 예쁜 아이콘).
- * 다음에 확인할 것은 깃발, 챙겨 볼 것의 할 일은 체크
+ * 다음에 확인할 것은 깃발, 챙겨 볼 것의 할 일은 종(체크는 핵심 요약 분석 줄 앞에만 써서 한 화면에 체크가 두 모양이 되지 않게, 2026-11-28 검토)
  */
 function RowMark({ icon }: { icon: ReactNode }) {
   return (
@@ -428,13 +436,18 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
   const related = flow.ids.map((id) => data.items.find((i) => i.clusterId === id)).filter((i): i is FeedItem => !!i);
   const canListen = p.enabled && related.some((i) => listenAccess(i.clusterId) !== null);
   const sources = sourceLine(related);
+  // 카드 사진 위의 큰 숫자(형식 15)를 상세 맨 위에도 이어 보여 준다(2026-11-28 검토: 카드에서 상세로 넘어오면 숫자가 사라졌다)
+  const figure = flow.figure ? { value: figureText(flow.figure.value), label: flow.figure.label } : null;
+  const head = !!(figure || sources);
   const who = whoOf(flow.links?.length ? flow.links : flow.tag ? [flow.tag] : []);
   const effect = flow.effect || flow.why;
   const tone: InsightTone | null = flow.effect && flow.tone ? flow.tone : null;
-  // 분석 판 아래 줄: 내 관심과 어떻게 이어지는지(relation). 없으면 예전 형식의 '왜'(영향 자리에 이미 쓴 게 아닐 때만)
-  const note = flow.relation || (flow.effect ? flow.why : "") || "";
+  // 분석 상자 아래 줄: 내 관심과 어떻게 이어지는지(relation, 짧다) → 읽던 소식과의 이어짐(why, 영향 자리에 이미 쓴 게 아닐 때만)
+  // → 둘 다 없으면 같은 관심을 짚은 맞춤 체크의 설명(챙겨 볼 것에서 뺀 것). 맞춤 체크 설명을 먼저 두었더니 상자 제목과 같은 말을 되풀이했다(2026-11-28 확인)
+  const note = flow.relation || (flow.effect ? flow.why : "") || care.merged || "";
   // 핵심 요약 분석(형식 18): 요약 줄과 그 줄의 분석 짝. 분석이 하나도 없으면(예전 형식) 비워서 '무슨 일이 있었나요'로
-  const analyzed = flow.analysis?.some(Boolean) ? (flow.points ?? []).map((point, k) => ({ point, note: flow.analysis?.[k] ?? "" })) : [];  const target: AskTarget = {
+  const analyzed = flow.analysis?.some(Boolean) ? (flow.points ?? []).map((point, k) => ({ point, note: flow.analysis?.[k] ?? "" })) : [];
+  const target: AskTarget = {
     key: `flow.${data.date}.${data.slot ?? "am"}.${index}`,
     ref: { flow: { date: data.date, slot: data.slot ?? "am", index } },
     category: "insight",
@@ -457,8 +470,19 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
   }
   return (
     <div className="pb-2">
-      {/* 보도 언론·날짜: 시트 제목 바로 아래 오른쪽 끝(2026-11-28 사용자: 연합뉴스 마켓 보도는 오른쪽으로) */}
-      {sources && <p className="-mt-1 text-right text-[13px] font-medium text-sub">{sources}</p>}
+      {/* 시트 제목 바로 아래 한 줄: 왼쪽은 카드의 큰 숫자('1조 3,900억 수요예측 주문'), 오른쪽 끝은 보도 언론·날짜
+          (2026-11-28 사용자: 연합뉴스 마켓 보도는 오른쪽으로). 좁으면 바이라인이 다음 줄 오른쪽으로 내려간다 */}
+      {head && (
+        <div className="-mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          {figure && (
+            <p className="flex min-w-0 items-baseline gap-1.5">
+              <span className="shrink-0 text-[18px] font-extrabold tracking-[-0.03em] text-ink tabular-nums">{figure.value}</span>
+              <span className="truncate text-[13px] font-semibold text-sub">{figure.label}</span>
+            </p>
+          )}
+          {sources && <p className="ml-auto text-right text-[13px] font-medium text-sub">{sources}</p>}
+        </div>
+      )}
 
       {/* 맹고 분석: 맨 위(2026-11-28 사용자: 맹고 분석을 맨 위로). 화면의 결론 상자라 리포트 '지난주 한 줄'과 같은 판 —
           남색 + 망고 노랑 이름표 + 흰 굵은 글, 구분선 white/12, 다크에서도 같은 남색(같은 날 사용자: 색상이 디자인 톤에 안 맞아).
@@ -467,7 +491,7 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
       {effect && (
         <section
           aria-labelledby="flow-analysis"
-          className={`rounded-[22px] bg-[#1F2340] px-5 pb-5 pt-4 text-white [--color-focus:#FFC23D] ${sources ? "mt-4" : ""}`}
+          className={`rounded-[22px] bg-[#1F2340] px-5 pb-5 pt-4 text-white [--color-focus:#FFC23D] ${head ? "mt-4" : ""}`}
         >
           <div className="flex min-h-[30px] items-center justify-between gap-3">
             <h3 id="flow-analysis" className="shrink-0 text-[13px] font-extrabold text-mango">
@@ -479,15 +503,15 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
               </p>
             )}
           </div>
-          <p className="mt-3 break-keep text-[20px] font-extrabold leading-[1.45] tracking-[-0.04em] text-pretty">{effect}</p>
-          {note && <p className="mt-4 break-keep border-t border-white/12 pt-3.5 text-[15px] font-medium leading-[1.65] text-white/80">{note}</p>}
+          <p className="mt-3 break-keep text-[20px] font-extrabold leading-[1.45] tracking-[-0.04em] text-pretty">{keepNumbers(effect)}</p>
+          {note && <p className="mt-4 break-keep border-t border-white/12 pt-3.5 text-[15px] font-medium leading-[1.65] text-white/80">{keepNumbers(note)}</p>}
         </section>
       )}
 
       {/* 핵심 요약 분석(형식 18, 2026-11-28 사용자: 핵심 요약 카드를 넣지 말고, 핵심 요약을 분석해서 작성돼야 한다):
           방금 누른 카드의 요약 줄을 체크 + 굵은 글로 다시 짚고, 바로 아래에 그 줄이 왜 그렇게 됐는지·무엇이 달라지는지를 본문 글로.
           분석이 없는 예전 형식은 확인된 사실 + 흐름 설명('무슨 일이 있었나요') */}
-      <div className={effect ? "mt-9" : sources ? "mt-6" : ""}>
+      <div className={effect ? "mt-9" : head ? "mt-6" : ""}>
         {analyzed.length > 0 ? (
           <Part label="핵심 요약 분석">
             <ul className="flex flex-col gap-6">
@@ -500,7 +524,7 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
                     </span>
                     <span className="break-keep tabular-nums">{keepNumbers(point)}</span>
                   </p>
-                  {note && <p className="mt-1.5 break-keep pl-[30px] text-[16px] leading-[1.75] tracking-[-0.01em] text-ink/80">{note}</p>}
+                  {note && <p className="mt-1.5 break-keep pl-[30px] text-[16px] leading-[1.75] tracking-[-0.01em] text-ink/80">{keepNumbers(note)}</p>}
                 </li>
               ))}
             </ul>
@@ -509,7 +533,7 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
           <Part label="무슨 일이 있었나요">
             {/* 사실은 단락 이름(굵게)보다 한 단계 가볍게: 둘 다 굵으면 제목이 두 줄 겹친 것처럼 보였다 */}
             {flow.fact && <p className="break-keep text-[17px] font-semibold leading-[1.55] tracking-[-0.02em] text-ink tabular-nums text-balance">{keepNumbers(flow.fact)}</p>}
-            <p className={`break-keep text-[16px] leading-[1.75] tracking-[-0.01em] text-ink/80 ${flow.fact ? "mt-2.5" : ""}`}>{flow.text}</p>
+            <p className={`break-keep text-[16px] leading-[1.75] tracking-[-0.01em] text-ink/80 ${flow.fact ? "mt-2.5" : ""}`}>{keepNumbers(flow.text)}</p>
           </Part>
         )}
       </div>
@@ -521,7 +545,7 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
               {flow.watch.map((w) => (
                 <li key={w} className="flex items-start gap-3 break-keep text-[16px] font-medium leading-[1.55] tracking-[-0.015em] text-ink">
                   <RowMark icon={<IconFlag className="size-[15px]" />} />
-                  <span className="pt-[3px]">{w}</span>
+                  <span className="pt-[3px]">{keepNumbers(w)}</span>
                 </li>
               ))}
             </ul>
@@ -609,8 +633,8 @@ function TakeCare({ care, onClose }: { care: Care; onClose: () => void }) {
                   </span>
                 )}
               </span>
-              <span className="mt-1.5 block break-keep text-[17px] font-bold leading-[1.45] tracking-[-0.025em] text-ink">{x.title}</span>
-              <span className="mt-1.5 block break-keep text-[15px] leading-[1.7] text-ink/75">{x.text}</span>
+              <span className="mt-1.5 block break-keep text-[17px] font-bold leading-[1.45] tracking-[-0.025em] text-ink">{keepNumbers(x.title)}</span>
+              <span className="mt-1.5 block break-keep text-[15px] leading-[1.7] text-ink/75">{keepNumbers(x.text)}</span>
             </>
           );
           return (
@@ -630,8 +654,8 @@ function TakeCare({ care, onClose }: { care: Care; onClose: () => void }) {
           const cls = "flex items-start gap-3 py-4 break-keep text-[16px] font-medium leading-[1.55] text-ink no-underline";
           const body = (
             <>
-              <RowMark icon={<IconCheck className="size-[15px] [stroke-width:2.2]" />} />
-              <span className="pt-[3px]">{c.text}</span>
+              <RowMark icon={<IconBell className="size-[15px]" />} />
+              <span className="pt-[3px]">{keepNumbers(c.text)}</span>
             </>
           );
           return (

@@ -130,7 +130,9 @@ export interface BriefingInsight {
 //     (11-27 아침: 국내 주식 회원에게 SK하이닉스 하루 11% 급락 대신 주주가치 개혁 논의 시작이 제목이 됐다)
 // 18: 흐름 상세(자세히 보기)를 핵심 요약 분석으로(2026-11-28 사용자: 핵심 요약 카드를 넣지 말고, 핵심 요약을 분석해서 작성돼야 한다) —
 //     흐름마다 points 한 줄씩 그 줄을 풀어 분석하는 글(analysis)을 같은 호출에서 받는다
-const VERSION = 18;
+// 19: 핵심 요약 분석을 '첫 문장 원인 → 둘째 문장 결과'로, 요약 줄의 숫자·표현을 되풀이하지 않게(2026-11-28 검토: 분석 6개 중 3개가
+//     '258개 기업·818개 부스'·'6%대 하락'처럼 바로 위 요약 줄을 다시 말했다)
+const VERSION = 19;
 /** 미리 만들기(lib/server/insight-prewarm.ts)가 이미 새 형식으로 만들어 뒀는지 볼 때 쓴다 */
 export const INSIGHT_VERSION = VERSION;
 
@@ -211,9 +213,11 @@ const SYSTEM = `너는 재테크하는 출퇴근길 직장인에게 오늘 받�
     - 요약에 있는 숫자·날짜·주체를 넣는다. figure에 쓴 숫자는 되풀이하지 않는다. 소식이 하나뿐인 흐름도 두 줄.
     - 예(figure가 "-4.6% 코스피 장중"일 때): ["외국인 반도체주 대량 순매도", "한국 포함 16개국 추가 관세안 발표 예고"], (figure가 "-8% 엔비디아·AMD 하루"일 때): ["AI 인프라 수익성 의구심 확산", "12월 금리 인상 확률 97%로 높아져"], (제도, figure가 "7,000만 원 보증금 무이자"일 때): ["최대 10년간 무이자 지원", "예비 신혼부부까지 신청 대상 확대"].
   · analysis: 핵심 요약 분석. points와 같은 차례로 같은 개수, points 한 줄마다 그 줄을 풀어 분석하는 글 1~2문장(각 90자 안팎, 해요체 단정). '자세히 보기' 화면에서 그 요약 줄 바로 아래에 보인다.
-    - 그 줄이 왜 그렇게 됐는지(원인·배경)와 그래서 무엇이 달라지는지(누구에게·무엇이·얼마나)를 소식 요약 속 사실·숫자·주체로 잇는다. 요약 줄의 말을 그대로 되풀이하지 않고 한 걸음 더 들어간다.
+    - 첫 문장은 그 줄이 왜 그렇게 됐는지(원인·배경), 둘째 문장은 그래서 무엇이 달라지는지(누구에게·무엇이·얼마나). 소식 요약 속 사실·숫자·주체로 쓴다.
+    - 요약 줄에 이미 나온 숫자·표현으로 시작하거나 그것을 되풀이하지 않는다. 화면에서 바로 위에 그 줄이 보이므로, 그 줄 뒤에 있는 이유와 결과만 쓴다.
+      나쁜 예: 요약 줄 "엑스포에 258개 기업·818개 부스 참여" → "11월 엑스포에는 258개 기업이 참여해 818개 부스를 운영해요."(같은 말), 요약 줄 "비트코인·이더리움 가격 6%대 하락" → "비트코인과 이더리움 가격이 6%대 하락했어요."(같은 말)
     - 제도·발표·출시면 누가 대상이고 언제부터 무엇이 바뀌는지, 사고·논란이면 무엇이 문제였고 피해·대응이 어디까지인지.
-    - 요약에 없는 원인·숫자·전망은 짐작하지 않는다. 원인이 요약에 없으면 요약에 있는 다른 사실(규모·비교·일정)로 그 줄을 뒷받침한다.
+    - 요약에 없는 원인·숫자·전망은 짐작하지 않는다. 원인이 요약에 없으면 요약에 있는 다른 사실(비교·규모·일정)로 그 줄이 무엇을 뜻하는지 보여 준다.
     - 회원 사정(관심 이름)과 그 사정에 주는 의미는 effect·relation이 말하니 여기서는 쓰지 않는다. '중요해요·주목돼요·지켜봐야 해요'처럼 무엇이 달라지는지 없이 끝내지 않는다.
     - 예(points ["외국인 반도체주 대량 순매도", "한국 포함 16개국 추가 관세안 발표 예고"]): ["AI 투자 수익성 의구심이 커지자 외국인이 삼성전자·SK하이닉스를 집중적으로 팔았어요. 지수에서 비중이 큰 두 종목이 빠지며 하락 폭이 커졌어요.", "미국이 한국을 포함한 16개국에 추가 관세를 예고하며 수출 비중이 큰 대형주 전반으로 매도가 번졌어요. 관세 수위가 정해지기 전까지 수출주 부담이 이어져요."]
   · effect: 이 흐름이 회원에게 갖는 의미 한 문장(35자 안팎). 화면은 effect 바로 위에 '[links의 첫 관심]에 [tone의 이름: 긍정 요인·부담 요인·지켜볼 변수]'를 따로 보여 준다(예: "국내 주식에 부담 요인"). 그래서 effect에는 그 관심 이름과 '요인·변수' 같은 성격 낱말을 되풀이하지 않고, 그 관심에 무엇이 달라지는지만 결과로, 단정적이고 차분하게 쓴다. 예: "관세 수위가 정해질 때까지 흔들림이 커요", "대출 금리가 내려갈 때가 늦어져요", "국내 반도체주 실적 기대가 낮아져요", "미래에셋증권 고객이라면 유출 대상인지 확인이 필요해요". '~수 있어요'로 흐리지 않는다(꼭 필요할 때만). '~경로가 중요해요'·'~에 영향을 줄 수 있어요'·'지켜봐야 해요'처럼 결과를 말하지 않는 문장은 쓰지 않는다. 사라·팔라·수익 장담은 하지 않는다.
@@ -513,12 +517,17 @@ async function make(items: TodayData['items'], personal: Personal, pm: boolean, 
       timeoutMs: 25_000,
       onUsage: logUsage,
     });
+  // 만드는 데 걸린 시간을 남긴다(2026-11-28: 핵심 요약 분석을 더해 글이 길어졌다. 사용 기록 표(usage_log)에는 토큰만 있어
+  // 25초 시간 제한에 얼마나 가까운지 알 수 없었다). Vercel 로그에서 '[insight] 만듦'으로 찾는다
+  const started = Date.now();
+  let via = 'gemini';
   try {
     let out: RawInsight;
     if (generate) out = await generate({ system: SYSTEM, user, schema: SCHEMA });
     else if (openai) {
       try {
         out = await openaiJson<RawInsight>({ apiKey: openai, model: OPENAI_MODELS.insight, kind: 'insight', system: SYSTEM, user, schema: SCHEMA, name: 'briefing_insight' });
+        via = 'openai';
       } catch (e) {
         // 크레딧 소진·혼잡·시간 초과면 Gemini로(키가 있을 때)
         console.error('[insight] OpenAI 실패, Gemini로', String((e as Error)?.message ?? e).slice(0, 200));
@@ -526,10 +535,11 @@ async function make(items: TodayData['items'], personal: Personal, pm: boolean, 
         out = await gemini();
       }
     } else out = await gemini();
+    if (!generate) console.info('[insight] 만듦', via, `${Date.now() - started}ms`);
     const made = clean(out, items, personal);
     return made && { ...made, v: VERSION, basis: { sections: personal.sections, recent: personal.recentCount, seen: personal.seen } };
   } catch (e) {
-    console.error('[insight] 만들기 실패', String((e as Error)?.message ?? e).slice(0, 200));
+    console.error('[insight] 만들기 실패', `${Date.now() - started}ms`, String((e as Error)?.message ?? e).slice(0, 200));
     return null;
   }
 }
