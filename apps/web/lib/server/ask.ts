@@ -63,6 +63,10 @@ export function flowContext(flow: BriefingInsight['flows'][number], items: FeedI
   const lines = [
     `흐름: ${flow.title}`,
     flow.fact && `확인된 사실: ${flow.fact}`,
+    // 화면이 보여 주는 핵심 요약 줄과 그 분석(형식 18)
+    flow.points?.length
+      ? `핵심 요약 분석:\n${flow.points.map((p, k) => `- ${p}${flow.analysis?.[k] ? `: ${flow.analysis[k]}` : ''}`).join('\n')}`
+      : '',
     judged && `맹고의 판단(나에게 미칠 영향): ${judged}`,
     flow.links?.length ? `닿는 내 관심: ${flow.links.join(', ')}` : '',
     flow.relation && `관심과의 연결: ${flow.relation}`,

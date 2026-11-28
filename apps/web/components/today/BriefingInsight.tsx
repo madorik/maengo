@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { IconChevronRight, IconPlay } from "@/components/icons";
+import { IconCheck, IconChevronRight, IconFlag, IconPlay } from "@/components/icons";
 import { requestPlayerExpand } from "@/lib/float-dock";
 import { BRIEFING_ID } from "@/lib/player/item";
 import { MangoIcon } from "@/components/MangoIcon";
@@ -14,12 +14,13 @@ import { useCallName } from "@/components/providers/ProfileProvider";
 import { useToday } from "@/components/providers/TodayProvider";
 import { PhotoImg } from "@/components/ui/PhotoImg";
 import { Sheet } from "@/components/ui/Sheet";
+import { Thumb } from "./Thumb";
 import { SECTION_LABEL, isSection } from "@maengo/core/sections";
 import { SLOT_LABEL } from "@maengo/core/sections";
 import type { FeedItem } from "@/lib/types";
 import type { BriefingInsight, InsightTone } from "@/lib/server/briefing-insight";
 import { SEEN_MIN } from "@/lib/insight-rules";
-import { alsoOf, figureText, pointsOf, whoOf } from "@/lib/insight-card";
+import { alsoOf, figureText, keepNumbers, pointsOf, whoOf } from "@/lib/insight-card";
 import { track } from "@/lib/analytics";
 
 /**
@@ -365,20 +366,41 @@ function flowChips(flow: BriefingInsight["flows"][number]): string[] {
 }
 
 /** 판단 색(2026-11-13 사용자 지정: 긍정 요인 파랑, 부담 요인 주황, 지켜볼 변수 빨강) */
-const VERDICT: Record<InsightTone, { text: string; rule: string }> = {
-  plus: { text: "text-plus", rule: "border-plus" },
-  minus: { text: "text-minus", rule: "border-minus" },
-  watch: { text: "text-watch", rule: "border-watch" },
+const VERDICT: Record<InsightTone, { text: string }> = {
+  plus: { text: "text-plus" },
+  minus: { text: "text-minus" },
+  watch: { text: "text-watch" },
 };
 
-/** 조용한 단락: 이름(13px) + 내용. 단락 사이는 얇은 선 */
+/**
+ * 흐름 상세의 단락: 굵은 제목(17px) + 내용. 단락 사이는 선 대신 넉넉한 틈으로 나눈다
+ * (2026-11-28 사용자 '가독성 좋게': 13px 회색 이름 + 얇은 선이 여섯 번 되풀이돼 무엇이 중요한지 안 보였다)
+ */
 function Part({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section className="border-t border-line py-4">
-      <h3 className="text-[13px] font-semibold text-sub">{label}</h3>
-      <div className="mt-1.5">{children}</div>
+    <section className="mt-9 first:mt-0">
+      <h3 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">{label}</h3>
+      <div className="mt-3.5">{children}</div>
     </section>
   );
+}
+
+/**
+ * 목록 줄 앞 표시: 회색 둥근 네모 안의 선 아이콘(2026-11-28 사용자: 주황 동그라미 말고 다른 예쁜 아이콘).
+ * 다음에 확인할 것은 깃발, 챙겨 볼 것의 할 일은 체크
+ */
+function RowMark({ icon }: { icon: ReactNode }) {
+  return (
+    <span aria-hidden="true" className="flex size-[30px] shrink-0 items-center justify-center rounded-[10px] bg-snow text-ink">
+      {icon}
+    </span>
+  );
+}
+
+/** 관련 소식 줄 아래 흐린 글: '언론 3곳, 11월 23일'(한 곳이면 언론사 이름). 오늘 화면 소식 줄(TodayList metaOf)과 같은 말 */
+function rowMeta(item: FeedItem): string {
+  const from = (item.sourceCount ?? 0) >= 2 ? `언론 ${item.sourceCount}곳` : item.sourceLabel;
+  return [from, item.publishedLabel].filter(Boolean).join(", ");
 }
 
 /**
@@ -392,6 +414,12 @@ function Part({ label, children }: { label: string; children: ReactNode }) {
  * 2026-11-14 사용자 '인사이트에도 물어보기 기능 넣어줘': 분석 끝에 '이 분석에 대해 물어보기' → 같은 시트가 맹고 AI 대화로 바뀐다(글 화면과 같은 AskChat,
  * 하루 횟수도 같이 센다). 서버가 저장된 이 흐름과 관련 소식을 맥락으로 붙인다(lib/server/ask.ts). 추천 질문은 흐름에서 바로 만든다.
  * 2026-11-26 시안: 홈의 맞춤 체크 칸을 없애고 그 내용을 관련 소식 아래 '챙겨 볼 것'으로 옮겼다(care)
+ * 2026-11-28 사용자 '자세히 보기 가독성 좋게', '핵심 요약을 분석해 주는 웹 디자인으로', '색상이 디자인 톤에 안 맞아', '핵심 요약 카드를 넣지 말고':
+ * '핵심 요약을 분석해서 작성돼야 한다', '맹고 분석을 맨 위로, 긍정 알약은 카드 안쪽 오른쪽 위로': 13px 회색 이름 + 얇은 선 단락 여섯 개 → 바이라인(보도 언론·날짜)
+ * → 맹고 분석(리포트 '지난주 한 줄'과 같은 남색 판: 노랑 이름표 + 오른쪽 위 흰 판정 알약 / 영향 한 문장 / 관심과의 연결)
+ * → 핵심 요약 분석(카드의 요약 두 줄 + 줄마다 분석, 형식 18. 예전 형식은 '무슨 일이 있었나요' 사실 + 흐름 설명)
+ * → 다음에 확인할 것(깃발) → 물어보기 → 선 → 근거가 된 소식(오늘 화면 소식 줄 모양) → 챙겨 볼 것 → 듣기.
+ * 단락 이름은 17px 굵게, 본문은 16px. 큰 판단 낱말('긍정 요인' 26px)은 뺐다(사용자: 그게 메인 타이틀이 아니다)
  */
 function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flows"][number]; index: number; care: Care; onClose: () => void }) {
   const { data, listenAccess } = useToday();
@@ -400,12 +428,13 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
   const related = flow.ids.map((id) => data.items.find((i) => i.clusterId === id)).filter((i): i is FeedItem => !!i);
   const canListen = p.enabled && related.some((i) => listenAccess(i.clusterId) !== null);
   const sources = sourceLine(related);
-  const links = flow.links?.length ? flow.links : flow.tag ? [flow.tag] : [];
-  const relation = flow.relation ?? "";
+  const who = whoOf(flow.links?.length ? flow.links : flow.tag ? [flow.tag] : []);
   const effect = flow.effect || flow.why;
-  const tone: InsightTone = flow.effect && flow.tone ? flow.tone : "watch";
-  const verdict = VERDICT[tone];
-  const target: AskTarget = {
+  const tone: InsightTone | null = flow.effect && flow.tone ? flow.tone : null;
+  // 분석 판 아래 줄: 내 관심과 어떻게 이어지는지(relation). 없으면 예전 형식의 '왜'(영향 자리에 이미 쓴 게 아닐 때만)
+  const note = flow.relation || (flow.effect ? flow.why : "") || "";
+  // 핵심 요약 분석(형식 18): 요약 줄과 그 줄의 분석 짝. 분석이 하나도 없으면(예전 형식) 비워서 '무슨 일이 있었나요'로
+  const analyzed = flow.analysis?.some(Boolean) ? (flow.points ?? []).map((point, k) => ({ point, note: flow.analysis?.[k] ?? "" })) : [];  const target: AskTarget = {
     key: `flow.${data.date}.${data.slot ?? "am"}.${index}`,
     ref: { flow: { date: data.date, slot: data.slot ?? "am", index } },
     category: "insight",
@@ -428,64 +457,84 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
   }
   return (
     <div className="pb-2">
-      {/* 맹고 분석: 이 화면에서 눈에 띄는 단 하나 */}
+      {/* 보도 언론·날짜: 시트 제목 바로 아래 오른쪽 끝(2026-11-28 사용자: 연합뉴스 마켓 보도는 오른쪽으로) */}
+      {sources && <p className="-mt-1 text-right text-[13px] font-medium text-sub">{sources}</p>}
+
+      {/* 맹고 분석: 맨 위(2026-11-28 사용자: 맹고 분석을 맨 위로). 화면의 결론 상자라 리포트 '지난주 한 줄'과 같은 판 —
+          남색 + 망고 노랑 이름표 + 흰 굵은 글, 구분선 white/12, 다크에서도 같은 남색(같은 날 사용자: 색상이 디자인 톤에 안 맞아).
+          판정 알약('대출 이자에 긍정 요인', 흐름 카드의 TonePill 그대로)은 상자 안 오른쪽 위, 이름표와 같은 줄(사용자: 긍정 알약은 카드 안쪽 오른쪽 위로).
+          주인공은 영향 한 문장(사용자: 긍정 요인이 메인 타이틀이 아니다) */}
       {effect && (
-        <section aria-label="맹고 분석" className={`border-l-4 pl-4 ${verdict.rule}`}>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <p className="text-[13px] font-semibold text-sub">맹고 분석</p>
-            {links.map((l) => (
-              <span key={l} className="rounded-full bg-snow px-2 py-0.5 text-[12px] font-semibold text-ink">
-                {l}
-              </span>
-            ))}
+        <section
+          aria-labelledby="flow-analysis"
+          className={`rounded-[22px] bg-[#1F2340] px-5 pb-5 pt-4 text-white [--color-focus:#FFC23D] ${sources ? "mt-4" : ""}`}
+        >
+          <div className="flex min-h-[30px] items-center justify-between gap-3">
+            <h3 id="flow-analysis" className="shrink-0 text-[13px] font-extrabold text-mango">
+              맹고 분석
+            </h3>
+            {tone && (
+              <p className="flex min-w-0 justify-end">
+                <TonePill tone={tone} who={who} />
+              </p>
+            )}
           </div>
-          {flow.effect && flow.tone && (
-            <p className={`mt-2 flex items-center gap-1.5 text-[26px] font-bold leading-none tracking-[-0.04em] ${verdict.text}`}>
-              <ToneIcon tone={tone} className="size-6" />
-              {TONE_LABEL[tone]}
-            </p>
-          )}
-          <p className="mt-2.5 text-[19px] font-semibold leading-[1.5] tracking-[-0.025em] text-ink">{effect}</p>
+          <p className="mt-3 break-keep text-[20px] font-extrabold leading-[1.45] tracking-[-0.04em] text-pretty">{effect}</p>
+          {note && <p className="mt-4 break-keep border-t border-white/12 pt-3.5 text-[15px] font-medium leading-[1.65] text-white/80">{note}</p>}
         </section>
       )}
 
-      <div className="mt-5">
-        {(flow.fact || sources) && (
-          <Part label="확인된 사실">
-            {flow.fact && <p className="text-[17px] font-semibold leading-[1.5] tracking-[-0.02em] text-ink tabular-nums">{flow.fact}</p>}
-            {sources && <p className="mt-1 text-[13px] text-sub">{sources}</p>}
-          </Part>
-        )}
-        {(relation || flow.why) && (
-          <Part label="왜 나와 관련 있나요">
-            {relation && <p className="text-[15px] leading-[1.65] text-ink">{relation}</p>}
-            {/* 읽던 소식과의 이어짐은 연결 문장이 없을 때만(같은 말을 두 번 했다) */}
-            {!relation && flow.why && flow.effect && <p className="text-[14px] leading-relaxed text-sub">{flow.why}</p>}
-          </Part>
-        )}
-        {!!flow.watch?.length && (
-          <Part label="다음에 확인할 것">
-            <ul className="flex flex-col gap-1.5">
-              {flow.watch.map((w) => (
-                <li key={w} className="flex gap-2.5 text-[15px] leading-[1.55] text-ink">
-                  <span aria-hidden="true" className="mt-[9px] size-1.5 shrink-0 rounded-full bg-mango" />
-                  <span>{w}</span>
+      {/* 핵심 요약 분석(형식 18, 2026-11-28 사용자: 핵심 요약 카드를 넣지 말고, 핵심 요약을 분석해서 작성돼야 한다):
+          방금 누른 카드의 요약 줄을 체크 + 굵은 글로 다시 짚고, 바로 아래에 그 줄이 왜 그렇게 됐는지·무엇이 달라지는지를 본문 글로.
+          분석이 없는 예전 형식은 확인된 사실 + 흐름 설명('무슨 일이 있었나요') */}
+      <div className={effect ? "mt-9" : sources ? "mt-6" : ""}>
+        {analyzed.length > 0 ? (
+          <Part label="핵심 요약 분석">
+            <ul className="flex flex-col gap-6">
+              {analyzed.map(({ point, note }) => (
+                <li key={point}>
+                  <p className="flex gap-2.5 text-[16px] font-bold leading-[1.55] tracking-[-0.025em] text-ink">
+                    {/* 요약 줄 앞 체크(2026-11-28 사용자: 핵심 요약 분석은 앞에 체크 아이콘으로). 남색 원 + 흰 체크, 다크에선 색이 뒤집힌다 */}
+                    <span aria-hidden="true" className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-ink text-paper">
+                      <IconCheck className="size-3 [stroke-width:3]" />
+                    </span>
+                    <span className="break-keep tabular-nums">{keepNumbers(point)}</span>
+                  </p>
+                  {note && <p className="mt-1.5 break-keep pl-[30px] text-[16px] leading-[1.75] tracking-[-0.01em] text-ink/80">{note}</p>}
                 </li>
               ))}
             </ul>
           </Part>
+        ) : (
+          <Part label="무슨 일이 있었나요">
+            {/* 사실은 단락 이름(굵게)보다 한 단계 가볍게: 둘 다 굵으면 제목이 두 줄 겹친 것처럼 보였다 */}
+            {flow.fact && <p className="break-keep text-[17px] font-semibold leading-[1.55] tracking-[-0.02em] text-ink tabular-nums text-balance">{keepNumbers(flow.fact)}</p>}
+            <p className={`break-keep text-[16px] leading-[1.75] tracking-[-0.01em] text-ink/80 ${flow.fact ? "mt-2.5" : ""}`}>{flow.text}</p>
+          </Part>
         )}
-        <Part label="배경">
-          <p className="text-[14px] leading-[1.7] text-sub">{flow.text}</p>
-        </Part>
       </div>
+
+      {!!flow.watch?.length && (
+        <div className="mt-9">
+          <Part label="다음에 확인할 것">
+            <ul className="flex flex-col gap-3">
+              {flow.watch.map((w) => (
+                <li key={w} className="flex items-start gap-3 break-keep text-[16px] font-medium leading-[1.55] tracking-[-0.015em] text-ink">
+                  <RowMark icon={<IconFlag className="size-[15px]" />} />
+                  <span className="pt-[3px]">{w}</span>
+                </li>
+              ))}
+            </ul>
+          </Part>
+        </div>
+      )}
       <button
         type="button"
         onClick={() => {
           setAsking(true);
           track("ask", { category: "insight", action: "open" });
         }}
-        className="mb-5 flex w-full items-center gap-3 rounded-2xl border-2 border-line bg-paper py-2.5 pl-2.5 pr-3 text-left hover:bg-snow"
+        className="mt-9 flex w-full items-center gap-3 rounded-2xl border-2 border-line bg-paper py-2.5 pl-2.5 pr-3 text-left hover:bg-snow"
       >
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-snow">
           <AiMark className="size-6" />
@@ -493,30 +542,33 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
         <span className="min-w-0 flex-1 text-[15px] font-bold tracking-[-0.02em] text-ink">이 분석에 대해 물어보기</span>
         <IconChevronRight className="size-5 shrink-0 text-faint" />
       </button>
-      <p className="mt-2 border-t border-line pt-4 text-[13px] font-semibold text-sub">관련 소식 {related.length}개</p>
-      <ul className="mt-2 flex flex-col">
-        {related.map((i) => {
-          const section = i.section && isSection(i.section) ? SECTION_LABEL[i.section] : null;
-          const photo = i.photo?.url ?? i.thumbnail;
-          return (
-            <li key={i.clusterId} className="border-t border-line first:border-t-0">
-              <Link href={`/article/${i.token}`} onClick={onClose} className="flex items-start gap-3 py-3 no-underline">
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[12px] font-semibold text-sub">
-                    {section}
-                    {(i.sourceCount ?? 0) >= 2 && ` · 언론 ${i.sourceCount}곳`}
+      {/* 분석과 근거(관련 소식·챙겨 볼 것)는 선 하나로 나눈다. 관련 소식 줄은 오늘 화면 소식 줄과 같은 모양(주황 분야·굵은 제목·출처, 오른쪽 둥근 정사각 사진) */}
+      <section className="mt-8 border-t border-line pt-8">
+        <h3 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">근거가 된 소식 {related.length}개</h3>
+        <ul className="mt-1">
+          {related.map((i) => {
+            const section = i.section && isSection(i.section) ? SECTION_LABEL[i.section] : null;
+            const meta = rowMeta(i);
+            return (
+              <li key={i.clusterId} className="border-b border-line last:border-b-0">
+                <Link href={`/article/${i.token}`} onClick={onClose} className="flex items-start gap-3.5 py-4 no-underline">
+                  <span className="min-w-0 flex-1">
+                    {section && <span className="block text-[12px] font-bold text-mango-deep">{section}</span>}
+                    <span className="mt-1 line-clamp-2 break-keep text-[16px] font-bold leading-[1.45] tracking-[-0.03em] text-ink">{i.title}</span>
+                    {meta && <span className="mt-1.5 block truncate text-[13px] font-medium text-sub">{meta}</span>}
                   </span>
-                  <span className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-ink">{i.title}</span>
-                  <span className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-sub">{i.short}</span>
-                </span>
-                {photo && (
-                  <PhotoImg src={photo} className="aspect-[3/2] w-[84px] rounded-xl" />
-                )}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+                  {(i.photo?.url ?? i.thumbnail) && (
+                    <span className="relative size-[72px] shrink-0 overflow-hidden rounded-[12px] bg-snow">
+                      <Thumb item={i} className="absolute inset-0 size-full object-cover" />
+                      <span aria-hidden="true" className="absolute inset-0 rounded-[12px] ring-1 ring-inset ring-ink/[0.07]" />
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
       <TakeCare care={care} onClose={onClose} />
       {canListen && related[0] && (
         <button
@@ -526,7 +578,7 @@ function FlowDetail({ flow, index, care, onClose }: { flow: BriefingInsight["flo
             p.playFrom(related[0]!.clusterId);
             onClose();
           }}
-          className="btn btn-ink mt-4 w-full gap-2"
+          className="btn btn-ink mt-8 w-full gap-2"
         >
           <IconPlay className="size-[18px]" />이 이슈부터 듣기
         </button>
@@ -542,38 +594,44 @@ function TakeCare({ care, onClose }: { care: Care; onClose: () => void }) {
   const tokenOf = (id: number) => data.items.find((i) => i.clusterId === id)?.token;
   return (
     <Part label="챙겨 볼 것">
-      <ul className="-mt-1 divide-y divide-line">
+      <ul className="-mt-3 divide-y divide-line">
         {care.personal.map((x) => {
           const token = tokenOf(x.id);
+          // 성격은 알약으로 박지 않고 관심 이름 옆 작은 글자로(2026-11-28 사용자: 긍정 요인이 주요 타이틀이 아니다)
           const body = (
             <>
-              <span className="flex items-center justify-between gap-2">
-                <span className="text-[12px] font-semibold text-mango-deep">{x.about}</span>
-                {x.tone && <ToneChip tone={x.tone} />}
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] font-semibold">
+                <span className="text-mango-deep">{x.about}</span>
+                {x.tone && (
+                  <span className={`inline-flex items-center gap-1 ${VERDICT[x.tone].text}`}>
+                    <ToneIcon tone={x.tone} className="size-[13px]" />
+                    {TONE_LABEL[x.tone]}
+                  </span>
+                )}
               </span>
-              <span className="mt-1 block text-[16px] font-bold leading-snug tracking-[-0.02em] text-ink">{x.title}</span>
-              <span className="mt-1 block text-[14px] leading-relaxed text-sub">{x.text}</span>
+              <span className="mt-1.5 block break-keep text-[17px] font-bold leading-[1.45] tracking-[-0.025em] text-ink">{x.title}</span>
+              <span className="mt-1.5 block break-keep text-[15px] leading-[1.7] text-ink/75">{x.text}</span>
             </>
           );
           return (
             <li key={x.title}>
               {token ? (
-                <Link href={`/article/${token}`} onClick={onClose} className="block py-3.5 no-underline">
+                <Link href={`/article/${token}`} onClick={onClose} className="block py-4 no-underline">
                   {body}
                 </Link>
               ) : (
-                <div className="py-3.5">{body}</div>
+                <div className="py-4">{body}</div>
               )}
             </li>
           );
         })}
         {care.checks.map((c) => {
           const token = tokenOf(c.id);
-          const cls = "flex items-start gap-2.5 py-3.5 text-[14px] font-medium leading-relaxed text-ink no-underline";
+          const cls = "flex items-start gap-3 py-4 break-keep text-[16px] font-medium leading-[1.55] text-ink no-underline";
           const body = (
             <>
-              <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-mango" aria-hidden="true" />
-              <span>{c.text}</span>
+              <RowMark icon={<IconCheck className="size-[15px] [stroke-width:2.2]" />} />
+              <span className="pt-[3px]">{c.text}</span>
             </>
           );
           return (

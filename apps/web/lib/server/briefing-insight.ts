@@ -1,6 +1,7 @@
 import 'server-only';
 import { GEMINI_MODELS, OPENAI_MODELS } from '@maengo/core/ai';
 import { MIN_RELEVANCE } from '@maengo/core/feed';
+import { isAdvice } from '@maengo/core/report';
 import { geminiChatJson } from '@maengo/core/gemini';
 import { SECTION_LABEL, isSection, type SectionId } from '@maengo/core/sections';
 import { TOPIC_BY_ID, isCustomTopicId, isLinkTopicId } from '@maengo/core/topics';
@@ -67,6 +68,11 @@ export interface BriefingInsight {
     fact?: string;
     /** 핵심 요약 두 줄(14: 오늘 화면 흐름 카드의 점 두 줄, 2026-11-26 사용자: 핵심 요약과 나한테 어떤 영향인지) */
     points?: string[];
+    /**
+     * 핵심 요약 분석(18: 2026-11-28 사용자 '자세히 보기는 핵심 요약을 분석해서 작성돼야 한다'): points와 같은 차례로 한 줄마다
+     * 왜 그렇게 됐는지와 무엇이 달라지는지 1~2문장. 분석이 없는 줄은 빈 문자열
+     */
+    analysis?: string[];
     /** 핵심 숫자 하나(15: 흐름 카드 사진 위에 크게, 예: '-4.6%' + '코스피 장중'). 그 흐름 소식 글에 있는 숫자만. 없으면 카드는 제목을 크게 */
     figure?: { value: string; label: string };
     /** 이 흐름이 닿는 내 관심(12: 회원이 고른 관심·키워드·분야의 꼬리표, 서버가 근거 번호로 붙인다) */
@@ -122,7 +128,9 @@ export interface BriefingInsight {
 //     흐름의 요약 두 줄(points)은 사실 나열 대신 그 일에서 사람들이 궁금해할 것(급변·사고면 왜, 제도·발표면 무엇이 달라지나)에 답한다.
 //     제목 아래 줄(headlineFact)은 원인까지 한 문장. 같은 사정에 닿는 소식이 여럿이면 더 크게 움직인 사건을 고른다
 //     (11-27 아침: 국내 주식 회원에게 SK하이닉스 하루 11% 급락 대신 주주가치 개혁 논의 시작이 제목이 됐다)
-const VERSION = 17;
+// 18: 흐름 상세(자세히 보기)를 핵심 요약 분석으로(2026-11-28 사용자: 핵심 요약 카드를 넣지 말고, 핵심 요약을 분석해서 작성돼야 한다) —
+//     흐름마다 points 한 줄씩 그 줄을 풀어 분석하는 글(analysis)을 같은 호출에서 받는다
+const VERSION = 18;
 /** 미리 만들기(lib/server/insight-prewarm.ts)가 이미 새 형식으로 만들어 뒀는지 볼 때 쓴다 */
 export const INSIGHT_VERSION = VERSION;
 
@@ -202,6 +210,12 @@ const SYSTEM = `너는 재테크하는 출퇴근길 직장인에게 오늘 받�
     - 요약에 원인이 없으면 짐작하지 말고 무슨 일이 있었는지 서로 다른 사실 두 개로.
     - 요약에 있는 숫자·날짜·주체를 넣는다. figure에 쓴 숫자는 되풀이하지 않는다. 소식이 하나뿐인 흐름도 두 줄.
     - 예(figure가 "-4.6% 코스피 장중"일 때): ["외국인 반도체주 대량 순매도", "한국 포함 16개국 추가 관세안 발표 예고"], (figure가 "-8% 엔비디아·AMD 하루"일 때): ["AI 인프라 수익성 의구심 확산", "12월 금리 인상 확률 97%로 높아져"], (제도, figure가 "7,000만 원 보증금 무이자"일 때): ["최대 10년간 무이자 지원", "예비 신혼부부까지 신청 대상 확대"].
+  · analysis: 핵심 요약 분석. points와 같은 차례로 같은 개수, points 한 줄마다 그 줄을 풀어 분석하는 글 1~2문장(각 90자 안팎, 해요체 단정). '자세히 보기' 화면에서 그 요약 줄 바로 아래에 보인다.
+    - 그 줄이 왜 그렇게 됐는지(원인·배경)와 그래서 무엇이 달라지는지(누구에게·무엇이·얼마나)를 소식 요약 속 사실·숫자·주체로 잇는다. 요약 줄의 말을 그대로 되풀이하지 않고 한 걸음 더 들어간다.
+    - 제도·발표·출시면 누가 대상이고 언제부터 무엇이 바뀌는지, 사고·논란이면 무엇이 문제였고 피해·대응이 어디까지인지.
+    - 요약에 없는 원인·숫자·전망은 짐작하지 않는다. 원인이 요약에 없으면 요약에 있는 다른 사실(규모·비교·일정)로 그 줄을 뒷받침한다.
+    - 회원 사정(관심 이름)과 그 사정에 주는 의미는 effect·relation이 말하니 여기서는 쓰지 않는다. '중요해요·주목돼요·지켜봐야 해요'처럼 무엇이 달라지는지 없이 끝내지 않는다.
+    - 예(points ["외국인 반도체주 대량 순매도", "한국 포함 16개국 추가 관세안 발표 예고"]): ["AI 투자 수익성 의구심이 커지자 외국인이 삼성전자·SK하이닉스를 집중적으로 팔았어요. 지수에서 비중이 큰 두 종목이 빠지며 하락 폭이 커졌어요.", "미국이 한국을 포함한 16개국에 추가 관세를 예고하며 수출 비중이 큰 대형주 전반으로 매도가 번졌어요. 관세 수위가 정해지기 전까지 수출주 부담이 이어져요."]
   · effect: 이 흐름이 회원에게 갖는 의미 한 문장(35자 안팎). 화면은 effect 바로 위에 '[links의 첫 관심]에 [tone의 이름: 긍정 요인·부담 요인·지켜볼 변수]'를 따로 보여 준다(예: "국내 주식에 부담 요인"). 그래서 effect에는 그 관심 이름과 '요인·변수' 같은 성격 낱말을 되풀이하지 않고, 그 관심에 무엇이 달라지는지만 결과로, 단정적이고 차분하게 쓴다. 예: "관세 수위가 정해질 때까지 흔들림이 커요", "대출 금리가 내려갈 때가 늦어져요", "국내 반도체주 실적 기대가 낮아져요", "미래에셋증권 고객이라면 유출 대상인지 확인이 필요해요". '~수 있어요'로 흐리지 않는다(꼭 필요할 때만). '~경로가 중요해요'·'~에 영향을 줄 수 있어요'·'지켜봐야 해요'처럼 결과를 말하지 않는 문장은 쓰지 않는다. 사라·팔라·수익 장담은 하지 않는다.
   · tone: 그 의미가 이 회원에게 plus(긍정 요인) / minus(부담 요인) / watch(방향이 갈리는 변수) 중 하나.
 - checks: 0~2개. 이 소식들 때문에 사람이 실제로 해 볼 만한 생활 속 일이 있을 때만. "증권사 앱을 쓴다면 해킹 공지를 확인하고 비밀번호를 바꿔 보세요"처럼 '~라면 ~해 보세요' 꼴로 50자 안팎. id는 근거 소식 하나. 할 일이 없으면 빈 배열.
@@ -263,13 +277,14 @@ const SCHEMA = {
           watch: { type: 'array', items: { type: 'string' } },
           fact: { type: 'string' },
           points: { type: 'array', items: { type: 'string' } },
+          analysis: { type: 'array', items: { type: 'string' } },
           figure: { type: 'object', properties: { value: { type: 'string' }, label: { type: 'string' } }, required: ['value', 'label'] },
           links: { type: 'array', items: { type: 'string' } },
           relation: { type: 'string' },
           effect: { type: 'string' },
           tone: { type: 'string', enum: ['plus', 'minus', 'watch'] },
         },
-        required: ['title', 'text', 'ids', 'basis', 'topic', 'why', 'watch', 'fact', 'points', 'figure', 'links', 'relation', 'effect', 'tone'],
+        required: ['title', 'text', 'ids', 'basis', 'topic', 'why', 'watch', 'fact', 'points', 'analysis', 'figure', 'links', 'relation', 'effect', 'tone'],
       },
     },
     checks: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, id: { type: 'integer' } }, required: ['text', 'id'] } },
@@ -554,16 +569,38 @@ function linksOf(
  * 흐름의 핵심 사실·나에게 갖는 의미·성격(11). 의미 문장이 결과를 말하지 않거나(막연한 끝맺음) 투자 권유면 버린다
  */
 function impactOf(
-  f: { fact?: unknown; points?: unknown; effect?: unknown; tone?: unknown },
+  f: { fact?: unknown; points?: unknown; analysis?: unknown; effect?: unknown; tone?: unknown },
   b: Basis | undefined,
   fix: (t: string) => string,
-): { fact?: string; points?: string[]; effect?: string; tone?: InsightTone } {
+): { fact?: string; points?: string[]; analysis?: string[]; effect?: string; tone?: InsightTone } {
   const raw = b ? dropOwnership(alignReadClaim(fix(str(f?.effect, 80)), b), b) : fix(str(f?.effect, 80));
   const effect = raw && !INVESTING.test(raw) && trimVague(raw) === raw && !/경로가 중요|영향을 줄 수 있어요$/.test(raw) ? raw : '';
   // 핵심 사실 줄·요약 두 줄은 투자 권유 거르기를 하지 않는다('외국인 순매도'·'매도 사이드카' 같은 사실이 '매도' 낱말로 지워졌다, 2026-11-13)
   const fact = plainWords(fix(str(f?.fact, 50)));
-  const points = [...new Set((Array.isArray(f?.points) ? f.points : []).map((x: unknown) => plainWords(fix(str(x, 50)))).filter(Boolean))].slice(0, 2);
-  return { ...(fact ? { fact } : {}), ...(points.length ? { points } : {}), ...(effect ? { effect, tone: toneOf(f?.tone) } : {}) };
+  // 요약 줄과 그 줄의 분석(18)은 같은 차례라 짝으로 다룬다(같은 요약 줄을 빼면 분석도 같이 빠지게)
+  const notes = Array.isArray(f?.analysis) ? f.analysis : [];
+  const seen = new Set<string>();
+  const pairs = (Array.isArray(f?.points) ? f.points : [])
+    .map((x: unknown, k: number) => ({ point: plainWords(fix(str(x, 50))), note: analysisOf(notes[k], fix) }))
+    .filter((p) => p.point && !seen.has(p.point) && !!seen.add(p.point))
+    .slice(0, 2);
+  const points = pairs.map((p) => p.point);
+  const analysis = pairs.map((p) => p.note);
+  return {
+    ...(fact ? { fact } : {}),
+    ...(points.length ? { points } : {}),
+    ...(analysis.some(Boolean) ? { analysis } : {}),
+    ...(effect ? { effect, tone: toneOf(f?.tone) } : {}),
+  };
+}
+
+/**
+ * 요약 줄 하나의 분석(18). 막연한 끝 문장('지켜봐야 해요')은 잘라 내고, 사고팔라는 권유가 남으면 버린다.
+ * 시장 참여자의 매매를 전하는 사실('외국인 순매도')은 권유가 아니라 거르지 않는다(isAdvice)
+ */
+function analysisOf(v: unknown, fix: (t: string) => string): string {
+  const text = trimVague(fix(str(v, 220)));
+  return text && !isAdvice(text) ? text : '';
 }
 
 /**
@@ -593,7 +630,7 @@ function clean(out: RawInsight, items: TodayData['items'], p: Personal): Briefin
   };
 
   const flows = (Array.isArray(out.flows) ? out.flows : [])
-    .map((f: { title?: unknown; text?: unknown; ids?: unknown; basis?: unknown; topic?: unknown; why?: unknown; watch?: unknown; fact?: unknown; points?: unknown; figure?: unknown; links?: unknown; relation?: unknown; effect?: unknown; tone?: unknown }) => {
+    .map((f: { title?: unknown; text?: unknown; ids?: unknown; basis?: unknown; topic?: unknown; why?: unknown; watch?: unknown; fact?: unknown; points?: unknown; analysis?: unknown; figure?: unknown; links?: unknown; relation?: unknown; effect?: unknown; tone?: unknown }) => {
       const ids = (Array.isArray(f?.ids) ? f.ids : []).map(Number).filter((n: number) => known.has(n));
       const b = bases.get(str(f?.basis, 6).toUpperCase());
       let why = alignReadClaim(fix(str(f?.why, 120)), b);

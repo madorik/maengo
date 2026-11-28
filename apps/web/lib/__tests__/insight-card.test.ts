@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { alsoOf, figureText, pointsOf, shortLabel, tabLabels, whoOf } from '../insight-card';
+import { alsoOf, figureText, keepNumbers, pointsOf, shortLabel, tabLabels, whoOf } from '../insight-card';
+
+test('숫자와 단위는 한 덩어리로(줄바꿈 없는 칸), 나머지 띄어쓰기는 그대로', () => {
+  const nb = ' ';
+  assert.equal(keepNumbers('국내 거래대금 16조 5,600억 원, 전주 대비 7.9% 증가'), `국내 거래대금 16조${nb}5,600억${nb}원, 전주 대비 7.9% 증가`);
+  assert.equal(keepNumbers('수요예측에 1조 3,900억 원 주문'), `수요예측에 1조${nb}3,900억${nb}원 주문`);
+  assert.equal(keepNumbers('고객 3,800명 계좌번호 유출'), '고객 3,800명 계좌번호 유출');
+  assert.equal(keepNumbers('2027년 3 분기'), '2027년 3 분기');
+});
 
 test('핵심 숫자: 앞의 -는 빼기 기호로', () => {
   assert.equal(figureText('-4.6%'), '−4.6%');

@@ -45,6 +45,14 @@ export function figureText(value: string): string {
 }
 
 /**
+ * 숫자와 단위가 줄바꿈으로 떨어지지 않게: '16조 5,600억 원'의 띄어쓰기를 줄바꿈 없는 칸으로
+ * (흐름 상세의 확인된 사실, 2026-11-28: 줄 고르기에서 '5,600억 / 원'으로 갈렸다)
+ */
+export function keepNumbers(s: string): string {
+  return s.replace(/(\d[\d,.]*[조억만천]?) (?=[\d,.]+[조억만천]?|원|달러|엔|위안|유로|명|개|건|곳|배|포인트)/g, "$1 ");
+}
+
+/**
  * 흐름 탭 이름: 그 흐름이 짚는 관심(whoOf). 관심이 없거나 다른 흐름과 겹치면 흐름 제목으로(같은 이름 탭이 둘이면 어느 카드인지 모른다)
  */
 export function tabLabels(flows: { title: string; links?: string[] }[]): string[] {
